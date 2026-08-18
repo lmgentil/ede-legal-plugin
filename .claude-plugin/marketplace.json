@@ -1,0 +1,15 @@
+{
+  "name": "ede",
+  "owner": {
+    "name": "Luiz Mario Gentil da Silva Neto",
+    "email": "lmgentilnt@gmail.com"
+  },
+  "description": "Marketplace do EDE Legal Plugin — elaboração assistida de peças processuais para defesa de distribuidoras de energia elétrica (Contestação, RAG jurídico, Template Lock institucional).",
+  "plugins": [
+    {
+      "name": "ede-legal-plugin",
+      "source": "./",
+      "description": "Plugin jurídico para elaboração assistida de peças processuais: Contestação com Reconvenção (irregularidade/fraude em medição de energia), RAG jurídico próprio, validação de citações e Template Lock institucional."
+    }
+  ]
+}

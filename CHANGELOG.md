@@ -9,7 +9,103 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ### Bloqueado
 - **PEND-001** (ver `docs/PENDENCIAS.md`) bloqueia o início da Fase 7 —
-  resolução obrigatória antes disso, não depois. Nada bloqueia a Fase 5.
+  resolução obrigatória antes disso, não depois. Nada bloqueia a Fase 6.
+
+## [0.5.0] - 2026-08-18 — Fase 5 (Validação Jurídica)
+
+Adiciona a camada que transforma o que o RAG recupera em conhecimento
+juridicamente verificável e rastreável (SPEC-0001 §5-30): `rag/legal_validation/`,
+desacoplada de `rag/search_hybrid.py` (ver `ADR-0007`). Regra central:
+recuperar um trecho relevante não significa que ele esteja automaticamente
+autorizado para citação — RECUPERADO ≠ VALIDADO.
+
+### Adicionado — Fase 5 (Validação Jurídica)
+- `rag/legal_validation/models.py` — modelo canônico de fonte jurídica
+  (`fonte_juridica()`, SPEC-0001 §9) e os três eixos independentes:
+  `VALIDATION_STATUS` (existência/correspondência textual da citação),
+  `VIGENCIA_STATUS` (estado temporal da norma) e `AUTHORITY_LEVELS`
+  (autoridade da fonte) — nunca colapsados num único booleano.
+- `rag/legal_validation/citation_parser.py` — `parse_citacao()`: extrai
+  artigo/parágrafo/inciso/alínea/diploma de uma citação em texto livre,
+  reaproveitando `detect_articles()`/`CORPUS_HINTS` de `search_hybrid.py`
+  (não duplicado).
+- `rag/legal_validation/citation_validator.py` — `validar_citacao()`
+  (REQ-027/028): resolve a citação contra `index_artigos.json` (lido
+  direto, sem instanciar `HybridSearcher`), extrai o bloco de texto real
+  do artigo/parágrafo/inciso e confere correspondência exata — nunca por
+  proximidade semântica. `enriquecer_resultados()` (REQ-024/025/026):
+  envolve a saída de `HybridSearcher.query()`/`search()` no modelo
+  canônico, com `validation_status` derivado do tipo de correspondência
+  (`indice_artigos` = correspondência exata; `hibrida` = relevância, não
+  validação).
+- `rag/legal_validation/source_authority.py` — `classificar_autoridade()`
+  (REQ-025): determinística, configurável via `rag/config.yaml`
+  (`validacao_juridica.autoridade_por_corpus`); corpus fora do mapa cai em
+  `NAO_VERIFICADA` (fail closed).
+- `rag/legal_validation/temporal_status.py` — `vigencia_de()` (REQ-026):
+  sempre `NAO_VERIFICADA` hoje — decisão deliberada e documentada, não uma
+  lacuna esquecida (nenhuma fonte real de verificação temporal existe na
+  infraestrutura atual).
+- `rag/legal_validation/provenance.py` — `proveniencia()` (REQ-029):
+  corpus + arquivo + caminho relativo + diploma + dispositivo, para toda
+  fonte validada/enriquecida.
+- `docs/adr/ADR-0007-camada-validacao-juridica.md` — decisão da separação
+  Retrieval ≠ Legal Validation.
+- `tests/test_legal_validation.py` — 24 testes (mesmo padrão sem
+  framework): metadados completos/parciais/enum inválido, autoridade
+  oficial/desconhecida, vigência sempre não verificada, citação existente/
+  inexistente/inciso correto/incorreto/parágrafo correto/inexistente/
+  diploma correto/incompatível/abreviada/ambígua, anti-hallucination
+  (`art. 9999`), incompatibilidade de inciso por proximidade, separação
+  score-alto ≠ validado. Usa exclusivamente o corpus legislativo público —
+  nenhuma fixture toca `rag/jurisprudencia/` (PEND-002/ADR-0006).
+- `rag/config.yaml`: nova seção `validacao_juridica.autoridade_por_corpus`
+  (REQ-044).
+
+### Testado
+- `python tests/test_legal_validation.py` — 24/24.
+- `python tests/test_rag_search.py` — 8/8 (sem regressão).
+- `python rag/avaliar_recuperacao.py` — top-1 75% (18/24), top-3 88%
+  (21/24) — idêntico ao baseline, `legal_validation` não altera
+  `search_hybrid.py`.
+- `python tests/test_template_engine.py` — 10/10 (subsistema não tocado).
+- `claude plugin validate .` — sem novos warnings.
+
+### Status dos requisitos da Fase 5
+- **REQ-024** (metadados) — `[PARCIAL]`: a *estrutura* suporta todos os
+  campos (`fonte_juridica()`); os corpora legislativos *preenchem*
+  id/diploma/norma/artigo/parágrafo/inciso/alínea/texto/fonte. `url` e
+  `data_verificacao` ficam `None` — nenhum dos dois é derivável com
+  segurança do corpus atual (nenhum compilado traz URL por artigo; nenhuma
+  verificação foi de fato executada) — `None` explícito, não inventado.
+- **REQ-025** (autoridade de fontes) — `[PRONTO]` para os 6 corpora
+  legislativos (todos `OFICIAL`, configurável); `[AUSENTE]` para
+  jurisprudência (PEND-002, corpus não indexado).
+- **REQ-026** (vigência) — `[PRONTO]` como *mecanismo* (estado explícito,
+  fail closed); todo o corpus está, por design, em `NAO_VERIFICADA` — não
+  há, hoje, nenhuma fonte real de verificação temporal integrada.
+- **REQ-027** (verificação obrigatória de citação) — `[PRONTO]`:
+  `validar_citacao()` só devolve `VALIDADA` com correspondência exata de
+  texto.
+- **REQ-028** (citação não encontrada) — `[PRONTO]`: `NAO_VALIDADA` +
+  sugestão opcional (nunca promovida) via busca híbrida direcionada.
+- **REQ-029** (proveniência jurídica) — `[PRONTO]` para os 6 corpora
+  legislativos.
+- **REQ-030** (proveniência factual) — `[PARCIAL]`, por design: proveniência
+  factual pertence ao pipeline processual (extração de fatos de
+  documentos do processo), que é escopo da Fase 6 — Contestação, não
+  desta fase. Nenhuma extração de fatos foi implementada aqui.
+
+### Pendências conhecidas
+- `PEND-001` e `PEND-002` inalteradas (ver `docs/PENDENCIAS.md`).
+- REQ-024 (`url`, `data_verificacao`) e REQ-026 (vigência real) só evoluem
+  se/quando uma fonte externa de verificação for integrada — fora do
+  escopo desta fase (nenhum serviço externo foi consultado).
+- Camada de sugestão de candidato (§16) importa `HybridSearcher` sob
+  demanda; se os módulos de embeddings não estiverem instalados,
+  degrada para `sugestao: None` silenciosamente — mesmo estilo de
+  degradação já usado em `search_hybrid.py`, mas vale registrar que
+  `validar_citacao(..., sugerir_candidato=True)` nunca falha por isso.
 
 ## [0.4.0] - 2026-08-18 — Fase 4 (RAG Jurídico)
 

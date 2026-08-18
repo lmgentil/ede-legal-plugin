@@ -61,6 +61,13 @@ python search_hybrid.py "art. 373 CPC"
 
 ## Histórico
 
+- Fase 5 (2026-08-18, EDE Legal Plugin): nova camada `legal_validation/`
+  (desacoplada deste módulo — ver `ADR-0007`), com `validar_citacao()`
+  para conferir uma referência jurídica (artigo/parágrafo/inciso/alínea)
+  contra o texto real do corpus, e `enriquecer_resultados()` para anexar
+  autoridade/vigência/proveniência aos resultados de `search_hybrid.py`.
+  Nada neste arquivo (`search_hybrid.py`) foi alterado por esta fase —
+  `legal_validation` só lê `index_artigos.json` e os chunks diretamente.
 - Fase 4 (2026-08-18, EDE Legal Plugin): `search_hybrid.py` passou a ler
   `rag/config.yaml` (REQ-044) em vez de constantes hardcoded — mesmos
   valores, sem mudança de comportamento (validado contra `gold_set.json`:

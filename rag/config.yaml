@@ -47,3 +47,17 @@ diretorios:
 
 logging:
   nivel: INFO
+
+# Fase 5 — Validação Jurídica (rag/legal_validation/). REQ-025: autoridade
+# é propriedade da FONTE (compilado oficial? enunciado? fonte secundária?),
+# nunca da vigência da norma (isso é outro eixo, sempre NAO_VERIFICADA hoje
+# — ver rag/legal_validation/temporal_status.py). Corpus fora deste mapa
+# cai em NAO_VERIFICADA (fail closed), nunca um nível inventado.
+validacao_juridica:
+  autoridade_por_corpus:
+    CPC: OFICIAL       # compilado Planalto
+    CC: OFICIAL         # compilado Planalto
+    CDC: OFICIAL        # compilado Planalto
+    L8987: OFICIAL      # compilado Planalto
+    L9427: OFICIAL      # compilado Planalto
+    REN1000: OFICIAL    # publicada pela ANEEL

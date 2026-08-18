@@ -10,20 +10,26 @@ O primeiro módulo processual suportado é a **Contestação**. A arquitetura é
 projetada para permanecer extensível a outros tipos de peça — ver
 [`CLAUDE.md`](./CLAUDE.md) e [`docs/specs/SPEC-0001.md`](./docs/specs/SPEC-0001.md).
 
-## Status atual (v0.1.0 — Fase 1 de 9)
+## Status atual (v0.3.0 — Fase 3 de 9 aprovada)
 
-🚧 **Em desenvolvimento. A geração de Contestação ainda não está funcional.**
+🚧 **Em desenvolvimento. A geração de Contestação ainda não está funcional
+de ponta a ponta (falta a Skill orquestradora, Fase 6).**
 
 | Camada | Status |
 |---|---|
-| Estrutura do plugin, versionamento, segurança básica | ✅ Fase 1 (esta versão) |
-| Skills transversais (redator, humanizer, calendário) | ⏳ Fase 2 |
-| Template Engine + Template Lock | ⏳ Fase 3 (bloqueada até o `.docx` institucional ser fornecido) |
+| Estrutura do plugin, versionamento, segurança básica | ✅ Fase 1 |
+| Skills transversais (redator, humanizer, calendário) | ✅ Fase 2 |
+| Template Engine + Template Lock | ✅ Fase 3 — ver pendência PEND-001 abaixo |
 | RAG jurídico | 🟡 Parcialmente pronto — ver abaixo |
-| Skill Contestação | ⏳ Fase 6 |
+| Validação jurídica (citações, vigência, rastreabilidade) | ⏳ Fase 5 |
+| Skill Contestação (orquestração ponta a ponta) | ⏳ Fase 6 |
 
 O progresso por fase é controlado por gates explícitos — ver `CLAUDE.md §4`.
 Nenhuma fase é iniciada sem autorização.
+
+> **PEND-001** (`docs/PENDENCIAS.md`): suporte a imagem embutida no
+> placeholder `FOTOS_DA_IRREGULARIADE` ainda não implementado — hoje só
+> aceita texto. Resolução obrigatória antes da Fase 7.
 
 ## RAG jurídico (já funcional)
 
@@ -55,6 +61,7 @@ Detalhes em [`rag/CONTEXTO_RAG.md`](./rag/CONTEXTO_RAG.md).
 - [`CLAUDE.md`](./CLAUDE.md) — regras operacionais permanentes do agente.
 - [`docs/specs/SPEC-0001.md`](./docs/specs/SPEC-0001.md) — especificação da Arquitetura v1.
 - [`docs/adr/`](./docs/adr/) — decisões arquiteturais registradas.
+- [`docs/PENDENCIAS.md`](./docs/PENDENCIAS.md) — pendências abertas com ID rastreável e fase de bloqueio.
 - [`CHANGELOG.md`](./CHANGELOG.md) — histórico de mudanças.
 
 ## Licença

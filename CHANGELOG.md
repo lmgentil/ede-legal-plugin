@@ -8,14 +8,16 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Bloqueado
-- Nada bloqueado no momento para a Fase 4 — ver pendências da Fase 3 abaixo.
+- **PEND-001** (ver `docs/PENDENCIAS.md`) bloqueia o início da Fase 7 —
+  resolução obrigatória antes disso, não depois. Nada bloqueia a Fase 4.
 
-## [0.3.0] - 2026-08-18
+## [0.3.0] - 2026-08-18 — Fase 3 aprovada
 
 Resolve a "Atenção — divergência de arquitetura" que ficava pendente na
 versão anterior: o usuário escolheu a arquitetura híbrida (placeholder +
 edição direta de OOXML) e confirmou que o `.docx` oficial já existia,
-totalmente estruturado.
+totalmente estruturado. **Fase 3 — Template Engine: encerrada e aprovada
+pelo usuário em 2026-08-18.**
 
 ### Adicionado — Fase 3 (Template Engine)
 - `templates/contestacao/modelo-oficial.docx` — movido de
@@ -75,9 +77,10 @@ totalmente estruturado.
   conteúdo real.
 
 ### Pendências conhecidas
-- `FOTOS_DA_IRREGULARIADE`: tratado como texto/legenda; inserção real de
-  imagem embutida (drawing/blip) não implementada nesta fase — não ficou
-  claro pela auditoria se o campo espera foto de fato.
+- **PEND-001** (registrada formalmente em `docs/PENDENCIAS.md`, bloqueia a
+  Fase 7): `FOTOS_DA_IRREGULARIADE` tratado como texto/legenda; inserção
+  real de imagem embutida (drawing/blip) não implementada nesta fase — não
+  ficou claro pela auditoria se o campo espera foto de fato.
 - Nó `<w:t>` com mais de um placeholder não é suportado (nenhum caso assim
   existe no DOCX real; falha explícita se acontecer).
 - Nenhuma seção condicional (`INV-008`) foi encontrada no DOCX — Template

@@ -101,6 +101,8 @@ Código não deve se tornar arquitetura por acidente.
 
 ## 7. Skills obrigatórias
 
+### 7.1. Dependências transversais (toda peça processual)
+
 Toda elaboração de peça processual deverá utilizar:
 
 `redator-peca-processual-elite`
@@ -109,7 +111,104 @@ e:
 
 `humanizer-pt-br`
 
-Para Contestação, essas dependências são obrigatórias.
+Essas duas são dependências transversais obrigatórias de redação —
+aplicam-se a qualquer peça, não só à Contestação. Nenhuma Skill
+processual específica (`contestacao` e as que vierem depois) deverá
+duplicar integralmente as responsabilidades delas; a Skill processual
+orquestra, não redige nem humaniza por conta própria.
+
+### 7.2. Dependências específicas por tipo de peça
+
+Além das transversais, cada tipo de peça pode ter dependências próprias,
+específicas daquele tipo — não generalizadas para as demais. Hoje:
+
+```text
+Contestação
+→ estrategista-contestacao-ede
+```
+
+Isso deverá permitir, no futuro, estruturas equivalentes para outras
+peças (ex.: um eventual `estrategista-recurso-inominado-ede` para Recurso
+Inominado, uma Skill estratégica própria para Embargos de Declaração),
+**sem** tornar `estrategista-contestacao-ede` dependência de peças
+diferentes de Contestação.
+
+Para Contestação, especificamente, toda elaboração deverá utilizar
+obrigatoriamente as três:
+
+`estrategista-contestacao-ede`
+`redator-peca-processual-elite`
+`humanizer-pt-br`
+
+`estrategista-contestacao-ede` é dependência obrigatória — não deve ser
+descrita nem tratada como opcional, recomendada, facultativa ou
+complementar. Ver `INV-CONTESTACAO-ESTRATEGIA` (SPEC-0001 §5).
+
+A Skill `contestacao` é a orquestradora do fluxo — responsável por
+acioná-las na ordem certa e consumir a saída de cada uma, sem absorver
+integralmente as responsabilidades de nenhuma delas:
+
+* `estrategista-contestacao-ede` — análise estratégica da demanda:
+  decomposição da narrativa autoral, identificação das controvérsias,
+  matriz de impugnação, teses defensivas, riscos, lacunas documentais,
+  direcionamento estratégico da defesa.
+* `redator-peca-processual-elite` — construção e redação técnico-jurídica
+  da peça a partir dos fatos, da estratégia e dos fundamentos
+  juridicamente admitidos pelo pipeline.
+* `humanizer-pt-br` — tratamento linguístico final, preservando fatos,
+  estratégia, fundamentos, citações, valores, dados processuais e sentido
+  jurídico; não cria fatos nem modifica substancialmente a estratégia
+  definida.
+
+### Invariante — Estratégia obrigatória da Contestação
+
+Toda elaboração de Contestação deverá executar obrigatoriamente a Skill
+`estrategista-contestacao-ede` antes da etapa de redação.
+
+A Skill `contestacao` deverá atuar como orquestradora desse fluxo e não
+poderá:
+
+* suprimir a etapa estratégica;
+* substituir silenciosamente o estrategista;
+* tratar sua execução como opcional;
+* iniciar a redação definitiva sem que a etapa estratégica tenha sido
+  concluída.
+
+Falha ou indisponibilidade da Skill estratégica deverá ser explicitamente
+reportada. Não implementar fallback silencioso que produza a Contestação
+como se a etapa estratégica tivesse ocorrido.
+
+Formalizada na SPEC como `INV-CONTESTACAO-ESTRATEGIA` (SPEC-0001 §5).
+
+### Fluxo conceitual da Contestação
+
+```text
+Documentos do processo
+        ↓
+extração factual + proveniência
+        ↓
+estrategista-contestacao-ede
+        ↓
+estratégia defensiva
+        ↓
+RAG jurídico
+        ↓
+validação jurídica
+        ↓
+redator-peca-processual-elite
+        ↓
+humanizer-pt-br
+        ↓
+conteúdo autorizado dos placeholders
+        ↓
+Template Engine
+        ↓
+Contestação
+```
+
+Representação conceitual — não é uma prescrição literal de código; o que
+importa é a ordem e a separação de responsabilidades, já refletidas em
+`skills/contestacao/SKILL.md`.
 
 ---
 
@@ -118,6 +217,12 @@ Para Contestação, essas dependências são obrigatórias.
 Toda análise de tempestividade relativa ao TJBA em 2026 deverá utilizar:
 
 `calendario-forense-tjba-2026`
+
+Quando a questão estiver abrangida pelo escopo dessa Skill, sua utilização
+é obrigatória. Nenhuma Skill processual (`contestacao` incluída) deverá
+calcular autonomamente calendário forense — dias úteis, feriados,
+suspensões — quando `calendario-forense-tjba-2026` cobrir o caso; ela
+orquestra o acionamento, não reimplementa o cálculo.
 
 Não declare tempestividade sem dados suficientes.
 

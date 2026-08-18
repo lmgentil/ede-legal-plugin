@@ -27,9 +27,11 @@ de ponta a ponta (falta a Skill orquestradora, Fase 6).**
 O progresso por fase é controlado por gates explícitos — ver `CLAUDE.md §4`.
 Nenhuma fase é iniciada sem autorização.
 
-> **PEND-001** (`docs/PENDENCIAS.md`): suporte a imagem embutida no
-> placeholder `FOTOS_DA_IRREGULARIADE` ainda não implementado — hoje só
-> aceita texto. Resolução obrigatória antes da Fase 7.
+> **PEND-001** (`docs/PENDENCIAS.md`, status `DEFERRED` desde a correção
+> v0.6.1): suporte a imagem embutida no placeholder
+> `FOTOS_DA_IRREGULARIADE` não será automatizado na V1 — decisão explícita
+> do usuário. O campo recebe um marcador textual de inserção manual pelo
+> advogado. Não bloqueia mais a Fase 7.
 
 ## RAG jurídico (já funcional)
 

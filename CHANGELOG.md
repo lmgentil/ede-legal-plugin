@@ -8,9 +8,124 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Bloqueado
-- **PEND-001** (ver `docs/PENDENCIAS.md`) bloqueia o início da Fase 7 —
-  resolução obrigatória antes disso, não depois. Nada bloqueia a Fase 7 além
-  disso (Fase 6 encerrada abaixo).
+- Nenhuma pendência bloqueia o início da Fase 7 no momento (ver
+  `docs/PENDENCIAS.md`). `PEND-001` foi reclassificada como `DEFERRED` no
+  fechamento da correção v0.6.1 abaixo — deixou de bloquear.
+
+## [0.6.1] - 2026-08-18 — Correção arquitetural: estrategista-contestacao-ede passa a obrigatória + fechamento (PEND-001 DEFERRED)
+
+**Revoga** a decisão registrada em `[0.6.0]` abaixo, que tratava
+`estrategista-contestacao-ede` como etapa "recomendada, não uma
+dependência obrigatória". Por decisão explícita do usuário, ela passa a
+dependência **obrigatória** da elaboração de Contestação, no mesmo grau de
+`redator-peca-processual-elite` e `humanizer-pt-br`. O texto do registro
+`[0.6.0]` abaixo **não foi reescrito** — descreve fielmente a decisão
+vigente naquele momento; esta entrada é quem a substitui.
+
+### Alterado
+- `CLAUDE.md` §7 — reestruturado em "Dependências transversais" (redator +
+  humanizer, toda peça) vs. "Dependências específicas por tipo de peça"
+  (Contestação → `estrategista-contestacao-ede`, sem generalizar para
+  outras peças ainda inexistentes). Adicionado o bloco nomeado "Invariante
+  — Estratégia obrigatória da Contestação" e o fluxo conceitual
+  documentos → extração factual → estrategista → RAG → validação jurídica
+  → redator → humanizer → placeholders → Template Engine → Contestação.
+  §8 (Tempestividade) ganhou a ressalva de que nenhuma Skill processual
+  recalcula calendário forense por conta própria quando
+  `calendario-forense-tjba-2026` cobre o caso.
+- `docs/specs/SPEC-0001.md` §5 — REQ-002 (fluxo da Skill Contestação)
+  atualizado para incluir a etapa estratégica na ordem correta (após
+  extração factual e datas, antes do RAG); novo **REQ-002-A** (dependência
+  obrigatória do estrategista) com o bloco formal
+  **`INV-CONTESTACAO-ESTRATEGIA`**; TEST-005 e o checklist de critérios de
+  aceite da v1 (§37) atualizados para incluir `estrategista-contestacao-ede`
+  como obrigatória.
+- `skills/contestacao/SKILL.md` — reescrito: nova seção "0. Dependências
+  obrigatórias" no topo (lista parseável, usada pelo teste estrutural
+  abaixo); pipeline (§3) reordenado para extração factual → tempestividade
+  → **estrategista (obrigatório, pipeline para sem ele)** → RAG →
+  validação → redator → humanizer → placeholders — igual ao fluxo
+  formalizado no CLAUDE.md; §4 reescrita para deixar explícito que a etapa
+  NÃO pode ser dispensada por "caso simples" (linguagem antiga removida) e
+  que falha/ausência do estrategista deve ser reportada, nunca contornada
+  com uma análise resumida ad-hoc.
+
+### Adicionado
+- `tests/test_contestacao_skill_dependencies.py` (novo, 8 testes) — guarda
+  estrutural: lê o conteúdo real de `skills/contestacao/SKILL.md` (não só
+  confere que o diretório existe) e falha se `estrategista-contestacao-ede`
+  deixar de estar declarada como obrigatória, se `redator-peca-processual-elite`/
+  `humanizer-pt-br` deixarem de estar, se qualquer linha que mencione o
+  estrategista usar linguagem de "opcional/recomendada/facultativa/
+  dispensável", se a etapa estratégica deixar de preceder a redação no
+  arquivo, ou se a declaração de Fail Closed (sem fallback silencioso)
+  desaparecer. Verificado manualmente que o teste detecta a regressão:
+  reintroduzir "recomendada" na linha do estrategista faz
+  `test_estrategista_declarado_como_obrigatorio` falhar.
+
+### Auditoria de consistência
+Buscadas ocorrências de "opcional"/"recomendada"/"recomendado"/
+"facultativa"/"facultativo" associadas a `estrategista-contestacao-ede`
+em todo o repositório. Resultado: só existiam em `CLAUDE.md`,
+`skills/contestacao/SKILL.md` e `docs/specs/SPEC-0001.md` — todas
+corrigidas nesta entrada. As três ocorrências remanescentes estão no
+registro histórico `[0.6.0]` abaixo (mantido intacto, é fato histórico) e
+em `skills/estrategista-contestacao-ede/SKILL.md:201` ("Preliminares
+recomendadas" — cabeçalho de seção do template de saída da própria skill,
+sobre teses jurídicas recomendadas ao advogado; não descreve a skill em
+si, conteúdo do usuário, não alterado). Nenhum ADR versionado menciona a
+skill — nenhum ADR precisou de correção.
+
+### PEND-001 — reclassificação (fechamento desta correção)
+
+Decisão superveniente do usuário: **na V1, fotografias da irregularidade
+não são inseridas automaticamente** — inserção manual pelo advogado após a
+geração do DOCX. Detalhe completo em `docs/PENDENCIAS.md`
+("Decisão superveniente", seção `PEND-001`).
+
+- `docs/PENDENCIAS.md` — `PEND-001`: `ABERTA` → **`DEFERRED`**; deixa de
+  bloquear a Fase 7. Nova seção "Decisão superveniente" documenta a
+  escolha (texto/marcador manual, não imagem embutida) sem reescrever o
+  registro histórico da Fase 3 (Contexto/Risco/Critério de resolução
+  originais preservados intactos).
+- `templates/contestacao/schema.json` — bloco aditivo
+  `placeholder_semantics.FOTOS_DA_IRREGULARIADE` (`tratamento_v1:
+  "manual_post_edit"`). **Não altera** `editable_placeholders` — o único
+  campo que `docx_template_engine.py`/`validate_placeholders.py` de fato
+  leem (confirmado lendo o código antes de editar); nenhuma mudança
+  funcional do Template Engine, nenhuma implementação de `<w:drawing>`,
+  relação de mídia, upload ou seleção automática de fotografia.
+- `docs/specs/SPEC-0001.md` §21 (gate de entrada da Fase 7) e `README.md`
+  atualizados: `PEND-001` não bloqueia mais.
+- `skills/contestacao/SKILL.md` (§1, §9, §10) — placeholder
+  `FOTOS_DA_IRREGULARIADE` documentado como marcador textual de pós-edição
+  manual (ex.: `"[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]"`),
+  não legenda da irregularidade nem imagem embutida.
+- **Preservado, sem reescrita:** o registro `[0.6.0]` abaixo, e a entrada
+  `[0.3.0]` que originou `PEND-001` — ambos verdadeiros no contexto da
+  versão em que foram escritos.
+
+### Testado
+- `python tests/test_contestacao_skill_dependencies.py` — 8/8.
+- `python tests/test_validate_fatos.py` — 12/12 (sem regressão).
+- `python tests/test_legal_validation.py` — 24/24 (sem regressão).
+- `python tests/test_rag_search.py` — 8/8 (sem regressão).
+- `python rag/avaliar_recuperacao.py` — top-1 75%/top-3 88% (sem regressão,
+  RAG não foi tocado por esta correção).
+- `python tests/test_template_engine.py` — 10/10 (sem regressão — inclui o
+  teste de ponta a ponta contra o DOCX real, confirmando que o campo
+  aditivo em `schema.json` não afeta Template Lock/renderização).
+- `claude plugin validate .` — sem novos warnings.
+
+### Não feito nesta correção (por instrução explícita)
+- Fase 7 não iniciada.
+- RAG não alterado; MCP não implementado.
+- Nenhuma implementação multimídia (upload, seleção, `<w:drawing>`,
+  relação de mídia) — `PEND-001` fechada pelo caminho "texto", não "imagem".
+- `PEND-002` não retomada; `rag/jurisprudencia/` não lido em massa,
+  indexado, movido, sanitizado, copiado ou usado como fixture.
+- Template Engine e DOCX oficial não alterados funcionalmente.
+- Nenhum código não relacionado foi refatorado.
 
 ## [0.6.0] - 2026-08-18 — Fase 6 (Contestação)
 

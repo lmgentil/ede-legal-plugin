@@ -20,5 +20,12 @@
     "LOCAL_DATA"
   ],
   "_nota_auditoria_fase3": "Lista extraída por auditoria direta do DOCX (não da versão original da SPEC-0001 REQ-014, que previa TIPO_ACAO/TITULO_TESE_FATICA/VALOR_DANO_MORAL — nenhum dos três existe neste template real). SPEC-0001 e CLAUDE.md foram atualizados para refletir este contrato. Ver docs/adr ou CHANGELOG para o registro da divergência.",
-  "_nota_fotos": "FOTOS_DA_IRREGULARIADE (nome com erro de digitação no próprio DOCX, mantido literal) é tratado como texto/legenda pela engine atual — inserção de imagem embutida não está implementada nesta fase; sinalizado como pendência."
+  "_nota_fotos": "FOTOS_DA_IRREGULARIADE (nome com erro de digitação no próprio DOCX, mantido literal) é tratado como texto/legenda pela engine atual. Decisão da V1 (correção v0.6.1, PEND-001 DEFERRED): a inserção de imagem embutida não será automatizada nesta versão — o campo recebe um marcador textual indicando pós-edição manual pelo advogado. Ver placeholder_semantics abaixo e docs/PENDENCIAS.md.",
+  "placeholder_semantics": {
+    "FOTOS_DA_IRREGULARIADE": {
+      "tratamento_v1": "manual_post_edit",
+      "descricao": "Campo textual — não recebe imagem embutida automaticamente na V1. O valor gerado deve ser um marcador explícito instruindo o advogado a inserir manualmente as fotografias da irregularidade após a geração do DOCX (ex.: \"[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]\"), não uma descrição textual da irregularidade em si (essa é IRREGULARIDADE_ENCONTRADA). Campo puramente informativo — não lido pelo Template Engine (docx_template_engine.py só consome 'editable_placeholders'); documenta a semântica para quem gerar os valores dos placeholders (skills/contestacao/SKILL.md).",
+      "referencia": "PEND-001 (docs/PENDENCIAS.md) — status DEFERRED, não bloqueia mais a Fase 7"
+    }
+  }
 }

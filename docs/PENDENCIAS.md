@@ -14,16 +14,18 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 
 | ID | Status | Aberta na | Bloqueia | Descrição |
 |---|---|---|---|---|
-| PEND-001 | ABERTA | Fase 3 | Fase 7 | Suporte multimídia ao placeholder `FOTOS_DA_IRREGULARIADE` |
+| PEND-001 | DEFERRED | Fase 3 | Nenhuma (deferida por decisão do usuário — correção v0.6.1) | Suporte multimídia ao placeholder `FOTOS_DA_IRREGULARIADE` |
 | PEND-002 | ABERTA | Fase 4 | Nenhuma (adiada por decisão do usuário) | Indexação de jurisprudência (REQ-018) na busca híbrida |
 
 ---
 
 ## PEND-001 — Suporte multimídia ao placeholder `FOTOS_DA_IRREGULARIADE`
 
-**Status:** ABERTA
+**Status:** DEFERRED (decisão superveniente em 2026-08-18 — correção
+arquitetural v0.6.1; ver seção "Decisão superveniente" abaixo)
 **Aberta em:** Fase 3 (auditoria de `templates/contestacao/modelo-oficial.docx`)
-**Bloqueia:** Fase 7 — End-to-End (resolução obrigatória antes de iniciar)
+**Bloqueava:** Fase 7 — End-to-End, até a decisão superveniente abaixo.
+**Bloqueia agora:** nenhuma fase.
 
 ### Contexto
 
@@ -72,11 +74,54 @@ de Fail Closed (`CLAUDE.md §17`, `SPEC-0001 INV-006`).
 5. Adicionar teste de regressão cobrindo o caminho escolhido em
    `tests/test_template_engine.py`.
 
+### Decisão superveniente (2026-08-18 — correção arquitetural v0.6.1)
+
+Resolve o item 1 do "Critério de resolução" acima: confirmado com o
+usuário que, **na V1**, o campo `FOTOS_DA_IRREGULARIADE` **não** recebe
+inserção automática de imagem. Fotografias da irregularidade serão
+inseridas **manualmente pelo advogado**, no DOCX já gerado, depois que a
+Contestação sair do plugin.
+
+Isso corresponde à alternativa **(a) texto**, não (b) imagem — mas com uma
+nuance sobre o próprio conteúdo do texto: o valor gerado para este
+placeholder não deve ser uma legenda/descrição da irregularidade (isso já
+é o conteúdo de `IRREGULARIDADE_ENCONTRADA`), e sim um **marcador
+operacional explícito de pós-edição manual**, por exemplo:
+
+```text
+[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]
+```
+
+Consequências, aplicando literalmente o item 3 do "Critério de resolução"
+("Se texto: nenhuma mudança de código necessária"):
+
+* **Nenhuma mudança de código no Template Engine.** `docx_template_engine.py`
+  já trata este campo como texto simples desde a Fase 3 — o comportamento
+  atual já satisfaz a decisão. Nenhuma implementação de `<w:drawing>`,
+  relacionamento de mídia, upload ou seleção automática de fotografia foi
+  feita, nem está planejada para a V1.
+* `templates/contestacao/schema.json` ganhou um bloco aditivo
+  `placeholder_semantics.FOTOS_DA_IRREGULARIADE` (não altera
+  `editable_placeholders`, que é o único campo lido pelo Template Engine —
+  confirmado sem regressão em `tests/test_template_engine.py`, 10/10)
+  documentando o `tratamento_v1: "manual_post_edit"` e a semântica do
+  marcador esperado.
+* `skills/contestacao/SKILL.md` (§9, mapeamento de placeholders) atualizado
+  para refletir o marcador manual em vez de "texto/legenda... PEND-001
+  aberta".
+* Suporte multimídia automático **pode** ser reconsiderado em versão
+  futura, mas nenhuma implementação foi antecipada nesta correção.
+* Esta pendência **deixa de bloquear a Fase 7** — o gate de entrada da
+  Fase 7 em `docs/specs/SPEC-0001.md` §21 foi atualizado de acordo.
+
 ### Fechamento
 
-Em aberto. Ao resolver, mover a linha da tabela acima para
-"RESOLVIDA (Fase N)", preencher a decisão tomada nesta seção, e referenciar
-o commit/PR correspondente.
+**DEFERRED em 2026-08-18** (correção v0.6.1) — decisão tomada e
+documentada acima; nenhuma implementação de código foi necessária
+(caminho "texto" do critério de resolução original). Diferente de
+"RESOLVIDA": não houve entrega de funcionalidade multimídia, e sim a
+decisão explícita de que a V1 não a terá — automação continua em aberto
+para avaliação futura, sem prazo.
 
 ---
 

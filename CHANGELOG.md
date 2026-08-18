@@ -9,7 +9,103 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ### Bloqueado
 - **PEND-001** (ver `docs/PENDENCIAS.md`) bloqueia o início da Fase 7 —
-  resolução obrigatória antes disso, não depois. Nada bloqueia a Fase 6.
+  resolução obrigatória antes disso, não depois. Nada bloqueia a Fase 7 além
+  disso (Fase 6 encerrada abaixo).
+
+## [0.6.0] - 2026-08-18 — Fase 6 (Contestação)
+
+### Auditoria prévia — conflito identificado
+
+`Contestacao - Skill.skill` (arquivo solto na raiz do repositório, .zip,
+não versionado) continha uma skill do usuário já pronta:
+`estrategista-contestacao-ede`. Ela **não é** a "Skill Contestação" que a
+SPEC-0001 REQ-002 define (`skills/contestacao/SKILL.md`, responsável por
+orquestrar identificação de documentos → extração → fatos → pedidos →
+datas → tempestividade → RAG → Skills transversais → placeholders →
+renderização → validação). É uma skill de **análise estratégica**
+upstream: decompõe a inicial, define teses/preliminares/riscos e entrega
+uma "ANÁLISE ESTRATÉGICA" em Markdown — o próprio `SKILL.md` dela declara
+explicitamente que não redige a peça e que espera ser sucedida por
+`redator-peca-processual-elite` **ou** por "a skill `contestacao` do
+plugin `contestacao-ede`" (preenchimento do Modelo Oficial).
+
+Ou seja: o próprio pacote do usuário já pressupõe a existência do
+orquestrador REQ-002 como uma peça separada, ainda não escrita. Não havia
+conflito de conteúdo (a skill é tecnicamente sólida, alinhada com
+CLAUDE.md §9/§12 — nunca inventa jurisprudência/número de processo, usa
+`"NÃO INFORMADO NOS ELEMENTOS DISPONIBILIZADOS."` e `"PESQUISA
+JURISPRUDENCIAL NECESSÁRIA."` como os próprios marcadores de Fail Closed
+deste projeto), só uma peça faltante na arquitetura. Resolução: instalada
+verbatim como `skills/estrategista-contestacao-ede/` (mesmo tratamento das
+skills reais do usuário na Fase 2 — não regenerada) e
+`skills/contestacao/SKILL.md` escrito como o orquestrador REQ-002 que a
+invoca como etapa recomendada (não uma das duas obrigatórias do CLAUDE.md
+§7). Divergência menor, não corrigida por ser conteúdo do usuário: o
+`SKILL.md` da `estrategista` cita "o plugin `contestacao-ede`" — nome
+antigo/informal do que este repositório chama de "EDE Legal Plugin";
+cosmético, não afeta funcionamento. Nenhum dado de cliente real encontrado
+nos 7 arquivos do pacote (checado antes de instalar).
+
+### Adicionado — Fase 6 (Contestação)
+- `skills/contestacao/SKILL.md` (novo) — orquestrador REQ-002: pipeline
+  completo (REQ-031) mapeado para os componentes reais do repositório —
+  extração factual com proveniência (REQ-030), tempestividade
+  (`calendario-forense-tjba-2026`), RAG (`search_hybrid.py`) + validação de
+  citações (`legal_validation.validar_citacao`, Fase 5), análise
+  estratégica (`estrategista-contestacao-ede`, recomendada), redator +
+  humanizer (obrigatórias, CLAUDE.md §7), e tabela de mapeamento dos 13
+  placeholders → origem do valor. **Não executa o fluxo fim-a-fim nesta
+  fase** — isso é Fase 7, que segue com gate em `PEND-001`.
+- `skills/estrategista-contestacao-ede/` (novo) — skill do usuário, 7
+  arquivos, instalada verbatim (SKILL.md + 6 references/).
+- `scripts/validate_fatos.py` (novo, REQ-030) — valida estruturalmente uma
+  lista de fatos extraídos: `source_document` obrigatório e não vazio,
+  `confidence` (se presente) em `[0, 1]`, `page` (se presente) inteiro.
+  Fail closed: fato sem proveniência não passa. A extração em si continua
+  sendo tarefa do agente (compreensão de texto), não deterministicamente
+  automatizável — este script só audita o formato do que foi extraído.
+- `tests/test_validate_fatos.py` (novo) — 12 testes.
+
+### Corrigido
+- `.claude-plugin/plugin.json`: campo `version` estava parado em `0.3.0`
+  desde a Fase 3 — não foi atualizado nas Fases 4/5 (esquecimento,
+  registrado aqui em vez de corrigido silenciosamente). Sincronizado com
+  `VERSION` (`0.6.0`).
+
+### Testado
+- `python tests/test_validate_fatos.py` — 12/12.
+- `python tests/test_legal_validation.py` — 24/24 (sem regressão).
+- `python tests/test_rag_search.py` — 8/8 (sem regressão).
+- `python rag/avaliar_recuperacao.py` — top-1 75% (18/24), top-3 88%
+  (21/24) — idêntico ao baseline.
+- `python tests/test_template_engine.py` — 10/10 (sem regressão).
+- `claude plugin validate .` — sem novos warnings.
+
+### Status dos requisitos da Fase 6
+- **REQ-002** (Skill Contestação) — `[PRONTO]` como orquestração
+  documentada; **não exercida** contra um caso real nesta fase.
+- **REQ-003/REQ-004** (redator/humanizer obrigatórios) — `[PRONTO]`,
+  reafirmado no pipeline (§8 do SKILL.md).
+- **REQ-005** (tempestividade aciona o calendário) — `[PRONTO]` no
+  pipeline (§6); depende de dados reais do caso para ser exercido.
+- **REQ-030** (proveniência factual) — `[PRONTO]` como contrato +
+  validador (`validate_fatos.py`); a extração real depende de documentos
+  de um caso concreto (Fase 7).
+- **REQ-031** (pipeline mínimo) — `[PRONTO]` como definição; execução
+  fim-a-fim é Fase 7.
+
+### Pendências conhecidas
+- `PEND-001` e `PEND-002` inalteradas — nenhuma das duas foi resolvida
+  nesta fase, por instrução explícita.
+- `skills/estrategista-contestacao-ede/` não foi adicionada à lista de
+  Skills transversais obrigatórias do CLAUDE.md §7/SPEC-0001 REQ-003/004
+  — é recomendada, não obrigatória; se o usuário decidir torná-la
+  obrigatória para este tipo de caso, isso é uma decisão de CLAUDE.md/SPEC
+  a registrar explicitamente, não presumida aqui.
+- Nenhum teste desta fase exercita `skills/contestacao/SKILL.md` contra um
+  caso real (arquivo de instruções para o agente, não código) — a
+  validação aplicável é `claude plugin validate .`, igual às demais Skills
+  do projeto.
 
 ## [0.5.0] - 2026-08-18 — Fase 5 (Validação Jurídica)
 

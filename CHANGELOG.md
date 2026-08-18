@@ -8,8 +8,119 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Bloqueado
-- **PEND-001** (`DEFERRED`) e **PEND-002** (`ADIADA`) — nenhuma bloqueia a
-  Fase 8. Nada mais bloqueia no momento (ver `docs/PENDENCIAS.md`).
+- Nenhuma pendência bloqueia a Fase 9 tecnicamente. `PEND-004` bloqueia
+  **publicação externa** (não o trabalho técnico local) — ver
+  `docs/PENDENCIAS.md`.
+
+## [0.8.0] - 2026-08-18 — Fase 8 (Distribuição, Instalação e Atualização)
+
+Torna o EDE Legal Plugin instalável/atualizável via Claude Code Plugin
+Marketplace, sem exigir Git do usuário final. Testado de ponta a ponta
+**de verdade** nesta máquina (não simulado): marketplace adicionado,
+plugin instalado, componentes conferidos, atualização 0.7.0→0.8.0
+aplicada e confirmada.
+
+### Auditoria prévia
+Sem remote git configurado (`git remote -v` vazio) — repositório
+local-only até aqui; nada publicado. Documentação oficial do Claude Code
+consultada (não memória/exemplo de terceiros — SPEC-0001 Fase 8 §61) via
+agente `claude-code-guide` e confirmada empiricamente rodando os
+comandos reais (`claude plugin marketplace add`, `claude plugin install`,
+`claude plugin update`, `claude plugin details`, `claude plugin tag
+--dry-run`).
+
+### Adicionado — Fase 8
+- `.claude-plugin/marketplace.json` (novo): marketplace `ede`, um único
+  plugin (`ede-legal-plugin`) com `source: "./"` — sem duplicar a árvore
+  do projeto em `plugins/<nome>/` (SPEC-0001 Fase 8 §42). Entrada do
+  plugin **não declara `version` própria** — achado desta fase: se
+  declarasse, o valor de `plugin.json` venceria silenciosamente, sem
+  aviso.
+- `skills/atualizar-ede/SKILL.md` (novo) — `/updateEde` (REQ-037): não
+  existe self-update programático no Claude Code (confirmado na
+  documentação oficial); a Skill identifica a versão atual, conduz os
+  comandos oficiais (`/plugin marketplace update` +
+  `/plugin update ... --scope <mesmo da instalação>` — nuance de escopo
+  descoberta testando de verdade, documentada) e valida o resultado com
+  `scripts/validar_instalacao.py`. Nunca afirma sucesso sem essa
+  validação (Fail Closed).
+- `scripts/validar_instalacao.py` (novo) — checagem pós-instalação/
+  pós-atualização: 5 Skills essenciais, `schema.json`, `rag/config.yaml`,
+  `rag/index_artigos.json`, sincronização `VERSION`==`plugin.json`. O
+  `.docx` institucional real é conferido mas **não obrigatório** (asset
+  privado, ADR-0006) — sua ausência não reprova a instalação.
+  `--json` para consumo programático; saída `UPDATE_FAILED` (não um
+  falso "sucesso") quando algo obrigatório falta.
+- `docs/adr/ADR-0008-distribuicao-marketplace.md` (novo) — decisão da
+  arquitetura de distribuição (marketplace no mesmo repositório, fonte
+  única de versão, `/updateEde` como fachada sem self-update).
+- `docs/adr/ADR-0006-assets-institucionais.md`: seção "Atualização —
+  Fase 8" — reabre, sem decidir, o destino do template institucional
+  (público/privado-separado/download autenticado); resolve (sem precisar
+  de nova decisão) o placeholder de titular da `LICENSE`, que já estava
+  preenchido; registra a tensão nova entre `LICENSE` (todos os direitos
+  reservados) e distribuição via marketplace público (`PEND-004`).
+- `README.md`: seções "Instalação", "Atualização", "Desinstalação",
+  "Solução de problemas" e "Segurança" — comandos oficiais reais, não
+  inventados; nota explícita de que ainda não há remote git configurado.
+- `tests/test_marketplace.py` (novo, 7 testes): `marketplace.json`
+  parseável, campos obrigatórios, identidade preservada (não renomeado
+  silenciosamente), `source` do plugin resolve para um `plugin.json`
+  real, entrada do marketplace não declara `version` própria,
+  `VERSION`==`plugin.json` (equivalente automatizado ao
+  `claude plugin tag . --dry-run` oficial).
+- `tests/test_pacote_distribuicao.py` (novo, 3 testes): varre
+  `git ls-files` (o que realmente viaja com o plugin) contra padrões
+  proibidos (`.env`, `.key`/`.pem`, `workspace/`, `processos_reais/`,
+  `rag/jurisprudencia/`, o zip legado, `.textos_varredura/`,
+  `modelo-oficial.docx`); confirma que `.gitignore` cobre os ativos
+  sensíveis conhecidos; confirma nenhum `.docx` solto na raiz rastreado.
+- `tests/test_validar_instalacao.py` (novo, 3 testes): instalação atual
+  do repositório passa; instalação faltando as 5 Skills reporta
+  `UPDATE_FAILED`; ausência do `.docx` institucional não reprova.
+- `docs/PENDENCIAS.md`: `PEND-003` (novo) — `rag/embeddings/svd.joblib`
+  (~81 MB, ~91% do repositório rastreado) infla o tamanho do
+  clone/instalação; não bloqueia uso, registrado para avaliação futura
+  (Git LFS ou reconstrução sob demanda). `PEND-004` (novo) — tensão
+  `LICENSE` × distribuição via marketplace público; bloqueia só
+  publicação externa.
+
+### Testado — real, não simulado
+- `claude plugin marketplace add "./"` → `ede` adicionado.
+- `claude plugin install ede-legal-plugin@ede --scope local -y` → sucesso.
+- `claude plugin details ede-legal-plugin@ede` → **6 Skills detectadas**
+  (`atualizar-ede`, `calendario-forense-tjba-2026`, `contestacao`,
+  `estrategista-contestacao-ede`, `humanizer-pt-br`,
+  `redator-peca-processual-elite`), 0 agents, 0 hooks, **0 MCP servers**
+  (confirma SPEC-0001 Fase 8 §54), 0 LSP servers.
+- `claude plugin marketplace update ede` → sucesso.
+- `claude plugin update ede-legal-plugin@ede --scope local` → **"updated
+  from 0.7.0 to 0.8.0"**, confirmado em `claude plugin list` após.
+- `claude plugin validate .` (marketplace) e
+  `claude plugin validate .claude-plugin/plugin.json` (plugin) — ambos
+  passam; nenhum warning novo além do pré-existente sobre `CLAUDE.md`.
+- `claude plugin tag . --dry-run` — confirma que `plugin.json` e a
+  entrada do marketplace concordam (exit não-zero só por working tree
+  sujo antes do commit, comportamento esperado).
+- `python tests/test_marketplace.py` — 7/7.
+- `python tests/test_pacote_distribuicao.py` — 3/3.
+- `python tests/test_validar_instalacao.py` — 3/3.
+- `python tests/test_e2e_contestacao.py` — 5/5 (sem regressão).
+- `python tests/test_contestacao_skill_dependencies.py` — 8/8.
+- `python tests/test_validate_fatos.py` — 16/16.
+- `python tests/test_legal_validation.py` — 24/24.
+- `python tests/test_rag_search.py` — 8/8.
+- `python rag/avaliar_recuperacao.py` — top-1 75% (18/24), top-3 88%
+  (21/24) — idêntico ao baseline.
+- `python tests/test_template_engine.py` — 10/10.
+
+### Pendências
+- `PEND-001` (`DEFERRED`) e `PEND-002` (`ADIADA`) — inalteradas.
+- `PEND-003` (nova) e `PEND-004` (nova) — ver acima.
+- Publicação externa (GitHub, visibilidade, release) **não realizada**
+  nesta fase — sem remote configurado, por instrução explícita de não
+  criar um arbitrariamente. Instalação testada só localmente.
+- `/atualizar-rag` (REQ-038) fora do escopo desta fase — não implementado.
 
 ## [0.7.0] - 2026-08-18 — Fase 7 (Integração End-to-End da Contestação)
 

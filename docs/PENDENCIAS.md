@@ -16,6 +16,8 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 |---|---|---|---|---|
 | PEND-001 | DEFERRED | Fase 3 | Nenhuma (deferida por decisão do usuário — correção v0.6.1) | Suporte multimídia ao placeholder `FOTOS_DA_IRREGULARIADE` |
 | PEND-002 | ABERTA | Fase 4 | Nenhuma (adiada por decisão do usuário) | Indexação de jurisprudência (REQ-018) na busca híbrida |
+| PEND-003 | ABERTA | Fase 8 | Nenhuma (não impede uso; afeta tamanho de clone/instalação) | `rag/embeddings/svd.joblib` (~81 MB) domina o tamanho do repositório distribuído |
+| PEND-004 | ABERTA | Fase 8 | Publicação externa (não bloqueia trabalho técnico local) | `LICENSE` (todos os direitos reservados) em possível conflito com distribuição via marketplace público |
 
 ---
 
@@ -174,3 +176,82 @@ ingestão/chunking/embeddings/indexação de `search_hybrid.py` e atualizar
 
 Em aberto, sem prazo. Ao resolver, mover a linha da tabela para "RESOLVIDA
 (Fase N)", preencher a decisão tomada e referenciar o commit/PR.
+
+---
+
+## PEND-003 — Tamanho de `rag/embeddings/svd.joblib` no pacote distribuído
+
+**Status:** ABERTA
+**Aberta em:** Fase 8 (auditoria de distribuição)
+**Bloqueia:** nenhuma fase — não impede instalação nem uso; só torna o
+clone/instalação mais pesado do que precisaria.
+
+### Contexto
+
+`rag/embeddings/svd.joblib` (o modelo TF-IDF+LSA de fallback offline,
+Fase 4) tem ~81 MB — sozinho, ~91% dos ~89 MB rastreados pelo git neste
+repositório. É o único item que se aproxima de tamanhos problemáticos
+para distribuição via marketplace (clone completo do repositório a cada
+instalação/atualização).
+
+### Risco se não resolvido
+
+Nenhum risco funcional — o arquivo é determinístico e portátil (sem
+caminho absoluto, confirmado nesta auditoria). O risco é só de
+experiência: instalação mais lenta, repositório mais pesado para clonar
+via `/plugin marketplace add`.
+
+### Critério de resolução
+
+Quando priorizado: avaliar Git LFS, ou reconstrução local sob demanda
+(`rag/embeddings/build_embeddings.py` já existe e é determinístico a
+partir do corpus versionado — reconstruir é possível, só não está
+automatizado como parte da instalação), ou aceitar o tamanho atual como
+suficiente. Não decidido nesta fase (SPEC-0001 Fase 8 §53: não
+redesenhar o RAG sem necessidade).
+
+### Fechamento
+
+Em aberto, sem prazo.
+
+---
+
+## PEND-004 — `LICENSE` em possível conflito com distribuição via marketplace público
+
+**Status:** ABERTA
+**Aberta em:** Fase 8 (auditoria de distribuição)
+**Bloqueia:** publicação externa (push a um remote público, listagem em
+marketplace acessível a terceiros) — **não bloqueia** o trabalho técnico
+local desta fase (marketplace testável localmente, sem remote).
+
+### Contexto
+
+A `LICENSE` do repositório reserva todos os direitos: "Nenhuma permissão
+é concedida para copiar, modificar, distribuir, sublicenciar... sem
+autorização prévia e expressa por escrito do titular." O objetivo da
+Fase 8 (SPEC-0001, CLAUDE.md §25) é tornar o plugin instalável por
+outros advogados — o que, tecnicamente, envolve copiar arquivos do
+repositório para a máquina de quem instala.
+
+### Risco se não resolvido
+
+Ambiguidade jurídica sobre se a própria disponibilização pública no
+marketplace já constitui a "autorização prévia e expressa por escrito"
+que a `LICENSE` exige, ou se é necessário um passo adicional (atualizar a
+`LICENSE`, ou adotar marketplace privado/restrito). Não é uma questão
+técnica — é uma decisão do titular dos direitos.
+
+### Critério de resolução
+
+O titular decide entre, por exemplo: (a) atualizar a `LICENSE` para
+permitir explicitamente instalação/uso via marketplace, preservando
+restrições de modificação/redistribuição comercial; (b) manter a
+`LICENSE` como está e tratar a listagem no marketplace como a autorização
+por escrito (documentando essa interpretação); (c) manter o marketplace
+privado/restrito a instalação autorizada individualmente. Não decidido
+nesta fase — ver `ADR-0008`.
+
+### Fechamento
+
+Em aberto, sem prazo. Não impede o uso local nem os testes desta fase —
+só a publicação externa.

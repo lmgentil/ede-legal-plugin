@@ -10,11 +10,12 @@ O primeiro módulo processual suportado é a **Contestação**. A arquitetura é
 projetada para permanecer extensível a outros tipos de peça — ver
 [`CLAUDE.md`](./CLAUDE.md) e [`docs/specs/SPEC-0001.md`](./docs/specs/SPEC-0001.md).
 
-## Status atual (v0.7.0 — Fase 7 de 9 aprovada)
+## Status atual (v0.8.0 — Fase 8 de 9 aprovada)
 
-🚧 **Em desenvolvimento. A integração end-to-end da Contestação está
-comprovada sobre um caso sintético (Fase 7); atualização/distribuição
-(Fase 8) e hardening final (Fase 9) ainda não foram feitos.**
+🚧 **Em desenvolvimento. Distribuição via marketplace pronta e testada
+localmente (Fase 8); publicação externa (GitHub público, release) ainda
+não aconteceu — ver "Instalação" abaixo. Hardening final (Fase 9) segue
+pendente.**
 
 | Camada | Status |
 |---|---|
@@ -25,7 +26,7 @@ comprovada sobre um caso sintético (Fase 7); atualização/distribuição
 | Validação jurídica (citações, vigência, rastreabilidade) | ✅ Fase 5 |
 | Skill Contestação + estrategista-contestacao-ede (orquestração obrigatória) | ✅ Fase 6 |
 | Integração end-to-end (`scripts/gerar_contestacao.py`) | ✅ Fase 7 — caso sintético, ver `docs/E2E_FASE7.md` |
-| Atualização/distribuição (`/updateEde`) | ⏳ Fase 8 |
+| Distribuição via marketplace + `/updateEde` | ✅ Fase 8 — publicação externa pendente, ver "Instalação" |
 | Hardening final | ⏳ Fase 9 |
 
 O progresso por fase é controlado por gates explícitos — ver `CLAUDE.md §4`.
@@ -62,15 +63,120 @@ Detalhes em [`rag/CONTEXTO_RAG.md`](./rag/CONTEXTO_RAG.md).
 > está integrada à busca híbrida — ver
 > [`docs/adr/ADR-0006-assets-institucionais.md`](./docs/adr/ADR-0006-assets-institucionais.md).
 
+## Instalação
+
+> ⚠️ **Este repositório ainda não tem origem git remota configurada**
+> (`git remote -v` vazio) — os comandos abaixo funcionam hoje com um
+> **caminho local** (`/plugin marketplace add <caminho-para-este-repositório>`).
+> Quando houver uma origem git (GitHub ou equivalente) publicada, o mesmo
+> fluxo funciona apontando para ela em vez do caminho local — nenhum outro
+> passo muda.
+
+Pré-requisitos: Claude Code com suporte a Plugin Marketplace (versão
+atual da CLI) e Python 3.10+ no PATH (testado em 3.12) para os scripts do
+RAG e do Template Engine — ver "Dependências Python" abaixo.
+
+1. **Adicionar o marketplace:**
+   ```text
+   /plugin marketplace add <caminho-ou-origem-deste-repositório>
+   ```
+2. **Instalar o plugin:**
+   ```text
+   /plugin install ede-legal-plugin@ede
+   ```
+3. **Instalar dependências Python** (fora do Claude Code, uma vez):
+   ```bash
+   pip install -r rag/requirements.txt
+   pip install -r scripts/requirements.txt
+   ```
+   O toolkit `docx` (usado pelo Template Engine) não é distribuído com
+   este plugin — precisa estar disponível em `~/.claude/skills/docx` ou
+   `~/.agents/skills/docx`. Sem ele, `render_docx.py`/`validate_template.py`
+   falham explicitamente (fail closed), não silenciosamente.
+4. **Fornecer o template institucional** — `templates/contestacao/modelo-oficial.docx`
+   é asset privado do escritório, não distribuído pelo plugin público (ver
+   "Segurança" abaixo e `docs/adr/ADR-0006-assets-institucionais.md`).
+   Copie o `.docx` real do seu escritório para esse caminho antes de gerar
+   uma Contestação.
+5. **Validar a instalação:**
+   ```bash
+   python scripts/validar_instalacao.py
+   ```
+   `STATUS: OK` confirma que as 5 Skills, o schema do template e a
+   configuração do RAG estão presentes (o `.docx` institucional real é
+   opcional nesta checagem — ver passo 4).
+
+## Atualização
+
+Digite **`/updateEde`** — aciona a Skill `atualizar-ede`, que identifica
+sua versão atual, explica e conduz os dois comandos oficiais do Claude
+Code:
+```text
+/plugin marketplace update ede
+/plugin update ede-legal-plugin@ede
+```
+e valida o resultado com `scripts/validar_instalacao.py` depois que você
+reiniciar/recarregar a sessão (necessário para a nova versão carregar).
+
+**Não existe atualização automática disparada pelo próprio plugin** — o
+Claude Code verifica e aplica atualizações em segundo plano
+periodicamente, mas o gatilho é sempre do usuário ou desse mecanismo
+nativo, nunca do plugin instalado. `/updateEde` nunca afirma que uma
+atualização terminou sem essa validação (Fail Closed).
+
+Para ver o que mudou entre versões, consulte [`CHANGELOG.md`](./CHANGELOG.md)
+— procure o cabeçalho `## [<sua-versão-nova>]`.
+
+## Desinstalação
+
+```text
+/plugin uninstall ede-legal-plugin@ede
+```
+Comando oficial confirmado na documentação vigente do Claude Code — não
+há passo adicional específico deste plugin.
+
+## Solução de problemas
+
+| Sintoma | O que fazer |
+|---|---|
+| Marketplace não encontrado | Confirme o caminho/origem exato passado a `/plugin marketplace add`; rode `/plugin marketplace list` para ver o que já foi adicionado. |
+| Plugin não encontrado | Confirme que o marketplace `ede` foi adicionado antes de `/plugin install ede-legal-plugin@ede`; o nome do plugin é `ede-legal-plugin`, não "EDE Legal Plugin" (esse é só o `displayName`). |
+| Versão antiga ainda carregada | Rode `/plugin update ede-legal-plugin@ede` e **reinicie/recarregue a sessão** — a nova versão só é aplicada após reload. |
+| Dependência Python ausente | `pip install -r rag/requirements.txt -r scripts/requirements.txt`. Scripts falham explicitamente (fail closed), nunca silenciosamente, quando uma dependência falta. |
+| RAG indisponível | Confirme `rag/config.yaml` e `rag/index_artigos.json` presentes (`python scripts/validar_instalacao.py`); sem `sentence-transformers` instalado, a busca cai automaticamente para o fallback TF-IDF+LSA — não é erro. |
+| Template ausente | Esperado logo após instalar — `modelo-oficial.docx` é asset privado do escritório, não vem com o plugin público. Copie o seu para `templates/contestacao/modelo-oficial.docx`. |
+| `claude plugin validate .` falha | Rode `claude plugin validate .claude-plugin/plugin.json` para isolar erros do plugin dos do marketplace (`marketplace.json`), validados separadamente quando ambos existem no mesmo diretório. |
+
+## Segurança
+
+- Documentos processuais reais (petições, TOIs, laudos, faturas) **nunca
+  devem ser commitados** — mantenha-os fora da árvore do repositório ou
+  em diretórios cobertos pelo `.gitignore` (CLAUDE.md §18-19).
+- `.env` nunca deve ser versionado — use `.env.example` como referência
+  de nomes de variável, nunca com valores reais.
+- Fotografias da irregularidade são inseridas **manualmente pelo
+  advogado** na V1 — o placeholder `FOTOS_DA_IRREGULARIADE` só recebe um
+  marcador textual (`PEND-001`, `DEFERRED`), nunca imagem automática.
+- Jurisprudência real do escritório (`rag/jurisprudencia/`) **não integra
+  a distribuição atual** — `PEND-002`, adiada. Nada desse diretório é
+  lido pela busca híbrida nem publicado.
+- O template institucional real é asset privado — ver "Instalação" acima
+  e `docs/adr/ADR-0006-assets-institucionais.md`.
+
 ## Documentação
 
 - [`CLAUDE.md`](./CLAUDE.md) — regras operacionais permanentes do agente.
 - [`docs/specs/SPEC-0001.md`](./docs/specs/SPEC-0001.md) — especificação da Arquitetura v1.
 - [`docs/adr/`](./docs/adr/) — decisões arquiteturais registradas.
 - [`docs/PENDENCIAS.md`](./docs/PENDENCIAS.md) — pendências abertas com ID rastreável e fase de bloqueio.
+- [`docs/E2E_FASE7.md`](./docs/E2E_FASE7.md) — execução end-to-end registrada sobre caso sintético.
 - [`CHANGELOG.md`](./CHANGELOG.md) — histórico de mudanças.
 
 ## Licença
 
-Ver [`LICENSE`](./LICENSE). Repositório público para fins de transparência;
-não constitui licença de uso, cópia ou redistribuição.
+Ver [`LICENSE`](./LICENSE) — todos os direitos reservados; não constitui,
+por si só, licença de uso, cópia ou redistribuição. Instalação via o
+marketplace deste plugin pressupõe autorização do titular para essa
+finalidade específica; ver `PEND-004` (`docs/PENDENCIAS.md`) para a
+tensão ainda não formalmente resolvida entre distribuição pública via
+marketplace e os termos atuais da `LICENSE`.

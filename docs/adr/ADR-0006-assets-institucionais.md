@@ -110,3 +110,38 @@ usuário decidir.
 Nenhuma parte desta ADR muda: os itens 1-5 da "Decisão" continuam vigentes
 sem alteração; `rag/jurisprudencia/*.md` segue fora do controle de versão e
 fora da busca híbrida.
+
+## Atualização — Fase 8 (2026-08-18)
+
+Auditoria de distribuição (`ADR-0008`) reabre, sem decidir, o ponto que o
+item 5 de "Consequências" já sinalizava como pendente: o mecanismo
+definitivo para `templates/contestacao/modelo-oficial.docx`. Continua
+`PENDENTE DE DECISÃO` — o arquivo segue fora do git
+(`templates/**/modelo-oficial.docx` no `.gitignore`), portanto **fora do
+pacote que o marketplace distribui**. Três alternativas, nenhuma
+escolhida:
+
+* **(A) template público**, junto do plugin — expõe o timbrado (nome do
+  escritório, contato, OAB) a qualquer instalador.
+* **(B) template privado, instalado separadamente** — cada escritório
+  fornece o próprio `modelo-oficial.docx` localmente após instalar o
+  plugin público (comportamento atual, de fato, só que ainda não
+  formalizado como decisão definitiva).
+* **(C) template baixado de origem autenticada** — mecanismo de download
+  sob credencial, não implementado e fora do escopo desta fase.
+
+Nenhuma delas foi escolhida — decisão do titular do repositório, não do
+agente. `scripts/validar_instalacao.py` (Fase 8) já trata a ausência do
+`.docx` real como esperada (item opcional, não falha a instalação),
+compatível com qualquer uma das três alternativas.
+
+Resolvido, sem necessidade de nova decisão: o placeholder `[TITULAR A
+DEFINIR]` da `LICENSE`, citado como pendente nesta ADR desde a Fase 4, já
+está preenchido com o nome real do titular — confirmado nesta auditoria.
+
+Nova tensão identificada, não existente nas fases anteriores: a
+`LICENSE` atual reserva todos os direitos e não concede permissão de
+cópia/distribuição sem autorização expressa por escrito — em possível
+conflito com o próprio objetivo de distribuição via marketplace público
+desta fase. Registrada como `PEND-004` (`docs/PENDENCIAS.md`), não
+resolvida aqui.

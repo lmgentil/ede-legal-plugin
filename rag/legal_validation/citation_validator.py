@@ -76,7 +76,12 @@ def _diploma_norma_de(frontmatter: dict):
 
 # ------------------------------------------------- extração de bloco de texto
 def _marcador_artigo_re(n: int) -> re.Pattern:
-    return re.compile(rf"(?:^|\n)\s*Art\.\s*{n}[º°oO]?[.\)]", re.MULTILINE)
+    # Fase 7 (E2E): a pontuação após o número varia entre corpora — CPC/REN1000
+    # usam "Art. 335." (ponto colado), CDC usa "Art. 6º São direitos..." (sem
+    # ponto, ordinal seguido de espaço e texto). Em vez de exigir pontuação
+    # específica, usa negative lookahead \D (não-dígito) para não casar
+    # "Art. 6" dentro de "Art. 60" — funciona para os dois estilos.
+    return re.compile(rf"(?:^|\n)\s*Art\.\s*{n}[º°oO]?(?!\d)", re.MULTILINE)
 
 
 def extrair_bloco_artigo(corpo: str, artigo: int):

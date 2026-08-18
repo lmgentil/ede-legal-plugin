@@ -138,8 +138,8 @@ CORPUS_HINTS = {
     # ATENÇÃO: a dica de corpus FILTRA (exclui os demais). Usar apenas termos
     # inequívocos — "aneel", "concessao", "concessionaria" são ambíguos entre
     # REN1000, L8987 e L9427 e NÃO podem ser dica.
-    "REN1000": ["ren 1000", "ren 1.000", "resolucao 1000", "resolucao 1.000",
-                "resolucao normativa"],
+    "REN1000": ["ren 1000", "ren 1.000", "ren aneel 1000", "ren aneel 1.000",
+                "resolucao 1000", "resolucao 1.000", "resolucao normativa"],
     "L8987": ["8987", "8.987", "lei de concessoes", "lei geral de concessoes"],
     "L9427": ["9427", "9.427", "lei da aneel"],
 }

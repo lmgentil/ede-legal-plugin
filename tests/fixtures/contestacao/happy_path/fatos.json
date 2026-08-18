@@ -1,0 +1,79 @@
+[
+  {
+    "fact": "A ré é Luz Bahia Distribuidora de Energia S.A., concessionária de distribuição de energia elétrica na área da Comarca de Feira de Santana/BA.",
+    "source_document": "peticao_inicial.txt",
+    "page": 1,
+    "confidence": 1.0,
+    "tipo": "FATO_DOCUMENTADO"
+  },
+  {
+    "fact": "A autora MARIA JOSÉ DA CONCEIÇÃO SANTOS é titular da unidade consumidora nº 445566-7.",
+    "source_document": "peticao_inicial.txt",
+    "page": 1,
+    "confidence": 1.0,
+    "tipo": "FATO_DOCUMENTADO"
+  },
+  {
+    "fact": "Em 14/11/2025, foi lavrado o TOI nº TOI-SINTETICO-2025-004, constatando ligação direta (by-pass) no ramal de entrada, sem passagem pelo medidor.",
+    "source_document": "toi_sintetico.txt",
+    "page": 1,
+    "confidence": 0.97,
+    "tipo": "FATO_DOCUMENTADO"
+  },
+  {
+    "fact": "O TOI foi entregue à consumidora no ato, mediante assinatura e recibo, com informação sobre o direito à perícia metrológica.",
+    "source_document": "toi_sintetico.txt",
+    "page": 1,
+    "confidence": 0.95,
+    "tipo": "FATO_DOCUMENTADO"
+  },
+  {
+    "fact": "O laudo de avaliação técnica confirmou que os lacres, a tampa e a base do medidor estavam íntegros — o medidor em si não foi violado; a irregularidade está localizada no ramal de entrada, a montante do medidor.",
+    "source_document": "laudo_tecnico_sintetico.txt",
+    "page": 1,
+    "confidence": 0.93,
+    "tipo": "FATO_DOCUMENTADO"
+  },
+  {
+    "fact": "O valor da recuperação de consumo apurado, pela metodologia do art. 595, III, da REN ANEEL 1.000/2021 (média dos três maiores valores de consumo dos 12 ciclos regulares anteriores), foi de R$ 4.328,17.",
+    "source_document": "memorial_calculo_sintetico.txt",
+    "page": 1,
+    "confidence": 0.95,
+    "tipo": "FATO_DOCUMENTADO"
+  },
+  {
+    "fact": "A autora foi citada para a presente ação em 05/01/2026.",
+    "source_document": "certidao_citacao_sintetica.txt",
+    "page": 1,
+    "confidence": 1.0,
+    "tipo": "FATO_DOCUMENTADO"
+  },
+  {
+    "fact": "A autora afirma jamais ter realizado qualquer intervenção na rede elétrica.",
+    "source_document": "peticao_inicial.txt",
+    "page": 1,
+    "confidence": 1.0,
+    "tipo": "ALEGACAO_AUTORAL"
+  },
+  {
+    "fact": "A autora afirma ter sofrido abalo psicológico e constrangimento perante vizinhos em razão da lavratura do TOI, apto a configurar dano moral.",
+    "source_document": "peticao_inicial.txt",
+    "page": 1,
+    "confidence": 1.0,
+    "tipo": "ALEGACAO_AUTORAL"
+  },
+  {
+    "fact": "Não há, nos elementos disponibilizados, documento (laudo, foto, testemunho) que comprove o alegado abalo psicológico da autora — a petição inicial não anexa prova de dano moral, apenas a alegação.",
+    "source_document": "peticao_inicial.txt",
+    "page": 1,
+    "confidence": 0.9,
+    "tipo": "DADO_NAO_INFORMADO"
+  },
+  {
+    "fact": "Não há, nos elementos disponibilizados, comprovante de pagamento do débito de recuperação de consumo pela autora — logo, não há base fática para o pedido de repetição de indébito (que pressupõe pagamento prévio).",
+    "source_document": "peticao_inicial.txt",
+    "page": 1,
+    "confidence": 0.85,
+    "tipo": "INFERENCIA"
+  }
+]

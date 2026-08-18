@@ -1,0 +1,25 @@
+[DOCUMENTO SINTÉTICO — FIXTURE DE TESTE, SEM DADOS REAIS]
+
+TERMO DE OCORRÊNCIA E INSPEÇÃO Nº TOI-SINTETICO-2025-004
+
+Data/hora: 14/11/2025, 10h32
+Unidade consumidora: 445566-7
+Endereço: Rua Fictícia, nº 123, Feira de Santana/BA
+Consumidor presente no ato: MARIA JOSÉ DA CONCEIÇÃO SANTOS
+
+Constatação técnica: verificada ligação direta (by-pass) no ramal de
+entrada da unidade consumidora, energizando parte da instalação interna
+sem passagem pelo medidor. Lacres do medidor e do padrão de entrada
+íntegros no momento da inspeção.
+
+Providências adotadas (conforme art. 590 da REN ANEEL nº 1.000/2021):
+- emissão do presente TOI, com fotografias do ponto de derivação (Anexo A);
+- retirada do medidor para avaliação técnica em laboratório acreditado;
+- levantamento do histórico de consumo dos últimos 12 (doze) ciclos.
+
+Cópia entregue à consumidora no ato, mediante assinatura e recibo, com
+informação sobre o direito de solicitar perícia metrológica no prazo de
+15 (quinze) dias (art. 591, §4º, REN 1.000/2021).
+
+Assinatura da consumidora: [assinatura sintética]
+Assinatura do preposto: [assinatura sintética]

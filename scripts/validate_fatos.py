@@ -16,9 +16,22 @@ Contrato de cada fato (SPEC-0001 §20, REQ-030):
   {
     "fact": "A linha foi cancelada em 12/11/2025.",
     "source_document": "documento-x.pdf",
-    "page": 4,             # opcional, inteiro se presente
-    "confidence": 0.99     # opcional, mas se presente deve estar em [0, 1]
+    "page": 4,                     # opcional, inteiro se presente
+    "confidence": 0.99,            # opcional, mas se presente deve estar em [0, 1]
+    "tipo": "FATO_DOCUMENTADO"     # opcional (Fase 7, SPEC-0001 §9); default
+                                    # FATO_DOCUMENTADO se omitido — ver TIPOS_VALIDOS
   }
+
+`tipo` existe para que o pipeline NUNCA trate alegação da parte autora,
+sem contraprova, como fato incontroverso, nem inferência como fato
+documental (SPEC-0001 §9, Fase 7):
+
+  FATO_DOCUMENTADO  — comprovado por documento dos autos.
+  ALEGACAO_AUTORAL  — dito pela parte autora, sem prova documental própria.
+  INFERENCIA        — conclusão derivada de outros fatos, não afirmação
+                       direta de um documento.
+  DADO_NAO_INFORMADO — a informação é relevante, mas não consta dos
+                        elementos disponibilizados (nunca inventada).
 
 Uso:
   python scripts/validate_fatos.py --dados fatos.json
@@ -28,6 +41,7 @@ import json
 import sys
 
 CAMPOS_OBRIGATORIOS = ("fact", "source_document")
+TIPOS_VALIDOS = ("FATO_DOCUMENTADO", "ALEGACAO_AUTORAL", "INFERENCIA", "DADO_NAO_INFORMADO")
 
 
 def validar_fatos(fatos) -> tuple:
@@ -55,7 +69,15 @@ def validar_fatos(fatos) -> tuple:
             p = f["page"]
             if isinstance(p, bool) or not isinstance(p, int):
                 erros.append(f"fato[{i}]: page deve ser inteiro, recebeu {p!r}")
+        if f.get("tipo") is not None and f["tipo"] not in TIPOS_VALIDOS:
+            erros.append(f"fato[{i}]: tipo deve ser um de {TIPOS_VALIDOS}, recebeu {f['tipo']!r}")
     return (len(erros) == 0), erros
+
+
+def tipo_de(fato: dict) -> str:
+    """Tipo efetivo do fato — default FATO_DOCUMENTADO se omitido
+    (retrocompatível com fatos que só usavam fact/source_document)."""
+    return fato.get("tipo") or "FATO_DOCUMENTADO"
 
 
 def main():

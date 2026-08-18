@@ -1,0 +1,19 @@
+[DOCUMENTO SINTÉTICO — FIXTURE DE TESTE, SEM DADOS REAIS]
+
+MEMORIAL DE CÁLCULO — RECUPERAÇÃO DE CONSUMO — UC 445566-7
+
+Metodologia aplicada: art. 595, III, REN ANEEL nº 1.000/2021 — média dos
+três maiores valores de consumo registrados nos 12 (doze) ciclos de
+medição regular imediatamente anteriores à constatação da irregularidade,
+proporcionalizados em 30 (trinta) dias.
+
+Período de apuração: 6 (seis) ciclos anteriores à constatação (art. 596,
+§1º, REN 1.000/2021 — período técnico de duração não determinado com
+precisão maior, conforme histórico de consumo disponível).
+
+Consumo médio apurado: 612 kWh/ciclo.
+Consumo faturado no mesmo período: 210 kWh/ciclo.
+Diferença apurada: 402 kWh/ciclo x 6 ciclos = 2.412 kWh.
+Tarifa aplicável (vigente à época): R$ 1,7947/kWh.
+
+VALOR TOTAL APURADO: R$ 4.328,17

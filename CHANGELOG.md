@@ -8,9 +8,115 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Bloqueado
-- Nenhuma pendência bloqueia o início da Fase 7 no momento (ver
-  `docs/PENDENCIAS.md`). `PEND-001` foi reclassificada como `DEFERRED` no
-  fechamento da correção v0.6.1 abaixo — deixou de bloquear.
+- **PEND-001** (`DEFERRED`) e **PEND-002** (`ADIADA`) — nenhuma bloqueia a
+  Fase 8. Nada mais bloqueia no momento (ver `docs/PENDENCIAS.md`).
+
+## [0.7.0] - 2026-08-18 — Fase 7 (Integração End-to-End da Contestação)
+
+Prova, com um caso sintético completo, que os componentes das Fases 1-6
+funcionam integrados: extração factual → tempestividade → estratégia →
+RAG → validação jurídica → redação → humanização → placeholders →
+Template Engine → Template Lock → DOCX final.
+
+### Auditoria prévia
+Interfaces das Fases 3-6 já eram estáveis e não precisaram de
+reformulação: `docx_template_engine.gerar_peca(template, schema, dados,
+output) -> dict`, `legal_validation.validar_citacao(texto) -> dict`,
+`validate_fatos.validar_fatos(fatos) -> (ok, erros)`,
+`calcular_tempestividade.calcular_tempestividade(...) -> ResultadoTempestividade`.
+Nenhum subsistema foi reconstruído — só integrado.
+
+**Limitação estrutural confirmada (não uma lacuna de implementação):**
+`estrategista-contestacao-ede`, `redator-peca-processual-elite` e
+`humanizer-pt-br` são Skills do Claude Code (arquivos de instrução para
+um agente LLM), não há API Python para executá-las de dentro de um
+script. O orquestrador consome a SAÍDA delas e confere estruturalmente
+que ela existe e tem a forma esperada; a produção dessa saída para o
+cenário de teste foi um procedimento manual assistido, executado por este
+agente e registrado em `docs/E2E_FASE7.md` (SPEC-0001 Fase 7 §33/§34) —
+não simulada por código.
+
+### Adicionado — Fase 7
+- `scripts/gerar_contestacao.py` (novo) — orquestrador executável: coordena
+  fatos (REQ-030) → tempestividade → verificação estrutural da saída do
+  estrategista (INV-CONTESTACAO-ESTRATEGIA) → RAG + validação jurídica →
+  placeholders (saída de redator+humanizer) → Template Engine/Lock.
+  Fail closed em cada estágio: `PIPELINE_ABORTED` com `stage`/`reason`
+  sempre que uma etapa obrigatória faltar, for inválida, ou um
+  placeholder crítico (`VALOR_FRA`) ficar como sentinela de ausência —
+  nunca gera DOCX como se a etapa tivesse ocorrido. Marcador de fotos
+  (`PEND-001`/DEFERRED) injetado automaticamente, não lido do caso.
+- `tests/fixtures/contestacao/happy_path/` (novo) — caso sintético
+  completo (5 documentos fictícios, `fatos.json` com o novo campo `tipo`
+  — ver abaixo —, `estrategia.md` real de 15 seções, `citacoes.json` com
+  8 candidatas, `placeholders_redator.json` + `placeholders.json`
+  mostrando o antes/depois da humanização). Produção documentada em
+  `docs/E2E_FASE7.md`.
+- `tests/fixtures/contestacao/fail_closed_valor_ausente/` (novo) — mesmo
+  caso, `VALOR_FRA` sinalizado como não informado (memorial de cálculo
+  ausente).
+- `tests/test_e2e_contestacao.py` (novo, 5 testes): happy path completo
+  (todas as 6 etapas `ok`, 7/8 citações validadas, Template Lock OK, DOCX
+  íntegro — ZIP válido, XML bem formado, header/footer preservados,
+  conteúdo sintético esperado presente, nenhum placeholder residual);
+  fail-closed por dado essencial ausente (`PIPELINE_ABORTED`, nenhum DOCX
+  no disco); fail-closed por Skill estratégica indisponível (arquivo
+  ausente) e por saída estruturalmente inválida (seções faltando).
+  Cenário de Template Lock reprovando adulteração já tinha cobertura
+  equivalente em `tests/test_template_engine.py` — não duplicado
+  (SPEC-0001 Fase 7 §28).
+- `docs/E2E_FASE7.md` (novo) — procedimento manual assistido e registro
+  da execução real das três Skills sobre o cenário sintético.
+- `scripts/validate_fatos.py`: novo campo opcional `tipo` no contrato de
+  fato (REQ-030) — `FATO_DOCUMENTADO` (default) / `ALEGACAO_AUTORAL` /
+  `INFERENCIA` / `DADO_NAO_INFORMADO` (SPEC-0001 Fase 7 §9): o pipeline
+  agora pode distinguir fato comprovado de alegação da parte autora sem
+  contraprova, evitando que uma vire a outra silenciosamente. Retrocompatível
+  — fato sem `tipo` continua válido, tratado como `FATO_DOCUMENTADO`.
+  `tests/test_validate_fatos.py` ganhou 4 testes (16/16).
+
+### Corrigido — bugs localizados encontrados pelo E2E (SPEC-0001 Fase 7 §3/§45)
+- `rag/search_hybrid.py` (`CORPUS_HINTS`): "REN ANEEL 1.000/2021" (grafia
+  usada em citações reais, com "ANEEL" entre "REN" e o número) não batia
+  com nenhuma dica de corpus — só "REN 1.000" sem "ANEEL" funcionava.
+  Adicionadas as variantes "ren aneel 1000"/"ren aneel 1.000". Sem
+  regressão (`avaliar_recuperacao.py`: top-1 75%/top-3 88%, idêntico).
+- `rag/legal_validation/citation_validator.py` (`_marcador_artigo_re`):
+  o regex de localização de artigo exigia pontuação (`.`/`)`) logo após o
+  número — bate com o estilo do CPC/REN1000 ("Art. 335.") mas não com o
+  do CDC ("Art. 6º São direitos..."), fazendo toda citação de artigo do
+  CDC falhar com "marcador não localizado" mesmo com o artigo existindo.
+  Trocado por negative lookahead (não seguido de dígito) — funciona nos
+  dois estilos de pontuação, sem abrir brecha para casar "Art. 6" dentro
+  de "Art. 60". Sem regressão (`test_legal_validation.py`: 24/24).
+
+### Testado
+- `python tests/test_e2e_contestacao.py` — 5/5 (novo).
+- `python tests/test_contestacao_skill_dependencies.py` — 8/8.
+- `python tests/test_validate_fatos.py` — 16/16 (12 + 4 novos de `tipo`).
+- `python tests/test_legal_validation.py` — 24/24.
+- `python tests/test_rag_search.py` — 8/8.
+- `python rag/avaliar_recuperacao.py` — top-1 75% (18/24), top-3 88%
+  (21/24) — idêntico ao baseline.
+- `python tests/test_template_engine.py` — 10/10.
+- `claude plugin validate .` — sem novos warnings.
+
+### SPEC GAP
+Nenhum encontrado. As duas correções acima foram bugs localizados em
+componentes já aprovados (regex/dicionário de sinônimos), não decisões
+arquiteturais — resolvidas sem alterar nenhum REQ/INV da SPEC-0001
+(SPEC-0001 Fase 7 §44/§45).
+
+### Pendências
+- `PEND-001` (`DEFERRED`) e `PEND-002` (`ADIADA`) — inalteradas, sem
+  bloqueio.
+- MCP, `/updateEde`, marketplace, updater, distribuição, jurisprudência
+  real e inserção automática de fotografia: **não implementados nesta
+  fase**, por instrução explícita — pertencem à Fase 8 ou a versões
+  futuras.
+- O E2E cobre um único fact-pattern (irregularidade de medição com
+  reconvenção). Novos fact-patterns dentro do mesmo template devem
+  reaproveitar o mesmo orquestrador — não exigem novo pipeline.
 
 ## [0.6.1] - 2026-08-18 — Correção arquitetural: estrategista-contestacao-ede passa a obrigatória + fechamento (PEND-001 DEFERRED)
 

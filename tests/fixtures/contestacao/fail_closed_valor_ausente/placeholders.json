@@ -1,0 +1,13 @@
+{
+  "JUIZO": "2ª Vara Cível da Comarca de Feira de Santana/Bahia",
+  "NUMERO_PROCESSO": "8000001-11.2026.8.05.0080",
+  "AUTOR": "MARIA JOSÉ DA CONCEIÇÃO SANTOS",
+  "SINOPSE_FATOS": "A autora é titular da unidade consumidora nº 445566-7. Em 14/11/2025, foi lavrado o TOI nº TOI-SINTETICO-2025-004, apontando ligação direta no ramal de entrada. O memorial de cálculo da recuperação de consumo NÃO INFORMADO NOS ELEMENTOS DISPONIBILIZADOS — documento não apresentado neste cenário sintético.",
+  "REALIDADE_FATICA": "Os elementos técnicos disponíveis (TOI e laudo) confirmam a irregularidade no ramal de entrada, a montante do medidor.",
+  "IRREGULARIDADE_ENCONTRADA": "Ligação direta (by-pass) no ramal de entrada da unidade consumidora nº 445566-7, constatada em 14/11/2025 pelo TOI nº TOI-SINTETICO-2025-004 (art. 590, I, REN ANEEL 1.000/2021).",
+  "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": "O procedimento seguiu o art. 590, I, da REN ANEEL 1.000/2021. O medidor avaliado em laboratório acreditado teve lacres, tampa e base íntegros, confirmando a irregularidade no ramal de entrada.",
+  "ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA": "NÃO INFORMADO NOS ELEMENTOS DISPONIBILIZADOS — histórico de consumo não constava dos documentos deste cenário sintético.",
+  "VALOR_FRA": "NÃO INFORMADO NOS ELEMENTOS DISPONIBILIZADOS — memorial de cálculo da recuperação de consumo não foi apresentado nos documentos do caso; o valor da recuperação não pode ser afirmado sem esse documento.",
+  "PEDIDOS_FINAIS": "Diante do exposto, requer a Ré a improcedência dos pedidos, nos termos da fundamentação técnica apresentada.",
+  "LOCAL_DATA": "Feira de Santana/BA, 10 de fevereiro de 2026."
+}

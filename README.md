@@ -10,19 +10,23 @@ O primeiro módulo processual suportado é a **Contestação**. A arquitetura é
 projetada para permanecer extensível a outros tipos de peça — ver
 [`CLAUDE.md`](./CLAUDE.md) e [`docs/specs/SPEC-0001.md`](./docs/specs/SPEC-0001.md).
 
-## Status atual (v0.3.0 — Fase 3 de 9 aprovada)
+## Status atual (v0.7.0 — Fase 7 de 9 aprovada)
 
-🚧 **Em desenvolvimento. A geração de Contestação ainda não está funcional
-de ponta a ponta (falta a Skill orquestradora, Fase 6).**
+🚧 **Em desenvolvimento. A integração end-to-end da Contestação está
+comprovada sobre um caso sintético (Fase 7); atualização/distribuição
+(Fase 8) e hardening final (Fase 9) ainda não foram feitos.**
 
 | Camada | Status |
 |---|---|
 | Estrutura do plugin, versionamento, segurança básica | ✅ Fase 1 |
 | Skills transversais (redator, humanizer, calendário) | ✅ Fase 2 |
 | Template Engine + Template Lock | ✅ Fase 3 — ver pendência PEND-001 abaixo |
-| RAG jurídico | 🟡 Parcialmente pronto — ver abaixo |
-| Validação jurídica (citações, vigência, rastreabilidade) | ⏳ Fase 5 |
-| Skill Contestação (orquestração ponta a ponta) | ⏳ Fase 6 |
+| RAG jurídico | ✅ Fase 4 (legislação/regulamentos); jurisprudência adiada — `PEND-002` |
+| Validação jurídica (citações, vigência, rastreabilidade) | ✅ Fase 5 |
+| Skill Contestação + estrategista-contestacao-ede (orquestração obrigatória) | ✅ Fase 6 |
+| Integração end-to-end (`scripts/gerar_contestacao.py`) | ✅ Fase 7 — caso sintético, ver `docs/E2E_FASE7.md` |
+| Atualização/distribuição (`/updateEde`) | ⏳ Fase 8 |
+| Hardening final | ⏳ Fase 9 |
 
 O progresso por fase é controlado por gates explícitos — ver `CLAUDE.md §4`.
 Nenhuma fase é iniciada sem autorização.
@@ -31,7 +35,7 @@ Nenhuma fase é iniciada sem autorização.
 > v0.6.1): suporte a imagem embutida no placeholder
 > `FOTOS_DA_IRREGULARIADE` não será automatizado na V1 — decisão explícita
 > do usuário. O campo recebe um marcador textual de inserção manual pelo
-> advogado. Não bloqueia mais a Fase 7.
+> advogado. Não bloqueia a Fase 8.
 
 ## RAG jurídico (já funcional)
 

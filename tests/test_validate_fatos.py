@@ -9,7 +9,7 @@ from pathlib import Path
 
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
-from validate_fatos import validar_fatos  # noqa: E402
+from validate_fatos import tipo_de, validar_fatos  # noqa: E402
 
 
 def test_fato_completo_valido():
@@ -90,6 +90,26 @@ def test_multiplos_fatos_mistos_reporta_so_o_invalido():
     assert not ok
     assert len(erros) == 1
     assert "fato[1]" in erros[0]
+
+
+def test_tipo_valido_aceito_para_cada_valor():
+    for tipo in ("FATO_DOCUMENTADO", "ALEGACAO_AUTORAL", "INFERENCIA", "DADO_NAO_INFORMADO"):
+        ok, erros = validar_fatos([{"fact": "x", "source_document": "y.pdf", "tipo": tipo}])
+        assert ok and erros == [], f"tipo {tipo!r} deveria ser aceito"
+
+
+def test_tipo_invalido_falha():
+    ok, erros = validar_fatos([{"fact": "x", "source_document": "y.pdf", "tipo": "CHUTE"}])
+    assert not ok
+    assert any("tipo" in e for e in erros)
+
+
+def test_tipo_de_default_fato_documentado_quando_omitido():
+    assert tipo_de({"fact": "x", "source_document": "y.pdf"}) == "FATO_DOCUMENTADO"
+
+
+def test_tipo_de_retorna_tipo_explicito():
+    assert tipo_de({"fact": "x", "source_document": "y.pdf", "tipo": "ALEGACAO_AUTORAL"}) == "ALEGACAO_AUTORAL"
 
 
 if __name__ == "__main__":

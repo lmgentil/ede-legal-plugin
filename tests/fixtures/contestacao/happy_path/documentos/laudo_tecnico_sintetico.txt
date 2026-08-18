@@ -1,0 +1,15 @@
+[DOCUMENTO SINTÉTICO — FIXTURE DE TESTE, SEM DADOS REAIS]
+
+LAUDO DE AVALIAÇÃO TÉCNICA — MEDIDOR UC 445566-7
+
+Laboratório acreditado, ensaio conforme padrões INMETRO (art. 593, I,
+REN ANEEL 1.000/2021).
+
+Resultado: lacres, tampa e base do medidor íntegros, sem indício de
+violação do equipamento de medição. A irregularidade constatada em campo
+(ligação direta no ramal de entrada, fora do circuito medido) é
+compatível com desvio de carga anterior ao ponto de medição, não com
+adulteração do medidor em si.
+
+Conclusão técnica: medidor tecnicamente correto; irregularidade
+localizada no ramal de entrada, a montante do medidor.

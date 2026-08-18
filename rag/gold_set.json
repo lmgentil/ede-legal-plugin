@@ -1,0 +1,30 @@
+{
+  "descricao": "Gold-set de avaliação da recuperação do RAG jurídico EDE. Cada consulta indica o corpus e o(s) artigo(s) cuja presença define o chunk correto (resolvido via index_artigos.json). Mede top-1/top-3. Ampliar com consultas reais das peças. Rode: python3 rag/avaliar_recuperacao.py",
+  "versao": "1.0 (2026-07-15, seed inicial 24 consultas)",
+  "consultas": [
+    {"q": "prazo para contestação no procedimento comum", "corpus": "CPC", "arts": [335], "nota": "art. 335 CPC — prazo de resposta"},
+    {"q": "distribuição do ônus da prova no processo civil", "corpus": "CPC", "arts": [373], "nota": "art. 373 CPC"},
+    {"q": "requisitos para concessão de tutela de urgência", "corpus": "CPC", "arts": [300], "nota": "art. 300 CPC"},
+    {"q": "fixação de honorários advocatícios de sucumbência", "corpus": "CPC", "arts": [85], "nota": "art. 85 CPC"},
+    {"q": "cabimento dos embargos de declaração omissão contradição", "corpus": "CPC", "arts": [1022], "nota": "art. 1.022 CPC"},
+    {"q": "requisitos da petição inicial", "corpus": "CPC", "arts": [319], "nota": "art. 319 CPC"},
+    {"q": "cumprimento de sentença que reconhece obrigação de pagar quantia certa", "corpus": "CPC", "arts": [523], "nota": "art. 523 CPC"},
+    {"q": "gratuidade da justiça requisitos e concessão", "corpus": "CPC", "arts": [98], "nota": "art. 98 CPC"},
+    {"q": "recurso de apelação prazo e efeitos", "corpus": "CPC", "arts": [1009, 1012], "nota": "arts. 1.009 e 1.012 CPC"},
+    {"q": "responsabilidade civil por ato ilícito dever de indenizar", "corpus": "CC", "arts": [186, 927], "nota": "arts. 186 e 927 CC"},
+    {"q": "prazo de prescrição da pretensão de reparação civil", "corpus": "CC", "arts": [206], "nota": "art. 206, §3º, V CC"},
+    {"q": "enriquecimento sem causa restituição do indevido", "corpus": "CC", "arts": [884], "nota": "art. 884 CC"},
+    {"q": "inversão do ônus da prova em favor do consumidor", "corpus": "CDC", "arts": [6], "nota": "art. 6º, VIII CDC"},
+    {"q": "práticas abusivas do fornecedor", "corpus": "CDC", "arts": [39], "nota": "art. 39 CDC"},
+    {"q": "responsabilidade pelo fato do produto e do serviço", "corpus": "CDC", "arts": [12, 14], "nota": "arts. 12 e 14 CDC"},
+    {"q": "prescrição da pretensão de reparação de danos no CDC", "corpus": "CDC", "arts": [27], "nota": "art. 27 CDC"},
+    {"q": "recuperação de consumo por irregularidade no medidor procedimento", "corpus": "REN1000", "arts": [595], "nota": "art. 595 REN 1000 — procedimento de recuperação"},
+    {"q": "cálculo do valor a recuperar por consumo não faturado", "corpus": "REN1000", "arts": [590], "nota": "art. 590 REN 1000"},
+    {"q": "ressarcimento de danos a equipamentos elétricos do consumidor", "corpus": "REN1000", "arts": [611], "nota": "art. 611 REN 1000 — PID"},
+    {"q": "encargos da concessionária no contrato de concessão", "corpus": "L8987", "arts": [31], "nota": "art. 31 Lei 8.987"},
+    {"q": "serviço adequado ao pleno atendimento dos usuários", "corpus": "L8987", "arts": [6], "nota": "art. 6º Lei 8.987"},
+    {"q": "extinção da concessão de serviço público", "corpus": "L8987", "arts": [35], "nota": "art. 35 Lei 8.987"},
+    {"q": "competência e finalidade da ANEEL regulação e fiscalização", "corpus": "L9427", "arts": [2, 3], "nota": "arts. 2º e 3º Lei 9.427"},
+    {"q": "instituição da Agência Nacional de Energia Elétrica", "corpus": "L9427", "arts": [1], "nota": "art. 1º Lei 9.427"}
+  ]
+}

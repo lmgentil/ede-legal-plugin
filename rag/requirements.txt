@@ -1,0 +1,15 @@
+# Núcleo — busca híbrida (search_hybrid.py, avaliar_recuperacao.py, calibrar_confianca.py)
+joblib
+numpy
+pandas
+pyarrow
+scikit-learn
+rank_bm25
+
+# Opcional — regeneração de embeddings semânticos (build_embeddings_semantic.py).
+# Só é necessário se rag/embeddings/semantic/ for regenerado localmente; sem
+# estas dependências, search_hybrid.py cai automaticamente para o fallback
+# TF-IDF+LSA (embeddings/, sempre presente).
+sentence-transformers
+huggingface_hub<1.0
+pyyaml

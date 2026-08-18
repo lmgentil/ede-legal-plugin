@@ -1,0 +1,7 @@
+{
+  "modelo": "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+  "total_chunks": 434,
+  "embedding_dim": 768,
+  "normalizado_l2": true,
+  "prefixo_query": ""
+}

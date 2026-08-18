@@ -1,0 +1,27 @@
+# --- Segredos ---
+.env
+*.env.local
+
+# --- Ambiente Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- Logs e artefatos de execução ---
+rag/calibracao_log.txt
+
+# --- Sistema operacional ---
+.DS_Store
+Thumbs.db
+
+# --- Dados sensíveis de clientes/processos (CLAUDE.md §18-19; ver docs/adr/ADR-0006) ---
+# Fichas de jurisprudência e textos brutos de peças reais do escritório citam
+# clientes, partes e números de processo reais nos campos de "Contexto
+# Estratégico". Ficam fora do controle de versão até expurgo/redação desses
+# campos (pendência registrada para a Fase 4 — RAG Jurídico).
+rag/jurisprudencia/
+
+# --- Template institucional real (quando fornecido) ---
+# Nunca commitar o .docx timbrado sem revisão de ADR-0006.
+templates/**/modelo-oficial.docx

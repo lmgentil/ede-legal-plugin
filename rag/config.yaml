@@ -1,0 +1,45 @@
+# rag/config.yaml — configuração centralizada do RAG jurídico (SPEC-0001 REQ-044).
+#
+# ATENÇÃO: este arquivo AINDA NÃO é lido pelo código. search_hybrid.py
+# continua usando as constantes internas (CONF_LSA, CONF_SEM, alpha=0.65)
+# como hoje. Ele documenta, desde a Fase 1, os parâmetros que estão
+# hardcoded, para religação em Fase 4 — RAG Jurídico — sem alterar
+# comportamento funcional nesta fase (CLAUDE.md §5: não sobrescrever
+# implementação funcional sem análise prévia).
+
+busca_hibrida:
+  alpha: 0.65  # peso do BM25 vs. denso; calibrado empiricamente em 2026-07
+
+confianca:
+  lsa:
+    alta_bm25: 10.0
+    alta_cosseno: 0.60
+    alta_cobertura: 0.85
+    baixa_bm25: 6.0
+    baixa_cosseno: 0.50
+    baixa_cobertura: 0.50
+  semantico:
+    alta_bm25: 9.0
+    alta_cobertura: 0.75
+    alta_cosseno: 0.55
+    baixa_score_composto: 1.4
+
+embeddings:
+  modelo_semantico: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+  fallback: tfidf_lsa
+  dimensao_lsa: 256
+  dimensao_semantica: 768
+
+corpus:
+  versao: "v3 (2026-07-09)"
+  total_chunks: 434
+  diplomas: [CPC, CC, CDC, L8987, L9427, REN1000]
+  # jurisprudencia: ainda não indexada na busca híbrida (ver Gap Analysis Fase 0, REQ-018)
+
+diretorios:
+  base: rag/
+  embeddings: rag/embeddings/
+  embeddings_semantico: rag/embeddings/semantic/
+
+logging:
+  nivel: INFO

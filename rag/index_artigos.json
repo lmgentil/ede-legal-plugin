@@ -1,0 +1,2587 @@
+{
+ "descricao": "Índice artigo→chunk. Busque o corpus e o intervalo que contém o artigo.",
+ "leis": {
+  "CPC": "Lei 13.105/2015 (CPC)",
+  "CC": "Lei 10.406/2002 (Código Civil)",
+  "CDC": "Lei 8.078/1990 (CDC)",
+  "REN1000": "REN ANEEL 1.000/2021",
+  "L8987": "Lei 8.987/1995 (Lei Geral de Concessões)",
+  "L9427": "Lei 9.427/1996 (Lei da ANEEL)"
+ },
+ "corpora": {
+  "CPC": [
+   {
+    "file": "Chunk_001_DAS_NORMAS_FUNDAMENTAIS_DO_PROCESSO_CIVIL.md",
+    "art_inicio": 1,
+    "art_fim": 12,
+    "capitulo": "CAPÍTULO I — DAS NORMAS FUNDAMENTAIS DO PROCESSO CIVIL"
+   },
+   {
+    "file": "Chunk_002_DA_APLICACAO_DAS_NORMAS_PROCESSUAIS.md",
+    "art_inicio": 13,
+    "art_fim": 15,
+    "capitulo": "CAPÍTULO II — DA APLICAÇÃO DAS NORMAS PROCESSUAIS"
+   },
+   {
+    "file": "Chunk_003_DA_JURISDICAO_E_DA_ACAO.md",
+    "art_inicio": 16,
+    "art_fim": 20,
+    "capitulo": "TÍTULO I — DA JURISDIÇÃO E DA AÇÃO"
+   },
+   {
+    "file": "Chunk_004_DOS_LIMITES_DA_JURISDICAO_NACIONAL.md",
+    "art_inicio": 21,
+    "art_fim": 25,
+    "capitulo": "CAPÍTULO I — DOS LIMITES DA JURISDIÇÃO NACIONAL"
+   },
+   {
+    "file": "Chunk_005_DA_COOPERACAO_INTERNACIONAL.md",
+    "art_inicio": 26,
+    "art_fim": 41,
+    "capitulo": "CAPÍTULO II — DA COOPERAÇÃO INTERNACIONAL"
+   },
+   {
+    "file": "Chunk_006_DA_COMPETENCIA.md",
+    "art_inicio": 42,
+    "art_fim": 66,
+    "capitulo": "CAPÍTULO I — DA COMPETÊNCIA"
+   },
+   {
+    "file": "Chunk_007_DA_COOPERACAO_NACIONAL.md",
+    "art_inicio": 67,
+    "art_fim": 69,
+    "capitulo": "CAPÍTULO II — DA COOPERAÇÃO NACIONAL"
+   },
+   {
+    "file": "Chunk_008_DA_CAPACIDADE_PROCESSUAL.md",
+    "art_inicio": 70,
+    "art_fim": 76,
+    "capitulo": "CAPÍTULO I — DA CAPACIDADE PROCESSUAL"
+   },
+   {
+    "file": "Chunk_009_DOS_DEVERES_DAS_PARTES_E_DE_SEUS_PROCURADORES_P01.md",
+    "art_inicio": 77,
+    "art_fim": 84,
+    "capitulo": "CAPÍTULO II — DOS DEVERES DAS PARTES E DE SEUS PROCURADORES"
+   },
+   {
+    "file": "Chunk_009_DOS_DEVERES_DAS_PARTES_E_DE_SEUS_PROCURADORES_P02.md",
+    "art_inicio": 85,
+    "art_fim": 93,
+    "capitulo": "CAPÍTULO II — DOS DEVERES DAS PARTES E DE SEUS PROCURADORES"
+   },
+   {
+    "file": "Chunk_009_DOS_DEVERES_DAS_PARTES_E_DE_SEUS_PROCURADORES_P03.md",
+    "art_inicio": 94,
+    "art_fim": 102,
+    "capitulo": "CAPÍTULO II — DOS DEVERES DAS PARTES E DE SEUS PROCURADORES"
+   },
+   {
+    "file": "Chunk_010_DOS_PROCURADORES.md",
+    "art_inicio": 103,
+    "art_fim": 107,
+    "capitulo": "CAPÍTULO III — DOS PROCURADORES"
+   },
+   {
+    "file": "Chunk_011_DA_SUCESSAO_DAS_PARTES_E_DOS_PROCURADORES.md",
+    "art_inicio": 108,
+    "art_fim": 112,
+    "capitulo": "CAPÍTULO IV — DA SUCESSÃO DAS PARTES E DOS PROCURADORES"
+   },
+   {
+    "file": "Chunk_012_DO_LITISCONSORCIO.md",
+    "art_inicio": 113,
+    "art_fim": 118,
+    "capitulo": "TÍTULO II — DO LITISCONSÓRCIO"
+   },
+   {
+    "file": "Chunk_013_DA_ASSISTENCIA.md",
+    "art_inicio": 119,
+    "art_fim": 124,
+    "capitulo": "CAPÍTULO I — DA ASSISTÊNCIA"
+   },
+   {
+    "file": "Chunk_014_DA_DENUNCIACAO_DA_LIDE.md",
+    "art_inicio": 125,
+    "art_fim": 129,
+    "capitulo": "CAPÍTULO II — DA DENUNCIAÇÃO DA LIDE"
+   },
+   {
+    "file": "Chunk_015_DO_CHAMAMENTO_AO_PROCESSO.md",
+    "art_inicio": 130,
+    "art_fim": 132,
+    "capitulo": "CAPÍTULO III — DO CHAMAMENTO AO PROCESSO"
+   },
+   {
+    "file": "Chunk_016_DO_INCIDENTE_DE_DESCONSIDERACAO_DA_PERSONALIDADE_J.md",
+    "art_inicio": 133,
+    "art_fim": 137,
+    "capitulo": "CAPÍTULO IV — DO INCIDENTE DE DESCONSIDERAÇÃO DA PERSONALIDADE JURÍDICA"
+   },
+   {
+    "file": "Chunk_017_DO_AMICUS_CURIAE.md",
+    "art_inicio": 138,
+    "art_fim": 138,
+    "capitulo": "CAPÍTULO V — DO AMICUS CURIAE"
+   },
+   {
+    "file": "Chunk_018_DOS_PODERES_DOS_DEVERES_E_DA_RESPONSABILIDADE_DO_J.md",
+    "art_inicio": 139,
+    "art_fim": 143,
+    "capitulo": "CAPÍTULO I — DOS PODERES, DOS DEVERES E DA RESPONSABILIDADE DO JUIZ"
+   },
+   {
+    "file": "Chunk_019_DOS_IMPEDIMENTOS_E_DA_SUSPEICAO.md",
+    "art_inicio": 144,
+    "art_fim": 148,
+    "capitulo": "CAPÍTULO II — DOS IMPEDIMENTOS E DA SUSPEIÇÃO"
+   },
+   {
+    "file": "Chunk_020_DOS_AUXILIARES_DA_JUSTICA_P01.md",
+    "art_inicio": 149,
+    "art_fim": 164,
+    "capitulo": "CAPÍTULO III — DOS AUXILIARES DA JUSTIÇA"
+   },
+   {
+    "file": "Chunk_020_DOS_AUXILIARES_DA_JUSTICA_P02.md",
+    "art_inicio": 165,
+    "art_fim": 175,
+    "capitulo": "CAPÍTULO III — DOS AUXILIARES DA JUSTIÇA"
+   },
+   {
+    "file": "Chunk_021_DO_MINISTERIO_PUBLICO.md",
+    "art_inicio": 176,
+    "art_fim": 181,
+    "capitulo": "TÍTULO V — DO MINISTÉRIO PÚBLICO"
+   },
+   {
+    "file": "Chunk_022_DA_ADVOCACIA_PUBLICA.md",
+    "art_inicio": 182,
+    "art_fim": 184,
+    "capitulo": "TÍTULO VI — DA ADVOCACIA PÚBLICA"
+   },
+   {
+    "file": "Chunk_023_DA_DEFENSORIA_PUBLICA.md",
+    "art_inicio": 185,
+    "art_fim": 187,
+    "capitulo": "TÍTULO VII — DA DEFENSORIA PÚBLICA"
+   },
+   {
+    "file": "Chunk_024_DA_FORMA_DOS_ATOS_PROCESSUAIS.md",
+    "art_inicio": 188,
+    "art_fim": 211,
+    "capitulo": "CAPÍTULO I — DA FORMA DOS ATOS PROCESSUAIS"
+   },
+   {
+    "file": "Chunk_025_DO_TEMPO_E_DO_LUGAR_DOS_ATOS_PROCESSUAIS.md",
+    "art_inicio": 212,
+    "art_fim": 217,
+    "capitulo": "CAPÍTULO II — DO TEMPO E DO LUGAR DOS ATOS PROCESSUAIS"
+   },
+   {
+    "file": "Chunk_026_DOS_PRAZOS.md",
+    "art_inicio": 218,
+    "art_fim": 235,
+    "capitulo": "CAPÍTULO III — DOS PRAZOS"
+   },
+   {
+    "file": "Chunk_027_DISPOSICOES_GERAIS.md",
+    "art_inicio": 236,
+    "art_fim": 237,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_028_DA_CITACAO.md",
+    "art_inicio": 238,
+    "art_fim": 259,
+    "capitulo": "CAPÍTULO II — DA CITAÇÃO"
+   },
+   {
+    "file": "Chunk_029_DAS_CARTAS.md",
+    "art_inicio": 260,
+    "art_fim": 268,
+    "capitulo": "CAPÍTULO III — DAS CARTAS"
+   },
+   {
+    "file": "Chunk_030_DAS_INTIMACOES.md",
+    "art_inicio": 269,
+    "art_fim": 275,
+    "capitulo": "CAPÍTULO IV — DAS INTIMAÇÕES"
+   },
+   {
+    "file": "Chunk_031_DAS_NULIDADES.md",
+    "art_inicio": 276,
+    "art_fim": 283,
+    "capitulo": "TÍTULO III — DAS NULIDADES"
+   },
+   {
+    "file": "Chunk_032_DA_DISTRIBUICAO_E_DO_REGISTRO.md",
+    "art_inicio": 284,
+    "art_fim": 290,
+    "capitulo": "TÍTULO IV — DA DISTRIBUIÇÃO E DO REGISTRO"
+   },
+   {
+    "file": "Chunk_033_DO_VALOR_DA_CAUSA.md",
+    "art_inicio": 291,
+    "art_fim": 293,
+    "capitulo": "TÍTULO V — DO VALOR DA CAUSA"
+   },
+   {
+    "file": "Chunk_034_DISPOSICOES_GERAIS.md",
+    "art_inicio": 294,
+    "art_fim": 299,
+    "capitulo": "TÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_035_DISPOSICOES_GERAIS.md",
+    "art_inicio": 300,
+    "art_fim": 302,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_036_DO_PROCEDIMENTO_DA_TUTELA_ANTECIPADA_REQUERIDA_EM_.md",
+    "art_inicio": 303,
+    "art_fim": 304,
+    "capitulo": "CAPÍTULO II — DO PROCEDIMENTO DA TUTELA ANTECIPADA REQUERIDA EM CARÁTER ANTECEDENTE"
+   },
+   {
+    "file": "Chunk_037_DO_PROCEDIMENTO_DA_TUTELA_CAUTELAR_REQUERIDA_EM_CA.md",
+    "art_inicio": 305,
+    "art_fim": 310,
+    "capitulo": "CAPÍTULO III — DO PROCEDIMENTO DA TUTELA CAUTELAR REQUERIDA EM CARÁTER ANTECEDENTE"
+   },
+   {
+    "file": "Chunk_038_DA_TUTELA_DA_EVIDENCIA.md",
+    "art_inicio": 311,
+    "art_fim": 311,
+    "capitulo": "TÍTULO III — DA TUTELA DA EVIDÊNCIA"
+   },
+   {
+    "file": "Chunk_039_DA_FORMACAO_DO_PROCESSO.md",
+    "art_inicio": 312,
+    "art_fim": 312,
+    "capitulo": "TÍTULO I — DA FORMAÇÃO DO PROCESSO"
+   },
+   {
+    "file": "Chunk_040_DA_SUSPENSAO_DO_PROCESSO.md",
+    "art_inicio": 313,
+    "art_fim": 315,
+    "capitulo": "TÍTULO II — DA SUSPENSÃO DO PROCESSO"
+   },
+   {
+    "file": "Chunk_041_DA_EXTINCAO_DO_PROCESSO.md",
+    "art_inicio": 316,
+    "art_fim": 317,
+    "capitulo": "TÍTULO III — DA EXTINÇÃO DO PROCESSO"
+   },
+   {
+    "file": "Chunk_042_DISPOSICOES_GERAIS.md",
+    "art_inicio": 318,
+    "art_fim": 318,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_043_DA_PETICAO_INICIAL.md",
+    "art_inicio": 319,
+    "art_fim": 331,
+    "capitulo": "CAPÍTULO II — DA PETIÇÃO INICIAL"
+   },
+   {
+    "file": "Chunk_044_DA_IMPROCEDENCIA_LIMINAR_DO_PEDIDO.md",
+    "art_inicio": 332,
+    "art_fim": 332,
+    "capitulo": "CAPÍTULO III — DA IMPROCEDÊNCIA LIMINAR DO PEDIDO"
+   },
+   {
+    "file": "Chunk_045_DA_CONVERSAO_DA_ACAO_INDIVIDUAL_EM_ACAO_COLETIVA.md",
+    "art_inicio": 333,
+    "art_fim": 333,
+    "capitulo": "CAPÍTULO IV — DA CONVERSÃO DA AÇÃO INDIVIDUAL EM AÇÃO COLETIVA"
+   },
+   {
+    "file": "Chunk_046_DA_AUDIENCIA_DE_CONCILIACAO_OU_DE_MEDIACAO.md",
+    "art_inicio": 334,
+    "art_fim": 334,
+    "capitulo": "CAPÍTULO V — DA AUDIÊNCIA DE CONCILIAÇÃO OU DE MEDIAÇÃO"
+   },
+   {
+    "file": "Chunk_047_DA_CONTESTACAO.md",
+    "art_inicio": 335,
+    "art_fim": 342,
+    "capitulo": "CAPÍTULO VI — DA CONTESTAÇÃO"
+   },
+   {
+    "file": "Chunk_048_DA_RECONVENCAO.md",
+    "art_inicio": 343,
+    "art_fim": 343,
+    "capitulo": "CAPÍTULO VII — DA RECONVENÇÃO"
+   },
+   {
+    "file": "Chunk_049_DA_REVELIA.md",
+    "art_inicio": 344,
+    "art_fim": 346,
+    "capitulo": "CAPÍTULO VIII — DA REVELIA"
+   },
+   {
+    "file": "Chunk_050_DAS_PROVIDENCIAS_PRELIMINARES_E_DO_SANEAMENTO.md",
+    "art_inicio": 347,
+    "art_fim": 353,
+    "capitulo": "CAPÍTULO IX — DAS PROVIDÊNCIAS PRELIMINARES E DO SANEAMENTO"
+   },
+   {
+    "file": "Chunk_051_DO_JULGAMENTO_CONFORME_O_ESTADO_DO_PROCESSO.md",
+    "art_inicio": 354,
+    "art_fim": 357,
+    "capitulo": "CAPÍTULO X — DO JULGAMENTO CONFORME O ESTADO DO PROCESSO"
+   },
+   {
+    "file": "Chunk_052_DA_AUDIENCIA_DE_INSTRUCAO_E_JULGAMENTO.md",
+    "art_inicio": 358,
+    "art_fim": 368,
+    "capitulo": "CAPÍTULO XI — DA AUDIÊNCIA DE INSTRUÇÃO E JULGAMENTO"
+   },
+   {
+    "file": "Chunk_053_DAS_PROVAS_P01.md",
+    "art_inicio": 369,
+    "art_fim": 390,
+    "capitulo": "CAPÍTULO XII — DAS PROVAS"
+   },
+   {
+    "file": "Chunk_053_DAS_PROVAS_P02.md",
+    "art_inicio": 391,
+    "art_fim": 415,
+    "capitulo": "CAPÍTULO XII — DAS PROVAS"
+   },
+   {
+    "file": "Chunk_053_DAS_PROVAS_P03.md",
+    "art_inicio": 416,
+    "art_fim": 438,
+    "capitulo": "CAPÍTULO XII — DAS PROVAS"
+   },
+   {
+    "file": "Chunk_053_DAS_PROVAS_P04.md",
+    "art_inicio": 439,
+    "art_fim": 456,
+    "capitulo": "CAPÍTULO XII — DAS PROVAS"
+   },
+   {
+    "file": "Chunk_053_DAS_PROVAS_P05.md",
+    "art_inicio": 457,
+    "art_fim": 472,
+    "capitulo": "CAPÍTULO XII — DAS PROVAS"
+   },
+   {
+    "file": "Chunk_053_DAS_PROVAS_P06.md",
+    "art_inicio": 473,
+    "art_fim": 484,
+    "capitulo": "CAPÍTULO XII — DAS PROVAS"
+   },
+   {
+    "file": "Chunk_054_DA_SENTENCA_E_DA_COISA_JULGADA.md",
+    "art_inicio": 485,
+    "art_fim": 508,
+    "capitulo": "CAPÍTULO XIII — DA SENTENÇA E DA COISA JULGADA"
+   },
+   {
+    "file": "Chunk_055_DA_LIQUIDACAO_DE_SENTENCA.md",
+    "art_inicio": 509,
+    "art_fim": 512,
+    "capitulo": "CAPÍTULO XIV — DA LIQUIDAÇÃO DE SENTENÇA"
+   },
+   {
+    "file": "Chunk_056_DISPOSICOES_GERAIS.md",
+    "art_inicio": 513,
+    "art_fim": 519,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_057_DO_CUMPRIMENTO_PROVISORIO_DA_SENTENCA_QUE_RECONHEC.md",
+    "art_inicio": 520,
+    "art_fim": 522,
+    "capitulo": "CAPÍTULO II — DO CUMPRIMENTO PROVISÓRIO DA SENTENÇA QUE RECONHECE A EXIGIBILIDADE DE OBRIGAÇÃO DE"
+   },
+   {
+    "file": "Chunk_058_DO_CUMPRIMENTO_DEFINITIVO_DA_SENTENCA_QUE_RECONHEC.md",
+    "art_inicio": 523,
+    "art_fim": 527,
+    "capitulo": "CAPÍTULO III — DO CUMPRIMENTO DEFINITIVO DA SENTENÇA QUE RECONHECE A EXIGIBILIDADE DE OBRIGAÇÃO DE"
+   },
+   {
+    "file": "Chunk_059_DO_CUMPRIMENTO_DE_SENTENCA_QUE_RECONHECA_A_EXIGIBI.md",
+    "art_inicio": 528,
+    "art_fim": 533,
+    "capitulo": "CAPÍTULO IV — DO CUMPRIMENTO DE SENTENÇA QUE RECONHEÇA A EXIGIBILIDADE DE OBRIGAÇÃO DE PRESTAR"
+   },
+   {
+    "file": "Chunk_060_DO_CUMPRIMENTO_DE_SENTENCA_QUE_RECONHECA_A_EXIGIBI.md",
+    "art_inicio": 534,
+    "art_fim": 535,
+    "capitulo": "CAPÍTULO V — DO CUMPRIMENTO DE SENTENÇA QUE RECONHEÇA A EXIGIBILIDADE DE OBRIGAÇÃO DE PAGAR QUANTIA"
+   },
+   {
+    "file": "Chunk_061_DO_CUMPRIMENTO_DE_SENTENCA_QUE_RECONHECA_A_EXIGIBI.md",
+    "art_inicio": 536,
+    "art_fim": 538,
+    "capitulo": "CAPÍTULO VI — DO CUMPRIMENTO DE SENTENÇA QUE RECONHEÇA A EXIGIBILIDADE DE OBRIGAÇÃO DE FAZER, DE NÃO"
+   },
+   {
+    "file": "Chunk_062_DA_ACAO_DE_CONSIGNACAO_EM_PAGAMENTO.md",
+    "art_inicio": 539,
+    "art_fim": 549,
+    "capitulo": "CAPÍTULO I — DA AÇÃO DE CONSIGNAÇÃO EM PAGAMENTO"
+   },
+   {
+    "file": "Chunk_063_DA_ACAO_DE_EXIGIR_CONTAS.md",
+    "art_inicio": 550,
+    "art_fim": 553,
+    "capitulo": "CAPÍTULO II — DA AÇÃO DE EXIGIR CONTAS"
+   },
+   {
+    "file": "Chunk_064_DAS_ACOES_POSSESSORIAS.md",
+    "art_inicio": 554,
+    "art_fim": 568,
+    "capitulo": "CAPÍTULO III — DAS AÇÕES POSSESSÓRIAS"
+   },
+   {
+    "file": "Chunk_065_DA_ACAO_DE_DIVISAO_E_DA_DEMARCACAO_DE_TERRAS_PARTI.md",
+    "art_inicio": 569,
+    "art_fim": 598,
+    "capitulo": "CAPÍTULO IV — DA AÇÃO DE DIVISÃO E DA DEMARCAÇÃO DE TERRAS PARTICULARES"
+   },
+   {
+    "file": "Chunk_066_DA_ACAO_DE_DISSOLUCAO_PARCIAL_DE_SOCIEDADE.md",
+    "art_inicio": 599,
+    "art_fim": 609,
+    "capitulo": "CAPÍTULO V — DA AÇÃO DE DISSOLUÇÃO PARCIAL DE SOCIEDADE"
+   },
+   {
+    "file": "Chunk_067_DO_INVENTARIO_E_DA_PARTILHA_P01.md",
+    "art_inicio": 610,
+    "art_fim": 625,
+    "capitulo": "CAPÍTULO VI — DO INVENTÁRIO E DA PARTILHA"
+   },
+   {
+    "file": "Chunk_067_DO_INVENTARIO_E_DA_PARTILHA_P02.md",
+    "art_inicio": 626,
+    "art_fim": 646,
+    "capitulo": "CAPÍTULO VI — DO INVENTÁRIO E DA PARTILHA"
+   },
+   {
+    "file": "Chunk_067_DO_INVENTARIO_E_DA_PARTILHA_P03.md",
+    "art_inicio": 647,
+    "art_fim": 673,
+    "capitulo": "CAPÍTULO VI — DO INVENTÁRIO E DA PARTILHA"
+   },
+   {
+    "file": "Chunk_068_DOS_EMBARGOS_DE_TERCEIRO.md",
+    "art_inicio": 674,
+    "art_fim": 681,
+    "capitulo": "CAPÍTULO VII — DOS EMBARGOS DE TERCEIRO"
+   },
+   {
+    "file": "Chunk_069_DA_OPOSICAO.md",
+    "art_inicio": 682,
+    "art_fim": 686,
+    "capitulo": "CAPÍTULO VIII — DA OPOSIÇÃO"
+   },
+   {
+    "file": "Chunk_070_DA_HABILITACAO.md",
+    "art_inicio": 687,
+    "art_fim": 692,
+    "capitulo": "CAPÍTULO IX — DA HABILITAÇÃO"
+   },
+   {
+    "file": "Chunk_071_DAS_ACOES_DE_FAMILIA.md",
+    "art_inicio": 693,
+    "art_fim": 699,
+    "capitulo": "CAPÍTULO X — DAS AÇÕES DE FAMÍLIA"
+   },
+   {
+    "file": "Chunk_072_DA_ACAO_MONITORIA.md",
+    "art_inicio": 700,
+    "art_fim": 702,
+    "capitulo": "CAPÍTULO XI — DA AÇÃO MONITÓRIA"
+   },
+   {
+    "file": "Chunk_073_DA_HOMOLOGACAO_DO_PENHOR_LEGAL.md",
+    "art_inicio": 703,
+    "art_fim": 706,
+    "capitulo": "CAPÍTULO XII — DA HOMOLOGAÇÃO DO PENHOR LEGAL"
+   },
+   {
+    "file": "Chunk_074_DA_REGULACAO_DE_AVARIA_GROSSA.md",
+    "art_inicio": 707,
+    "art_fim": 711,
+    "capitulo": "CAPÍTULO XIII — DA REGULAÇÃO DE AVARIA GROSSA"
+   },
+   {
+    "file": "Chunk_075_DA_RESTAURACAO_DE_AUTOS.md",
+    "art_inicio": 712,
+    "art_fim": 718,
+    "capitulo": "CAPÍTULO XIV — DA RESTAURAÇÃO DE AUTOS"
+   },
+   {
+    "file": "Chunk_076_DOS_PROCEDIMENTOS_DE_JURISDICAO_VOLUNTARIA_P01.md",
+    "art_inicio": 719,
+    "art_fim": 739,
+    "capitulo": "CAPÍTULO XV — DOS PROCEDIMENTOS DE JURISDIÇÃO VOLUNTÁRIA"
+   },
+   {
+    "file": "Chunk_076_DOS_PROCEDIMENTOS_DE_JURISDICAO_VOLUNTARIA_P02.md",
+    "art_inicio": 740,
+    "art_fim": 754,
+    "capitulo": "CAPÍTULO XV — DOS PROCEDIMENTOS DE JURISDIÇÃO VOLUNTÁRIA"
+   },
+   {
+    "file": "Chunk_076_DOS_PROCEDIMENTOS_DE_JURISDICAO_VOLUNTARIA_P03.md",
+    "art_inicio": 755,
+    "art_fim": 770,
+    "capitulo": "CAPÍTULO XV — DOS PROCEDIMENTOS DE JURISDIÇÃO VOLUNTÁRIA"
+   },
+   {
+    "file": "Chunk_077_DISPOSICOES_GERAIS.md",
+    "art_inicio": 771,
+    "art_fim": 777,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_078_DAS_PARTES.md",
+    "art_inicio": 778,
+    "art_fim": 780,
+    "capitulo": "CAPÍTULO II — DAS PARTES"
+   },
+   {
+    "file": "Chunk_079_DA_COMPETENCIA.md",
+    "art_inicio": 781,
+    "art_fim": 782,
+    "capitulo": "CAPÍTULO III — DA COMPETÊNCIA"
+   },
+   {
+    "file": "Chunk_080_DOS_REQUISITOS_NECESSARIOS_PARA_REALIZAR_QUALQUER_.md",
+    "art_inicio": 783,
+    "art_fim": 788,
+    "capitulo": "CAPÍTULO IV — DOS REQUISITOS NECESSÁRIOS PARA REALIZAR QUALQUER EXECUÇÃO"
+   },
+   {
+    "file": "Chunk_081_DA_RESPONSABILIDADE_PATRIMONIAL.md",
+    "art_inicio": 789,
+    "art_fim": 796,
+    "capitulo": "CAPÍTULO V — DA RESPONSABILIDADE PATRIMONIAL"
+   },
+   {
+    "file": "Chunk_082_DISPOSICOES_GERAIS.md",
+    "art_inicio": 797,
+    "art_fim": 805,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_083_DA_EXECUCAO_PARA_A_ENTREGA_DE_COISA.md",
+    "art_inicio": 806,
+    "art_fim": 813,
+    "capitulo": "CAPÍTULO II — DA EXECUÇÃO PARA A ENTREGA DE COISA"
+   },
+   {
+    "file": "Chunk_084_DA_EXECUCAO_DAS_OBRIGACOES_DE_FAZER_OU_DE_NAO_FAZE.md",
+    "art_inicio": 814,
+    "art_fim": 823,
+    "capitulo": "CAPÍTULO III — DA EXECUÇÃO DAS OBRIGAÇÕES DE FAZER OU DE NÃO FAZER"
+   },
+   {
+    "file": "Chunk_085_DA_EXECUCAO_POR_QUANTIA_CERTA_P01.md",
+    "art_inicio": 824,
+    "art_fim": 838,
+    "capitulo": "CAPÍTULO IV — DA EXECUÇÃO POR QUANTIA CERTA"
+   },
+   {
+    "file": "Chunk_085_DA_EXECUCAO_POR_QUANTIA_CERTA_P02.md",
+    "art_inicio": 839,
+    "art_fim": 853,
+    "capitulo": "CAPÍTULO IV — DA EXECUÇÃO POR QUANTIA CERTA"
+   },
+   {
+    "file": "Chunk_085_DA_EXECUCAO_POR_QUANTIA_CERTA_P03.md",
+    "art_inicio": 854,
+    "art_fim": 863,
+    "capitulo": "CAPÍTULO IV — DA EXECUÇÃO POR QUANTIA CERTA"
+   },
+   {
+    "file": "Chunk_085_DA_EXECUCAO_POR_QUANTIA_CERTA_P04.md",
+    "art_inicio": 864,
+    "art_fim": 876,
+    "capitulo": "CAPÍTULO IV — DA EXECUÇÃO POR QUANTIA CERTA"
+   },
+   {
+    "file": "Chunk_085_DA_EXECUCAO_POR_QUANTIA_CERTA_P05.md",
+    "art_inicio": 877,
+    "art_fim": 889,
+    "capitulo": "CAPÍTULO IV — DA EXECUÇÃO POR QUANTIA CERTA"
+   },
+   {
+    "file": "Chunk_085_DA_EXECUCAO_POR_QUANTIA_CERTA_P06.md",
+    "art_inicio": 890,
+    "art_fim": 902,
+    "capitulo": "CAPÍTULO IV — DA EXECUÇÃO POR QUANTIA CERTA"
+   },
+   {
+    "file": "Chunk_085_DA_EXECUCAO_POR_QUANTIA_CERTA_P07.md",
+    "art_inicio": 903,
+    "art_fim": 909,
+    "capitulo": "CAPÍTULO IV — DA EXECUÇÃO POR QUANTIA CERTA"
+   },
+   {
+    "file": "Chunk_086_DA_EXECUCAO_CONTRA_A_FAZENDA_PUBLICA.md",
+    "art_inicio": 910,
+    "art_fim": 910,
+    "capitulo": "CAPÍTULO V — DA EXECUÇÃO CONTRA A FAZENDA PÚBLICA"
+   },
+   {
+    "file": "Chunk_087_DA_EXECUCAO_DE_ALIMENTOS.md",
+    "art_inicio": 911,
+    "art_fim": 913,
+    "capitulo": "CAPÍTULO VI — DA EXECUÇÃO DE ALIMENTOS"
+   },
+   {
+    "file": "Chunk_088_DOS_EMBARGOS_A_EXECUCAO.md",
+    "art_inicio": 914,
+    "art_fim": 920,
+    "capitulo": "TÍTULO III — DOS EMBARGOS À EXECUÇÃO"
+   },
+   {
+    "file": "Chunk_089_DA_SUSPENSAO_DO_PROCESSO_DE_EXECUCAO.md",
+    "art_inicio": 921,
+    "art_fim": 923,
+    "capitulo": "CAPÍTULO I — DA SUSPENSÃO DO PROCESSO DE EXECUÇÃO"
+   },
+   {
+    "file": "Chunk_090_DA_EXTINCAO_DO_PROCESSO_DE_EXECUCAO.md",
+    "art_inicio": 924,
+    "art_fim": 925,
+    "capitulo": "CAPÍTULO II — DA EXTINÇÃO DO PROCESSO DE EXECUÇÃO"
+   },
+   {
+    "file": "Chunk_091_DISPOSICOES_GERAIS.md",
+    "art_inicio": 926,
+    "art_fim": 928,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_092_DA_ORDEM_DOS_PROCESSOS_NO_TRIBUNAL.md",
+    "art_inicio": 929,
+    "art_fim": 946,
+    "capitulo": "CAPÍTULO II — DA ORDEM DOS PROCESSOS NO TRIBUNAL"
+   },
+   {
+    "file": "Chunk_093_DO_INCIDENTE_DE_ASSUNCAO_DE_COMPETENCIA.md",
+    "art_inicio": 947,
+    "art_fim": 947,
+    "capitulo": "CAPÍTULO III — DO INCIDENTE DE ASSUNÇÃO DE COMPETÊNCIA"
+   },
+   {
+    "file": "Chunk_094_DO_INCIDENTE_DE_ARGUICAO_DE_INCONSTITUCIONALIDADE.md",
+    "art_inicio": 948,
+    "art_fim": 950,
+    "capitulo": "CAPÍTULO IV — DO INCIDENTE DE ARGUIÇÃO DE INCONSTITUCIONALIDADE"
+   },
+   {
+    "file": "Chunk_095_DO_CONFLITO_DE_COMPETENCIA.md",
+    "art_inicio": 951,
+    "art_fim": 959,
+    "capitulo": "CAPÍTULO V — DO CONFLITO DE COMPETÊNCIA"
+   },
+   {
+    "file": "Chunk_096_DA_HOMOLOGACAO_DE_DECISAO_ESTRANGEIRA_E_DA_CONCESS.md",
+    "art_inicio": 960,
+    "art_fim": 965,
+    "capitulo": "CAPÍTULO VI — DA HOMOLOGAÇÃO DE DECISÃO ESTRANGEIRA E DA CONCESSÃO DO EXEQUATUR À CARTA ROGATÓRIA"
+   },
+   {
+    "file": "Chunk_097_DA_ACAO_RESCISORIA.md",
+    "art_inicio": 966,
+    "art_fim": 975,
+    "capitulo": "CAPÍTULO VII — DA AÇÃO RESCISÓRIA"
+   },
+   {
+    "file": "Chunk_098_DO_INCIDENTE_DE_RESOLUCAO_DE_DEMANDAS_REPETITIVAS.md",
+    "art_inicio": 976,
+    "art_fim": 987,
+    "capitulo": "CAPÍTULO VIII — DO INCIDENTE DE RESOLUÇÃO DE DEMANDAS REPETITIVAS"
+   },
+   {
+    "file": "Chunk_099_DA_RECLAMACAO.md",
+    "art_inicio": 988,
+    "art_fim": 993,
+    "capitulo": "CAPÍTULO IX — DA RECLAMAÇÃO"
+   },
+   {
+    "file": "Chunk_100_DISPOSICOES_GERAIS.md",
+    "art_inicio": 994,
+    "art_fim": 1008,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_101_DA_APELACAO.md",
+    "art_inicio": 1009,
+    "art_fim": 1014,
+    "capitulo": "CAPÍTULO II — DA APELAÇÃO"
+   },
+   {
+    "file": "Chunk_102_DO_AGRAVO_DE_INSTRUMENTO.md",
+    "art_inicio": 1015,
+    "art_fim": 1020,
+    "capitulo": "CAPÍTULO III — DO AGRAVO DE INSTRUMENTO"
+   },
+   {
+    "file": "Chunk_103_DO_AGRAVO_INTERNO.md",
+    "art_inicio": 1021,
+    "art_fim": 1021,
+    "capitulo": "CAPÍTULO IV — DO AGRAVO INTERNO"
+   },
+   {
+    "file": "Chunk_104_DOS_EMBARGOS_DE_DECLARACAO.md",
+    "art_inicio": 1022,
+    "art_fim": 1026,
+    "capitulo": "CAPÍTULO V — DOS EMBARGOS DE DECLARAÇÃO"
+   },
+   {
+    "file": "Chunk_105_DOS_RECURSOS_PARA_O_SUPREMO_TRIBUNAL_FEDERAL_E_PAR_P01.md",
+    "art_inicio": 1027,
+    "art_fim": 1031,
+    "capitulo": "CAPÍTULO VI — DOS RECURSOS PARA O SUPREMO TRIBUNAL FEDERAL E PARA O SUPERIOR TRIBUNAL DE JUSTIÇA"
+   },
+   {
+    "file": "Chunk_105_DOS_RECURSOS_PARA_O_SUPREMO_TRIBUNAL_FEDERAL_E_PAR_P02.md",
+    "art_inicio": 1032,
+    "art_fim": 1036,
+    "capitulo": "CAPÍTULO VI — DOS RECURSOS PARA O SUPREMO TRIBUNAL FEDERAL E PARA O SUPERIOR TRIBUNAL DE JUSTIÇA"
+   },
+   {
+    "file": "Chunk_105_DOS_RECURSOS_PARA_O_SUPREMO_TRIBUNAL_FEDERAL_E_PAR_P03.md",
+    "art_inicio": 1037,
+    "art_fim": 1042,
+    "capitulo": "CAPÍTULO VI — DOS RECURSOS PARA O SUPREMO TRIBUNAL FEDERAL E PARA O SUPERIOR TRIBUNAL DE JUSTIÇA"
+   },
+   {
+    "file": "Chunk_105_DOS_RECURSOS_PARA_O_SUPREMO_TRIBUNAL_FEDERAL_E_PAR_P04.md",
+    "art_inicio": 1042,
+    "art_fim": 1044,
+    "capitulo": "CAPÍTULO VI — DOS RECURSOS PARA O SUPREMO TRIBUNAL FEDERAL E PARA O SUPERIOR TRIBUNAL DE JUSTIÇA"
+   },
+   {
+    "file": "Chunk_106_DISPOSICOES_FINAIS_E_TRANSITORIAS_P01.md",
+    "art_inicio": 1045,
+    "art_fim": 1066,
+    "capitulo": "LIVRO COMPLEMENTAR — DISPOSIÇÕES FINAIS E TRANSITÓRIAS"
+   },
+   {
+    "file": "Chunk_106_DISPOSICOES_FINAIS_E_TRANSITORIAS_P02.md",
+    "art_inicio": 1067,
+    "art_fim": 1072,
+    "capitulo": "LIVRO COMPLEMENTAR — DISPOSIÇÕES FINAIS E TRANSITÓRIAS"
+   }
+  ],
+  "CC": [
+   {
+    "file": "Chunk_001_DA_PERSONALIDADE_E_DA_CAPACIDADE.md",
+    "art_inicio": 1,
+    "art_fim": 10,
+    "capitulo": "CAPÍTULO I — DA PERSONALIDADE E DA CAPACIDADE"
+   },
+   {
+    "file": "Chunk_002_DOS_DIREITOS_DA_PERSONALIDADE.md",
+    "art_inicio": 11,
+    "art_fim": 21,
+    "capitulo": "CAPÍTULO II — DOS DIREITOS DA PERSONALIDADE"
+   },
+   {
+    "file": "Chunk_003_DA_AUSENCIA.md",
+    "art_inicio": 22,
+    "art_fim": 39,
+    "capitulo": "CAPÍTULO III — DA AUSÊNCIA"
+   },
+   {
+    "file": "Chunk_004_DISPOSICOES_GERAIS.md",
+    "art_inicio": 40,
+    "art_fim": 52,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_005_DAS_ASSOCIACOES.md",
+    "art_inicio": 53,
+    "art_fim": 61,
+    "capitulo": "CAPÍTULO II — DAS ASSOCIAÇÕES"
+   },
+   {
+    "file": "Chunk_006_DAS_FUNDACOES.md",
+    "art_inicio": 62,
+    "art_fim": 69,
+    "capitulo": "CAPÍTULO III — DAS FUNDAÇÕES"
+   },
+   {
+    "file": "Chunk_007_DO_DOMICILIO.md",
+    "art_inicio": 70,
+    "art_fim": 78,
+    "capitulo": "TÍTULO III — DO DOMICÍLIO"
+   },
+   {
+    "file": "Chunk_008_DOS_BENS_CONSIDERADOS_EM_SI_MESMOS.md",
+    "art_inicio": 79,
+    "art_fim": 91,
+    "capitulo": "CAPÍTULO I — DOS BENS CONSIDERADOS EM SI MESMOS"
+   },
+   {
+    "file": "Chunk_009_DOS_BENS_RECIPROCAMENTE_CONSIDERADOS.md",
+    "art_inicio": 92,
+    "art_fim": 97,
+    "capitulo": "CAPÍTULO II — DOS BENS RECIPROCAMENTE CONSIDERADOS"
+   },
+   {
+    "file": "Chunk_010_DOS_BENS_PUBLICOS.md",
+    "art_inicio": 98,
+    "art_fim": 103,
+    "capitulo": "CAPÍTULO III — DOS BENS PÚBLICOS"
+   },
+   {
+    "file": "Chunk_011_DISPOSICOES_GERAIS.md",
+    "art_inicio": 104,
+    "art_fim": 114,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_012_DA_REPRESENTACAO.md",
+    "art_inicio": 115,
+    "art_fim": 120,
+    "capitulo": "CAPÍTULO II — DA REPRESENTAÇÃO"
+   },
+   {
+    "file": "Chunk_013_DA_CONDICAO_DO_TERMO_E_DO_ENCARGO.md",
+    "art_inicio": 121,
+    "art_fim": 137,
+    "capitulo": "CAPÍTULO III — DA CONDIÇÃO, DO TERMO E DO ENCARGO"
+   },
+   {
+    "file": "Chunk_014_DOS_DEFEITOS_DO_NEGOCIO_JURIDICO.md",
+    "art_inicio": 138,
+    "art_fim": 165,
+    "capitulo": "CAPÍTULO IV — DOS DEFEITOS DO NEGÓCIO JURÍDICO"
+   },
+   {
+    "file": "Chunk_015_DA_INVALIDADE_DO_NEGOCIO_JURIDICO.md",
+    "art_inicio": 166,
+    "art_fim": 184,
+    "capitulo": "CAPÍTULO V — DA INVALIDADE DO NEGÓCIO JURÍDICO"
+   },
+   {
+    "file": "Chunk_016_DOS_ATOS_JURIDICOS_LICITOS.md",
+    "art_inicio": 185,
+    "art_fim": 185,
+    "capitulo": "TÍTULO II — DOS ATOS JURÍDICOS LÍCITOS"
+   },
+   {
+    "file": "Chunk_017_DOS_ATOS_ILICITOS.md",
+    "art_inicio": 186,
+    "art_fim": 188,
+    "capitulo": "TÍTULO III — DOS ATOS ILÍCITOS"
+   },
+   {
+    "file": "Chunk_018_DA_PRESCRICAO.md",
+    "art_inicio": 189,
+    "art_fim": 206,
+    "capitulo": "CAPÍTULO I — DA PRESCRIÇÃO"
+   },
+   {
+    "file": "Chunk_019_DA_DECADENCIA.md",
+    "art_inicio": 207,
+    "art_fim": 211,
+    "capitulo": "CAPÍTULO II — DA DECADÊNCIA"
+   },
+   {
+    "file": "Chunk_020_DA_PROVA.md",
+    "art_inicio": 212,
+    "art_fim": 232,
+    "capitulo": "TÍTULO V — DA PROVA"
+   },
+   {
+    "file": "Chunk_021_DAS_OBRIGACOES_DE_DAR.md",
+    "art_inicio": 233,
+    "art_fim": 246,
+    "capitulo": "CAPÍTULO I — DAS OBRIGAÇÕES DE DAR"
+   },
+   {
+    "file": "Chunk_022_DAS_OBRIGACOES_DE_FAZER.md",
+    "art_inicio": 247,
+    "art_fim": 249,
+    "capitulo": "CAPÍTULO II — DAS OBRIGAÇÕES DE FAZER"
+   },
+   {
+    "file": "Chunk_023_DAS_OBRIGACOES_DE_NAO_FAZER.md",
+    "art_inicio": 250,
+    "art_fim": 251,
+    "capitulo": "CAPÍTULO III — DAS OBRIGAÇÕES DE NÃO FAZER"
+   },
+   {
+    "file": "Chunk_024_DAS_OBRIGACOES_ALTERNATIVAS.md",
+    "art_inicio": 252,
+    "art_fim": 256,
+    "capitulo": "CAPÍTULO IV — DAS OBRIGAÇÕES ALTERNATIVAS"
+   },
+   {
+    "file": "Chunk_025_DAS_OBRIGACOES_DIVISIVEIS_E_INDIVISIVEIS.md",
+    "art_inicio": 257,
+    "art_fim": 263,
+    "capitulo": "CAPÍTULO V — DAS OBRIGAÇÕES DIVISÍVEIS E INDIVISÍVEIS"
+   },
+   {
+    "file": "Chunk_026_DAS_OBRIGACOES_SOLIDARIAS.md",
+    "art_inicio": 264,
+    "art_fim": 285,
+    "capitulo": "CAPÍTULO VI — DAS OBRIGAÇÕES SOLIDÁRIAS"
+   },
+   {
+    "file": "Chunk_027_DA_CESSAO_DE_CREDITO.md",
+    "art_inicio": 286,
+    "art_fim": 298,
+    "capitulo": "CAPÍTULO I — DA CESSÃO DE CRÉDITO"
+   },
+   {
+    "file": "Chunk_028_DA_ASSUNCAO_DE_DIVIDA.md",
+    "art_inicio": 299,
+    "art_fim": 303,
+    "capitulo": "CAPÍTULO II — DA ASSUNÇÃO DE DÍVIDA"
+   },
+   {
+    "file": "Chunk_029_DO_PAGAMENTO.md",
+    "art_inicio": 304,
+    "art_fim": 333,
+    "capitulo": "CAPÍTULO I — DO PAGAMENTO"
+   },
+   {
+    "file": "Chunk_030_DO_PAGAMENTO_EM_CONSIGNACAO.md",
+    "art_inicio": 334,
+    "art_fim": 345,
+    "capitulo": "CAPÍTULO II — DO PAGAMENTO EM CONSIGNAÇÃO"
+   },
+   {
+    "file": "Chunk_031_DO_PAGAMENTO_COM_SUB_ROGACAO.md",
+    "art_inicio": 346,
+    "art_fim": 351,
+    "capitulo": "CAPÍTULO III — DO PAGAMENTO COM SUB-ROGAÇÃO"
+   },
+   {
+    "file": "Chunk_032_DA_IMPUTACAO_DO_PAGAMENTO.md",
+    "art_inicio": 352,
+    "art_fim": 355,
+    "capitulo": "CAPÍTULO IV — DA IMPUTAÇÃO DO PAGAMENTO"
+   },
+   {
+    "file": "Chunk_033_DA_DACAO_EM_PAGAMENTO.md",
+    "art_inicio": 356,
+    "art_fim": 359,
+    "capitulo": "CAPÍTULO V — DA DAÇÃO EM PAGAMENTO"
+   },
+   {
+    "file": "Chunk_034_DA_NOVACAO.md",
+    "art_inicio": 360,
+    "art_fim": 367,
+    "capitulo": "CAPÍTULO VI — DA NOVAÇÃO"
+   },
+   {
+    "file": "Chunk_035_DA_COMPENSACAO.md",
+    "art_inicio": 368,
+    "art_fim": 380,
+    "capitulo": "CAPÍTULO VII — DA COMPENSAÇÃO"
+   },
+   {
+    "file": "Chunk_036_DA_CONFUSAO.md",
+    "art_inicio": 381,
+    "art_fim": 384,
+    "capitulo": "CAPÍTULO VIII — DA CONFUSÃO"
+   },
+   {
+    "file": "Chunk_037_DA_REMISSAO_DAS_DIVIDAS.md",
+    "art_inicio": 385,
+    "art_fim": 388,
+    "capitulo": "CAPÍTULO IX — DA REMISSÃO DAS DÍVIDAS"
+   },
+   {
+    "file": "Chunk_038_DISPOSICOES_GERAIS.md",
+    "art_inicio": 389,
+    "art_fim": 393,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_039_DA_MORA.md",
+    "art_inicio": 394,
+    "art_fim": 401,
+    "capitulo": "CAPÍTULO II — DA MORA"
+   },
+   {
+    "file": "Chunk_040_DAS_PERDAS_E_DANOS.md",
+    "art_inicio": 402,
+    "art_fim": 405,
+    "capitulo": "CAPÍTULO III — DAS PERDAS E DANOS"
+   },
+   {
+    "file": "Chunk_041_DOS_JUROS_LEGAIS.md",
+    "art_inicio": 406,
+    "art_fim": 407,
+    "capitulo": "CAPÍTULO IV — DOS JUROS LEGAIS"
+   },
+   {
+    "file": "Chunk_042_DA_CLAUSULA_PENAL.md",
+    "art_inicio": 408,
+    "art_fim": 416,
+    "capitulo": "CAPÍTULO V — DA CLÁUSULA PENAL"
+   },
+   {
+    "file": "Chunk_043_DAS_ARRAS_OU_SINAL.md",
+    "art_inicio": 417,
+    "art_fim": 420,
+    "capitulo": "CAPÍTULO VI — DAS ARRAS OU SINAL"
+   },
+   {
+    "file": "Chunk_044_DISPOSICOES_GERAIS.md",
+    "art_inicio": 421,
+    "art_fim": 471,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_045_DA_EXTINCAO_DO_CONTRATO.md",
+    "art_inicio": 472,
+    "art_fim": 480,
+    "capitulo": "CAPÍTULO II — DA EXTINÇÃO DO CONTRATO"
+   },
+   {
+    "file": "Chunk_046_DA_COMPRA_E_VENDA.md",
+    "art_inicio": 481,
+    "art_fim": 532,
+    "capitulo": "CAPÍTULO I — DA COMPRA E VENDA"
+   },
+   {
+    "file": "Chunk_047_DA_TROCA_OU_PERMUTA.md",
+    "art_inicio": 533,
+    "art_fim": 533,
+    "capitulo": "CAPÍTULO II — DA TROCA OU PERMUTA"
+   },
+   {
+    "file": "Chunk_048_DO_CONTRATO_ESTIMATORIO.md",
+    "art_inicio": 534,
+    "art_fim": 537,
+    "capitulo": "CAPÍTULO III — DO CONTRATO ESTIMATÓRIO"
+   },
+   {
+    "file": "Chunk_049_DA_DOACAO.md",
+    "art_inicio": 538,
+    "art_fim": 564,
+    "capitulo": "CAPÍTULO IV — DA DOAÇÃO"
+   },
+   {
+    "file": "Chunk_050_DA_LOCACAO_DE_COISAS.md",
+    "art_inicio": 565,
+    "art_fim": 578,
+    "capitulo": "CAPÍTULO V — DA LOCAÇÃO DE COISAS"
+   },
+   {
+    "file": "Chunk_051_DO_EMPRESTIMO.md",
+    "art_inicio": 579,
+    "art_fim": 592,
+    "capitulo": "CAPÍTULO VI — DO EMPRÉSTIMO"
+   },
+   {
+    "file": "Chunk_052_DA_PRESTACAO_DE_SERVICO.md",
+    "art_inicio": 593,
+    "art_fim": 609,
+    "capitulo": "CAPÍTULO VII — DA PRESTAÇÃO DE SERVIÇO"
+   },
+   {
+    "file": "Chunk_053_DA_EMPREITADA.md",
+    "art_inicio": 610,
+    "art_fim": 626,
+    "capitulo": "CAPÍTULO VIII — DA EMPREITADA"
+   },
+   {
+    "file": "Chunk_054_DO_DEPOSITO.md",
+    "art_inicio": 627,
+    "art_fim": 652,
+    "capitulo": "CAPÍTULO IX — DO DEPÓSITO"
+   },
+   {
+    "file": "Chunk_055_DO_MANDATO.md",
+    "art_inicio": 653,
+    "art_fim": 692,
+    "capitulo": "CAPÍTULO X — DO MANDATO"
+   },
+   {
+    "file": "Chunk_056_DA_COMISSAO.md",
+    "art_inicio": 693,
+    "art_fim": 709,
+    "capitulo": "CAPÍTULO XI — DA COMISSÃO"
+   },
+   {
+    "file": "Chunk_057_DA_AGENCIA_E_DISTRIBUICAO.md",
+    "art_inicio": 710,
+    "art_fim": 721,
+    "capitulo": "CAPÍTULO XII — DA AGÊNCIA E DISTRIBUIÇÃO"
+   },
+   {
+    "file": "Chunk_058_DA_CORRETAGEM.md",
+    "art_inicio": 722,
+    "art_fim": 729,
+    "capitulo": "CAPÍTULO XIII — DA CORRETAGEM"
+   },
+   {
+    "file": "Chunk_059_DO_TRANSPORTE.md",
+    "art_inicio": 730,
+    "art_fim": 756,
+    "capitulo": "CAPÍTULO XIV — DO TRANSPORTE"
+   },
+   {
+    "file": "Chunk_060_DO_SEGURO.md",
+    "art_inicio": 757,
+    "art_fim": 802,
+    "capitulo": "CAPÍTULO XV — DO SEGURO"
+   },
+   {
+    "file": "Chunk_061_DA_CONSTITUICAO_DE_RENDA.md",
+    "art_inicio": 803,
+    "art_fim": 813,
+    "capitulo": "CAPÍTULO XVI — DA CONSTITUIÇÃO DE RENDA"
+   },
+   {
+    "file": "Chunk_062_DO_JOGO_E_DA_APOSTA.md",
+    "art_inicio": 814,
+    "art_fim": 817,
+    "capitulo": "CAPÍTULO XVII — DO JOGO E DA APOSTA"
+   },
+   {
+    "file": "Chunk_063_DA_FIANCA.md",
+    "art_inicio": 818,
+    "art_fim": 839,
+    "capitulo": "CAPÍTULO XVIII — DA FIANÇA"
+   },
+   {
+    "file": "Chunk_064_DA_TRANSACAO.md",
+    "art_inicio": 840,
+    "art_fim": 850,
+    "capitulo": "CAPÍTULO XIX — DA TRANSAÇÃO"
+   },
+   {
+    "file": "Chunk_065_DO_COMPROMISSO.md",
+    "art_inicio": 851,
+    "art_fim": 853,
+    "capitulo": "CAPÍTULO XX — DO COMPROMISSO"
+   },
+   {
+    "file": "Chunk_066_DO_CONTRATO_DE_ADMINISTRACAO_FIDUCIARIA_DE_GA.md",
+    "art_inicio": 853,
+    "art_fim": 853,
+    "capitulo": "CAPÍTULO XXI — DO CONTRATO DE ADMINISTRAÇÃO FIDUCIÁRIA DE GARANTIAS"
+   },
+   {
+    "file": "Chunk_067_DA_PROMESSA_DE_RECOMPENSA.md",
+    "art_inicio": 854,
+    "art_fim": 860,
+    "capitulo": "CAPÍTULO I — DA PROMESSA DE RECOMPENSA"
+   },
+   {
+    "file": "Chunk_068_DA_GESTAO_DE_NEGOCIOS.md",
+    "art_inicio": 861,
+    "art_fim": 875,
+    "capitulo": "CAPÍTULO II — DA GESTÃO DE NEGÓCIOS"
+   },
+   {
+    "file": "Chunk_069_DO_PAGAMENTO_INDEVIDO.md",
+    "art_inicio": 876,
+    "art_fim": 883,
+    "capitulo": "CAPÍTULO III — DO PAGAMENTO INDEVIDO"
+   },
+   {
+    "file": "Chunk_070_DO_ENRIQUECIMENTO_SEM_CAUSA.md",
+    "art_inicio": 884,
+    "art_fim": 886,
+    "capitulo": "CAPÍTULO IV — DO ENRIQUECIMENTO SEM CAUSA"
+   },
+   {
+    "file": "Chunk_071_DISPOSICOES_GERAIS.md",
+    "art_inicio": 887,
+    "art_fim": 903,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_072_DO_TITULO_AO_PORTADOR.md",
+    "art_inicio": 904,
+    "art_fim": 909,
+    "capitulo": "CAPÍTULO II — DO TÍTULO AO PORTADOR"
+   },
+   {
+    "file": "Chunk_073_DO_TITULO_A_ORDEM.md",
+    "art_inicio": 910,
+    "art_fim": 920,
+    "capitulo": "CAPÍTULO III — DO TÍTULO À ORDEM"
+   },
+   {
+    "file": "Chunk_074_DO_TITULO_NOMINATIVO.md",
+    "art_inicio": 921,
+    "art_fim": 926,
+    "capitulo": "CAPÍTULO IV — DO TÍTULO NOMINATIVO"
+   },
+   {
+    "file": "Chunk_075_DA_OBRIGACAO_DE_INDENIZAR.md",
+    "art_inicio": 927,
+    "art_fim": 943,
+    "capitulo": "CAPÍTULO I — DA OBRIGAÇÃO DE INDENIZAR"
+   },
+   {
+    "file": "Chunk_076_DA_INDENIZACAO.md",
+    "art_inicio": 944,
+    "art_fim": 954,
+    "capitulo": "CAPÍTULO II — DA INDENIZAÇÃO"
+   },
+   {
+    "file": "Chunk_077_DAS_PREFERENCIAS_E_PRIVILEGIOS_CREDITORIOS.md",
+    "art_inicio": 955,
+    "art_fim": 965,
+    "capitulo": "TÍTULO X — DAS PREFERÊNCIAS E PRIVILÉGIOS CREDITÓRIOS"
+   },
+   {
+    "file": "Chunk_078_DA_CARACTERIZACAO_E_DA_INSCRICAO.md",
+    "art_inicio": 966,
+    "art_fim": 971,
+    "capitulo": "CAPÍTULO I — DA CARACTERIZAÇÃO E DA INSCRIÇÃO"
+   },
+   {
+    "file": "Chunk_079_DA_CAPACIDADE.md",
+    "art_inicio": 972,
+    "art_fim": 980,
+    "capitulo": "CAPÍTULO II — DA CAPACIDADE"
+   },
+   {
+    "file": "Chunk_080_DA_EMPRESA_INDIVIDUAL_DE_RESPONSABILIDADE_LIM.md",
+    "art_inicio": 980,
+    "art_fim": 980,
+    "capitulo": "TÍTULO I-A — DA EMPRESA INDIVIDUAL DE RESPONSABILIDADE LIMITADA"
+   },
+   {
+    "file": "Chunk_081_DISPOSICOES_GERAIS.md",
+    "art_inicio": 981,
+    "art_fim": 985,
+    "capitulo": "CAPÍTULO UNICO — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_082_DA_SOCIEDADE_EM_COMUM.md",
+    "art_inicio": 986,
+    "art_fim": 990,
+    "capitulo": "CAPÍTULO I — DA SOCIEDADE EM COMUM"
+   },
+   {
+    "file": "Chunk_083_DA_SOCIEDADE_EM_CONTA_DE_PARTICIPACAO.md",
+    "art_inicio": 991,
+    "art_fim": 996,
+    "capitulo": "CAPÍTULO II — DA SOCIEDADE EM CONTA DE PARTICIPAÇÃO"
+   },
+   {
+    "file": "Chunk_084_DA_SOCIEDADE_SIMPLES_P01.md",
+    "art_inicio": 997,
+    "art_fim": 1019,
+    "capitulo": "CAPÍTULO I — DA SOCIEDADE SIMPLES"
+   },
+   {
+    "file": "Chunk_084_DA_SOCIEDADE_SIMPLES_P02.md",
+    "art_inicio": 1020,
+    "art_fim": 1038,
+    "capitulo": "CAPÍTULO I — DA SOCIEDADE SIMPLES"
+   },
+   {
+    "file": "Chunk_085_DA_SOCIEDADE_EM_NOME_COLETIVO.md",
+    "art_inicio": 1039,
+    "art_fim": 1044,
+    "capitulo": "CAPÍTULO II — Da Sociedade em Nome Coletivo"
+   },
+   {
+    "file": "Chunk_086_DA_SOCIEDADE_EM_COMANDITA_SIMPLES.md",
+    "art_inicio": 1045,
+    "art_fim": 1051,
+    "capitulo": "CAPÍTULO III — Da Sociedade em Comandita Simples"
+   },
+   {
+    "file": "Chunk_087_DA_SOCIEDADE_LIMITADA_P01.md",
+    "art_inicio": 1052,
+    "art_fim": 1071,
+    "capitulo": "CAPÍTULO IV — Da Sociedade Limitada"
+   },
+   {
+    "file": "Chunk_087_DA_SOCIEDADE_LIMITADA_P02.md",
+    "art_inicio": 1072,
+    "art_fim": 1087,
+    "capitulo": "CAPÍTULO IV — Da Sociedade Limitada"
+   },
+   {
+    "file": "Chunk_088_DA_SOCIEDADE_ANONIMA.md",
+    "art_inicio": 1088,
+    "art_fim": 1089,
+    "capitulo": "CAPÍTULO V — DA SOCIEDADE ANÔNIMA"
+   },
+   {
+    "file": "Chunk_089_DA_SOCIEDADE_EM_COMANDITA_POR_ACOES.md",
+    "art_inicio": 1090,
+    "art_fim": 1092,
+    "capitulo": "CAPÍTULO VI — DA SOCIEDADE EM COMANDITA POR AÇÕES"
+   },
+   {
+    "file": "Chunk_090_DA_SOCIEDADE_COOPERATIVA.md",
+    "art_inicio": 1093,
+    "art_fim": 1096,
+    "capitulo": "CAPÍTULO VII — DA SOCIEDADE COOPERATIVA"
+   },
+   {
+    "file": "Chunk_091_DAS_SOCIEDADES_COLIGADAS.md",
+    "art_inicio": 1097,
+    "art_fim": 1101,
+    "capitulo": "CAPÍTULO VIII — DAS SOCIEDADES COLIGADAS"
+   },
+   {
+    "file": "Chunk_092_DA_LIQUIDACAO_DA_SOCIEDADE.md",
+    "art_inicio": 1102,
+    "art_fim": 1112,
+    "capitulo": "CAPÍTULO IX — DA LIQUIDAÇÃO DA SOCIEDADE"
+   },
+   {
+    "file": "Chunk_093_DA_TRANSFORMACAO_DA_INCORPORACAO_DA_FUSAO_E_D.md",
+    "art_inicio": 1113,
+    "art_fim": 1122,
+    "capitulo": "CAPÍTULO X — DA TRANSFORMAÇÃO, DA INCORPORAÇÃO, DA FUSÃO E DA CISÃO DAS SOCIEDADES"
+   },
+   {
+    "file": "Chunk_094_DA_SOCIEDADE_DEPENDENTE_DE_AUTORIZACAO.md",
+    "art_inicio": 1123,
+    "art_fim": 1141,
+    "capitulo": "CAPÍTULO XI — DA SOCIEDADE DEPENDENTE DE AUTORIZAÇÃO"
+   },
+   {
+    "file": "Chunk_095_DISPOSICOES_GERAIS.md",
+    "art_inicio": 1142,
+    "art_fim": 1149,
+    "capitulo": "CAPÍTULO UNICO — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_096_DO_REGISTRO.md",
+    "art_inicio": 1150,
+    "art_fim": 1154,
+    "capitulo": "CAPÍTULO I — DO REGISTRO"
+   },
+   {
+    "file": "Chunk_097_DO_NOME_EMPRESARIAL.md",
+    "art_inicio": 1155,
+    "art_fim": 1168,
+    "capitulo": "CAPÍTULO II — DO NOME EMPRESARIAL"
+   },
+   {
+    "file": "Chunk_098_DOS_PREPOSTOS.md",
+    "art_inicio": 1169,
+    "art_fim": 1178,
+    "capitulo": "CAPÍTULO III — DOS PREPOSTOS"
+   },
+   {
+    "file": "Chunk_099_DA_ESCRITURACAO.md",
+    "art_inicio": 1179,
+    "art_fim": 1195,
+    "capitulo": "CAPÍTULO IV — DA ESCRITURAÇÃO"
+   },
+   {
+    "file": "Chunk_100_DA_POSSE_E_SUA_CLASSIFICACAO.md",
+    "art_inicio": 1196,
+    "art_fim": 1203,
+    "capitulo": "CAPÍTULO I — DA POSSE E SUA CLASSIFICAÇÃO"
+   },
+   {
+    "file": "Chunk_101_DA_AQUISICAO_DA_POSSE.md",
+    "art_inicio": 1204,
+    "art_fim": 1209,
+    "capitulo": "CAPÍTULO II — DA AQUISIÇÃO DA POSSE"
+   },
+   {
+    "file": "Chunk_102_DOS_EFEITOS_DA_POSSE.md",
+    "art_inicio": 1210,
+    "art_fim": 1222,
+    "capitulo": "CAPÍTULO III — DOS EFEITOS DA POSSE"
+   },
+   {
+    "file": "Chunk_103_DA_PERDA_DA_POSSE.md",
+    "art_inicio": 1223,
+    "art_fim": 1224,
+    "capitulo": "CAPÍTULO IV — DA PERDA DA POSSE"
+   },
+   {
+    "file": "Chunk_104_DISPOSICOES_GERAIS.md",
+    "art_inicio": 1225,
+    "art_fim": 1227,
+    "capitulo": "CAPÍTULO UNICO — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_105_DA_PROPRIEDADE_EM_GERAL.md",
+    "art_inicio": 1228,
+    "art_fim": 1237,
+    "capitulo": "CAPÍTULO I — DA PROPRIEDADE EM GERAL"
+   },
+   {
+    "file": "Chunk_106_DA_AQUISICAO_DA_PROPRIEDADE_IMOVEL.md",
+    "art_inicio": 1238,
+    "art_fim": 1259,
+    "capitulo": "CAPÍTULO II — DA AQUISIÇÃO DA PROPRIEDADE IMÓVEL"
+   },
+   {
+    "file": "Chunk_107_DA_AQUISICAO_DA_PROPRIEDADE_MOVEL.md",
+    "art_inicio": 1260,
+    "art_fim": 1274,
+    "capitulo": "CAPÍTULO III — DA AQUISIÇÃO DA PROPRIEDADE MÓVEL"
+   },
+   {
+    "file": "Chunk_108_DA_PERDA_DA_PROPRIEDADE.md",
+    "art_inicio": 1275,
+    "art_fim": 1276,
+    "capitulo": "CAPÍTULO IV — DA PERDA DA PROPRIEDADE"
+   },
+   {
+    "file": "Chunk_109_DOS_DIREITOS_DE_VIZINHANCA.md",
+    "art_inicio": 1277,
+    "art_fim": 1313,
+    "capitulo": "CAPÍTULO V — DOS DIREITOS DE VIZINHANÇA"
+   },
+   {
+    "file": "Chunk_110_DO_CONDOMINIO_GERAL.md",
+    "art_inicio": 1314,
+    "art_fim": 1330,
+    "capitulo": "CAPÍTULO VI — DO CONDOMÍNIO GERAL"
+   },
+   {
+    "file": "Chunk_111_DO_CONDOMINIO_EDILICIO_P01.md",
+    "art_inicio": 1331,
+    "art_fim": 1347,
+    "capitulo": "CAPÍTULO VII — DO CONDOMÍNIO EDILÍCIO"
+   },
+   {
+    "file": "Chunk_111_DO_CONDOMINIO_EDILICIO_P02.md",
+    "art_inicio": 1348,
+    "art_fim": 1358,
+    "capitulo": "CAPÍTULO VII — DO CONDOMÍNIO EDILÍCIO"
+   },
+   {
+    "file": "Chunk_112_DO_CONDOMINIO_EM_MULTIPROPRIEDADE_P01.md",
+    "art_inicio": 1358,
+    "art_fim": 1358,
+    "capitulo": "CAPÍTULO VII-A — DO CONDOMÍNIO EM MULTIPROPRIEDADE"
+   },
+   {
+    "file": "Chunk_112_DO_CONDOMINIO_EM_MULTIPROPRIEDADE_P02.md",
+    "art_inicio": 1358,
+    "art_fim": 1358,
+    "capitulo": "CAPÍTULO VII-A — DO CONDOMÍNIO EM MULTIPROPRIEDADE"
+   },
+   {
+    "file": "Chunk_112_DO_CONDOMINIO_EM_MULTIPROPRIEDADE_P03.md",
+    "art_inicio": 1358,
+    "art_fim": 1358,
+    "capitulo": "CAPÍTULO VII-A — DO CONDOMÍNIO EM MULTIPROPRIEDADE"
+   },
+   {
+    "file": "Chunk_113_DA_PROPRIEDADE_RESOLUVEL.md",
+    "art_inicio": 1359,
+    "art_fim": 1360,
+    "capitulo": "CAPÍTULO VIII — DA PROPRIEDADE RESOLÚVEL"
+   },
+   {
+    "file": "Chunk_114_DA_PROPRIEDADE_FIDUCIARIA.md",
+    "art_inicio": 1361,
+    "art_fim": 1368,
+    "capitulo": "CAPÍTULO IX — DA PROPRIEDADE FIDUCIÁRIA"
+   },
+   {
+    "file": "Chunk_115_DO_FUNDO_DE_INVESTIMENTO.md",
+    "art_inicio": 1368,
+    "art_fim": 1368,
+    "capitulo": "CAPÍTULO X — DO FUNDO DE INVESTIMENTO"
+   },
+   {
+    "file": "Chunk_116_DA_SUPERFICIE.md",
+    "art_inicio": 1369,
+    "art_fim": 1377,
+    "capitulo": "TÍTULO IV — DA SUPERFÍCIE"
+   },
+   {
+    "file": "Chunk_117_DA_CONSTITUICAO_DAS_SERVIDOES.md",
+    "art_inicio": 1378,
+    "art_fim": 1379,
+    "capitulo": "CAPÍTULO I — DA CONSTITUIÇÃO DAS SERVIDÕES"
+   },
+   {
+    "file": "Chunk_118_DO_EXERCICIO_DAS_SERVIDOES.md",
+    "art_inicio": 1380,
+    "art_fim": 1386,
+    "capitulo": "CAPÍTULO II — DO EXERCÍCIO DAS SERVIDÕES"
+   },
+   {
+    "file": "Chunk_119_DA_EXTINCAO_DAS_SERVIDOES.md",
+    "art_inicio": 1387,
+    "art_fim": 1389,
+    "capitulo": "CAPÍTULO III — DA EXTINÇÃO DAS SERVIDÕES"
+   },
+   {
+    "file": "Chunk_120_DISPOSICOES_GERAIS.md",
+    "art_inicio": 1390,
+    "art_fim": 1393,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_121_DOS_DIREITOS_DO_USUFRUTUARIO.md",
+    "art_inicio": 1394,
+    "art_fim": 1399,
+    "capitulo": "CAPÍTULO II — DOS DIREITOS DO USUFRUTUÁRIO"
+   },
+   {
+    "file": "Chunk_122_DOS_DEVERES_DO_USUFRUTUARIO.md",
+    "art_inicio": 1400,
+    "art_fim": 1409,
+    "capitulo": "CAPÍTULO III — DOS DEVERES DO USUFRUTUÁRIO"
+   },
+   {
+    "file": "Chunk_123_DA_EXTINCAO_DO_USUFRUTO.md",
+    "art_inicio": 1410,
+    "art_fim": 1411,
+    "capitulo": "CAPÍTULO IV — DA EXTINÇÃO DO USUFRUTO"
+   },
+   {
+    "file": "Chunk_124_DO_USO.md",
+    "art_inicio": 1412,
+    "art_fim": 1413,
+    "capitulo": "TÍTULO VII — DO USO"
+   },
+   {
+    "file": "Chunk_125_DA_HABITACAO.md",
+    "art_inicio": 1414,
+    "art_fim": 1416,
+    "capitulo": "TÍTULO VIII — DA HABITAÇÃO"
+   },
+   {
+    "file": "Chunk_126_DO_DIREITO_DO_PROMITENTE_COMPRADOR.md",
+    "art_inicio": 1417,
+    "art_fim": 1418,
+    "capitulo": "TÍTULO IX — DO DIREITO DO PROMITENTE COMPRADOR"
+   },
+   {
+    "file": "Chunk_127_DISPOSICOES_GERAIS.md",
+    "art_inicio": 1419,
+    "art_fim": 1430,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_128_DO_PENHOR.md",
+    "art_inicio": 1431,
+    "art_fim": 1472,
+    "capitulo": "CAPÍTULO II — DO PENHOR"
+   },
+   {
+    "file": "Chunk_129_DA_HIPOTECA.md",
+    "art_inicio": 1473,
+    "art_fim": 1505,
+    "capitulo": "CAPÍTULO III — DA HIPOTECA"
+   },
+   {
+    "file": "Chunk_130_DA_ANTICRESE.md",
+    "art_inicio": 1506,
+    "art_fim": 1510,
+    "capitulo": "CAPÍTULO IV — DA ANTICRESE"
+   },
+   {
+    "file": "Chunk_131_DA_LAJE.md",
+    "art_inicio": 1510,
+    "art_fim": 1510,
+    "capitulo": "TÍTULO XI — DA LAJE"
+   },
+   {
+    "file": "Chunk_132_DISPOSICOES_GERAIS.md",
+    "art_inicio": 1511,
+    "art_fim": 1516,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_133_DA_CAPACIDADE_PARA_O_CASAMENTO.md",
+    "art_inicio": 1517,
+    "art_fim": 1520,
+    "capitulo": "CAPÍTULO II — DA CAPACIDADE PARA O CASAMENTO"
+   },
+   {
+    "file": "Chunk_134_DOS_IMPEDIMENTOS.md",
+    "art_inicio": 1521,
+    "art_fim": 1522,
+    "capitulo": "CAPÍTULO III — DOS IMPEDIMENTOS"
+   },
+   {
+    "file": "Chunk_135_DAS_CAUSAS_SUSPENSIVAS.md",
+    "art_inicio": 1523,
+    "art_fim": 1524,
+    "capitulo": "CAPÍTULO IV — DAS CAUSAS SUSPENSIVAS"
+   },
+   {
+    "file": "Chunk_136_DO_PROCESSO_DE_HABILITACAO_PARA_O_CASAMENTO.md",
+    "art_inicio": 1525,
+    "art_fim": 1532,
+    "capitulo": "CAPÍTULO V — DO PROCESSO DE HABILITAÇÃO PARA O CASAMENTO"
+   },
+   {
+    "file": "Chunk_137_DA_CELEBRACAO_DO_CASAMENTO.md",
+    "art_inicio": 1533,
+    "art_fim": 1542,
+    "capitulo": "CAPÍTULO VI — DA CELEBRAÇÃO DO CASAMENTO"
+   },
+   {
+    "file": "Chunk_138_DAS_PROVAS_DO_CASAMENTO.md",
+    "art_inicio": 1543,
+    "art_fim": 1547,
+    "capitulo": "CAPÍTULO VII — DAS PROVAS DO CASAMENTO"
+   },
+   {
+    "file": "Chunk_139_DA_INVALIDADE_DO_CASAMENTO.md",
+    "art_inicio": 1548,
+    "art_fim": 1564,
+    "capitulo": "CAPÍTULO VIII — DA INVALIDADE DO CASAMENTO"
+   },
+   {
+    "file": "Chunk_140_DA_EFICACIA_DO_CASAMENTO.md",
+    "art_inicio": 1565,
+    "art_fim": 1570,
+    "capitulo": "CAPÍTULO IX — DA EFICÁCIA DO CASAMENTO"
+   },
+   {
+    "file": "Chunk_141_DA_DISSOLUCAO_DA_SOCIEDADE_E_DO_VINCULO_CONJU.md",
+    "art_inicio": 1571,
+    "art_fim": 1582,
+    "capitulo": "CAPÍTULO X — DA DISSOLUÇÃO DA SOCIEDADE E DO VÍNCULO CONJUGAL"
+   },
+   {
+    "file": "Chunk_142_DA_PROTECAO_DA_PESSOA_DOS_FILHOS.md",
+    "art_inicio": 1583,
+    "art_fim": 1590,
+    "capitulo": "CAPÍTULO XI — DA PROTEÇÃO DA PESSOA DOS FILHOS"
+   },
+   {
+    "file": "Chunk_143_DISPOSICOES_GERAIS.md",
+    "art_inicio": 1591,
+    "art_fim": 1595,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_144_DA_FILIACAO.md",
+    "art_inicio": 1596,
+    "art_fim": 1606,
+    "capitulo": "CAPÍTULO II — DA FILIAÇÃO"
+   },
+   {
+    "file": "Chunk_145_DO_RECONHECIMENTO_DOS_FILHOS.md",
+    "art_inicio": 1607,
+    "art_fim": 1617,
+    "capitulo": "CAPÍTULO III — DO RECONHECIMENTO DOS FILHOS"
+   },
+   {
+    "file": "Chunk_146_DA_ADOCAO.md",
+    "art_inicio": 1618,
+    "art_fim": 1629,
+    "capitulo": "CAPÍTULO IV — DA ADOÇÃO"
+   },
+   {
+    "file": "Chunk_147_DO_PODER_FAMILIAR.md",
+    "art_inicio": 1630,
+    "art_fim": 1638,
+    "capitulo": "CAPÍTULO V — DO PODER FAMILIAR"
+   },
+   {
+    "file": "Chunk_148_DISPOSICOES_GERAIS.md",
+    "art_inicio": 1639,
+    "art_fim": 1652,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_149_DO_PACTO_ANTENUPCIAL.md",
+    "art_inicio": 1653,
+    "art_fim": 1657,
+    "capitulo": "CAPÍTULO II — DO PACTO ANTENUPCIAL"
+   },
+   {
+    "file": "Chunk_150_DO_REGIME_DE_COMUNHAO_PARCIAL.md",
+    "art_inicio": 1658,
+    "art_fim": 1666,
+    "capitulo": "CAPÍTULO III — DO REGIME DE COMUNHÃO PARCIAL"
+   },
+   {
+    "file": "Chunk_151_DO_REGIME_DE_COMUNHAO_UNIVERSAL.md",
+    "art_inicio": 1667,
+    "art_fim": 1671,
+    "capitulo": "CAPÍTULO IV — DO REGIME DE COMUNHÃO UNIVERSAL"
+   },
+   {
+    "file": "Chunk_152_DO_REGIME_DE_PARTICIPACAO_FINAL_NOS_AQUESTOS.md",
+    "art_inicio": 1672,
+    "art_fim": 1686,
+    "capitulo": "CAPÍTULO V — DO REGIME DE PARTICIPAÇÃO FINAL NOS AQÜESTOS"
+   },
+   {
+    "file": "Chunk_153_DO_REGIME_DE_SEPARACAO_DE_BENS.md",
+    "art_inicio": 1687,
+    "art_fim": 1688,
+    "capitulo": "CAPÍTULO VI — DO REGIME DE SEPARAÇÃO DE BENS"
+   },
+   {
+    "file": "Chunk_154_DO_USUFRUTO_E_DA_ADMINISTRACAO_DOS_BENS_DE_FI.md",
+    "art_inicio": 1689,
+    "art_fim": 1693,
+    "capitulo": "TÍTULO II — DO DIREITO PATRIMONIAL"
+   },
+   {
+    "file": "Chunk_155_DOS_ALIMENTOS.md",
+    "art_inicio": 1694,
+    "art_fim": 1710,
+    "capitulo": "TÍTULO II — DO DIREITO PATRIMONIAL"
+   },
+   {
+    "file": "Chunk_156_DO_BEM_DE_FAMILIA.md",
+    "art_inicio": 1711,
+    "art_fim": 1722,
+    "capitulo": "TÍTULO II — DO DIREITO PATRIMONIAL"
+   },
+   {
+    "file": "Chunk_157_DA_UNIAO_ESTAVEL.md",
+    "art_inicio": 1723,
+    "art_fim": 1727,
+    "capitulo": "TÍTULO III — DA UNIÃO ESTÁVEL"
+   },
+   {
+    "file": "Chunk_158_DA_TUTELA.md",
+    "art_inicio": 1728,
+    "art_fim": 1766,
+    "capitulo": "CAPÍTULO I — DA TUTELA"
+   },
+   {
+    "file": "Chunk_159_DA_CURATELA.md",
+    "art_inicio": 1767,
+    "art_fim": 1783,
+    "capitulo": "CAPÍTULO II — DA CURATELA"
+   },
+   {
+    "file": "Chunk_160_DA_TOMADA_DE_DECISAO_APOIADA.md",
+    "art_inicio": 1783,
+    "art_fim": 1783,
+    "capitulo": "CAPÍTULO III — Da Tomada de Decisão Apoiada"
+   },
+   {
+    "file": "Chunk_161_DISPOSICOES_GERAIS.md",
+    "art_inicio": 1784,
+    "art_fim": 1790,
+    "capitulo": "CAPÍTULO I — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "Chunk_162_DA_HERANCA_E_DE_SUA_ADMINISTRACAO.md",
+    "art_inicio": 1791,
+    "art_fim": 1797,
+    "capitulo": "CAPÍTULO II — DA HERANÇA E DE SUA ADMINISTRAÇÃO"
+   },
+   {
+    "file": "Chunk_163_DA_VOCACAO_HEREDITARIA.md",
+    "art_inicio": 1798,
+    "art_fim": 1803,
+    "capitulo": "CAPÍTULO III — DA VOCAÇÃO HEREDITÁRIA"
+   },
+   {
+    "file": "Chunk_164_DA_ACEITACAO_E_RENUNCIA_DA_HERANCA.md",
+    "art_inicio": 1804,
+    "art_fim": 1813,
+    "capitulo": "CAPÍTULO IV — DA ACEITAÇÃO E RENÚNCIA DA HERANÇA"
+   },
+   {
+    "file": "Chunk_165_DOS_EXCLUIDOS_DA_SUCESSAO.md",
+    "art_inicio": 1814,
+    "art_fim": 1818,
+    "capitulo": "CAPÍTULO V — DOS EXCLUÍDOS DA SUCESSÃO"
+   },
+   {
+    "file": "Chunk_166_DA_HERANCA_JACENTE.md",
+    "art_inicio": 1819,
+    "art_fim": 1823,
+    "capitulo": "CAPÍTULO VI — DA HERANÇA JACENTE"
+   },
+   {
+    "file": "Chunk_167_DA_PETICAO_DE_HERANCA.md",
+    "art_inicio": 1824,
+    "art_fim": 1828,
+    "capitulo": "CAPÍTULO VII — DA PETIÇÃO DE HERANÇA"
+   },
+   {
+    "file": "Chunk_168_DA_ORDEM_DA_VOCACAO_HEREDITARIA.md",
+    "art_inicio": 1829,
+    "art_fim": 1844,
+    "capitulo": "CAPÍTULO I — DA ORDEM DA VOCAÇÃO HEREDITÁRIA"
+   },
+   {
+    "file": "Chunk_169_DOS_HERDEIROS_NECESSARIOS.md",
+    "art_inicio": 1845,
+    "art_fim": 1850,
+    "capitulo": "CAPÍTULO II — DOS HERDEIROS NECESSÁRIOS"
+   },
+   {
+    "file": "Chunk_170_DO_DIREITO_DE_REPRESENTACAO.md",
+    "art_inicio": 1851,
+    "art_fim": 1856,
+    "capitulo": "CAPÍTULO III — DO DIREITO DE REPRESENTAÇÃO"
+   },
+   {
+    "file": "Chunk_171_DO_TESTAMENTO_EM_GERAL.md",
+    "art_inicio": 1857,
+    "art_fim": 1859,
+    "capitulo": "CAPÍTULO I — DO TESTAMENTO EM GERAL"
+   },
+   {
+    "file": "Chunk_172_DA_CAPACIDADE_DE_TESTAR.md",
+    "art_inicio": 1860,
+    "art_fim": 1861,
+    "capitulo": "CAPÍTULO II — DA CAPACIDADE DE TESTAR"
+   },
+   {
+    "file": "Chunk_173_DAS_FORMAS_ORDINARIAS_DO_TESTAMENTO.md",
+    "art_inicio": 1862,
+    "art_fim": 1880,
+    "capitulo": "CAPÍTULO III — DAS FORMAS ORDINÁRIAS DO TESTAMENTO"
+   },
+   {
+    "file": "Chunk_174_DOS_CODICILOS.md",
+    "art_inicio": 1881,
+    "art_fim": 1885,
+    "capitulo": "CAPÍTULO IV — DOS CODICILOS"
+   },
+   {
+    "file": "Chunk_175_DOS_TESTAMENTOS_ESPECIAIS.md",
+    "art_inicio": 1886,
+    "art_fim": 1896,
+    "capitulo": "CAPÍTULO V — DOS TESTAMENTOS ESPECIAIS"
+   },
+   {
+    "file": "Chunk_176_DAS_DISPOSICOES_TESTAMENTARIAS.md",
+    "art_inicio": 1897,
+    "art_fim": 1911,
+    "capitulo": "CAPÍTULO VI — DAS DISPOSIÇÕES TESTAMENTÁRIAS"
+   },
+   {
+    "file": "Chunk_177_DOS_LEGADOS.md",
+    "art_inicio": 1912,
+    "art_fim": 1940,
+    "capitulo": "CAPÍTULO VII — DOS LEGADOS"
+   },
+   {
+    "file": "Chunk_178_DO_DIREITO_DE_ACRESCER_ENTRE_HERDEIROS_E_LEGA.md",
+    "art_inicio": 1941,
+    "art_fim": 1946,
+    "capitulo": "CAPÍTULO VIII — DO DIREITO DE ACRESCER ENTRE HERDEIROS E LEGATÁRIOS"
+   },
+   {
+    "file": "Chunk_179_DAS_SUBSTITUICOES.md",
+    "art_inicio": 1947,
+    "art_fim": 1960,
+    "capitulo": "CAPÍTULO IX — DAS SUBSTITUIÇÕES"
+   },
+   {
+    "file": "Chunk_180_DA_DESERDACAO.md",
+    "art_inicio": 1961,
+    "art_fim": 1965,
+    "capitulo": "CAPÍTULO X — DA DESERDAÇÃO"
+   },
+   {
+    "file": "Chunk_181_DA_REDUCAO_DAS_DISPOSICOES_TESTAMENTARIAS.md",
+    "art_inicio": 1966,
+    "art_fim": 1968,
+    "capitulo": "CAPÍTULO XI — DA REDUÇÃO DAS DISPOSIÇÕES TESTAMENTÁRIAS"
+   },
+   {
+    "file": "Chunk_182_DA_REVOGACAO_DO_TESTAMENTO.md",
+    "art_inicio": 1969,
+    "art_fim": 1972,
+    "capitulo": "CAPÍTULO XII — DA REVOGAÇÃO DO TESTAMENTO"
+   },
+   {
+    "file": "Chunk_183_DO_ROMPIMENTO_DO_TESTAMENTO.md",
+    "art_inicio": 1973,
+    "art_fim": 1975,
+    "capitulo": "CAPÍTULO XIII — DO ROMPIMENTO DO TESTAMENTO"
+   },
+   {
+    "file": "Chunk_184_DO_TESTAMENTEIRO.md",
+    "art_inicio": 1976,
+    "art_fim": 1990,
+    "capitulo": "CAPÍTULO XIV — DO TESTAMENTEIRO"
+   },
+   {
+    "file": "Chunk_185_DO_INVENTARIO.md",
+    "art_inicio": 1991,
+    "art_fim": 1991,
+    "capitulo": "CAPÍTULO I — DO INVENTÁRIO"
+   },
+   {
+    "file": "Chunk_186_DOS_SONEGADOS.md",
+    "art_inicio": 1992,
+    "art_fim": 1996,
+    "capitulo": "CAPÍTULO II — Dos Sonegados"
+   },
+   {
+    "file": "Chunk_187_DO_PAGAMENTO_DAS_DIVIDAS.md",
+    "art_inicio": 1997,
+    "art_fim": 2001,
+    "capitulo": "CAPÍTULO III — DO PAGAMENTO DAS DÍVIDAS"
+   },
+   {
+    "file": "Chunk_188_DA_COLACAO.md",
+    "art_inicio": 2002,
+    "art_fim": 2012,
+    "capitulo": "CAPÍTULO IV — DA COLAÇÃO"
+   },
+   {
+    "file": "Chunk_189_DA_PARTILHA.md",
+    "art_inicio": 2013,
+    "art_fim": 2022,
+    "capitulo": "CAPÍTULO V — DA PARTILHA"
+   },
+   {
+    "file": "Chunk_190_DA_GARANTIA_DOS_QUINHOES_HEREDITARIOS.md",
+    "art_inicio": 2023,
+    "art_fim": 2026,
+    "capitulo": "CAPÍTULO VI — DA GARANTIA DOS QUINHÕES HEREDITÁRIOS"
+   },
+   {
+    "file": "Chunk_191_DA_ANULACAO_DA_PARTILHA.md",
+    "art_inicio": 2027,
+    "art_fim": 2027,
+    "capitulo": "CAPÍTULO VII — DA ANULAÇÃO DA PARTILHA"
+   },
+   {
+    "file": "Chunk_192_DAS_DISPOSICOES_FINAIS_E_TRANSITORIAS.md",
+    "art_inicio": 2028,
+    "art_fim": 2046,
+    "capitulo": ""
+   }
+  ],
+  "CDC": [
+   {
+    "file": "Chunk_001_DISPOSICOES_GERAIS.md",
+    "art_inicio": 1,
+    "art_fim": 3,
+    "capitulo": "CAPÍTULO I — Disposições Gerais"
+   },
+   {
+    "file": "Chunk_002_DA_POLITICA_NACIONAL_DE_RELACOES_DE_CONSUMO.md",
+    "art_inicio": 4,
+    "art_fim": 5,
+    "capitulo": "CAPÍTULO II — Da Política Nacional de Relações de Consumo"
+   },
+   {
+    "file": "Chunk_003_DOS_DIREITOS_BASICOS_DO_CONSUMIDOR.md",
+    "art_inicio": 6,
+    "art_fim": 7,
+    "capitulo": "CAPÍTULO III — Dos Direitos Básicos do Consumidor"
+   },
+   {
+    "file": "Chunk_004_DA_QUALIDADE_DE_PRODUTOS_E_SERVICOS_DA_PREVEN.md",
+    "art_inicio": 8,
+    "art_fim": 28,
+    "capitulo": "CAPÍTULO IV — Da Qualidade de Produtos e Serviços, da Prevenção e da Reparação dos Danos"
+   },
+   {
+    "file": "Chunk_005_DAS_PRATICAS_COMERCIAIS.md",
+    "art_inicio": 29,
+    "art_fim": 45,
+    "capitulo": "CAPÍTULO V — Das Práticas Comerciais"
+   },
+   {
+    "file": "Chunk_006_DA_PROTECAO_CONTRATUAL.md",
+    "art_inicio": 46,
+    "art_fim": 54,
+    "capitulo": "CAPÍTULO VI — Da Proteção Contratual"
+   },
+   {
+    "file": "Chunk_007_DA_PREVENCAO_E_DO_TRATAMENTO_DO_SUPERENDIVIDA.md",
+    "art_inicio": 54,
+    "art_fim": 54,
+    "capitulo": "CAPÍTULO VI-A — DA PREVENÇÃO E DO TRATAMENTO DO SUPERENDIVIDAMENTO"
+   },
+   {
+    "file": "Chunk_008_DAS_SANCOES_ADMINISTRATIVAS.md",
+    "art_inicio": 55,
+    "art_fim": 60,
+    "capitulo": "CAPÍTULO VII — Das Sanções Administrativas"
+   },
+   {
+    "file": "Chunk_009_DAS_INFRACOES_PENAIS.md",
+    "art_inicio": 61,
+    "art_fim": 80,
+    "capitulo": "TÍTULO II — Das Infrações Penais"
+   },
+   {
+    "file": "Chunk_010_DISPOSICOES_GERAIS.md",
+    "art_inicio": 81,
+    "art_fim": 90,
+    "capitulo": "CAPÍTULO I — Disposições Gerais"
+   },
+   {
+    "file": "Chunk_011_DAS_ACOES_COLETIVAS_PARA_A_DEFESA_DE_INTERESS.md",
+    "art_inicio": 91,
+    "art_fim": 100,
+    "capitulo": "CAPÍTULO II — Das Ações Coletivas Para a Defesa de Interesses Individuais Homogêneos"
+   },
+   {
+    "file": "Chunk_012_DAS_ACOES_DE_RESPONSABILIDADE_DO_FORNECEDOR_D.md",
+    "art_inicio": 101,
+    "art_fim": 102,
+    "capitulo": "CAPÍTULO III — Das Ações de Responsabilidade do Fornecedor de Produtos e Serviços"
+   },
+   {
+    "file": "Chunk_013_DA_COISA_JULGADA.md",
+    "art_inicio": 103,
+    "art_fim": 104,
+    "capitulo": "CAPÍTULO IV — Da Coisa Julgada"
+   },
+   {
+    "file": "Chunk_014_DA_CONCILIACAO_NO_SUPERENDIVIDAMENTO.md",
+    "art_inicio": 104,
+    "art_fim": 104,
+    "capitulo": "CAPÍTULO V — DA CONCILIAÇÃO NO SUPERENDIVIDAMENTO"
+   },
+   {
+    "file": "Chunk_015_DO_SISTEMA_NACIONAL_DE_DEFESA_DO_CONSUMIDOR.md",
+    "art_inicio": 105,
+    "art_fim": 106,
+    "capitulo": "TÍTULO IV — Do Sistema Nacional de Defesa do Consumidor"
+   },
+   {
+    "file": "Chunk_016_DA_CONVENCAO_COLETIVA_DE_CONSUMO.md",
+    "art_inicio": 107,
+    "art_fim": 108,
+    "capitulo": "TÍTULO V — Da Convenção Coletiva de Consumo"
+   },
+   {
+    "file": "Chunk_017_DISPOSICOES_FINAIS.md",
+    "art_inicio": 109,
+    "art_fim": 119,
+    "capitulo": "TÍTULO VI — Disposições Finais"
+   }
+  ],
+  "REN1000": [
+   {
+    "file": "TI_C01_P01a.md",
+    "art_inicio": 1,
+    "art_fim": 2,
+    "capitulo": "CAPÍTULO I — DAS DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "TI_C01_P01b.md",
+    "art_inicio": 1,
+    "art_fim": 2,
+    "capitulo": "CAPÍTULO I — DAS DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "TI_C01_P02.md",
+    "art_inicio": 3,
+    "art_fim": 14,
+    "capitulo": "CAPÍTULO I — DAS DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "TI_C02_P01.md",
+    "art_inicio": 15,
+    "art_fim": 23,
+    "capitulo": "CAPÍTULO II — DA CONEXÃO"
+   },
+   {
+    "file": "TI_C02_P02.md",
+    "art_inicio": 24,
+    "art_fim": 34,
+    "capitulo": "CAPÍTULO II — DA CONEXÃO"
+   },
+   {
+    "file": "TI_C02_P03.md",
+    "art_inicio": 35,
+    "art_fim": 46,
+    "capitulo": "CAPÍTULO II — DA CONEXÃO"
+   },
+   {
+    "file": "TI_C02_P04.md",
+    "art_inicio": 47,
+    "art_fim": 60,
+    "capitulo": "CAPÍTULO II — DA CONEXÃO"
+   },
+   {
+    "file": "TI_C02_P05.md",
+    "art_inicio": 61,
+    "art_fim": 68,
+    "capitulo": "CAPÍTULO II — DA CONEXÃO"
+   },
+   {
+    "file": "TI_C02_P06.md",
+    "art_inicio": 69,
+    "art_fim": 80,
+    "capitulo": "CAPÍTULO II — DA CONEXÃO"
+   },
+   {
+    "file": "TI_C02_P07.md",
+    "art_inicio": 81,
+    "art_fim": 88,
+    "capitulo": "CAPÍTULO II — DA CONEXÃO"
+   },
+   {
+    "file": "TI_C02_P08.md",
+    "art_inicio": 89,
+    "art_fim": 95,
+    "capitulo": "CAPÍTULO II — DA CONEXÃO"
+   },
+   {
+    "file": "TI_C02_P09.md",
+    "art_inicio": 96,
+    "art_fim": 102,
+    "capitulo": "CAPÍTULO II — DA CONEXÃO"
+   },
+   {
+    "file": "TI_C02_P10.md",
+    "art_inicio": 103,
+    "art_fim": 110,
+    "capitulo": "CAPÍTULO II — DA CONEXÃO"
+   },
+   {
+    "file": "TI_C02_P11.md",
+    "art_inicio": 111,
+    "art_fim": 122,
+    "capitulo": "CAPÍTULO II — DA CONEXÃO"
+   },
+   {
+    "file": "TI_C03_P01.md",
+    "art_inicio": 123,
+    "art_fim": 137,
+    "capitulo": "CAPÍTULO III — DOS CONTRATOS — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "TI_C03_P02.md",
+    "art_inicio": 138,
+    "art_fim": 144,
+    "capitulo": "CAPÍTULO III — DOS CONTRATOS — DISPOSIÇÕES GERAIS"
+   },
+   {
+    "file": "TI_C04.md",
+    "art_inicio": 145,
+    "art_fim": 158,
+    "capitulo": "CAPÍTULO IV — DO CONTRATO DE USO DO SISTEMA DE DISTRIBUIÇÃO"
+   },
+   {
+    "file": "TI_C05.md",
+    "art_inicio": 159,
+    "art_fim": 172,
+    "capitulo": "CAPÍTULO V — DA COMPRA DE ENERGIA"
+   },
+   {
+    "file": "TI_C06_P01.md",
+    "art_inicio": 173,
+    "art_fim": 178,
+    "capitulo": "CAPÍTULO VI — DAS TARIFAS, CLASSES E DOS BENEFÍCIOS TARIFÁRIOS"
+   },
+   {
+    "file": "TI_C06_P02.md",
+    "art_inicio": 179,
+    "art_fim": 185,
+    "capitulo": "CAPÍTULO VI — DAS TARIFAS, CLASSES E DOS BENEFÍCIOS TARIFÁRIOS"
+   },
+   {
+    "file": "TI_C06_P03.md",
+    "art_inicio": 186,
+    "art_fim": 197,
+    "capitulo": "CAPÍTULO VI — DAS TARIFAS, CLASSES E DOS BENEFÍCIOS TARIFÁRIOS"
+   },
+   {
+    "file": "TI_C06_P04.md",
+    "art_inicio": 198,
+    "art_fim": 210,
+    "capitulo": "CAPÍTULO VI — DAS TARIFAS, CLASSES E DOS BENEFÍCIOS TARIFÁRIOS"
+   },
+   {
+    "file": "TI_C07.md",
+    "art_inicio": 211,
+    "art_fim": 227,
+    "capitulo": "CAPÍTULO VII — DAS MODALIDADES TARIFÁRIAS"
+   },
+   {
+    "file": "TI_C08_P01.md",
+    "art_inicio": 228,
+    "art_fim": 247,
+    "capitulo": "CAPÍTULO VIII — DA MEDIÇÃO PARA FATURAMENTO"
+   },
+   {
+    "file": "TI_C08_P02.md",
+    "art_inicio": 248,
+    "art_fim": 257,
+    "capitulo": "CAPÍTULO VIII — DA MEDIÇÃO PARA FATURAMENTO"
+   },
+   {
+    "file": "TI_C09.md",
+    "art_inicio": 258,
+    "art_fim": 280,
+    "capitulo": "CAPÍTULO IX — DA LEITURA"
+   },
+   {
+    "file": "TI_C10_P01.md",
+    "art_inicio": 281,
+    "art_fim": 293,
+    "capitulo": "CAPÍTULO X — DO FATURAMENTO"
+   },
+   {
+    "file": "TI_C10_P02.md",
+    "art_inicio": 294,
+    "art_fim": 303,
+    "capitulo": "CAPÍTULO X — DO FATURAMENTO"
+   },
+   {
+    "file": "TI_C10_P03.md",
+    "art_inicio": 304,
+    "art_fim": 315,
+    "capitulo": "CAPÍTULO X — DO FATURAMENTO"
+   },
+   {
+    "file": "TI_C10_P04.md",
+    "art_inicio": 316,
+    "art_fim": 322,
+    "capitulo": "CAPÍTULO X — DO FATURAMENTO"
+   },
+   {
+    "file": "TI_C10_P05.md",
+    "art_inicio": 323,
+    "art_fim": 326,
+    "capitulo": "CAPÍTULO X — DO FATURAMENTO"
+   },
+   {
+    "file": "TI_C11.md",
+    "art_inicio": 327,
+    "art_fim": 342,
+    "capitulo": "CAPÍTULO XI — DA FATURA E DO PAGAMENTO"
+   },
+   {
+    "file": "TI_C12.md",
+    "art_inicio": 343,
+    "art_fim": 349,
+    "capitulo": "CAPÍTULO XII — DO INADIMPLEMENTO"
+   },
+   {
+    "file": "TI_C13.md",
+    "art_inicio": 350,
+    "art_fim": 369,
+    "capitulo": "CAPÍTULO XIII — DA SUSPENSÃO DO FORNECIMENTO"
+   },
+   {
+    "file": "TI_C14_P01.md",
+    "art_inicio": 370,
+    "art_fim": 381,
+    "capitulo": "CAPÍTULO XIV — DO SERVIÇO DE ATENDIMENTO AO CONSUMIDOR E DEMAIS USUÁRIOS"
+   },
+   {
+    "file": "TI_C14_P02.md",
+    "art_inicio": 382,
+    "art_fim": 391,
+    "capitulo": "CAPÍTULO XIV — DO SERVIÇO DE ATENDIMENTO AO CONSUMIDOR E DEMAIS USUÁRIOS"
+   },
+   {
+    "file": "TI_C14_P03.md",
+    "art_inicio": 392,
+    "art_fim": 400,
+    "capitulo": "CAPÍTULO XIV — DO SERVIÇO DE ATENDIMENTO AO CONSUMIDOR E DEMAIS USUÁRIOS"
+   },
+   {
+    "file": "TI_C14_P04.md",
+    "art_inicio": 401,
+    "art_fim": 418,
+    "capitulo": "CAPÍTULO XIV — DO SERVIÇO DE ATENDIMENTO AO CONSUMIDOR E DEMAIS USUÁRIOS"
+   },
+   {
+    "file": "TI_C14_P05.md",
+    "art_inicio": 419,
+    "art_fim": 432,
+    "capitulo": "CAPÍTULO XIV — DO SERVIÇO DE ATENDIMENTO AO CONSUMIDOR E DEMAIS USUÁRIOS"
+   },
+   {
+    "file": "TI_C15.md",
+    "art_inicio": 433,
+    "art_fim": 449,
+    "capitulo": "CAPÍTULO XV — DA QUALIDADE DO SERVIÇO"
+   },
+   {
+    "file": "TII_C01_P01.md",
+    "art_inicio": 450,
+    "art_fim": 461,
+    "capitulo": "CAPÍTULO I — DA ILUMINAÇÃO PÚBLICA"
+   },
+   {
+    "file": "TII_C01_P02.md",
+    "art_inicio": 462,
+    "art_fim": 469,
+    "capitulo": "CAPÍTULO I — DA ILUMINAÇÃO PÚBLICA"
+   },
+   {
+    "file": "TII_C01_P03.md",
+    "art_inicio": 470,
+    "art_fim": 477,
+    "capitulo": "CAPÍTULO I — DA ILUMINAÇÃO PÚBLICA"
+   },
+   {
+    "file": "TII_C02_P01.md",
+    "art_inicio": 478,
+    "art_fim": 484,
+    "capitulo": "CAPÍTULO II — DOS EMPREENDIMENTOS DE MÚLTIPLAS UNIDADES"
+   },
+   {
+    "file": "TII_C02_P02.md",
+    "art_inicio": 485,
+    "art_fim": 485,
+    "capitulo": "CAPÍTULO II — DOS EMPREENDIMENTOS DE MÚLTIPLAS UNIDADES"
+   },
+   {
+    "file": "TII_C02_P03.md",
+    "art_inicio": 486,
+    "art_fim": 493,
+    "capitulo": "CAPÍTULO II — DOS EMPREENDIMENTOS DE MÚLTIPLAS UNIDADES"
+   },
+   {
+    "file": "TII_C03.md",
+    "art_inicio": 494,
+    "art_fim": 514,
+    "capitulo": "CAPÍTULO III — DA CONEXÃO TEMPORÁRIA"
+   },
+   {
+    "file": "TII_C04_P01.md",
+    "art_inicio": 515,
+    "art_fim": 534,
+    "capitulo": "CAPÍTULO IV — DO ATENDIMENTO POR SISTEMAS ISOLADOS"
+   },
+   {
+    "file": "TII_C04_P02.md",
+    "art_inicio": 535,
+    "art_fim": 549,
+    "capitulo": "CAPÍTULO IV — DO ATENDIMENTO POR SISTEMAS ISOLADOS"
+   },
+   {
+    "file": "TII_C05.md",
+    "art_inicio": 550,
+    "art_fim": 560,
+    "capitulo": "CAPÍTULO V — DAS INSTALAÇÕES DE RECARGA DE VEÍCULOS ELÉTRICOS"
+   },
+   {
+    "file": "TII_C06_P01.md",
+    "art_inicio": 561,
+    "art_fim": 574,
+    "capitulo": "CAPÍTULO VI — DO PRÉ-PAGAMENTO E PÓS-PAGAMENTO ELETRÔNICO DE ENERGIA ELÉTRICA"
+   },
+   {
+    "file": "TII_C06_P02.md",
+    "art_inicio": 575,
+    "art_fim": 588,
+    "capitulo": "CAPÍTULO VI — DO PRÉ-PAGAMENTO E PÓS-PAGAMENTO ELETRÔNICO DE ENERGIA ELÉTRICA"
+   },
+   {
+    "file": "TII_C07.md",
+    "art_inicio": 589,
+    "art_fim": 598,
+    "capitulo": "CAPÍTULO VII — DOS PROCEDIMENTOS IRREGULARES"
+   },
+   {
+    "file": "TII_C08_P01.md",
+    "art_inicio": 599,
+    "art_fim": 613,
+    "capitulo": "CAPÍTULO VIII — DO RESSARCIMENTO DE DANOS ELÉTRICOS"
+   },
+   {
+    "file": "TII_C08_P02.md",
+    "art_inicio": 614,
+    "art_fim": 621,
+    "capitulo": "CAPÍTULO VIII — DO RESSARCIMENTO DE DANOS ELÉTRICOS"
+   },
+   {
+    "file": "TII_C09_P01.md",
+    "art_inicio": 622,
+    "art_fim": 629,
+    "capitulo": "CAPÍTULO IX — DOS SERVIÇOS E ATIVIDADES ACESSÓRIAS"
+   },
+   {
+    "file": "TII_C09_P02.md",
+    "art_inicio": 630,
+    "art_fim": 643,
+    "capitulo": "CAPÍTULO IX — DOS SERVIÇOS E ATIVIDADES ACESSÓRIAS"
+   },
+   {
+    "file": "TII_C09_P03.md",
+    "art_inicio": 644,
+    "art_fim": 647,
+    "capitulo": "CAPÍTULO IX — DOS SERVIÇOS E ATIVIDADES ACESSÓRIAS"
+   },
+   {
+    "file": "TII_C10.md",
+    "art_inicio": 648,
+    "art_fim": 655,
+    "capitulo": "CAPÍTULO X — DAS REDES PARTICULARES"
+   },
+   {
+    "file": "TIII_P01.md",
+    "art_inicio": 656,
+    "art_fim": 664,
+    "capitulo": "DISPOSIÇÕES FINAIS E TRANSITÓRIAS"
+   },
+   {
+    "file": "TIII_P02.md",
+    "art_inicio": 665,
+    "art_fim": 670,
+    "capitulo": "DISPOSIÇÕES FINAIS E TRANSITÓRIAS"
+   },
+   {
+    "file": "TIII_P03.md",
+    "art_inicio": 671,
+    "art_fim": 674,
+    "capitulo": "DISPOSIÇÕES FINAIS E TRANSITÓRIAS"
+   },
+   {
+    "file": "TIII_P04a.md",
+    "art_inicio": 675,
+    "art_fim": 675,
+    "capitulo": "DISPOSIÇÕES FINAIS E TRANSITÓRIAS"
+   },
+   {
+    "file": "TIII_P04b.md",
+    "art_inicio": 675,
+    "art_fim": 675,
+    "capitulo": "DISPOSIÇÕES FINAIS E TRANSITÓRIAS"
+   },
+   {
+    "file": "TIII_P04c.md",
+    "art_inicio": 675,
+    "art_fim": 675,
+    "capitulo": "DISPOSIÇÕES FINAIS E TRANSITÓRIAS"
+   },
+   {
+    "file": "TIII_P04d.md",
+    "art_inicio": 675,
+    "art_fim": 675,
+    "capitulo": "DISPOSIÇÕES FINAIS E TRANSITÓRIAS"
+   }
+  ],
+  "L8987": [
+   {
+    "file": "Chunk_001_DAS_DISPOSICOES_PRELIMINARES.md",
+    "art_inicio": 1,
+    "art_fim": 5,
+    "capitulo": "CAPÍTULO I — Das Disposições Preliminares"
+   },
+   {
+    "file": "Chunk_002_DO_SERVICO_ADEQUADO.md",
+    "art_inicio": 6,
+    "art_fim": 6,
+    "capitulo": "CAPÍTULO II — Do Serviço Adequado"
+   },
+   {
+    "file": "Chunk_003_DOS_DIREITOS_E_OBRIGACOES_DOS_USUARIOS.md",
+    "art_inicio": 7,
+    "art_fim": 7,
+    "capitulo": "CAPÍTULO III — Dos Direitos E Obrigações Dos Usuários"
+   },
+   {
+    "file": "Chunk_004_DA_POLITICA_TARIFARIA.md",
+    "art_inicio": 8,
+    "art_fim": 13,
+    "capitulo": "CAPÍTULO IV — Da Política Tarifária"
+   },
+   {
+    "file": "Chunk_005_DA_LICITACAO.md",
+    "art_inicio": 14,
+    "art_fim": 22,
+    "capitulo": "CAPÍTULO V — Da Licitação"
+   },
+   {
+    "file": "Chunk_006_DO_CONTRATO_DE_CONCESSAO.md",
+    "art_inicio": 23,
+    "art_fim": 28,
+    "capitulo": "CAPÍTULO VI — Do Contrato De Concessão"
+   },
+   {
+    "file": "Chunk_007_DOS_ENCARGOS_DO_PODER_CONCEDENTE.md",
+    "art_inicio": 29,
+    "art_fim": 30,
+    "capitulo": "CAPÍTULO VII — Dos Encargos Do Poder Concedente"
+   },
+   {
+    "file": "Chunk_008_DOS_ENCARGOS_DA_CONCESSIONARIA.md",
+    "art_inicio": 31,
+    "art_fim": 31,
+    "capitulo": "CAPÍTULO VIII — Dos Encargos Da Concessionária"
+   },
+   {
+    "file": "Chunk_009_DA_INTERVENCAO.md",
+    "art_inicio": 32,
+    "art_fim": 34,
+    "capitulo": "CAPÍTULO IX — Da Intervenção"
+   },
+   {
+    "file": "Chunk_010_DA_EXTINCAO_DA_CONCESSAO.md",
+    "art_inicio": 35,
+    "art_fim": 39,
+    "capitulo": "CAPÍTULO X — Da Extinção Da Concessão"
+   },
+   {
+    "file": "Chunk_011_DAS_PERMISSOES.md",
+    "art_inicio": 40,
+    "art_fim": 40,
+    "capitulo": "CAPÍTULO XI — Das Permissões"
+   },
+   {
+    "file": "Chunk_012_DISPOSICOES_FINAIS_E_TRANSITORIAS.md",
+    "art_inicio": 41,
+    "art_fim": 47,
+    "capitulo": "CAPÍTULO XII — Disposições Finais E Transitórias"
+   }
+  ],
+  "L9427": [
+   {
+    "file": "Chunk_001_DAS_ATRIBUICOES_E_DA_ORGANIZACAO_P01.md",
+    "art_inicio": 1,
+    "art_fim": 3,
+    "capitulo": "CAPÍTULO I — Das Atribuições E Da Organização"
+   },
+   {
+    "file": "Chunk_001_DAS_ATRIBUICOES_E_DA_ORGANIZACAO_P02.md",
+    "art_inicio": 3,
+    "art_fim": 10,
+    "capitulo": "CAPÍTULO I — Das Atribuições E Da Organização"
+   },
+   {
+    "file": "Chunk_002_DAS_RECEITAS_E_DO_ACERVO_DA_AUTARQUIA.md",
+    "art_inicio": 11,
+    "art_fim": 13,
+    "capitulo": "CAPÍTULO II — Das Receitas E Do Acervo Da Autarquia"
+   },
+   {
+    "file": "Chunk_003_DO_REGIME_ECONOMICO_E_FINANCEIRO_DAS_CONCESSO.md",
+    "art_inicio": 14,
+    "art_fim": 19,
+    "capitulo": "CAPÍTULO III — Do Regime Econômico E Financeiro Das Concessões De Serviço Público De Energia Elétrica"
+   },
+   {
+    "file": "Chunk_004_DA_DESCENTRALIZACAO_DAS_ATIVIDADES.md",
+    "art_inicio": 20,
+    "art_fim": 22,
+    "capitulo": "CAPÍTULO IV — Da Descentralização Das Atividades"
+   },
+   {
+    "file": "Chunk_005_DAS_DISPOSICOES_FINAIS_E_TRANSITORIAS_P01.md",
+    "art_inicio": 23,
+    "art_fim": 26,
+    "capitulo": "CAPÍTULO V — Das Disposições Finais E Transitórias"
+   },
+   {
+    "file": "Chunk_005_DAS_DISPOSICOES_FINAIS_E_TRANSITORIAS_P02.md",
+    "art_inicio": 27,
+    "art_fim": 35,
+    "capitulo": "CAPÍTULO V — Das Disposições Finais E Transitórias"
+   }
+  ]
+ }
+}

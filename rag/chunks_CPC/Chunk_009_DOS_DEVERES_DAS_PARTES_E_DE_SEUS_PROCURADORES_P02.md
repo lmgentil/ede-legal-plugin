@@ -1,0 +1,76 @@
+---
+chunk_id: 009
+lei: Lei nº 13.105/2015 — Código de Processo Civil
+parte: PARTE GERAL
+livro: LIVRO III — DOS SUJEITOS DO PROCESSO
+titulo: TÍTULO I — DAS PARTES E DOS PROCURADORES
+capitulo: CAPÍTULO II — DOS DEVERES DAS PARTES E DE SEUS PROCURADORES
+arts_range: 85-93
+art_inicio: 85
+art_fim: 93
+parte_num: 2
+partes_total: 3
+chunk_pai: Chunk_009_DOS_DEVERES_DAS_PARTES_E_DE_SEUS_PROCURADORES.md
+---
+
+
+> **Palavras-chave de busca:** litigância de má-fé; honorários advocatícios sucumbenciais; despesas processuais; multa por ato atentatório; gratuidade da justiça; justiça gratuita
+# CAPÍTULO II — DOS DEVERES DAS PARTES E DE SEUS PROCURADORES — Parte 2/3
+> Arts. 85-93
+
+ Art. 85. A sentença condenará o vencido a pagar honorários ao advogado do vencedor.
+§ 1º São devidos honorários advocatícios na reconvenção, no cumprimento de sentença, provisório ou definitivo, na execução, resistida ou não, e nos recursos interpostos, cumulativamente.
+§ 2º Os honorários serão fixados entre o mínimo de dez e o máximo de vinte por cento sobre o valor da condenação, do proveito econômico obtido ou, não sendo possível mensurá-lo, sobre o valor atualizado da causa, atendidos:
+I - o grau de zelo do profissional;
+II - o lugar de prestação do serviço;
+III - a natureza e a importância da causa;
+IV - o trabalho realizado pelo advogado e o tempo exigido para o seu serviço.
+§ 3º Nas causas em que a Fazenda Pública for parte, a fixação dos honorários observará os critérios estabelecidos nos incisos I a IV do § 2º e os seguintes percentuais:
+I - mínimo de dez e máximo de vinte por cento sobre o valor da condenação ou do proveito econômico obtido até 200 (duzentos) salários-mínimos;
+II - mínimo de oito e máximo de dez por cento sobre o valor da condenação ou do proveito econômico obtido acima de 200 (duzentos) salários-mínimos até 2.000 (dois mil) salários-mínimos;
+III - mínimo de cinco e máximo de oito por cento sobre o valor da condenação ou do proveito econômico obtido acima de 2.000 (dois mil) salários-mínimos até 20.000 (vinte mil) salários-mínimos;
+IV - mínimo de três e máximo de cinco por cento sobre o valor da condenação ou do proveito econômico obtido acima de 20.000 (vinte mil) salários-mínimos até 100.000 (cem mil) salários-mínimos;
+V - mínimo de um e máximo de três por cento sobre o valor da condenação ou do proveito econômico obtido acima de 100.000 (cem mil) salários-mínimos.
+§ 4º Em qualquer das hipóteses do § 3º :
+I - os percentuais previstos nos incisos I a V devem ser aplicados desde logo, quando for líquida a sentença;
+II - não sendo líquida a sentença, a definição do percentual, nos termos previstos nos incisos I a V, somente ocorrerá quando liquidado o julgado;
+III - não havendo condenação principal ou não sendo possível mensurar o proveito econômico obtido, a condenação em honorários dar-se-á sobre o valor atualizado da causa;
+IV - será considerado o salário-mínimo vigente quando prolatada sentença líquida ou o que estiver em vigor na data da decisão de liquidação.
+§ 5º Quando, conforme o caso, a condenação contra a Fazenda Pública ou o benefício econômico obtido pelo vencedor ou o valor da causa for superior ao valor previsto no inciso I do § 3º, a fixação do percentual de honorários deve observar a faixa inicial e, naquilo que a exceder, a faixa subsequente, e assim sucessivamente.
+§ 6º Os limites e critérios previstos nos §§ 2º e 3º aplicam-se independentemente de qual seja o conteúdo da decisão, inclusive aos casos de improcedência ou de sentença sem resolução de mérito.
+§ 6º-A. Quando o valor da condenação ou do proveito econômico obtido ou o valor atualizado da causa for líquido ou liquidável, para fins de fixação dos honorários advocatícios, nos termos dos §§ 2º e 3º, é proibida a apreciação equitativa, salvo nas hipóteses expressamente previstas no § 8º deste artigo. (Incluído pela Lei nº
+14.365, de 2022)
+§ 7º Não serão devidos honorários no cumprimento de sentença contra a Fazenda Pública que enseje expedição de precatório, desde que não tenha sido impugnada.
+§ 8º Nas causas em que for inestimável ou irrisório o proveito econômico ou, ainda, quando o valor da causa for muito baixo, o juiz fixará o valor dos honorários por apreciação equitativa, observando o disposto nos incisos do § 2º.
+§ 8º-A. Na hipótese do § 8º deste artigo, para fins de fixação equitativa de honorários sucumbenciais, o juiz deverá observar os valores recomendados pelo Conselho Seccional da Ordem dos Advogados do Brasil a título de honorários advocatícios ou o limite mínimo de 10% (dez por cento) estabelecido no § 2º deste artigo, aplicando-se o que for maior. (Incluído pela Lei nº 14.365, de 2022)
+§ 9º Na ação de indenização por ato ilícito contra pessoa, o percentual de honorários incidirá sobre a soma das prestações vencidas acrescida de 12 (doze) prestações vincendas.
+§ 10. Nos casos de perda do objeto, os honorários serão devidos por quem deu causa ao processo.
+§ 11. O tribunal, ao julgar recurso, majorará os honorários fixados anteriormente levando em conta o trabalho adicional realizado em grau recursal, observando, conforme o caso, o disposto nos §§ 2º a 6º, sendo vedado ao tribunal, no cômputo geral da fixação de honorários devidos ao advogado do vencedor, ultrapassar os respectivos limites estabelecidos nos §§ 2º e 3º para a fase de conhecimento.
+§ 12. Os honorários referidos no § 11 são cumuláveis com multas e outras sanções processuais, inclusive as previstas no art. 77.
+§ 13. As verbas de sucumbência arbitradas em embargos à execução rejeitados ou julgados improcedentes e em fase de cumprimento de sentença serão acrescidas no valor do débito principal, para todos os efeitos legais.
+§ 14. Os honorários constituem direito do advogado e têm natureza alimentar, com os mesmos privilégios dos créditos oriundos da legislação do trabalho, sendo vedada a compensação em caso de sucumbência parcial.
+§ 15. O advogado pode requerer que o pagamento dos honorários que lhe caibam seja efetuado em favor da sociedade de advogados que integra na qualidade de sócio, aplicando-se à hipótese o disposto no § 14.
+§ 16. Quando os honorários forem fixados em quantia certa, os juros moratórios incidirão a partir da data do trânsito em julgado da decisão.
+§ 17. Os honorários serão devidos quando o advogado atuar em causa própria.
+§ 18. Caso a decisão transitada em julgado seja omissa quanto ao direito aos honorários ou ao seu valor, é cabível ação autônoma para sua definição e cobrança.
+§ 19. Os advogados públicos perceberão honorários de sucumbência, nos termos da lei.
+§ 20. O disposto nos §§ 2º, 3º, 4º, 5º, 6º, 6º-A, 8º, 8º-A, 9º e 10 deste artigo aplica-se aos honorários fixados por arbitramento judicial. (Incluído pela Lei nº 14.365, de 2022)
+ Art. 86. Se cada litigante for, em parte, vencedor e vencido, serão proporcionalmente distribuídas entre eles as despesas.
+Parágrafo único. Se um litigante sucumbir em parte mínima do pedido, o outro responderá, por inteiro, pelas despesas e pelos honorários.
+ Art. 87. Concorrendo diversos autores ou diversos réus, os vencidos respondem proporcionalmente pelas despesas e pelos honorários.
+§ 1º A sentença deverá distribuir entre os litisconsortes, de forma expressa, a responsabilidade proporcional pelo pagamento das verbas previstas no caput .
+o
+§ 2 Se a distribuição de que trata o § 1º não for feita, os vencidos responderão solidariamente pelas despesas e pelos honorários.
+ Art. 88. Nos procedimentos de jurisdição voluntária, as despesas serão adiantadas pelo requerente e rateadas entre os interessados.
+ Art. 89. Nos juízos divisórios, não havendo litígio, os interessados pagarão as despesas proporcionalmente a seus quinhões.
+ Art. 90. Proferida sentença com fundamento em desistência, em renúncia ou em reconhecimento do pedido, as despesas e os honorários serão pagos pela parte que desistiu, renunciou ou reconheceu.
+§ 1º Sendo parcial a desistência, a renúncia ou o reconhecimento, a responsabilidade pelas despesas e pelos honorários será proporcional à parcela reconhecida, à qual se renunciou ou da qual se desistiu.
+§ 2º Havendo transação e nada tendo as partes disposto quanto às despesas, estas serão divididas igualmente.
+§ 3º Se a transação ocorrer antes da sentença, as partes ficam dispensadas do pagamento das custas processuais remanescentes, se houver.
+§ 4º Se o réu reconhecer a procedência do pedido e, simultaneamente, cumprir integralmente a prestação reconhecida, os honorários serão reduzidos pela metade.
+ Art. 91. As despesas dos atos processuais praticados a requerimento da Fazenda Pública, do
+Ministério Público ou da Defensoria Pública serão pagas ao final pelo vencido.
+§ 1º As perícias requeridas pela Fazenda Pública, pelo Ministério Público ou pela Defensoria Pública poderão ser realizadas por entidade pública ou, havendo previsão orçamentária, ter os valores adiantados por aquele que requerer a prova.
+§ 2º Não havendo previsão orçamentária no exercício financeiro para adiantamento dos honorários periciais, eles serão pagos no exercício seguinte ou ao final, pelo vencido, caso o processo se encerre antes do adiantamento a ser feito pelo ente público.
+ Art. 92. Quando, a requerimento do réu, o juiz proferir sentença sem resolver o mérito, o autor não poderá propor novamente a ação sem pagar ou depositar em cartório as despesas e os honorários a que foi condenado.
+ Art. 93. As despesas de atos adiados ou cuja repetição for necessária ficarão a cargo da parte, do auxiliar da justiça, do órgão do Ministério Público ou da Defensoria Pública ou do juiz que, sem justo motivo, houver dado causa ao adiamento ou à repetição.

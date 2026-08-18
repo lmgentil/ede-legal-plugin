@@ -1,0 +1,257 @@
+{
+ "semantic": true,
+ "rows": [
+  {
+   "label": "in",
+   "q": "prazo para contestação no procedimento comum",
+   "bm25_raw": 11.25,
+   "denso": 0.63,
+   "cobertura": 1.0,
+   "top": "Chunk_055_DA_LIQUIDACAO_DE_SENTENCA.md",
+   "corpus": "CPC"
+  },
+  {
+   "label": "in",
+   "q": "cobrança indevida repetição do indébito em dobro",
+   "bm25_raw": 19.86,
+   "denso": 0.427,
+   "cobertura": 1.0,
+   "top": "Chunk_005_DAS_PRATICAS_COMERCIAIS.md",
+   "corpus": "CDC"
+  },
+  {
+   "label": "in",
+   "q": "usucapião extraordinária prazo",
+   "bm25_raw": 11.02,
+   "denso": 0.366,
+   "cobertura": 1.0,
+   "top": "Chunk_106_DA_AQUISICAO_DA_PROPRIEDADE_IMOVEL.md",
+   "corpus": "CC"
+  },
+  {
+   "label": "in",
+   "q": "responsabilidade civil por dano moral",
+   "bm25_raw": 13.15,
+   "denso": 0.702,
+   "cobertura": 1.0,
+   "top": "Chunk_075_DA_OBRIGACAO_DE_INDENIZAR.md",
+   "corpus": "CC"
+  },
+  {
+   "label": "in",
+   "q": "embargos de declaração omissão contradição",
+   "bm25_raw": 23.24,
+   "denso": 0.735,
+   "cobertura": 1.0,
+   "top": "Chunk_104_DOS_EMBARGOS_DE_DECLARACAO.md",
+   "corpus": "CPC"
+  },
+  {
+   "label": "in",
+   "q": "suspensão do fornecimento de energia por inadimplemento",
+   "bm25_raw": 15.28,
+   "denso": 0.759,
+   "cobertura": 1.0,
+   "top": "TI_C13.md",
+   "corpus": "REN1000"
+  },
+  {
+   "label": "in",
+   "q": "vício do produto prazo de reclamação",
+   "bm25_raw": 13.79,
+   "denso": 0.511,
+   "cobertura": 1.0,
+   "top": "Chunk_004_DA_QUALIDADE_DE_PRODUTOS_E_SERVICOS_DA_PREVEN.md",
+   "corpus": "CDC"
+  },
+  {
+   "label": "in",
+   "q": "ressarcimento de danos elétricos equipamentos",
+   "bm25_raw": 19.21,
+   "denso": 0.723,
+   "cobertura": 1.0,
+   "top": "TII_C08_P01.md",
+   "corpus": "REN1000"
+  },
+  {
+   "label": "in",
+   "q": "penhora de salário",
+   "bm25_raw": 6.46,
+   "denso": 0.311,
+   "cobertura": 0.5,
+   "top": "Chunk_085_DA_EXECUCAO_POR_QUANTIA_CERTA_P02.md",
+   "corpus": "CPC"
+  },
+  {
+   "label": "in",
+   "q": "guarda compartilhada dos filhos",
+   "bm25_raw": 20.72,
+   "denso": 0.568,
+   "cobertura": 1.0,
+   "top": "Chunk_142_DA_PROTECAO_DA_PESSOA_DOS_FILHOS.md",
+   "corpus": "CC"
+  },
+  {
+   "label": "in",
+   "q": "honorários de sucumbência",
+   "bm25_raw": 11.49,
+   "denso": 0.574,
+   "cobertura": 1.0,
+   "top": "Chunk_009_DOS_DEVERES_DAS_PARTES_E_DE_SEUS_PROCURADORES_P02.md",
+   "corpus": "CPC"
+  },
+  {
+   "label": "in",
+   "q": "tarifa social baixa renda",
+   "bm25_raw": 17.94,
+   "denso": 0.302,
+   "cobertura": 1.0,
+   "top": "TI_C06_P04.md",
+   "corpus": "REN1000"
+  },
+  {
+   "label": "in",
+   "q": "medidor adulterado TOI",
+   "bm25_raw": 13.18,
+   "denso": 0.46,
+   "cobertura": 0.67,
+   "top": "TII_C07.md",
+   "corpus": "REN1000"
+  },
+  {
+   "label": "in",
+   "q": "juros de mora",
+   "bm25_raw": 8.06,
+   "denso": 0.53,
+   "cobertura": 1.0,
+   "top": "Chunk_039_DA_MORA.md",
+   "corpus": "CC"
+  },
+  {
+   "label": "in",
+   "q": "resposta do réu prazo",
+   "bm25_raw": 10.05,
+   "denso": 0.487,
+   "cobertura": 1.0,
+   "top": "Chunk_047_DA_CONTESTACAO.md",
+   "corpus": "CPC"
+  },
+  {
+   "label": "in",
+   "q": "negativação indevida SPC Serasa",
+   "bm25_raw": 13.98,
+   "denso": 0.508,
+   "cobertura": 1.0,
+   "top": "Chunk_005_DAS_PRATICAS_COMERCIAIS.md",
+   "corpus": "CDC"
+  },
+  {
+   "label": "in",
+   "q": "corte de energia por falta de pagamento",
+   "bm25_raw": 7.62,
+   "denso": 0.69,
+   "cobertura": 0.75,
+   "top": "TI_C13.md",
+   "corpus": "REN1000"
+  },
+  {
+   "label": "in",
+   "q": "queima de eletrodomésticos oscilação de tensão",
+   "bm25_raw": 10.17,
+   "denso": 0.537,
+   "cobertura": 0.75,
+   "top": "TII_C08_P01.md",
+   "corpus": "REN1000"
+  },
+  {
+   "label": "in",
+   "q": "troca de titularidade da unidade consumidora",
+   "bm25_raw": 10.98,
+   "denso": 0.534,
+   "cobertura": 0.25,
+   "top": "Chunk_047_DA_TROCA_OU_PERMUTA.md",
+   "corpus": "CC"
+  },
+  {
+   "label": "in",
+   "q": "prazo em dobro para a fazenda pública",
+   "bm25_raw": 12.85,
+   "denso": 0.299,
+   "cobertura": 1.0,
+   "top": "Chunk_021_DO_MINISTERIO_PUBLICO.md",
+   "corpus": "CPC"
+  },
+  {
+   "label": "out",
+   "q": "negativa de cobertura de plano de saúde",
+   "bm25_raw": 9.96,
+   "denso": 0.391,
+   "cobertura": 0.5,
+   "top": "Chunk_014_DA_CONCILIACAO_NO_SUPERENDIVIDAMENTO.md",
+   "corpus": "CDC"
+  },
+  {
+   "label": "out",
+   "q": "demissão por justa causa verbas rescisórias",
+   "bm25_raw": 10.89,
+   "denso": 0.222,
+   "cobertura": 0.6,
+   "top": "Chunk_005_DAS_ASSOCIACOES.md",
+   "corpus": "CC"
+  },
+  {
+   "label": "out",
+   "q": "imposto de renda dedução",
+   "bm25_raw": 7.4,
+   "denso": 0.421,
+   "cobertura": 0.33,
+   "top": "Chunk_037_DA_REMISSAO_DAS_DIVIDAS.md",
+   "corpus": "CC"
+  },
+  {
+   "label": "out",
+   "q": "crime de estelionato pena",
+   "bm25_raw": 9.03,
+   "denso": 0.46,
+   "cobertura": 0.67,
+   "top": "Chunk_009_DAS_INFRACOES_PENAIS.md",
+   "corpus": "CDC"
+  },
+  {
+   "label": "out",
+   "q": "usucapião de marca registrada",
+   "bm25_raw": 7.55,
+   "denso": 0.217,
+   "cobertura": 0.33,
+   "top": "Chunk_117_DA_CONSTITUICAO_DAS_SERVIDOES.md",
+   "corpus": "CC"
+  },
+  {
+   "label": "out",
+   "q": "licenciamento ambiental de obra",
+   "bm25_raw": 10.54,
+   "denso": 0.479,
+   "cobertura": 0.67,
+   "top": "TII_C02_P02.md",
+   "corpus": "REN1000"
+  },
+  {
+   "label": "out",
+   "q": "visto de trabalho para estrangeiro",
+   "bm25_raw": 5.81,
+   "denso": 0.369,
+   "cobertura": 0.33,
+   "top": "Chunk_005_DA_COOPERACAO_INTERNACIONAL.md",
+   "corpus": "CPC"
+  },
+  {
+   "label": "out",
+   "q": "ICMS na conta de luz",
+   "bm25_raw": 4.73,
+   "denso": 0.127,
+   "cobertura": 0.33,
+   "top": "Chunk_109_DOS_DIREITOS_DE_VIZINHANCA.md",
+   "corpus": "CC"
+  }
+ ]
+}

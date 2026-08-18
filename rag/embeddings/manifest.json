@@ -1,0 +1,27 @@
+{
+  "total_chunks": 434,
+  "chunks_por_corpus": {
+    "CC": 198,
+    "CDC": 18,
+    "CPC": 130,
+    "L8987": 13,
+    "L9427": 8,
+    "REN1000": 67
+  },
+  "embedding_dim": 256,
+  "metodo": "TF-IDF (1-2 gramas) + TruncatedSVD (LSA), 100% local/offline",
+  "variancia_explicada_acumulada": 0.7164323565107207,
+  "arquivos": {
+    "combinado": "embeddings_all.parquet",
+    "por_corpus": [
+      "embeddings_CPC.parquet",
+      "embeddings_CC.parquet",
+      "embeddings_CDC.parquet",
+      "embeddings_REN1000.parquet",
+      "embeddings_L8987.parquet",
+      "embeddings_L9427.parquet"
+    ],
+    "vectorizer": "vectorizer.joblib",
+    "svd": "svd.joblib"
+  }
+}

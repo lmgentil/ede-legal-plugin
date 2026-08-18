@@ -1,0 +1,17 @@
+# Dependências de scripts/docx_template_engine.py e dos CLIs que o usam
+# (render_docx.py, validate_template.py).
+#
+# NÃO inclui o skill "docx" em si (unpack.py/pack.py/validate.py) — esse é
+# localizado em tempo de execução em ~/.claude/skills/docx ou
+# ~/.agents/skills/docx (ver docx_template_engine.py:_localizar_docx_toolkit),
+# não vendorizado neste plugin. Sem ele instalado, render_docx.py e
+# validate_template.py falham explicitamente (fail closed) — instale-o
+# separadamente se ainda não tiver.
+#
+# Estas duas dependências abaixo são do PRÓPRIO toolkit "docx" (transitivas,
+# mas precisam estar no ambiente Python que roda os scripts deste plugin):
+defusedxml
+lxml
+
+# validate_placeholders.py sozinho NÃO precisa de nada disto — só lê o zip
+# do .docx com a stdlib (zipfile) para conferir placeholders.

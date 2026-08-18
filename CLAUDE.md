@@ -238,18 +238,22 @@ Todo conteúdo que não seja placeholder autorizado ou seção condicional mapea
 
 ## 14. Placeholders autorizados
 
-Na versão inicial:
+Lista real, auditada diretamente em `templates/contestacao/modelo-oficial.docx`
+(Fase 3) — substitui a lista hipotética original desta seção; ver
+`docs/specs/SPEC-0001.md REQ-014` para a justificativa da divergência:
 
 ```text
 {{JUIZO}}
 {{NUMERO_PROCESSO}}
-{{TIPO_ACAO}}
 {{AUTOR}}
 {{TEMPESTIVIDADE_CASO}}
-{{TITULO_TESE_FATICA}}
 {{SINOPSE_FATOS}}
 {{REALIDADE_FATICA}}
-{{VALOR_DANO_MORAL}}
+{{IRREGULARIDADE_ENCONTRADA}}
+{{DESENVOLVIMENTO_TECNICO_IRREGULARIDADE}}
+{{FOTOS_DA_IRREGULARIADE}}
+{{ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA}}
+{{VALOR_FRA}}
 {{PEDIDOS_FINAIS}}
 {{LOCAL_DATA}}
 ```

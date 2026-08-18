@@ -8,18 +8,80 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Bloqueado
-- Fase 3 (Template Engine) aguarda o `.docx` institucional real
-  (`templates/contestacao/modelo-oficial.docx`), ainda não fornecido.
+- Nada bloqueado no momento para a Fase 4 — ver pendências da Fase 3 abaixo.
 
-### Atenção — divergência de arquitetura a resolver antes da Fase 3
-- `skills/redator-peca-processual-elite/references/edicao-docx-timbrado.md`
-  (conteúdo do próprio usuário) descreve um fluxo de **edição direta do
-  `.docx`** (desempacotar, editar texto dos runs XML, reempacotar), sem
-  mecanismo de `{{PLACEHOLDER}}`. O `SPEC-0001` (REQ-013 a REQ-016) descreve
-  um Template Engine baseado em placeholders + Template Lock sobre cópia de
-  um template em branco. São dois modelos de edição de documento diferentes
-  para o mesmo objetivo — não escolhi um silenciosamente; fica registrado
-  para decisão explícita (SPEC ou ADR) antes de iniciar a Fase 3.
+## [0.3.0] - 2026-08-18
+
+Resolve a "Atenção — divergência de arquitetura" que ficava pendente na
+versão anterior: o usuário escolheu a arquitetura híbrida (placeholder +
+edição direta de OOXML) e confirmou que o `.docx` oficial já existia,
+totalmente estruturado.
+
+### Adicionado — Fase 3 (Template Engine)
+- `templates/contestacao/modelo-oficial.docx` — movido de
+  `Templates/Contestação/` (caminho não canônico) para o caminho da SPEC,
+  conteúdo intocado. Segue fora do git (ADR-0006).
+- `templates/contestacao/schema.json` — 13 placeholders **auditados
+  diretamente no DOCX real**, não a lista hipotética original da SPEC.
+- `scripts/docx_template_engine.py` — motor de substituição por manipulação
+  cirúrgica de nós `<w:t>` (nunca reconstrói o documento; nunca toca em
+  `<w:pPr>`/estilos/imagens), com Template Lock por comparação estrutural
+  (`word/document.xml` deve ser exatamente template + substituição
+  controlada; todo outro arquivo deve ficar byte-idêntico).
+- `scripts/render_docx.py`, `scripts/validate_placeholders.py`,
+  `scripts/validate_template.py` — CLIs finas sobre o motor (REQ-032,
+  REQ-034, REQ-016).
+- `scripts/requirements.txt` — dependências transitivas do toolkit externo
+  `docx` (defusedxml, lxml); o toolkit em si não é vendorizado, é localizado
+  em tempo de execução (`~/.claude/skills/docx` ou `~/.agents/skills/docx`).
+- `tests/test_template_engine.py` — 10 testes: 9 sobre XML sintético
+  (sempre rodam) + 1 pipeline completo contra o DOCX real (roda só se ele
+  existir localmente; SKIP explícito em CI/clone limpo).
+
+### Corrigido
+- `docs/specs/SPEC-0001.md` (REQ-014/REQ-015) e `CLAUDE.md` (§14): lista de
+  placeholders atualizada para os 13 reais do DOCX. Removidos `TIPO_ACAO`,
+  `TITULO_TESE_FATICA`, `VALOR_DANO_MORAL` (não existem no template real —
+  ele é uma Contestação com Reconvenção por fraude/irregularidade em
+  medição de energia, não uma Contestação genérica com pedido de dano
+  moral). `FOTOS_DA_IRREGULARIADE` mantido com a grafia exata do DOCX
+  (erro de digitação real no arquivo, sem o "D" de "IRREGULARIDADE") — a
+  SPEC já tinha sido editada com uma lista mesclada (16 itens, grafia
+  corrigida) que não batia com o arquivo real; corrigido para os 13 exatos.
+
+### Testado
+- `tests/test_template_engine.py` — 10/10, incluindo geração completa
+  contra o DOCX real com Template Lock aprovado e detecção positiva de
+  adulteração (troquei "COELBA" por texto arbitrário no XML gerado e
+  confirmei que o Template Lock reprova).
+- `python rag/avaliar_recuperacao.py` — sem regressão (mesmo baseline:
+  top-1 75%, top-3 88%).
+- `claude plugin validate .` — sem novos warnings.
+
+### Notas técnicas
+- Placeholders ficam fragmentados entre `<w:r>` no DOCX bruto mesmo com
+  formatação idêntica — confirmado empiricamente em 2 dos 13. O motor
+  depende do merge de runs do `unpack.py` do skill `docx` para consolidá-los
+  antes de substituir; não reimplementamos esse merge.
+- `garantir_utf8()`: no Windows, encoding padrão cp1252 quebrava o
+  validador do toolkit `docx` em texto com acentuação; os CLIs se
+  relançam automaticamente em modo UTF-8 (via subprocess — `os.execvpe`
+  causou segmentation fault neste ambiente Git Bash/MSYS).
+- `validate_template.py` regenera uma peça de referência com os mesmos
+  dados em vez de comparar contra um único unpack do template: o
+  pretty-print/condense do toolkit OOXML não é perfeitamente idempotente
+  entre gerações, e uma comparação ingênua acusava divergência de espaço
+  em branco entre tags (fora de qualquer `<w:t>`) que não era mudança de
+  conteúdo real.
+
+### Pendências conhecidas
+- `FOTOS_DA_IRREGULARIADE`: tratado como texto/legenda; inserção real de
+  imagem embutida (drawing/blip) não implementada nesta fase — não ficou
+  claro pela auditoria se o campo espera foto de fato.
+- Nó `<w:t>` com mais de um placeholder não é suportado (nenhum caso assim
+  existe no DOCX real; falha explícita se acontecer).
+- Nenhuma seção condicional (`INV-008`) foi encontrada no DOCX — Template
+  Lock cobre só substituição simples de placeholder por ora.
 
 ## [0.2.0] - 2026-08-18
 

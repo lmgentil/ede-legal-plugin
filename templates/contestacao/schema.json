@@ -1,0 +1,24 @@
+{
+  "template": "modelo-oficial.docx",
+  "version": "1.0.0",
+  "descricao": "Contestação com Reconvenção — caso de irregularidade/fraude em medição de energia elétrica. Não é uma Contestação genérica: o tipo de ação e a tese central (TOI, submedição, reconvenção por cobrança) estão fixos no texto do template, não são placeholders.",
+  "strict_template": true,
+  "allow_unmapped_changes": false,
+  "editable_placeholders": [
+    "JUIZO",
+    "NUMERO_PROCESSO",
+    "AUTOR",
+    "TEMPESTIVIDADE_CASO",
+    "SINOPSE_FATOS",
+    "REALIDADE_FATICA",
+    "IRREGULARIDADE_ENCONTRADA",
+    "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE",
+    "FOTOS_DA_IRREGULARIADE",
+    "ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA",
+    "VALOR_FRA",
+    "PEDIDOS_FINAIS",
+    "LOCAL_DATA"
+  ],
+  "_nota_auditoria_fase3": "Lista extraída por auditoria direta do DOCX (não da versão original da SPEC-0001 REQ-014, que previa TIPO_ACAO/TITULO_TESE_FATICA/VALOR_DANO_MORAL — nenhum dos três existe neste template real). SPEC-0001 e CLAUDE.md foram atualizados para refletir este contrato. Ver docs/adr ou CHANGELOG para o registro da divergência.",
+  "_nota_fotos": "FOTOS_DA_IRREGULARIADE (nome com erro de digitação no próprio DOCX, mantido literal) é tratado como texto/legenda pela engine atual — inserção de imagem embutida não está implementada nesta fase; sinalizado como pendência."
+}

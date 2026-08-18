@@ -1,90 +1,52 @@
 ---
 name: calendario-forense-tjba-2026
-description: Calcula tempestividade de atos processuais perante o TJBA no ano de 2026 (termo inicial, prazo, dias úteis, feriados forenses, suspensões, termo final), produzindo memória de cálculo auditável. Use sempre que precisar declarar ou avaliar tempestividade relativa ao TJBA em 2026 — nunca declare tempestividade sem passar por esta Skill, e nunca presuma data de publicação, ciência, feriado, suspensão ou termo final.
-tools: [Read, Bash]
+description: Calendário forense oficial do TJBA para 2026 (Decreto Judiciário nº 1050/2025) — feriados sem expediente, recesso forense e suspensão de prazos. Use ao calcular prazos processuais, tempestividade ou data-limite em processos que tramitam no Tribunal de Justiça da Bahia em 2026.
 ---
 
-# calendario-forense-tjba-2026
+Referência para contagem de prazos processuais no âmbito do Tribunal de Justiça do Estado da Bahia (TJBA) durante o ano de 2026.
 
-Skill transversal obrigatória (`CLAUDE.md §8`, `SPEC-0001 REQ-005`) para toda
-análise de tempestividade relativa ao TJBA em 2026.
+## Quando usar
+- Calcular tempestividade, data-limite ou termo final de qualquer prazo processual em processo que tramita no TJBA (1º ou 2º grau) em 2026.
+- Conferir se uma data cai em feriado forense, recesso ou período de suspensão de prazos do TJBA.
+- Acionada tipicamente junto da skill `ede` (defesa de distribuidoras) ao redigir tópicos de tempestividade.
 
-## Regra de ouro (não negociável)
+## Fonte
+Decreto Judiciário TJBA nº 1050, de 04/12/2025 (DJE de 05/12/2025): dispõe sobre o recesso 2025/2026, o expediente forense e administrativo e a suspensão dos prazos processuais para o exercício de 2026.
+URL oficial: https://www7.tjba.jus.br/secao/lerPublicacao.wsp?tmp.mostrarDiv=sim&tmp.id=41093&tmp.secao=9
+Para anos seguintes (2027+), buscar o Decreto Judiciário equivalente — esta tabela vale apenas para 2026.
 
-`CLAUDE.md §8` / `SPEC-0001 REQ-012`: **nunca declarar tempestividade sem
-dados suficientes**, e nunca inventar data de publicação, data de ciência,
-feriado, suspensão, termo inicial ou termo final. Quando os dados forem
-insuficientes, o resultado correto é `PENDENTE DE VALIDAÇÃO` — isso **não é
-uma falha da Skill, é o comportamento correto**.
+## Feriados forenses TJBA 2026 (sem expediente forense nem administrativo)
+- 1º e 2 de janeiro — Confraternização Universal
+- 12, 13, 16, 17 e 18 de fevereiro — Carnaval e Quarta-feira de Cinzas
+- 2 e 3 de abril — Endoenças e Sexta-feira Santa
+- 20 e 21 de abril — Tiradentes
+- 1º de maio — Dia do Trabalhador
+- 4 e 5 de junho — Corpus Christi
+- 22, 23 e 24 de junho — São João
+- 2 e 3 de julho — Independência da Bahia
+- 10 e 11 de agosto — Criação dos Cursos Jurídicos no Brasil, Dia do Magistrado e Dia do Advogado
+- 7 de setembro — Independência do Brasil
+- 12 de outubro — Nossa Senhora da Conceição Aparecida
+- 30 de outubro — Dia do Servidor Público (transferido do dia 28 para o dia 30)
+- 2 de novembro — Finados
+- 20 de novembro — Dia da Consciência Negra
+- 7 e 8 de dezembro — Dia da Justiça
 
-## Como calcular
+## Recesso e suspensão de prazos
+- Recesso forense: 20/12/2025 a 06/01/2026 (sem expediente, prazos suspensos).
+- Suspensão dos prazos processuais e de audiências/sessões: 07 a 20 de janeiro de 2026 (após o recesso), salvo réus presos, Lei Maria da Penha e medidas urgentes.
 
-Não faça a conta de cabeça. Data de dias úteis com feriados/suspensões é
-aritmética sujeita a erro sistemático de "off-by-one" mesmo para humanos —
-use sempre o script determinístico:
+## Metodologia de contagem (CPC/2015)
+- Prazos processuais contam-se apenas em DIAS ÚTEIS (art. 219).
+- Exclui-se o dia do começo e inclui-se o do vencimento (art. 224); o início se dá no primeiro dia útil seguinte à intimação/ciência.
+- Se o vencimento cair em dia não útil, prorroga-se para o primeiro dia útil seguinte (art. 224, §1º).
+- Não contar como dias úteis: sábados, domingos e os feriados forenses acima.
 
-```bash
-python skills/calendario-forense-tjba-2026/scripts/calcular_tempestividade.py --demo
-```
+Done when: a data-limite informada exclui corretamente fins de semana e os feriados forenses TJBA do período, com o termo inicial no primeiro dia útil após a intimação.
 
-Uso programático (dentro de um fluxo maior, ex. a futura Skill
-`contestacao`):
-
-```python
-from calcular_tempestividade import calcular_tempestividade
-
-resultado = calcular_tempestividade(
-    data_pratica_ato="2026-03-10",       # quando o ato foi/será praticado
-    data_publicacao="2026-02-02",         # ou data_ciencia, se houver
-    prazo_legal_dias=15,
-    tipo_prazo="uteis",                   # ou "corridos"
-    fundamento_normativo="art. 335 CPC",
-)
-print(resultado.memoria_calculo())
-```
-
-## Estado atual do calendário forense TJBA 2026 — PENDÊNCIA CRÍTICA
-
-`feriados_forenses_tjba_2026.json` está com `"verificado": false` e listas
-vazias. **Isso é proposital**: não existe, nesta execução, uma fonte oficial
-verificada (provimento/portaria da Corregedoria Geral de Justiça do TJBA)
-para os feriados forenses e suspensões de prazo de 2026. Enquanto esse
-arquivo não for preenchido a partir de fonte oficial:
-
-- `calcular_tempestividade()` **sempre** retorna `status = "PENDENTE DE
-  VALIDAÇÃO"` com o motivo explícito de que o calendário não está
-  verificado — mesmo que todas as demais datas estejam completas;
-- **nunca** presuma "não há feriado nesse intervalo" para contornar isso.
-
-### Para destravar esta pendência
-
-1. Obter o calendário forense oficial do TJBA para 2026 em fonte oficial
-   (site do TJBA / DJEN / provimento da Corregedoria).
-2. Preencher `feriados_forenses_tjba_2026.json`: `feriados_forenses` (lista
-   de datas `YYYY-MM-DD`), `suspensoes` (lista de `{"inicio", "fim"}`),
-   `fonte_oficial` (URL/identificação do ato normativo) e
-   `data_verificacao`.
-3. Só então marcar `"verificado": true`.
-
-Isso está fora do escopo desta Fase 2 (é ingestão de dado factual externo
-verificado, não redação/estrutura de Skill) — fica registrado como
-pendência para antes de a Skill `contestacao` (Fase 6) depender dela para
-uma conclusão definitiva de tempestividade.
-
-## O que esta Skill produz (memória de cálculo — REQ-011)
-
-Todo cálculo retorna, no mínimo: data de publicação, data de ciência
-(quando houver), termo inicial, prazo legal em dias, tipo de prazo (dias
-úteis/corridos), fundamento normativo, feriados considerados, suspensões
-consideradas, termo final e status (`TEMPESTIVO` / `INTEMPESTIVO` /
-`PENDENTE DE VALIDAÇÃO`, com motivo). Isso é o que vai para o relatório
-operacional da peça (Fase 6, REQ-035).
-
-## O que esta Skill nunca faz
-
-- Nunca conclui `TEMPESTIVO`/`INTEMPESTIVO` sem calendário forense
-  verificado.
-- Nunca conclui sem data de publicação/ciência, prazo legal e fundamento
-  normativo explícitos.
-- Nunca aproxima "provavelmente não há feriado" como substituto de dado
-  verificado.
+## Exemplo verificado
+Cumprimento de sentença (quantia certa): intimação para pagamento em 15/05/2026 (sexta).
+- Início da contagem: 18/05/2026 (1º dia útil seguinte).
+- Prazo de pagamento, 15 dias úteis (art. 523 c/c 219): encerra em 09/06/2026.
+- Prazo de impugnação, 15 dias úteis (art. 525), iniciado no dia útil subsequente: termo final em 07/07/2026 (terça).
+- Feriados forenses computados no intervalo: 04 e 05/06 (Corpus Christi), 22, 23 e 24/06 (São João), 02 e 03/07 (Independência da Bahia).

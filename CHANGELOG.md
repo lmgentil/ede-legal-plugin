@@ -11,6 +11,57 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - Fase 3 (Template Engine) aguarda o `.docx` institucional real
   (`templates/contestacao/modelo-oficial.docx`), ainda não fornecido.
 
+### Atenção — divergência de arquitetura a resolver antes da Fase 3
+- `skills/redator-peca-processual-elite/references/edicao-docx-timbrado.md`
+  (conteúdo do próprio usuário) descreve um fluxo de **edição direta do
+  `.docx`** (desempacotar, editar texto dos runs XML, reempacotar), sem
+  mecanismo de `{{PLACEHOLDER}}`. O `SPEC-0001` (REQ-013 a REQ-016) descreve
+  um Template Engine baseado em placeholders + Template Lock sobre cópia de
+  um template em branco. São dois modelos de edição de documento diferentes
+  para o mesmo objetivo — não escolhi um silenciosamente; fica registrado
+  para decisão explícita (SPEC ou ADR) antes de iniciar a Fase 3.
+
+## [0.2.0] - 2026-08-18
+
+### Adicionado
+- **Fase 2 — Skills transversais**, usando as skills que o usuário já tinha
+  prontas (não geradas do zero — correção de um primeiro rascunho autoral
+  que foi descartado):
+  - `skills/redator-peca-processual-elite/` — `SKILL.md` +
+    `references/edicao-docx-timbrado.md`.
+  - `skills/humanizer-pt-br/` — `SKILL.md` + `README.md` + `LICENSE`
+    (projeto de terceiro sob MIT, github.com/mackswendhell/humanizer-pt-br;
+    atribuição preservada conforme exigido pela licença).
+  - `skills/calendario-forense-tjba-2026/` — `SKILL.md` com o calendário
+    forense TJBA 2026 já verificado pelo usuário (Decreto Judiciário TJBA
+    nº 1050/2025, DJE 05/12/2025).
+  - `skills/calendario-forense-tjba-2026/scripts/calcular_tempestividade.py`
+    — utilitário adicional (não faz parte do pacote original do usuário):
+    calculadora determinística de dias úteis/feriados/suspensões, com
+    guarda fail-closed (REQ-012) para quando o calendário não estiver
+    verificado. `feriados_forenses_tjba_2026.json` populado com os mesmos
+    dados citados no `SKILL.md`.
+
+### Testado
+- `claude plugin validate .` — passa sem novos warnings.
+- `calcular_tempestividade.py --demo` — 4/4 checagens, incluindo o
+  "Exemplo verificado" do próprio `SKILL.md` (termo final 09/06/2026 e
+  07/07/2026), batendo exatamente com o cálculo automatizado — valida a
+  transcrição do calendário e a aritmética de dias úteis.
+
+### Segurança
+- `.gitignore` ampliado (`/*.docx`, `~$*.docx`): durante a fase, um `.docx`
+  de timbrado real apareceu solto na raiz do repositório. Foi retirado do
+  stage antes de qualquer commit; a regra passa a cobrir estruturalmente
+  esse caso, não só por checagem manual.
+
+### Pendências conhecidas
+- Ver "Atenção — divergência de arquitetura" acima ([Não lançado]).
+- Campo `tools`/`allowed-tools` no frontmatter de `SKILL.md`: um linter do
+  editor aponta ambos como não suportados por "VS Code agents"; o
+  `claude plugin validate` (autoridade para este plugin) aceita os arquivos
+  sem erro. Mantido como está — sinalizado, não corrigido às cegas.
+
 ## [0.1.0] - 2026-08-18
 
 ### Adicionado

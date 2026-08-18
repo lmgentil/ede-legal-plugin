@@ -175,13 +175,25 @@ def _demo():
     """Autoteste executável (`python calcular_tempestividade.py --demo`).
     Ponytail: menor verificação que já pega regressão no guard fail-closed
     e na aritmética de dias úteis."""
-    # 1) sem calendário verificado -> PENDENTE, nunca calcula termo final
-    r = calcular_tempestividade(
-        data_pratica_ato="2026-03-10", data_publicacao="2026-02-01",
-        prazo_legal_dias=15, fundamento_normativo="art. 335 CPC")
-    assert r.status == PENDENTE, r
-    assert r.termo_final is None, "não pode calcular termo final sem calendário verificado"
-    assert "não verificado" in r.motivo_pendencia
+    import tempfile
+
+    # 1) calendário explicitamente não verificado (stub) -> PENDENTE, nunca
+    #    calcula termo final
+    stub_nao_verificado = {"verificado": False}
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False,
+                                      encoding="utf-8") as f:
+        json.dump(stub_nao_verificado, f)
+        caminho_nao_verificado = Path(f.name)
+    try:
+        r = calcular_tempestividade(
+            data_pratica_ato="2026-03-10", data_publicacao="2026-02-01",
+            prazo_legal_dias=15, fundamento_normativo="art. 335 CPC",
+            caminho_calendario=caminho_nao_verificado)
+        assert r.status == PENDENTE, r
+        assert r.termo_final is None, "não pode calcular termo final sem calendário verificado"
+        assert "não verificado" in r.motivo_pendencia
+    finally:
+        caminho_nao_verificado.unlink(missing_ok=True)
 
     # 2) falta data essencial -> PENDENTE antes mesmo de olhar o calendário
     r2 = calcular_tempestividade(data_pratica_ato="2026-03-10",
@@ -190,30 +202,29 @@ def _demo():
     assert r2.status == PENDENTE
     assert "termo inicial" in r2.motivo_pendencia
 
-    # 3) com calendário verificado (stub em memória, sem feriados no
-    #    período), 15 dias úteis a partir de segunda-feira 2026-02-02
-    #    (publicação) devem pular 4 fins de semana corretamente.
-    import tempfile
-    stub = {"verificado": True, "fonte_oficial": "stub de teste",
-            "data_verificacao": "2026-08-18",
-            "feriados_forenses": [], "suspensoes": []}
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False,
-                                      encoding="utf-8") as f:
-        json.dump(stub, f)
-        caminho_stub = Path(f.name)
-    try:
-        r3 = calcular_tempestividade(
-            data_pratica_ato="2026-02-25", data_publicacao="2026-02-02",
-            prazo_legal_dias=15, fundamento_normativo="art. 335 CPC",
-            caminho_calendario=caminho_stub)
-        assert r3.status in (TEMPESTIVO, INTEMPESTIVO)
-        assert r3.termo_final == "2026-02-23", r3.termo_final  # 15 dias úteis, 2 fins de semana pulados
-        assert r3.status == INTEMPESTIVO  # ato em 25/02, termo final em 23/02
-    finally:
-        caminho_stub.unlink(missing_ok=True)
+    # 3) calendário TJBA 2026 real (feriados_forenses_tjba_2026.json, agora
+    #    verificado=true), contra o "Exemplo verificado" do próprio
+    #    SKILL.md desta skill: intimação 15/05/2026 (sexta) -> pagamento
+    #    15 dias úteis vence em 09/06/2026 -> impugnação, outros 15 dias
+    #    úteis, vence em 07/07/2026. Isto valida a transcrição do calendário
+    #    E a aritmética, contra um caso real conferido pelo usuário.
+    r3 = calcular_tempestividade(
+        data_pratica_ato="2026-06-09", data_publicacao="2026-05-15",
+        prazo_legal_dias=15, fundamento_normativo="art. 523 c/c 219 CPC")
+    assert r3.termo_final == "2026-06-09", (
+        f"esperado 2026-06-09 pelo SKILL.md, obtido {r3.termo_final}")
+    assert r3.status == TEMPESTIVO
 
-    print("OK — 3/3 checagens passaram (fail-closed sem calendário; "
-          "fail-closed sem data; aritmética de dias úteis).")
+    r4 = calcular_tempestividade(
+        data_pratica_ato="2026-07-07", data_publicacao="2026-06-09",
+        prazo_legal_dias=15, fundamento_normativo="art. 525 CPC")
+    assert r4.termo_final == "2026-07-07", (
+        f"esperado 2026-07-07 pelo SKILL.md, obtido {r4.termo_final}")
+    assert r4.status == TEMPESTIVO
+
+    print("OK — 4/4 checagens passaram (fail-closed sem calendário "
+          "verificado; fail-closed sem data; calendário TJBA 2026 real "
+          "batendo com o \"Exemplo verificado\" do SKILL.md).")
 
 
 if __name__ == "__main__":

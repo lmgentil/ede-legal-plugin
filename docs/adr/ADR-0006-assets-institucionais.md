@@ -3,8 +3,8 @@
 ## Status
 
 Aceito (2026-08-18) — decisão conservadora e reversível apenas no sentido de
-ampliar exposição, não de reduzi-la. Requer revisão antes da Fase 4 (RAG
-Jurídico).
+ampliar exposição, não de reduzi-la. Revisado na Fase 4 (RAG Jurídico,
+2026-08-18) — ver "Atualização — Fase 4" ao final.
 
 ## Contexto
 
@@ -96,3 +96,17 @@ impedia que todo esse conteúdo fosse commitado e publicado no primeiro
 - `LICENSE` ainda usa um titular placeholder (`[TITULAR A DEFINIR]`);
   quando definido, deve ser revisado se o nome do escritório pode aparecer
   publicamente antes de o timbrado real ser tratado por esta mesma ADR.
+
+## Atualização — Fase 4 (2026-08-18)
+
+Conforme previsto no item 5 de "Consequências", a revisão exigida antes da
+Fase 4 foi feita: apresentadas ao usuário três alternativas — expurgar o
+bloco "Contexto Estratégico" e indexar a versão pública; indexar tudo como
+está mantendo o diretório fora do git; ou adiar — a decisão foi **adiar**.
+Fase 4 não indexa `rag/jurisprudencia/` na busca híbrida. Registrado como
+`PEND-002` (`docs/PENDENCIAS.md`), sem fase bloqueante — retomar quando o
+usuário decidir.
+
+Nenhuma parte desta ADR muda: os itens 1-5 da "Decisão" continuam vigentes
+sem alteração; `rag/jurisprudencia/*.md` segue fora do controle de versão e
+fora da busca híbrida.

@@ -5,6 +5,10 @@ pandas
 pyarrow
 scikit-learn
 rank_bm25
+# lê rag/config.yaml (REQ-044, religado na Fase 4). Sem ela, search_hybrid.py
+# cai para os defaults hardcoded com aviso — não é fail-closed, então
+# permanece tecnicamente opcional, mas é núcleo na prática.
+pyyaml
 
 # Opcional — regeneração de embeddings semânticos (build_embeddings_semantic.py).
 # Só é necessário se rag/embeddings/semantic/ for regenerado localmente; sem
@@ -12,4 +16,3 @@ rank_bm25
 # TF-IDF+LSA (embeddings/, sempre presente).
 sentence-transformers
 huggingface_hub<1.0
-pyyaml

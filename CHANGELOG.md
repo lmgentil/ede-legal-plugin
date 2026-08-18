@@ -9,7 +9,77 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ### Bloqueado
 - **PEND-001** (ver `docs/PENDENCIAS.md`) bloqueia o início da Fase 7 —
-  resolução obrigatória antes disso, não depois. Nada bloqueia a Fase 4.
+  resolução obrigatória antes disso, não depois. Nada bloqueia a Fase 5.
+
+## [0.4.0] - 2026-08-18 — Fase 4 (RAG Jurídico)
+
+A auditoria da Fase 4 encontrou um RAG jurídico já funcional, migrado de um
+projeto anterior do usuário ("RAG JURÍDICO"): 434 chunks (CPC, CC, CDC,
+L8987, L9427, REN1000), embeddings TF-IDF+LSA e semânticos, busca híbrida
+BM25+denso com lookup direto por artigo, calibração de confiança e avaliação
+contra gold-set (`rag/avaliar_recuperacao.py`, baseline top-1 75%/top-3 88%).
+Ingestão, normalização, chunking, embeddings, indexação, busca lexical,
+busca vetorial e fusão já estavam `[PRONTO]` para os 6 corpora legislativos
+antes desta fase — não foram reconstruídos.
+
+O trabalho real desta fase foi religar o que já estava sinalizado como
+pendente para ela (REQ-044, ver nota em `rag/config.yaml` desde a Fase 1) e
+resolver a decisão que `ADR-0006` reservava explicitamente para este ponto
+(indexação de jurisprudência).
+
+### Adicionado — Fase 4 (RAG Jurídico)
+- `rag/search_hybrid.py`: novo estágio explícito de **reranking**
+  (SPEC-0001 §15: fusão → reranking → contexto) — reordena os top-3k
+  candidatos da fusão BM25+denso por um pequeno reforço de cobertura de
+  termos (`peso_rerank_cobertura`, padrão 0.05) antes do corte final em k.
+  Extraído como `HybridSearcher._rerank()` (staticmethod), testável
+  isoladamente sem carregar o índice completo.
+- `tests/test_rag_search.py` — 8 testes (padrão assert + `__main__`, sem
+  framework, igual a `tests/test_template_engine.py`): religação de config,
+  fallback de config ausente, tokenização, detecção de artigos, reranking
+  isolado, smoke da busca híbrida, e guarda de regressão do gold-set via
+  `rag/avaliar_recuperacao.py`.
+
+### Corrigido
+- **REQ-044** — `rag/search_hybrid.py` e `rag/avaliar_recuperacao.py` agora
+  leem `alpha` e os limiares de confiança (`CONF_LSA`, `CONF_SEM`) de
+  `rag/config.yaml` em vez de constantes hardcoded. Fallback automático
+  (com aviso) para os mesmos valores hardcoded se `pyyaml` não estiver
+  instalado ou o arquivo não puder ser lido — sem mudança de comportamento
+  nesse caso.
+- `rag/requirements.txt`: `pyyaml` movido do bloco "Opcional" para o
+  "Núcleo" — agora é lido diretamente por `search_hybrid.py`, não só por
+  `build_embeddings_semantic.py`.
+
+### Testado
+- `python rag/avaliar_recuperacao.py` — top-1: 75% (18/24), top-3: 88%
+  (21/24) — **idêntico ao baseline pré-Fase-4**, confirmando que a
+  religação de config e o novo estágio de reranking não regrediram a
+  qualidade de recuperação.
+- `python tests/test_rag_search.py` — 8/8.
+
+### Pendências conhecidas
+- **PEND-002** (nova, registrada em `docs/PENDENCIAS.md`): indexação de
+  jurisprudência (REQ-018) **adiada por decisão explícita do usuário** —
+  `rag/jurisprudencia/` (57 fichas com dados de cliente real no bloco
+  "Contexto Estratégico", conforme `ADR-0006`) permanece fora da busca
+  híbrida. Sem fase bloqueante; retomar quando o usuário decidir entre
+  expurgar-e-indexar ou indexar-tudo-local-only (alternativas já registradas
+  em `ADR-0006`).
+- `rag/index_artigos.json` tem mojibake (`CAP�TULO`) no campo `capitulo` de
+  pelo menos alguns registros do corpus CPC — cosmético (não afeta o lookup
+  por artigo, que usa `art_inicio`/`art_fim` numéricos, só o texto exibido);
+  não corrigido nesta fase por ser assunto de conteúdo pré-existente, não de
+  religação de configuração ou reranking.
+- REQ-024 (metadados mínimos) está `[PARCIAL]` para os corpora legislativos:
+  id/diploma/artigo/texto presentes via frontmatter YAML dos chunks; URL,
+  data de publicação/verificação e vigência (REQ-025/026, "Autoridade de
+  Fontes" e "Vigência") pertencem à Fase 5 — Validação Jurídica, não a esta.
+- `rag/scripts/` da estrutura da SPEC (REQ-001) não existe — os scripts do
+  RAG ficam direto em `rag/*.py`, divergência pré-existente da migração
+  (Fase 0/1), não alterada nesta fase por não ter sido apontada como
+  bloqueio e por risco de quebrar caminhos relativos já em produção sem
+  necessidade concreta.
 
 ## [0.3.0] - 2026-08-18 — Fase 3 aprovada
 

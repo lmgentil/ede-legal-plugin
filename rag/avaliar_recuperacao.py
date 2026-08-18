@@ -24,7 +24,7 @@ import sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-from search_hybrid import HybridSearcher  # noqa: E402
+from search_hybrid import ALPHA_PADRAO, HybridSearcher  # noqa: E402
 
 
 def arts_to_files(art_index, corpus, arts):
@@ -39,7 +39,7 @@ def arts_to_files(art_index, corpus, arts):
 
 def main():
     ap = argparse.ArgumentParser(description="Avaliação de recuperação do RAG EDE")
-    ap.add_argument("--alpha", type=float, default=0.65)
+    ap.add_argument("--alpha", type=float, default=ALPHA_PADRAO)
     ap.add_argument("-k", type=int, default=5)
     ap.add_argument("--gold", default=os.path.join(BASE, "gold_set.json"))
     ap.add_argument("--verbose", action="store_true",

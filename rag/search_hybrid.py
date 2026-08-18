@@ -42,16 +42,67 @@ import numpy as np
 import pandas as pd
 from rank_bm25 import BM25Okapi
 
+try:
+    import yaml
+except ImportError:
+    yaml = None  # pyyaml ausente -> cai para defaults hardcoded (aviso abaixo)
+
 BASE = Path(__file__).parent
 EMB = BASE / "embeddings"
+CONFIG_PATH = BASE / "config.yaml"
+
+
+def _carregar_config() -> dict:
+    """REQ-044 (Fase 4): parâmetros antes hardcoded agora vêm de config.yaml.
+    Se pyyaml não estiver instalado ou o arquivo estiver ausente/corrompido,
+    cai para os mesmos valores que já estavam hardcoded (nenhuma mudança de
+    comportamento nesse caso) e avisa — mesmo estilo de degradação usada para
+    o índice semântico ausente, mais abaixo neste arquivo."""
+    if yaml is None:
+        print("[AVISO] pyyaml não instalado; config.yaml não será lido, "
+              "usando defaults hardcoded (REQ-044 não religado nesta execução).")
+        return {}
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception as e:
+        print(f"[AVISO] Falha ao ler {CONFIG_PATH.name} ({e.__class__.__name__}); "
+              f"usando defaults hardcoded.")
+        return {}
+
+
+def _cfg(caminho: list, default):
+    node = _CONFIG
+    for chave in caminho:
+        if not isinstance(node, dict) or chave not in node:
+            return default
+        node = node[chave]
+    return node
+
+
+_CONFIG = _carregar_config()
 
 # limiares da camada de confiança (calibrados em 2026-07, 28 consultas de teste)
 # LSA (fallback offline) e SEMANTIC (embeddings mpnet) têm escalas de cosseno
 # diferentes — limiares separados. SEM usa também um escore composto
 # S = bm25_raw/15 + cosseno/0.6 + cobertura (baixa quando S <= baixa_S).
-CONF_LSA = {"alta_bm": 10.0, "alta_cos": 0.60, "alta_cob": 0.85,
-            "baixa_bm": 6.0, "baixa_cos": 0.50, "baixa_cob": 0.50}
-CONF_SEM = {"alta_bm": 9.0, "alta_cob": 0.75, "alta_cos": 0.55, "baixa_S": 1.4}
+# Valores abaixo são os defaults hardcoded originais, usados só se config.yaml
+# não puder ser lido — quando lido, rag/config.yaml é a fonte (REQ-044).
+_lsa = _cfg(["confianca", "lsa"], {})
+CONF_LSA = {"alta_bm": _lsa.get("alta_bm25", 10.0),
+            "alta_cos": _lsa.get("alta_cosseno", 0.60),
+            "alta_cob": _lsa.get("alta_cobertura", 0.85),
+            "baixa_bm": _lsa.get("baixa_bm25", 6.0),
+            "baixa_cos": _lsa.get("baixa_cosseno", 0.50),
+            "baixa_cob": _lsa.get("baixa_cobertura", 0.50)}
+_sem = _cfg(["confianca", "semantico"], {})
+CONF_SEM = {"alta_bm": _sem.get("alta_bm25", 9.0),
+            "alta_cob": _sem.get("alta_cobertura", 0.75),
+            "alta_cos": _sem.get("alta_cosseno", 0.55),
+            "baixa_S": _sem.get("baixa_score_composto", 1.4)}
+
+ALPHA_PADRAO = _cfg(["busca_hibrida", "alpha"], 0.65)
+PESO_RERANK_COBERTURA = _cfg(["busca_hibrida", "peso_rerank_cobertura"], 0.05)
 
 # ---------------------------------------------------------------- tokenização
 STOPWORDS = set("""a o e de da do das dos em no na nos nas um uma uns umas por
@@ -113,7 +164,7 @@ def detect_articles(query: str):
 
 # --------------------------------------------------------------------- índice
 class HybridSearcher:
-    def __init__(self, alpha: float = 0.65):
+    def __init__(self, alpha: float = ALPHA_PADRAO):
         self.alpha = alpha
         # embeddings semânticos (build_embeddings_semantic.py) têm prioridade
         sem = EMB / "semantic" / "embeddings_all.parquet"
@@ -190,7 +241,20 @@ class HybridSearcher:
                                  "score": None, "via": "indice_artigos"})
         return hits
 
-    # -- camada 2: híbrida -----------------------------------------------
+    # -- camada 2: híbrida (fusão + reranking) -----------------------------
+    @staticmethod
+    def _rerank(candidatos: list, peso_cobertura: float = PESO_RERANK_COBERTURA) -> list:
+        """Estágio de reranking (SPEC-0001 §15: fusão -> reranking -> contexto).
+        A fusão (score = alpha*BM25 + (1-alpha)*denso) já produz a ordem
+        principal; aqui os candidatos da fusão são reordenados com um
+        pequeno reforço pela cobertura de termos da consulta (sinal que já
+        era calculado, mas só para exibição, não para a ordem). Efeito
+        pequeno por design (peso padrão 0.05) — serve para desempatar
+        candidatos de score de fusão muito próximo, não para substituí-lo."""
+        return sorted(candidatos,
+                      key=lambda r: r["score"] + peso_cobertura * r["cobertura"],
+                      reverse=True)
+
     def search(self, query: str, k: int = 5, corpus: str = None) -> list:
         toks = tokenize(query)
         bm_raw = np.array(self.bm25.get_scores(toks))
@@ -203,19 +267,21 @@ class HybridSearcher:
         if corpus:
             score = np.where(self.df["corpus"].values == corpus, score, -1)
 
-        out = []
-        for i in np.argsort(-score)[:k]:
+        # pool maior que k para o reranking ter candidatos para reordenar
+        pool = np.argsort(-score)[:max(k * 3, k)]
+        candidatos = []
+        for i in pool:
             if score[i] < 0:
                 break
             r = self.df.iloc[i]
-            out.append({"corpus": r["corpus"], "file_name": r["file_name"],
-                        "score": round(float(score[i]), 3),
-                        "bm25": round(float(bm[i]), 3),
-                        "bm25_raw": round(float(bm_raw[i]), 2),
-                        "denso": round(float(cos[i]), 3),
-                        "cobertura": round(self._coverage(toks, int(i)), 2),
-                        "via": "hibrida"})
-        return out
+            candidatos.append({"corpus": r["corpus"], "file_name": r["file_name"],
+                                "score": round(float(score[i]), 3),
+                                "bm25": round(float(bm[i]), 3),
+                                "bm25_raw": round(float(bm_raw[i]), 2),
+                                "denso": round(float(cos[i]), 3),
+                                "cobertura": round(self._coverage(toks, int(i)), 2),
+                                "via": "hibrida"})
+        return self._rerank(candidatos)[:k]
 
     # -- camada 3: confiança -----------------------------------------------
     def confianca(self, query: str, results: list = None) -> dict:
@@ -277,7 +343,7 @@ def main():
     ap.add_argument("query")
     ap.add_argument("-k", type=int, default=5)
     ap.add_argument("--corpus", choices=["CPC", "CC", "CDC", "REN1000", "L8987", "L9427"])
-    ap.add_argument("--alpha", type=float, default=0.65,
+    ap.add_argument("--alpha", type=float, default=ALPHA_PADRAO,
                     help="peso do BM25 (0=só denso, 1=só BM25)")
     args = ap.parse_args()
 

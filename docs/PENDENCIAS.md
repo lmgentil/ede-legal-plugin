@@ -15,6 +15,7 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | ID | Status | Aberta na | Bloqueia | Descrição |
 |---|---|---|---|---|
 | PEND-001 | ABERTA | Fase 3 | Fase 7 | Suporte multimídia ao placeholder `FOTOS_DA_IRREGULARIADE` |
+| PEND-002 | ABERTA | Fase 4 | Nenhuma (adiada por decisão do usuário) | Indexação de jurisprudência (REQ-018) na busca híbrida |
 
 ---
 
@@ -76,3 +77,55 @@ de Fail Closed (`CLAUDE.md §17`, `SPEC-0001 INV-006`).
 Em aberto. Ao resolver, mover a linha da tabela acima para
 "RESOLVIDA (Fase N)", preencher a decisão tomada nesta seção, e referenciar
 o commit/PR correspondente.
+
+---
+
+## PEND-002 — Indexação de jurisprudência (REQ-018) na busca híbrida
+
+**Status:** ABERTA
+**Aberta em:** Fase 4 (RAG Jurídico)
+**Bloqueia:** nenhuma fase — adiada por decisão explícita do usuário em
+2026-08-18, sem prazo definido.
+
+### Contexto
+
+`docs/adr/ADR-0006-assets-institucionais.md` já registrava, desde a Fase 1,
+que uma decisão explícita seria necessária antes da Fase 4 sobre
+`rag/jurisprudencia/`: 57 fichas em Markdown, cada uma com bloco "Contexto
+Estratégico" e tabela "Histórico de Utilização" que expõem, para casos reais
+do escritório, o nome do cliente (ex.: "COELBA"), a parte contrária por nome
+completo e o número do processo — além de 60 textos brutos extraídos de
+`.docx` em `.textos_varredura/` (esses já tratados como workspace local,
+nunca versionáveis, por decisão anterior).
+
+Apresentadas três opções ao usuário na Fase 4 — (a) expurgar o bloco
+sensível e indexar a versão pública; (b) indexar tudo como está, mantendo
+`rag/jurisprudencia/` inteiro fora do git; (c) adiar a indexação de
+jurisprudência e tratar só legislação/regulamentos nesta fase — a escolha
+foi **(c)**.
+
+### Efeito desta fase
+
+* `search_hybrid.py` continua indexando somente os 434 chunks de
+  legislação/regulamentos (CPC, CC, CDC, L8987, L9427, REN1000) — REQ-018
+  ("jurisprudência" como tipo de conteúdo do corpus) permanece `[PARCIAL]`.
+* Nenhum arquivo de `rag/jurisprudencia/` foi lido, alterado, movido ou
+  incluído na fusão/reranking desta fase.
+* `INV-006` (Fail Closed): como o corpus de jurisprudência não está
+  indexado, uma consulta que dependa dele deve retornar confiança "baixa"
+  ou nenhum resultado — nunca inventar uma citação jurisprudencial a partir
+  da memória do modelo. Isso já é o comportamento de `search_hybrid.py`
+  para qualquer termo fora dos 6 corpora indexados.
+
+### Critério de resolução
+
+Quando o usuário decidir retomar: escolher entre as opções (a)/(b) acima (ou
+uma nova), executar a decisão, adicionar o corpus de jurisprudência à
+ingestão/chunking/embeddings/indexação de `search_hybrid.py` e atualizar
+`rag/config.yaml` (`corpus.diplomas`), `CONTEXTO_RAG.md`, este registro e
+`ADR-0006`.
+
+### Fechamento
+
+Em aberto, sem prazo. Ao resolver, mover a linha da tabela para "RESOLVIDA
+(Fase N)", preencher a decisão tomada e referenciar o commit/PR.

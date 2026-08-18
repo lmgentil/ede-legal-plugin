@@ -61,6 +61,14 @@ python search_hybrid.py "art. 373 CPC"
 
 ## Histórico
 
+- Fase 4 (2026-08-18, EDE Legal Plugin): `search_hybrid.py` passou a ler
+  `rag/config.yaml` (REQ-044) em vez de constantes hardcoded — mesmos
+  valores, sem mudança de comportamento (validado contra `gold_set.json`:
+  top-1 75%, top-3 88%, idêntico ao baseline). Adicionado estágio explícito
+  de reranking (SPEC-0001 §15) que reordena os top-3k candidatos da fusão
+  por um pequeno reforço de cobertura de termos antes do corte final em k.
+  Indexação de jurisprudência (REQ-018) **adiada por decisão do usuário**
+  — ver `PEND-002` em `docs/PENDENCIAS.md` e `ADR-0006`.
 - Migrado do projeto Cowork "RAG JURÍDICO" em 2026-07-01/02.
 - v1: 346 chunks vetorizados TF-IDF+LSA. v2: re-chunking para 413 chunks,
   `index_artigos.json` completo, busca híbrida calibrada.

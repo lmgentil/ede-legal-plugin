@@ -27,6 +27,14 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   - Normalização de caminhos: `CLAUDE.MD` → `CLAUDE.md`,
     `Docs/Specs/SPEC-0001.md` → `docs/specs/SPEC-0001.md`.
   - Inicialização do controle de versão (`git init`) com commit inicial.
+  - `author` em `.claude-plugin/plugin.json`, resolvendo o warning do
+    `claude plugin validate`.
+
+### Testado
+- `claude plugin validate .` — passa sem warnings.
+- `python rag/avaliar_recuperacao.py` — top-1: 75% (18/24), top-3: 88%
+  (21/24), idêntico ao baseline pré-existente: confirma que a normalização
+  de caminhos e os novos arquivos não regrediram a busca híbrida.
 
 ### Segurança
 - `rag/jurisprudencia/` (fichas de jurisprudência e textos brutos de peças
@@ -36,9 +44,16 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   versionado.
 
 ### Pendências conhecidas
-- `LICENSE` usa titular placeholder (`[TITULAR A DEFINIR]`) — falta o nome
-  legal do escritório.
 - REQ-018 (jurisprudência no corpus RAG) segue `[PARCIAL]`: ainda não
   indexada na busca híbrida.
 - `templates/`, `skills/`, `commands/`, `scripts/`, `tests/` ainda não
   existem — previstos para as Fases 2, 3 e 6.
+- REQ-036/037/038 (`/contestacao`, `/updateEde`, `/atualizar-rag`) serão
+  implementados como Skills invocáveis (`skills/<nome>/SKILL.md`), não como
+  `commands/*.md` — a documentação oficial do Claude Code trata `commands/`
+  como formato legado.
+- `claude plugin validate` aponta que `CLAUDE.md` na raiz não é carregado
+  como contexto de projeto para quem instala o plugin — esperado, pois este
+  arquivo governa o desenvolvimento do repositório, não o comportamento
+  entregue ao usuário final (isso cabe às Skills). Registrado para eventual
+  esclarecimento na SPEC.

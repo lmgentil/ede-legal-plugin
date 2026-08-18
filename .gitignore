@@ -23,5 +23,10 @@ Thumbs.db
 rag/jurisprudencia/
 
 # --- Template institucional real (quando fornecido) ---
-# Nunca commitar o .docx timbrado sem revisão de ADR-0006.
+# Nunca commitar o .docx timbrado sem revisão de ADR-0006. Cobre tanto o
+# local final previsto (templates/contestacao/modelo-oficial.docx) quanto
+# qualquer .docx solto na raiz/workspace antes de ser triado na Fase 3 —
+# achado real desta sessão: um arquivo de timbrado apareceu na raiz.
 templates/**/modelo-oficial.docx
+/*.docx
+~$*.docx

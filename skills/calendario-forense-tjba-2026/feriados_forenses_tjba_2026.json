@@ -1,0 +1,8 @@
+{
+  "_leia_isto_primeiro": "Este arquivo é um PLACEHOLDER. 'verificado' está false de propósito. Nenhuma data de feriado forense ou suspensão de prazo do TJBA para 2026 foi inserida aqui, porque não há fonte oficial verificada disponível nesta execução (CLAUDE.md §8: não inventar feriado, suspensão, termo inicial ou termo final). Antes de preencher, obtenha o calendário forense oficial do TJBA para 2026 (Corregedoria Geral de Justiça — provimento/portaria) e registre a fonte e a data de verificação abaixo. Enquanto 'verificado' for false, scripts/calcular_tempestividade.py se recusa a calcular termo final e retorna status PENDENTE_DE_VALIDACAO.",
+  "verificado": false,
+  "fonte_oficial": null,
+  "data_verificacao": null,
+  "feriados_forenses": [],
+  "suspensoes": []
+}

@@ -100,20 +100,13 @@ aberto — ver `docs/adr/ADR-0009-distribuicao-publica-template-externo.md`):
 
 ## Instalação
 
-> ⚠️ **Este repositório ainda não tem origem git remota configurada**
-> (`git remote -v` vazio) — os comandos abaixo funcionam hoje com um
-> **caminho local** (`/plugin marketplace add <caminho-para-este-repositório>`).
-> Quando houver uma origem git (GitHub ou equivalente) publicada, o mesmo
-> fluxo funciona apontando para ela em vez do caminho local — nenhum outro
-> passo muda.
-
 Pré-requisitos: Claude Code com suporte a Plugin Marketplace (versão
 atual da CLI) e Python 3.10+ no PATH (testado em 3.12) para os scripts do
 RAG e do Template Engine — ver "Dependências Python" abaixo.
 
 1. **Adicionar o marketplace:**
    ```text
-   /plugin marketplace add <caminho-ou-origem-deste-repositório>
+   /plugin marketplace add lmgentil/ede-legal-plugin
    ```
 2. **Instalar o plugin:**
    ```text
@@ -168,6 +161,17 @@ Para ver o que mudou entre versões, consulte [`CHANGELOG.md`](./CHANGELOG.md)
 ```
 Comando oficial confirmado na documentação vigente do Claude Code — não
 há passo adicional específico deste plugin.
+
+## Clonar para estudo
+
+Para inspecionar o código-fonte diretamente (sem passar pelo marketplace):
+
+```bash
+git clone https://github.com/lmgentil/ede-legal-plugin.git
+```
+
+O uso do código clonado continua sujeito aos termos do [`LICENSE`](./LICENSE)
+— ver "Licença" abaixo.
 
 ## Solução de problemas
 

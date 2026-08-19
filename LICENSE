@@ -1,22 +1,79 @@
-Copyright (c) 2026 LUIZ MARIO GENTIL DA SILVA NETO. Todos os direitos reservados.
+Copyright (c) 2026 LUIZ MARIO GENTIL DA SILVA NETO. Todos os direitos
+reservados, exceto conforme expressamente concedido nesta licença.
 
-Este repositório e todo o seu conteúdo — código-fonte, Skills, scripts,
-corpus e demais materiais ("Software") — são disponibilizados publicamente
-apenas para fins de transparência e consulta.
+Esta é uma licença proprietária de código-fonte disponível
+("source-available") — não é licença de código aberto ("open source")
+nem software livre ("free software") no sentido reconhecido pela Open
+Source Initiative ou pela Free Software Foundation. O código deste
+repositório ("Software") é publicamente acessível para consulta, estudo
+e uso conforme os termos abaixo — acessibilidade técnica não implica
+concessão irrestrita de direitos.
 
-Nenhuma permissão é concedida para copiar, modificar, distribuir,
-sublicenciar, executar em produção fora deste contexto, ou explorar
-comercialmente o Software, no todo ou em parte, sem autorização prévia e
-expressa por escrito do titular.
+## 1. Permitido, sem necessidade de autorização adicional
 
-Nada nesta licença afeta os direitos autorais ou de propriedade intelectual
-de terceiros sobre conteúdo público citado ou referenciado (por exemplo,
-textos legislativos e decisões judiciais), que permanecem regidos por suas
-próprias regras de domínio público ou uso.
+Qualquer pessoa pode, sem pedir autorização prévia:
+
+a) visualizar, baixar e clonar o código-fonte deste repositório;
+b) instalar e executar o Software — inclusive via Claude Code Plugin
+   Marketplace — para elaboração assistida de peças processuais e
+   demais finalidades a que o Software se destina;
+c) estudar o funcionamento do Software para fins de aprendizado,
+   avaliação técnica ou pesquisa;
+d) modificar cópias locais do Software para uso próprio;
+e) usar o Software profissionalmente, inclusive internamente por
+   escritórios de advocacia, departamentos jurídicos ou organizações
+   distintas do titular — usar o Software na própria prática
+   profissional, ainda que essa prática seja remunerada por clientes,
+   não constitui, por si só, comercialização do Software.
+
+## 2. Permitido, sujeito às condições abaixo
+
+A criação e a distribuição pública de versões modificadas
+("Derivados") do Software são permitidas, desde que:
+
+a) o aviso de copyright e o texto integral desta licença sejam
+   mantidos no Derivado, junto de aviso claro e destacado de que se
+   trata de versão modificada, identificando o que foi alterado em
+   relação ao Software original;
+b) o Derivado não seja apresentado como o EDE Legal Plugin original,
+   nem sob nome ou identidade visual que possa gerar confusão com ele;
+c) a distribuição do Derivado não configure, por si só, nenhuma das
+   condutas vedadas na Seção 3.
+
+## 3. Proibido sem autorização prévia e expressa por escrito do titular
+
+Independentemente do disposto nas Seções 1 e 2, é vedado, sem
+autorização prévia e expressa por escrito do titular:
+
+a) redistribuir o Software original (não modificado) por canal
+   próprio — republicação, espelhamento ("mirroring") ou
+   disponibilização em outro marketplace/repositório como se fosse a
+   fonte oficial;
+b) sublicenciar o Software ou qualquer Derivado a terceiros;
+c) comercializar o Software ou qualquer Derivado — vender acesso,
+   cobrar pela sua distribuição, ou empacotá-lo como produto ou
+   serviço pago cujo valor decorra predominantemente do próprio
+   Software;
+d) apropriar-se da autoria do Software ou de suas partes;
+e) remover, ocultar ou alterar os avisos de copyright e esta licença
+   em qualquer cópia ou Derivado;
+f) usar o nome "EDE Legal Plugin", marcas do titular, ou timbrados/
+   marcas de terceiros referenciados no projeto (por exemplo, nomes de
+   distribuidoras de energia citados a título de exemplo de caso) de
+   forma a sugerir endosso, associação ou origem que não exista.
+
+## 4. Conteúdo de terceiros
+
+Nada nesta licença afeta os direitos autorais ou de propriedade
+intelectual de terceiros sobre conteúdo público citado ou referenciado
+(por exemplo, textos legislativos e decisões judiciais), que
+permanecem regidos por suas próprias regras de domínio público ou uso.
+
+## 5. Ausência de garantia
 
 O SOFTWARE É FORNECIDO "NO ESTADO EM QUE SE ENCONTRA", SEM GARANTIA DE
 QUALQUER TIPO, EXPRESSA OU IMPLÍCITA, INCLUINDO, MAS NÃO SE LIMITANDO A,
 GARANTIAS DE COMERCIALIZAÇÃO, ADEQUAÇÃO A UM PROPÓSITO ESPECÍFICO E
-NÃO VIOLAÇÃO. EM NENHUMA HIPÓTESE O(S) TITULAR(ES) SERÁ(ÃO) RESPONSÁVEL(EIS)
-POR QUALQUER RECLAMAÇÃO, DANO OU OUTRA RESPONSABILIDADE DECORRENTE DO USO
-DO SOFTWARE.
+NÃO VIOLAÇÃO. EM NENHUMA HIPÓTESE O(S) TITULAR(ES) SERÁ(ÃO)
+RESPONSÁVEL(EIS) POR QUALQUER RECLAMAÇÃO, DANO OU OUTRA
+RESPONSABILIDADE DECORRENTE DO USO DO SOFTWARE.

@@ -17,7 +17,7 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-001 | DEFERRED | Fase 3 | Nenhuma (deferida por decisão do usuário — correção v0.6.1) | Suporte multimídia ao placeholder `FOTOS_DA_IRREGULARIADE` |
 | PEND-002 | ABERTA | Fase 4 | Nenhuma (adiada por decisão do usuário) | Indexação de jurisprudência (REQ-018) na busca híbrida |
 | PEND-003 | ABERTA | Fase 8 | Nenhuma (não impede uso; afeta tamanho de clone/instalação) | `rag/embeddings/svd.joblib` (~81 MB) domina o tamanho do repositório distribuído |
-| PEND-004 | ABERTA | Fase 8 | Publicação externa (não bloqueia trabalho técnico local) | Definir licença proprietária/source-available compatível com repositório público e distribuição do plugin |
+| PEND-004 | RESOLVIDA (gate PEND-004) | Fase 8 | — | Definir licença proprietária/source-available compatível com repositório público e distribuição do plugin |
 
 ---
 
@@ -218,11 +218,14 @@ Em aberto, sem prazo.
 
 ## PEND-004 — Definir licença proprietária/source-available compatível com repositório público e distribuição do plugin
 
-**Status:** ABERTA
+**Status:** RESOLVIDA (gate PEND-004, 2026-08-18)
 **Aberta em:** Fase 8 (auditoria de distribuição)
-**Bloqueia:** publicação externa (push a um remote público, listagem em
-marketplace acessível a terceiros) — **não bloqueia** o trabalho técnico
-local desta fase (marketplace testável localmente, sem remote).
+**Bloqueava:** publicação externa (push a um remote público, listagem em
+marketplace acessível a terceiros) — nunca bloqueou o trabalho técnico
+local (marketplace testável localmente, sem remote). Ver "Fechamento"
+abaixo — a redação da `LICENSE` está feita; publicação externa segue sem
+outro bloqueio jurídico conhecido (ausência de remote é decisão
+operacional separada, não pendência).
 
 ### Contexto
 
@@ -280,11 +283,21 @@ Parâmetros decididos para orientar essa redação futura:
 
 ### Fechamento
 
-Em aberto, sem prazo — **a redação definitiva da `LICENSE` não foi feita
-nesta consolidação**, por decisão explícita de manter essa redação como
-gate específico subsequente (não decidir silenciosamente um texto
-jurídico). O que está listado acima são os parâmetros/critérios já
-aprovados que a redação futura deve seguir, não a licença em si. Até essa
-redação existir, `LICENSE` continua com o texto atual (todos os direitos
-reservados). Não impede o uso local nem os testes desta fase — só a
-publicação externa.
+**RESOLVIDA em 2026-08-18** (gate PEND-004, autorizado explicitamente
+pelo usuário após a consolidação pós-Fase 8). `LICENSE` reescrita
+implementando literalmente a matriz de parâmetros acima — Seção 1
+("Permitido, sem necessidade de autorização adicional") cobre
+integralmente o bloco "Permitido"; Seção 2 ("Permitido, sujeito às
+condições abaixo") cobre o bloco "Restrito"; Seção 3 ("Proibido sem
+autorização prévia e expressa por escrito do titular") cobre item a item
+o bloco "Proibido". Seções de conteúdo de terceiros e ausência de
+garantia, já existentes no texto anterior, preservadas. Não é MIT/
+Apache-2.0/GPL/AGPL nem adota licença de terceiro — texto próprio,
+redigido para este projeto. `README.md` (seção "Licença") e
+`ADR-0009` atualizados de acordo.
+
+Continuam válidas, sem alteração por esta resolução: `PEND-001`
+(`DEFERRED`), `PEND-002` (`ADIADA`), `PEND-003` (`ABERTA`, tamanho de
+`svd.joblib`). Nenhum remote foi criado, nenhum push ou publicação
+externa foi realizado ao resolver esta pendência — isso permanece uma
+decisão operacional separada e futura.

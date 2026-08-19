@@ -208,11 +208,21 @@ há passo adicional específico deste plugin.
 
 ## Licença
 
-O código-fonte é disponibilizado publicamente. Isso não o torna *open
-source* nem *free software*: seu uso, modificação, redistribuição e
-exploração estão sujeitos aos termos da licença do projeto — ver
-[`LICENSE`](./LICENSE). A redação final de uma licença
-proprietária/source-available específica para este cenário (repositório
-público + distribuição via marketplace) ainda está em definição —
-`PEND-004` (`docs/PENDENCIAS.md`), pendência de governança, não de
-arquitetura técnica. Até lá, valem os termos vigentes em `LICENSE`.
+O código-fonte é disponibilizado publicamente sob uma licença
+proprietária de código-fonte disponível ("source-available") — ver
+[`LICENSE`](./LICENSE). Isso não o torna *open source* nem *free
+software*. Resumo (não substitui a leitura do texto integral):
+
+* **Permitido sem pedir autorização:** visualizar, baixar, clonar,
+  instalar e executar o plugin (inclusive via marketplace), estudar o
+  código, modificar cópias locais, usar profissionalmente — inclusive
+  internamente por escritórios de advocacia diferentes do titular.
+* **Permitido com condições:** criar e distribuir versões modificadas,
+  desde que mantidos os avisos de copyright/licença, identificado
+  claramente como versão modificada, e sem se apresentar como o EDE
+  Legal Plugin original.
+* **Proibido sem autorização prévia e expressa por escrito do
+  titular:** redistribuir o software original por canal próprio,
+  sublicenciar, comercializar o plugin ou derivados, apropriar-se da
+  autoria, remover avisos, ou usar o nome/marcas do projeto ou de
+  terceiros de forma a sugerir endosso inexistente.

@@ -8,9 +8,67 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Bloqueado
-- Nenhuma pendência bloqueia a Fase 9 tecnicamente. `PEND-004` bloqueia
-  **publicação externa** (não o trabalho técnico local) — ver
-  `docs/PENDENCIAS.md`.
+- Nenhuma pendência bloqueia a Fase 9 nem a publicação externa
+  tecnicamente/juridicamente. Publicação real (remote, push, release)
+  segue sendo uma decisão e ação operacional futura, não uma pendência.
+
+## [0.9.0] - 2026-08-18 — Gate PEND-004: licença proprietária source-available
+
+Fecha `PEND-004`. `LICENSE` reescrita como licença proprietária de
+código-fonte disponível ("source-available"), implementando literalmente
+a matriz de direitos aprovada em `docs/PENDENCIAS.md`. Primeira definição
+real de direitos de uso desde a criação do projeto — antes, o texto
+reservava todos os direitos sem conceder nenhum uso explícito além de
+"transparência e consulta"; passa a autorizar expressamente execução,
+modificação local e uso profissional sem pedido de autorização.
+
+### Alterado
+- `LICENSE` — reescrita em 5 seções: (1) permitido sem autorização
+  (visualizar/baixar/clonar, instalar e executar — inclusive via
+  marketplace —, estudar, modificar cópias locais, uso profissional
+  inclusive por escritórios de advocacia diferentes do titular); (2)
+  permitido com condições (criar/distribuir Derivados, mantendo avisos
+  de copyright/licença e identificação clara como versão modificada,
+  sem se apresentar como o projeto original); (3) proibido sem
+  autorização prévia e expressa por escrito (redistribuir o original por
+  canal próprio, sublicenciar, comercializar o plugin ou derivados,
+  apropriar-se da autoria, remover avisos, usar nome/marcas de forma a
+  sugerir endosso inexistente); (4) conteúdo de terceiros (preservada,
+  sem alteração de mérito); (5) ausência de garantia (preservada, sem
+  alteração de mérito). Não adota MIT/Apache-2.0/GPL/AGPL nem licença de
+  terceiro — texto próprio, redigido especificamente para este projeto.
+- `README.md` (seção "Licença") — resumo dos três blocos de direitos,
+  sem afirmar *open source*/*free software* (nenhum dos dois é o caso).
+- `docs/PENDENCIAS.md` — `PEND-004`: `ABERTA` → **`RESOLVIDA`**. Seções
+  históricas (Contexto/Risco/Critério de resolução/Decisão superveniente)
+  preservadas sem reescrita; `Fechamento` documenta o mapeamento
+  seção-a-seção entre a matriz aprovada e o texto final da `LICENSE`.
+- `docs/adr/ADR-0009-distribuicao-publica-template-externo.md` — seção
+  "Atualização — Gate PEND-004 resolvido": remove o único bloqueio
+  jurídico que a ADR apontava para publicação externa.
+
+### Testado
+- `python tests/test_marketplace.py` — 7/7 (sem regressão; VERSION/
+  plugin.json ressincronizados em 0.9.0).
+- `python tests/test_pacote_distribuicao.py` — 5/5.
+- `python tests/test_validar_instalacao.py` — 3/3.
+- `python tests/test_e2e_contestacao.py` — 6/6.
+- `python tests/test_contestacao_skill_dependencies.py` — 8/8.
+- `python tests/test_validate_fatos.py` — 16/16.
+- `python tests/test_legal_validation.py` — 24/24.
+- `python tests/test_rag_search.py` — 8/8.
+- `python rag/avaliar_recuperacao.py` — top-1 75%/top-3 88% (sem regressão).
+- `python tests/test_template_engine.py` — 10/10.
+- `claude plugin validate .` (marketplace) e
+  `claude plugin validate .claude-plugin/plugin.json` (plugin) — sem
+  novos warnings.
+
+### Pendências
+- `PEND-001` (`DEFERRED`), `PEND-002` (`ADIADA`), `PEND-003` (`ABERTA`)
+  — inalteradas.
+- `PEND-004` — **RESOLVIDA** nesta versão.
+- Nenhum remote criado, nenhum push, nenhuma publicação externa
+  realizada — por instrução explícita.
 
 ## [0.8.1] - 2026-08-18 — Consolidação pós-Fase 8: distribuição pública + template externo
 

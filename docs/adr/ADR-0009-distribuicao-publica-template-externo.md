@@ -95,3 +95,14 @@ implementado). Esta ADR não reabre essa análise — confirma a opção B
 * A publicação pública em si (remote, push, visibilidade, release)
   continua bloqueada por `PEND-004` (definição da `LICENSE`) — essa ADR
   não a desbloqueia.
+
+## Atualização — Gate PEND-004 resolvido (2026-08-18)
+
+`PEND-004` foi resolvida: `LICENSE` reescrita como licença proprietária
+source-available, implementando a matriz de direitos aprovada
+(permitido sem autorização / permitido com condições / proibido sem
+autorização prévia por escrito) — ver `docs/PENDENCIAS.md` para o
+mapeamento seção a seção. Isso remove o único bloqueio jurídico
+identificado por esta ADR para a publicação externa. Nenhum remote foi
+criado, nenhum push ou publicação foi realizado — essa continua sendo
+uma decisão e ação operacional futura, separada da definição da licença.

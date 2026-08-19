@@ -17,7 +17,7 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-001 | DEFERRED | Fase 3 | Nenhuma (deferida por decisão do usuário — correção v0.6.1) | Suporte multimídia ao placeholder `FOTOS_DA_IRREGULARIADE` |
 | PEND-002 | ABERTA | Fase 4 | Nenhuma (adiada por decisão do usuário) | Indexação de jurisprudência (REQ-018) na busca híbrida |
 | PEND-003 | ABERTA | Fase 8 | Nenhuma (não impede uso; afeta tamanho de clone/instalação) | `rag/embeddings/svd.joblib` (~81 MB) domina o tamanho do repositório distribuído |
-| PEND-004 | ABERTA | Fase 8 | Publicação externa (não bloqueia trabalho técnico local) | `LICENSE` (todos os direitos reservados) em possível conflito com distribuição via marketplace público |
+| PEND-004 | ABERTA | Fase 8 | Publicação externa (não bloqueia trabalho técnico local) | Definir licença proprietária/source-available compatível com repositório público e distribuição do plugin |
 
 ---
 
@@ -216,7 +216,7 @@ Em aberto, sem prazo.
 
 ---
 
-## PEND-004 — `LICENSE` em possível conflito com distribuição via marketplace público
+## PEND-004 — Definir licença proprietária/source-available compatível com repositório público e distribuição do plugin
 
 **Status:** ABERTA
 **Aberta em:** Fase 8 (auditoria de distribuição)
@@ -251,7 +251,40 @@ por escrito (documentando essa interpretação); (c) manter o marketplace
 privado/restrito a instalação autorizada individualmente. Não decidido
 nesta fase — ver `ADR-0008`.
 
+### Decisão superveniente (consolidação pós-Fase 8)
+
+**Superadas** as três alternativas (a)/(b)/(c) acima — a pergunta não é
+mais "publicar ou não publicar", isso já foi decidido: repositório e
+plugin **serão públicos** no GitHub (visibilidade pública, clone,
+download, instalação via marketplace, sem exigir que o usuário seja
+colaborador autorizado). Acesso técnico ao repositório ≠ autorização
+jurídica irrestrita sobre o software — quem disciplina isso é a
+`LICENSE`, e é exatamente essa redação que falta.
+
+**Modelo jurídico já definido** para orientar a redação futura (ainda
+**não** redigida — ver "Fechamento" abaixo): licença proprietária/
+source-available, não MIT/Apache-2.0/GPL/AGPL nem equivalente,
+preservando controle sobre redistribuição e exploração comercial.
+Parâmetros decididos para orientar essa redação futura:
+
+* **Permitido:** código publicamente acessível; download e clone; instalação
+  via marketplace; estudo do código; modificação local; uso profissional;
+  uso interno por organizações (inclusive escritórios de advocacia
+  diferentes do titular).
+* **Restrito** (sujeito a condição/aviso, não proibição total):
+  publicação de modificações; criação/distribuição de derivados.
+* **Proibido sem autorização expressa do titular:** redistribuição;
+  sublicenciamento; comercialização do plugin ou de derivados;
+  apropriação de autoria; remoção de avisos/notices; uso de
+  marcas/timbrados do titular ou de terceiros.
+
 ### Fechamento
 
-Em aberto, sem prazo. Não impede o uso local nem os testes desta fase —
-só a publicação externa.
+Em aberto, sem prazo — **a redação definitiva da `LICENSE` não foi feita
+nesta consolidação**, por decisão explícita de manter essa redação como
+gate específico subsequente (não decidir silenciosamente um texto
+jurídico). O que está listado acima são os parâmetros/critérios já
+aprovados que a redação futura deve seguir, não a licença em si. Até essa
+redação existir, `LICENSE` continua com o texto atual (todos os direitos
+reservados). Não impede o uso local nem os testes desta fase — só a
+publicação externa.

@@ -13,9 +13,12 @@ projetada para permanecer extensível a outros tipos de peça — ver
 ## Status atual (v0.8.0 — Fase 8 de 9 aprovada)
 
 🚧 **Em desenvolvimento. Distribuição via marketplace pronta e testada
-localmente (Fase 8); publicação externa (GitHub público, release) ainda
-não aconteceu — ver "Instalação" abaixo. Hardening final (Fase 9) segue
-pendente.**
+localmente (Fase 8). Decisão de arquitetura definitiva: repositório e
+plugin serão públicos, o modelo institucional (`.docx`) é asset externo
+que nunca integra o repositório — ver "Template institucional" abaixo.
+Publicação externa (GitHub público, release) ainda não aconteceu; único
+bloqueio conhecido é `PEND-004` (definição da licença). Hardening final
+(Fase 9) segue pendente.**
 
 | Camada | Status |
 |---|---|
@@ -63,6 +66,38 @@ Detalhes em [`rag/CONTEXTO_RAG.md`](./rag/CONTEXTO_RAG.md).
 > está integrada à busca híbrida — ver
 > [`docs/adr/ADR-0006-assets-institucionais.md`](./docs/adr/ADR-0006-assets-institucionais.md).
 
+## Template institucional
+
+O EDE Legal Plugin é o **motor** de elaboração da Contestação — RAG,
+validação jurídica, orquestração de Skills, Template Engine, Template
+Lock. O modelo institucional propriamente dito,
+
+```text
+templates/contestacao/modelo-oficial.docx
+```
+
+é um **asset externo ao plugin**, decisão definitiva (não uma questão em
+aberto — ver `docs/adr/ADR-0009-distribuicao-publica-template-externo.md`):
+
+1. **não integra o repositório** (nunca foi commitado, confirmado no
+   histórico git completo, não só no índice atual);
+2. **não é distribuído com o plugin público** — instalar o plugin via
+   marketplace nunca inclui esse arquivo;
+3. é **fornecido separadamente**, fora deste repositório, aos usuários
+   autorizados a recebê-lo (o timbrado revela identidade do escritório,
+   dados de contato e OAB);
+4. o caminho esperado, quando fornecido, é exatamente
+   `templates/contestacao/modelo-oficial.docx`;
+5. **sem esse arquivo, o resto do plugin continua disponível** — Skills,
+   RAG, validação jurídica e análise estratégica funcionam normalmente;
+6. **só a geração do DOCX institucional final exige o template** — nesse
+   ponto específico, a ausência interrompe só essa etapa
+   (`scripts/gerar_contestacao.py` reporta `PIPELINE_ABORTED` no estágio
+   `template_engine`, nunca inventa, baixa ou reconstrói um template).
+
+`python scripts/validar_instalacao.py` trata este item como **opcional**
+— sua ausência não significa instalação incorreta.
+
 ## Instalação
 
 > ⚠️ **Este repositório ainda não tem origem git remota configurada**
@@ -93,11 +128,10 @@ RAG e do Template Engine — ver "Dependências Python" abaixo.
    este plugin — precisa estar disponível em `~/.claude/skills/docx` ou
    `~/.agents/skills/docx`. Sem ele, `render_docx.py`/`validate_template.py`
    falham explicitamente (fail closed), não silenciosamente.
-4. **Fornecer o template institucional** — `templates/contestacao/modelo-oficial.docx`
-   é asset privado do escritório, não distribuído pelo plugin público (ver
-   "Segurança" abaixo e `docs/adr/ADR-0006-assets-institucionais.md`).
-   Copie o `.docx` real do seu escritório para esse caminho antes de gerar
-   uma Contestação.
+4. **Fornecer o template institucional** — asset externo, ver "Template
+   institucional" acima. Copie o `.docx` real do seu escritório para
+   `templates/contestacao/modelo-oficial.docx` antes de gerar uma
+   Contestação.
 5. **Validar a instalação:**
    ```bash
    python scripts/validar_instalacao.py
@@ -174,9 +208,11 @@ há passo adicional específico deste plugin.
 
 ## Licença
 
-Ver [`LICENSE`](./LICENSE) — todos os direitos reservados; não constitui,
-por si só, licença de uso, cópia ou redistribuição. Instalação via o
-marketplace deste plugin pressupõe autorização do titular para essa
-finalidade específica; ver `PEND-004` (`docs/PENDENCIAS.md`) para a
-tensão ainda não formalmente resolvida entre distribuição pública via
-marketplace e os termos atuais da `LICENSE`.
+O código-fonte é disponibilizado publicamente. Isso não o torna *open
+source* nem *free software*: seu uso, modificação, redistribuição e
+exploração estão sujeitos aos termos da licença do projeto — ver
+[`LICENSE`](./LICENSE). A redação final de uma licença
+proprietária/source-available específica para este cenário (repositório
+público + distribuição via marketplace) ainda está em definição —
+`PEND-004` (`docs/PENDENCIAS.md`), pendência de governança, não de
+arquitetura técnica. Até lá, valem os termos vigentes em `LICENSE`.

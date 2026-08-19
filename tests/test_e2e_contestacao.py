@@ -172,6 +172,30 @@ def test_fail_closed_estrategia_estruturalmente_invalida():
         assert not saida.exists()
 
 
+def test_fail_closed_template_institucional_ausente():
+    # Consolidação pós-Fase 8: o template real é asset externo, nunca
+    # distribuído — uma instalação pública nunca o terá até ser fornecido
+    # separadamente. Isso NÃO é "instalação corrompida" (fatos, estratégia,
+    # RAG e validação jurídica seguem funcionando normalmente até aqui);
+    # só a geração do DOCX final para nesse ponto específico, sem
+    # inventar/baixar/reconstruir template algum. Roda sempre — não
+    # depende do template real existir localmente (é o inverso do caso).
+    with tempfile.TemporaryDirectory() as tmp:
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        template_inexistente = Path(tmp) / "modelo-oficial-inexistente.docx"
+        r = gerar(FIXTURES / "happy_path", saida, template=template_inexistente)
+
+        assert r["status"] == "PIPELINE_ABORTED"
+        assert r["stage"] == "template_engine"
+        # todas as etapas anteriores (fatos, tempestividade, estratégia,
+        # RAG/validação, redação+humanização) completaram normalmente —
+        # só a etapa que depende do asset externo falhou.
+        nomes_ok = {s["name"] for s in r["stages"] if s["status"] == "ok"}
+        assert nomes_ok == {"facts", "tempestividade", "strategy",
+                             "rag_legal_validation", "drafting_humanization"}
+        assert not saida.exists()
+
+
 # ------------------------------------------------------- rastreabilidade
 def test_rastreabilidade_de_execucao_no_happy_path():
     if _pular_se_sem_template_real():

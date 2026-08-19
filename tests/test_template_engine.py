@@ -11,11 +11,16 @@ asserts + `if __name__ == "__main__"`.
 
 Dois níveis:
   1. Testes de unidade sobre XML sintético — sempre rodam, não dependem do
-     template real (que é institucional, fora do git — ADR-0006).
-  2. Teste de ponta a ponta contra templates/contestacao/modelo-oficial.docx
-     — só roda se o arquivo existir localmente; do contrário, SKIP
-     explícito (não é falha: ausência do template é esperada em clone
-     limpo/CI).
+     template real (que é institucional, fora do git — ADR-0006). Esta é
+     a suíte pública: cobre o Template Engine estruturalmente, sem
+     precisar do asset externo.
+  2. LOCAL_ONLY — `test_pipeline_completo_contra_template_real`: teste de
+     ponta a ponta contra o `.docx` institucional real
+     (templates/contestacao/modelo-oficial.docx), asset externo nunca
+     distribuído (ADR-0006, consolidação pós-Fase 8) — só roda se o
+     arquivo existir localmente; do contrário, SKIP explícito (não é
+     falha: ausência do template é o comportamento esperado em toda
+     instalação pública/clone limpo/CI).
 
 Uso:
   python tests/test_template_engine.py

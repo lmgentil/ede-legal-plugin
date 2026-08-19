@@ -339,6 +339,27 @@ Arquivo esperado:
 
 Todo conteúdo que não seja placeholder autorizado ou seção condicional mapeada deve permanecer intocado.
 
+**Decisão definitiva (ADR-0009):** este arquivo é asset externo ao
+plugin — nunca commitado, nunca distribuído com o pacote público,
+fornecido separadamente aos usuários autorizados. Não voltar a
+apresentar alternativas sobre publicá-lo junto do plugin; a decisão está
+encerrada.
+
+Implementações futuras não deverão:
+
+* commitar `modelo-oficial.docx` real no repositório;
+* baixar, buscar ou reconstruir automaticamente o timbrado (internet,
+  IA, template genérico) quando ausente;
+* tratar a ausência do template como instalação inválida do plugin — é
+  o comportamento esperado antes do fornecimento externo;
+* misturar esse arquivo com jurisprudência real (`rag/jurisprudencia/`,
+  ver §10) na distribuição pública — ambos são excluídos pelo mesmo
+  princípio de proteção de asset sensível, mas por motivos distintos.
+
+Quando a geração do DOCX final for solicitada sem o template presente,
+interrompa somente essa etapa (Fail Closed — §17), nunca o restante do
+pipeline que não depende dele.
+
 ---
 
 ## 14. Placeholders autorizados

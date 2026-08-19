@@ -12,6 +12,96 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   **publicação externa** (não o trabalho técnico local) — ver
   `docs/PENDENCIAS.md`.
 
+## [0.8.1] - 2026-08-18 — Consolidação pós-Fase 8: distribuição pública + template externo
+
+Não é uma nova fase funcional — consolida formalmente, na governança do
+projeto, decisões arquiteturais já tomadas: **repositório e plugin serão
+públicos**; **o template institucional é definitivamente um asset
+externo**, nunca distribuído com o plugin (decisão encerrada — as
+alternativas A/B/C de `ADR-0006` não voltam a ser apresentadas).
+
+### Adicionado
+- `docs/adr/ADR-0009-distribuicao-publica-template-externo.md` (novo) —
+  registra as duas decisões: repositório/plugin públicos; template
+  institucional externo (opção B de `ADR-0006`, confirmada). Acesso
+  técnico ao repositório ≠ autorização jurídica irrestrita — quem
+  disciplina isso é a `LICENSE` (`PEND-004`, gate próprio).
+- `docs/specs/SPEC-0001.md` §29 — **REQ-046** (repositório/plugin
+  públicos, template externo), **REQ-047** + **INV-015** (ausência do
+  template não invalida instalação; fail closed restrito à etapa que
+  depende dele, preservando as etapas anteriores como concluídas).
+- `CLAUDE.md` §13 — regras explícitas: nunca commitar o `.docx` real,
+  nunca baixar/reconstruir automaticamente o timbrado, nunca tratar sua
+  ausência como instalação inválida.
+- `tests/test_pacote_distribuicao.py`: +2 testes —
+  `test_modelo_oficial_nao_esta_no_historico_git` (varre `git log --all`,
+  não só o índice atual — `.gitignore` não apaga histórico já existente;
+  confirmado: **nunca esteve no histórico**) e
+  `test_modelo_oficial_e_asset_externo_nao_de_instalacao_base` (não
+  tracked, não referenciado em `marketplace.json`, opcional em
+  `validar_instalacao.py`, e `gerar_peca()` falha explicitamente —
+  `status: "FALHOU", etapa: "template"` — quando ausente, sem criar
+  arquivo de saída).
+- `tests/test_e2e_contestacao.py`: +1 teste —
+  `test_fail_closed_template_institucional_ausente`: roda o pipeline
+  completo com template inexistente e confirma que fatos, tempestividade,
+  estratégia, RAG/validação e redação+humanização completam normalmente
+  (`status: "ok"`) e só `template_engine` aborta — demonstra a
+  separação `PLUGIN_INSTALLED` × `INSTITUTIONAL_TEMPLATE_INSTALLED` na
+  prática, não só em documentação.
+- `README.md`: nova seção "Template institucional", explicando a decisão
+  e suas 6 consequências práticas para quem instala.
+- `docs/PENDENCIAS.md`: `PEND-004` reescrita — não é mais "conflito a
+  resolver entre publicar ou não publicar" (isso já foi decidido); passa
+  a "definir a redação da licença proprietária/source-available",
+  incluindo os parâmetros já aprovados (permitido/restrito/proibido) como
+  critério para essa redação futura — **a `LICENSE` em si não foi
+  reescrita nesta consolidação**, por decisão explícita de tratá-la como
+  gate específico subsequente.
+- `docs/adr/ADR-0006-assets-institucionais.md`: seção "Atualização —
+  Consolidação pós-Fase 8" — fecha a escolha entre as alternativas A/B/C,
+  remete a `ADR-0009` para o detalhe; os demais itens da ADR permanecem
+  vigentes sem alteração.
+- `tests/test_template_engine.py`: `test_pipeline_completo_contra_template_real`
+  rotulado explicitamente como `LOCAL_ONLY` na documentação do arquivo —
+  mesmo comportamento de sempre (SKIP sem o `.docx` real), só a
+  classificação ficou explícita.
+
+### Testado
+- `python tests/test_pacote_distribuicao.py` — 5/5 (era 3/5, +2 novos).
+- `python tests/test_e2e_contestacao.py` — 6/6 (era 5/6, +1 novo).
+- `python tests/test_marketplace.py` — 7/7.
+- `python tests/test_validar_instalacao.py` — 3/3.
+- `python tests/test_contestacao_skill_dependencies.py` — 8/8.
+- `python tests/test_validate_fatos.py` — 16/16.
+- `python tests/test_legal_validation.py` — 24/24.
+- `python tests/test_rag_search.py` — 8/8.
+- `python rag/avaliar_recuperacao.py` — top-1 75%/top-3 88% (sem regressão).
+- `python tests/test_template_engine.py` — 10/10.
+- `claude plugin validate .` (marketplace) e
+  `claude plugin validate .claude-plugin/plugin.json` (plugin) — ambos
+  sem novos warnings.
+
+### Auditoria de segurança pré-publicação
+`git log --all` para `modelo-oficial.docx`: **nunca esteve no
+histórico** (não só fora do índice atual). Varredura de CPF, CNPJ real,
+e-mail pessoal além do titular já conhecido, tokens/segredos, e caminhos
+locais pessoais em todo o conteúdo rastreado: **nada encontrado**. Um
+achado cosmético, não sensível: o corpus público da REN ANEEL 1.000/2021
+(`rag/chunks_REN1000/`, `rag/_originais_pre_split/`) carrega marcas
+"Uso Interno CPFL" residuais da extração original do PDF fonte — texto
+normativo público, sem dado de cliente; registrado aqui, não removido
+nesta consolidação (fora do escopo desta tarefa).
+
+### Pendências
+- `PEND-001` (`DEFERRED`) e `PEND-002` (`ADIADA`) — inalteradas.
+- `PEND-003` — inalterada, tamanho de `svd.joblib`, sem ação nesta tarefa
+  (Git LFS/reconstrução sob demanda continuam não implementados, por
+  instrução explícita).
+- `PEND-004` — reescrita (ver acima); **continua ABERTA e bloqueando
+  publicação externa** — a `LICENSE` definitiva não foi redigida nesta
+  tarefa.
+
 ## [0.8.0] - 2026-08-18 — Fase 8 (Distribuição, Instalação e Atualização)
 
 Torna o EDE Legal Plugin instalável/atualizável via Claude Code Plugin

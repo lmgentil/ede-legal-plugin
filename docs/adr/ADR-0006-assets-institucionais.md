@@ -145,3 +145,19 @@ cópia/distribuição sem autorização expressa por escrito — em possível
 conflito com o próprio objetivo de distribuição via marketplace público
 desta fase. Registrada como `PEND-004` (`docs/PENDENCIAS.md`), não
 resolvida aqui.
+
+## Atualização — Consolidação pós-Fase 8 (2026-08-18)
+
+**As três alternativas A/B/C acima deixam de ser uma questão em
+aberto.** Decisão definitiva registrada em `ADR-0009`: opção **(B)** —
+template privado, fornecido externamente ao repositório, nunca
+distribuído pelo plugin público. Repositório e plugin serão públicos no
+GitHub (decisão também formalizada em `ADR-0009`); o timbrado nunca viaja
+pelo mesmo canal.
+
+Não reabrir esta escolha em revisões futuras desta ADR — para qualquer
+detalhe operacional da separação motor/asset ou da distribuição pública,
+ver `ADR-0009`, que sucede este ponto específico sem alterar o restante
+das decisões desta ADR (itens 1, 4 e 5 de "Decisão" continuam vigentes:
+`.textos_varredura/` e `rag/jurisprudencia/*.md` seguem fora do
+versionamento e fora da busca híbrida).

@@ -10,15 +10,14 @@ O primeiro módulo processual suportado é a **Contestação**. A arquitetura é
 projetada para permanecer extensível a outros tipos de peça — ver
 [`CLAUDE.md`](./CLAUDE.md) e [`docs/specs/SPEC-0001.md`](./docs/specs/SPEC-0001.md).
 
-## Status atual (v0.8.0 — Fase 8 de 9 aprovada)
+## Status atual (v0.9.0 — publicado e validado)
 
-🚧 **Em desenvolvimento. Distribuição via marketplace pronta e testada
-localmente (Fase 8). Decisão de arquitetura definitiva: repositório e
-plugin serão públicos, o modelo institucional (`.docx`) é asset externo
-que nunca integra o repositório — ver "Template institucional" abaixo.
-Publicação externa (GitHub público, release) ainda não aconteceu; único
-bloqueio conhecido é `PEND-004` (definição da licença). Hardening final
-(Fase 9) segue pendente.**
+✅ **Repositório público no GitHub, marketplace remoto e instalação via
+Claude Code validados (Gate Final de Publicação). Decisão de arquitetura
+definitiva: repositório e plugin são públicos, o modelo institucional
+(`.docx`) é asset externo que nunca integra o repositório — ver "Template
+institucional" abaixo. `PEND-004` (definição da licença) foi resolvida.
+Hardening final (Fase 9) segue pendente.**
 
 | Camada | Status |
 |---|---|
@@ -29,7 +28,7 @@ bloqueio conhecido é `PEND-004` (definição da licença). Hardening final
 | Validação jurídica (citações, vigência, rastreabilidade) | ✅ Fase 5 |
 | Skill Contestação + estrategista-contestacao-ede (orquestração obrigatória) | ✅ Fase 6 |
 | Integração end-to-end (`scripts/gerar_contestacao.py`) | ✅ Fase 7 — caso sintético, ver `docs/E2E_FASE7.md` |
-| Distribuição via marketplace + `/updateEde` | ✅ Fase 8 — publicação externa pendente, ver "Instalação" |
+| Distribuição via marketplace + `/updateEde` | ✅ Fase 8 — publicação externa concluída e validada, ver "Instalação" |
 | Hardening final | ⏳ Fase 9 |
 
 O progresso por fase é controlado por gates explícitos — ver `CLAUDE.md §4`.

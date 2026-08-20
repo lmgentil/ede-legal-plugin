@@ -7,6 +7,77 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Adicionado (Gate 5.1 — Trava de validação humana da Contestação)
+- `INV-GATE-CONTESTACAO` (`docs/specs/SPEC-0001.md` §32, `CLAUDE.md` §27,
+  `tests/test_gate_contestacao.py`): enquanto a Contestação não for
+  validada pelo usuário em uso real, nenhuma nova peça processual
+  (Recurso Inominado, Embargos, ou qualquer outra) pode ser iniciada, e
+  nenhuma generalização multipeça prematura da arquitetura é permitida.
+  Suíte técnica verde (141/141 testes) não equivale a validação — só
+  manifestação expressa do usuário libera a trava.
+
+### Adicionado (Etapa 5 — Motor Composicional de Blocos Condicionais)
+- `templates/contestacao/blocos.json` — catálogo estrutural formal dos 11
+  blocos condicionais/container/inline do template real (auditado
+  diretamente no DOCX, Etapas 4-A a 4-D): `PRELIMINARES`
+  (`CONTAINER_DERIVED`, `derived_rule: ANY_CHILD_INCLUDED`) com filhos
+  `PRELIMINAR_CDC_INAPLICAVEL`/`PRELIMINAR_REVOGACAO_GRATUIDADE`;
+  `DEVER_LEGAL_FISCALIZACAO`, `DESNECESSIDADE_AVISO_PREVIO`,
+  `CALCULOS_RECUPERACAO_CONSUMO`, `LICITUDE_CORTE_SUSPENSAO`,
+  `NEXO_CAUSAL_INDEMONSTRADO`, `DESCABIMENTO_DANO_MORAL`
+  (`CONDICIONAL_PADRAO`); `EVOLUCAO_CONSUMO`, `RECONVENCAO`
+  (`CONDICIONAL_HIBRIDO`, placeholder interno); `INLINE:COM_RECONVENCAO`
+  (`decision_mode: linked`, espelha `RECONVENCAO`).
+- `scripts/docx_block_engine.py` — motor de composição: validação
+  estrutural do catálogo, validação/resolução de decisões
+  (`INCLUIR`/`EXCLUIR`/`INDETERMINADO`, containers `DERIVED`, inline
+  `linked`), cruzamento dos `<w:sdt>` reais do template contra o
+  catálogo, composição determinística via `lxml.etree` (unwrap/remove,
+  pós-ordem, preservando parágrafos/runs/drawings/bookmarks/
+  `mc:AlternateContent` originais), e orquestração completa
+  (`gerar_peca_com_blocos`) reaproveitando `docx_template_engine.py`
+  (substituição de placeholders/FF0000/pack) sem duplicar nada disso.
+- `scripts/docx_template_engine.py` — `verificar_template_lock()` ganha
+  parâmetro opcional `transformar_xml` (Template Lock composicional: o
+  "esperado" passa a ser template → composição de blocos → substituição
+  de placeholders; lógica de diff arquivo-a-arquivo reaproveitada, não
+  duplicada).
+- `scripts/gerar_contestacao.py` — nova etapa `block_composition`
+  (`_etapa_blocos`, entre `strategy` e `rag_legal_validation`): lê
+  `decisoes_blocos.json` do caso, valida catálogo, aborta
+  (`PIPELINE_ABORTED`) em qualquer `INDETERMINADO`/decisão ausente/
+  catálogo inconsistente; `_etapa_template` passa a chamar
+  `gerar_peca_com_blocos`; relatório final ganha `blocos_incluidos`/
+  `blocos_excluidos`/`containers_derivados`/`blocos_indeterminados`.
+- `skills/contestacao/SKILL.md` — nova seção §4A (decisões de blocos
+  condicionais): a etapa estratégica decide, a Skill pergunta ao
+  advogado via `AskUserQuestion` quando `INDETERMINADO` for
+  factualmente resolvível, nunca inventa, nunca gera DOCX com
+  `INDETERMINADO` pendente.
+- `docs/specs/SPEC-0001.md` — `REQ-002-B`/`INV-COMPOSICAO-BLOCOS` (§5):
+  formaliza a separação decisão (estratégica) × mecânica (motor
+  documental), os 4 tipos de bloco, e a extensão do Template Lock.
+- `CLAUDE.md` — nota breve sobre `INV-COMPOSICAO-BLOCOS`, remetendo à
+  SPEC para os detalhes (sem duplicar).
+- `tests/test_blocos_contestacao.py` (17 testes) e
+  `tests/test_docx_block_engine.py` (14 testes, incluindo
+  `LOCAL_ONLY` ponta a ponta contra o template real) — 15 fixtures
+  negativas (parent/child inexistente, ciclo, tipo incompatível, leaf
+  com children, ids/tags duplicados, dependency malformada, SDT sem
+  tag/sdtContent, tag desconhecida/ausente, cardinalidade inválida,
+  estado `INDETERMINADO`/inválido/ausente).
+- `templates/contestacao/modelo-oficial.docx` (asset local, fora do
+  git — ADR-0006) migrado para embutir os 11 `<w:sdt>` de bloco/
+  container/inline, validado em 3 camadas (lxml estrutural + XSD do
+  toolkit `docx` + renderização Word/PDF real) antes da aplicação;
+  dois defeitos de fronteira de bloco encontrados e corrigidos durante
+  a validação (não presentes na versão final): um `<w:bookmarkEnd>`
+  solto (`_Hlk225341328`) atribuído ao bloco vizinho errado, e uma
+  ordem de processamento ascendente que deslocava os índices do bloco
+  seguinte (`PRELIMINAR_REVOGACAO_GRATUIDADE` capturava o intervalo
+  errado) — ambos detectados por checagem de integridade de bookmark
+  antes de qualquer geração real, corrigidos, revalidados.
+
 ### Bloqueado
 - Nenhuma pendência bloqueia a Fase 9 nem a publicação externa
   tecnicamente/juridicamente. Publicação real (remote, push, release)

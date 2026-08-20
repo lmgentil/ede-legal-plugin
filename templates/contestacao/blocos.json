@@ -1,0 +1,169 @@
+{
+  "template": "modelo-oficial.docx",
+  "version": "1.0.0",
+  "descricao": "Catálogo estrutural dos blocos condicionais/container da Contestação — fonte única de verdade da hierarquia SDT do template real (Etapa 5). Motor documental (scripts/docx_block_engine.py) valida e executa deterministicamente contra este catálogo; nunca decide conteúdo jurídico por conta própria (INV-COMPOSICAO-BLOCOS, SPEC-0001 §5).",
+  "_nota_auditoria_etapa5": "Blocos/container/inline auditados diretamente no corpo (w:body) do modelo-oficial.docx (Etapas 4-A a 4-D, migração/validação Etapa 5). Índices de w:body auditados não fazem parte deste arquivo (são posição física do XML, não contrato) — apenas os w:tag dos SDTs resultantes, que é o que o motor lê em runtime.",
+  "estados_validos": ["INCLUIR", "EXCLUIR", "INDETERMINADO"],
+  "tipos_validos": ["FIXO", "CONDICIONAL_PADRAO", "CONDICIONAL_HIBRIDO", "CONTAINER_DERIVED"],
+  "fixed_components": [
+    { "id": "TIMBRADO", "descricao": "Cabeçalho/rodapé institucional EDE — nunca removível, sem tag SDT (fora do corpo editável)." },
+    { "id": "ENDERECAMENTO", "descricao": "Juízo/qualificação inicial da peça — placeholders {{JUIZO}}/{{NUMERO_PROCESSO}}/{{AUTOR}}, sem SDT." },
+    { "id": "QUALIFICACAO", "descricao": "Qualificação da Ré (NEOENERGIA COELBA) — texto fixo do template, sem SDT." },
+    { "id": "TEMPESTIVIDADE", "descricao": "Seção 1, placeholder {{TEMPESTIVIDADE_CASO}} — INV-TEMPESTIVIDADE-MARCO, sem SDT." },
+    { "id": "TESE_CENTRAL_MERITO", "descricao": "Narrativa fática/técnica central (TOI, submedição, ANEEL 1.000/2021) — sem SDT, fixa para este tipo de caso (ver schema.json descricao)." },
+    { "id": "ONUS_PROBATORIO", "descricao": "Seção de ônus da prova (CPC art. 373) — sem SDT." },
+    { "id": "REQUERIMENTOS", "descricao": "Seção final de pedidos, {{PEDIDOS_FINAIS}}/{{LOCAL_DATA}} — sem SDT." }
+  ],
+  "blocks": [
+    {
+      "id": "PRELIMINARES",
+      "tag": "BLOCO:PRELIMINARES",
+      "tipo": "CONTAINER_DERIVED",
+      "parent": null,
+      "children": ["PRELIMINAR_CDC_INAPLICAVEL", "PRELIMINAR_REVOGACAO_GRATUIDADE"],
+      "decision_mode": "derived",
+      "derived_rule": "ANY_CHILD_INCLUDED",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "PRELIMINAR_CDC_INAPLICAVEL",
+      "tag": "BLOCO:PRELIMINAR_CDC_INAPLICAVEL",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": "PRELIMINARES",
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "PRELIMINAR_REVOGACAO_GRATUIDADE",
+      "tag": "BLOCO:PRELIMINAR_REVOGACAO_GRATUIDADE",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": "PRELIMINARES",
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "DEVER_LEGAL_FISCALIZACAO",
+      "tag": "BLOCO:DEVER_LEGAL_FISCALIZACAO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "DESNECESSIDADE_AVISO_PREVIO",
+      "tag": "BLOCO:DESNECESSIDADE_AVISO_PREVIO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "CALCULOS_RECUPERACAO_CONSUMO",
+      "tag": "BLOCO:CALCULOS_RECUPERACAO_CONSUMO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "EVOLUCAO_CONSUMO",
+      "tag": "BLOCO:EVOLUCAO_CONSUMO",
+      "tipo": "CONDICIONAL_HIBRIDO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": ["ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA"],
+      "dependencies": [
+        {
+          "placeholder": "ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA",
+          "quando": "INCLUIR",
+          "regra": "obrigatorio_preenchido",
+          "_nota": "EXCLUIR remove o bloco inteiro e NÃO substitui o placeholder por sentinela — não há '{{ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA}}' remanescente no DOCX final quando excluído."
+        }
+      ],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "LICITUDE_CORTE_SUSPENSAO",
+      "tag": "BLOCO:LICITUDE_CORTE_SUSPENSAO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "NEXO_CAUSAL_INDEMONSTRADO",
+      "tag": "BLOCO:NEXO_CAUSAL_INDEMONSTRADO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "DESCABIMENTO_DANO_MORAL",
+      "tag": "BLOCO:DESCABIMENTO_DANO_MORAL",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "RECONVENCAO",
+      "tag": "BLOCO:RECONVENCAO",
+      "tipo": "CONDICIONAL_HIBRIDO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": ["VALOR_FRA", "IRREGULARIDADE_ENCONTRADA"],
+      "dependencies": [
+        {
+          "placeholder": "VALOR_FRA",
+          "quando": "INCLUIR",
+          "regra": "obrigatorio_nao_sentinela",
+          "_nota": "PoC 4-C: INCLUIR exige VALOR_FRA com valor real (não a sentinela 'NÃO INFORMADO'); EXCLUIR marca VALOR_FRA como not_applicable — contrato validado em scripts/validate_placeholder_semantics.py, não deve ser duplicado aqui."
+        }
+      ],
+      "linked_inline": ["INLINE:COM_RECONVENCAO"],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "INLINE_COM_RECONVENCAO",
+      "tag": "INLINE:COM_RECONVENCAO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "linked",
+      "linked_to": "RECONVENCAO",
+      "_nota": "Título da peça (' COM RECONVENÇÃO', run variável após 'CONTESTAÇÃO' fixo). Não é decidido de forma independente — espelha exatamente a decisão de RECONVENCAO (INCLUIR/EXCLUIR iguais). Duas ocorrências no DOCX (mc:Choice + mc:Fallback), tratadas como uma unidade lógica.",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "MC_PAIR"
+    }
+  ]
+}

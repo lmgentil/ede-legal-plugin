@@ -210,6 +210,21 @@ Representação conceitual — não é uma prescrição literal de código; o qu
 importa é a ordem e a separação de responsabilidades, já refletidas em
 `skills/contestacao/SKILL.md`.
 
+### Composição de blocos condicionais (Etapa 5)
+
+O template marca estruturalmente (`<w:sdt>`) as teses condicionais da
+Contestação (preliminares, dever legal de fiscalização, evolução de
+consumo, Reconvenção etc.), catalogadas em
+`templates/contestacao/blocos.json`. A decisão de incluir/excluir cada
+tese é sempre da etapa estratégica — nunca do motor documental
+(`scripts/docx_block_engine.py`), que só valida o catálogo e executa
+deterministicamente (nenhuma heurística jurídica em Python). Estado só
+pode ser `INCLUIR`/`EXCLUIR`/`INDETERMINADO`; `INDETERMINADO` nunca
+alcança o DOCX final — aborta o pipeline, mesmo com blocos irmãos
+decididos. Formalizada na SPEC como `INV-COMPOSICAO-BLOCOS`
+(SPEC-0001 §5, REQ-002-B) — detalhes de catálogo/cardinalidade/Template
+Lock composicional ficam lá, não duplicados aqui.
+
 ---
 
 ## 8. Tempestividade
@@ -596,7 +611,42 @@ Quando a implementação depender do comportamento atual do Claude Code, consult
 
 ## 27. Expansão futura
 
-Novos tipos de peça deverão reutilizar os componentes transversais.
+### Invariante — Trava de validação humana da Contestação (INV-GATE-CONTESTACAO)
+
+> A Contestação é a única peça processual autorizada para desenvolvimento,
+> estabilização, correção e testes no estágio atual do EDE Legal Plugin.
+> É vedado iniciar, projetar, implementar, antecipar, criar scaffolding,
+> criar templates, criar Skills, criar estrategistas, criar catálogos de
+> blocos ou realizar refatorações destinadas especificamente à inclusão
+> de Recurso Inominado, Embargos, manifestações ou qualquer outra nova
+> peça processual enquanto a Contestação não tiver sido validada
+> integralmente pelo usuário em utilização real. Testes automatizados,
+> cobertura E2E, validação estrutural, aprovação técnica ou declaração de
+> estabilidade pelo agente não substituem a validação humana do usuário.
+> A liberação para expansão do projeto dependerá de manifestação expressa
+> do usuário após sua validação prática da Contestação.
+
+Consequência prática: **141/141 testes verdes ≠ Contestação validada.**
+Testes automatizados demonstram validação técnica — nunca validação
+profissional, jurídica final, visual final, operacional, em casos reais,
+ou aprovação da Contestação pelo usuário. Enquanto esta invariante
+estiver ativa, nunca declare a Contestação "validada", "concluída
+definitivamente", "pronta para produção" ou "100% aprovada" — a
+formulação correta é "tecnicamente apta para testes reais, não validada
+pelo usuário". A validação final é sempre uma manifestação expressa do
+usuário ("CONTESTAÇÃO VALIDADA" ou equivalente inequívoco), nunca inferida
+de suíte verde, CI ou relatório do agente.
+
+Enquanto ativa, permanece autorizado testar, corrigir, melhorar,
+documentar e criar regressão para a Contestação existente; permanece
+vedado iniciar qualquer nova peça processual (Skill, template, catálogo
+de blocos, schema, fixture, pipeline) ou generalizar prematuramente a
+arquitetura para acomodar peças futuras ainda não autorizadas (nada de
+`piece_registry`/`piece_factory`/`base_piece` ou equivalente só porque
+"poderá ser útil depois") — a abstração multipeça só se justifica quando
+necessária para corrigir a própria Contestação, ou após o usuário liberar
+expressamente a expansão. Novos tipos de peça deverão reutilizar os
+componentes transversais.
 
 Exemplo esperado:
 

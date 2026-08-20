@@ -18,6 +18,8 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-002 | ABERTA | Fase 4 | Nenhuma (adiada por decisão do usuário) | Indexação de jurisprudência (REQ-018) na busca híbrida |
 | PEND-003 | ABERTA | Fase 8 | Nenhuma (não impede uso; afeta tamanho de clone/instalação) | `rag/embeddings/svd.joblib` (~81 MB) domina o tamanho do repositório distribuído |
 | PEND-004 | RESOLVIDA (gate PEND-004) | Fase 8 | — | Definir licença proprietária/source-available compatível com repositório público e distribuição do plugin |
+| PEND-005 | ABERTA | Etapa 5 | Nenhuma (cosmético — numeração manual preservada e funcional) | Numeração manual das subseções não migrada para lista multinível nativa |
+| PEND-006 | ABERTA | Etapa 5 | Nenhuma (validado em 3 camadas; risco só em edição futura do texto institucional) | Fronteira do bloco `EVOLUCAO_CONSUMO` definida por julgamento humano, não por marcador estrutural único |
 
 ---
 
@@ -209,6 +211,87 @@ partir do corpus versionado — reconstruir é possível, só não está
 automatizado como parte da instalação), ou aceitar o tamanho atual como
 suficiente. Não decidido nesta fase (SPEC-0001 Fase 8 §53: não
 redesenhar o RAG sem necessidade).
+
+### Fechamento
+
+Em aberto, sem prazo.
+
+---
+
+## PEND-005 — Numeração manual das subseções da Contestação não migrada para lista multinível nativa
+
+**Status:** ABERTA
+**Aberta em:** Etapa 5 (Motor Composicional de Blocos Condicionais)
+**Bloqueia:** nenhuma fase — a numeração manual atual ("2.1", "3.2",
+"3.4" etc., texto fixo digitado, não `w:numPr`/`numId` automático)
+continua funcionando e foi preservada intocada pela composição de
+blocos; isso só significa que incluir/excluir um bloco não renumera
+automaticamente os títulos vizinhos.
+
+### Contexto
+
+A Etapa 4-A avaliou migrar essas subseções para lista multinível nativa
+do Word e decidiu explicitamente **não improvisar**: só migrar se
+comprovadamente sem regressão visual, com `numbering.xml` preservado e
+teste visual+estrutural, Word abrindo sem reparo. A Etapa 5 manteve essa
+decisão — a composição de blocos (Etapa 5) opera sobre o texto fixo
+numerado exatamente como estava, sem tentar renumerar.
+
+### Risco se não resolvido
+
+Nenhum risco estrutural. Risco de qualidade redacional: em combinações
+específicas de blocos incluídos/excluídos, a sequência numérica dos
+títulos (ex.: "3.2", "3.4" sem "3.3") pode ficar com saltos visíveis se
+o bloco correspondente a um número for excluído — cosmético, não afeta
+validade jurídica nem estrutura do documento.
+
+### Critério de resolução
+
+Quando priorizado: migrar para `w:numPr`/`numId` nativo do Word,
+validado com o mesmo padrão de 3 camadas usado na Etapa 5 (lxml
+estrutural + XSD do toolkit `docx` + renderização Word/PDF real) antes
+de aplicar ao template real.
+
+### Fechamento
+
+Em aberto, sem prazo.
+
+---
+
+## PEND-006 — Fronteira do bloco `EVOLUCAO_CONSUMO` definida por julgamento humano, não por marcador estrutural único
+
+**Status:** ABERTA
+**Aberta em:** Etapa 5 (Motor Composicional de Blocos Condicionais)
+**Bloqueia:** nenhuma fase — a fronteira usada (índices de corpo do
+documento 87 a 93) foi validada em 3 camadas (lxml + XSD do toolkit +
+Word/PDF real) e o teste `LOCAL_ONLY` de ponta a ponta confirma que
+`EXCLUIR` remove o bloco inteiro sem deixar `{{ARGUMENTACAO_EVOLUCAO_DE_
+CONSUMO_FIXA}}` residual.
+
+### Contexto
+
+O placeholder `{{ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA}}` aparece duas
+vezes dentro da região candidata do template real — diferente dos demais
+blocos, que têm um banner/heading único e inequívoco marcando início e
+fim. A fronteira `[87, 93]` (índices de filho do corpo do documento) foi
+escolhida por leitura humana do conteúdo (Etapa 5), não derivada de um
+marcador estrutural único como os demais blocos.
+
+### Risco se não resolvido
+
+Nenhum risco imediato — validado estrutural e visualmente. Risco latente:
+se o texto institucional dessa seção for editado futuramente pelo
+escritório (fora deste plugin), a fronteira pode precisar reauditoria
+manual — um marcador estrutural dedicado (ex.: comentário XML ou
+`w:bookmarkStart`/`End` nomeado especificamente para essa fronteira)
+tornaria a manutenção futura menos dependente de releitura humana do
+conteúdo.
+
+### Critério de resolução
+
+Quando priorizado: considerar inserir um marcador de fronteira dedicado
+e inequívoco para `EVOLUCAO_CONSUMO`, ou apenas documentar/reauditar a
+cada edição futura do texto institucional dessa seção.
 
 ### Fechamento
 

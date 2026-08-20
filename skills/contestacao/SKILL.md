@@ -69,6 +69,8 @@ autorizada, esta skill já está pronta para ser exercida ponta a ponta.
 | Etapa | Componente | Obrigatório? |
 |---|---|---|
 | Análise estratégica (teses, riscos, matriz de impugnação) | Skill `estrategista-contestacao-ede` | **Obrigatório** — INV-CONTESTACAO-ESTRATEGIA, §4 |
+| Decisão de blocos condicionais (INCLUIR/EXCLUIR/INDETERMINADO) | Você, a partir da análise estratégica — `templates/contestacao/blocos.json` | **Obrigatório** — INV-COMPOSICAO-BLOCOS, §4A |
+| Composição estrutural dos blocos no DOCX | `scripts/docx_block_engine.py` (mecânica, nunca decide) | Só na Fase 7 |
 | Tempestividade TJBA/2026 | Skill `calendario-forense-tjba-2026` | Obrigatório quando aplicável (CLAUDE.md §8) |
 | Pesquisa/recuperação jurídica | `rag/search_hybrid.py` (`HybridSearcher`) | Obrigatório para toda fundamentação normativa |
 | Validação de citação | `rag/legal_validation/` (`validar_citacao`) | Obrigatório antes de qualquer citação entrar na peça |
@@ -92,13 +94,17 @@ documentos do processo
   ↓
    estrutura defensiva / matriz de impugnação / teses / riscos
   ↓
+4A. decisões de blocos condicionais (INCLUIR/EXCLUIR/INDETERMINADO) — §4A
+  ↓
 5. RAG jurídico -> validação jurídica de cada citação (§7)
   ↓
 6. redator-peca-processual-elite -> humanizer-pt-br (§8)
   ↓
 7. geração dos 13 valores de placeholder (§9)
   ↓
-8. (Fase 7) Template Engine (scripts/render_docx.py) -> Template Lock -> Contestação
+8. (Fase 7) motor documental (scripts/gerar_contestacao.py: block_composition
+   via scripts/docx_block_engine.py -> Template Engine, scripts/
+   docx_template_engine.py) -> Template Lock composicional -> Contestação
 ```
 
 Não pule etapas para "adiantar" a peça — um pedido da inicial sem resposta,
@@ -133,6 +139,64 @@ prosseguir para o RAG nem para a redação** — a etapa estratégica não foi
 concluída, e isso deve ser reportado explicitamente ao advogado, nunca
 contornado silenciosamente com uma análise resumida feita ad-hoc por esta
 skill orquestradora ou pelo redator.
+
+## 4A. Decisões de blocos condicionais (INV-COMPOSICAO-BLOCOS)
+
+O template institucional tem teses condicionais marcadas estruturalmente
+(`<w:sdt>`, catálogo em `templates/contestacao/blocos.json`) — preliminares
+(inaplicabilidade do CDC, revogação da gratuidade), dever legal de
+fiscalização, desnecessidade de aviso prévio, cálculos de recuperação de
+consumo, evolução de consumo, licitude do corte/suspensão, nexo causal
+indemonstrado, descabimento de dano moral, e a Reconvenção (que também
+governa o título da peça, "CONTESTAÇÃO" vs. "CONTESTAÇÃO COM
+RECONVENÇÃO"). **A decisão de incluir ou excluir cada uma dessas teses é
+exclusivamente sua, como estrategista** — nunca do motor documental
+(`scripts/docx_block_engine.py`), que só executa deterministicamente o que
+for decidido aqui e nunca decide por conta própria (nenhuma heurística
+jurídica em Python).
+
+Depois de `estrategista-contestacao-ede` (§4) concluída, para cada bloco
+folha do catálogo (`decision_mode: "estrategista"`), registre um estado —
+**apenas um destes três, sem sinônimo, sem booleano, sem número**:
+
+- `INCLUIR` — a tese se aplica ao caso, com fundamento.
+- `EXCLUIR` — a tese não se aplica.
+- `INDETERMINADO` — falta informação para decidir.
+
+Grave em `decisoes_blocos.json` (mesmo diretório do caso), um objeto por
+bloco, com proveniência:
+
+```json
+{
+  "PRELIMINAR_CDC_INAPLICAVEL": {"decisao": "INCLUIR", "fundamento": "parte autora é pessoa jurídica que usa a energia como insumo produtivo — sem relação de consumo"},
+  "PRELIMINAR_REVOGACAO_GRATUIDADE": {"decisao": "EXCLUIR", "fundamento": "não há gratuidade de justiça deferida nestes autos"},
+  "RECONVENCAO": {"decisao": "INCLUIR", "fundamento": "há débito de recuperação de consumo (FRA) comprovado e não adimplido"}
+}
+```
+
+Blocos `CONTAINER_DERIVED` (ex.: `PRELIMINARES`) e o inline vinculado
+(`INLINE:COM_RECONVENCAO`) **nunca recebem decisão manual** — seu estado é
+derivado automaticamente pelo motor a partir dos filhos/bloco vinculado
+(`docx_block_engine.validar_e_resolver_decisoes`); incluí-los em
+`decisoes_blocos.json` é erro (`stage=decisao_invalida`).
+
+**`INDETERMINADO` nunca chega ao DOCX.** Se, depois de examinar os
+documentos e a análise estratégica, um bloco permanecer `INDETERMINADO`
+por falta de informação factual **que o advogado pode fornecer**,
+pergunte — `AskUserQuestion` — antes de prosseguir. Se a resposta resolver
+a dúvida, registre `INCLUIR`/`EXCLUIR` com a justificativa dada pelo
+advogado. Se não houver como resolver (nem nos documentos, nem com o
+advogado), **não gere a peça**: relate a pendência claramente e pare —
+igual ao tratamento de tempestividade sem marco (§6). Nunca infira
+silenciosamente um estado a partir de blocos irmãos já decididos, e nunca
+normalize `INDETERMINADO` para `EXCLUIR` "para não travar a geração" —
+isso seria uma decisão jurídica tomada por omissão, exatamente o que
+`INV-COMPOSICAO-BLOCOS` (SPEC-0001 §5) proíbe.
+
+`scripts/gerar_contestacao.py` (etapa `block_composition`,
+`scripts/docx_block_engine.py`) valida estruturalmente cada decisão
+recebida e aborta (`PIPELINE_ABORTED`) se qualquer bloco estiver ausente,
+com estado inválido, ou `INDETERMINADO` — nunca produz DOCX parcial.
 
 ## 5. Extração factual com proveniência (REQ-030)
 
@@ -360,4 +424,9 @@ executada e concluída** — não existe caso "simples" que a dispense; essa
 decisão foi revogada (ver CHANGELOG, correção da Fase 6). Não duplica
 internamente as funções de `estrategista-contestacao-ede`,
 `redator-peca-processual-elite` ou `humanizer-pt-br` — só orquestra e
-consome a saída de cada uma.
+consome a saída de cada uma. **Não decide sozinha, nem deixa o motor
+documental decidir, se uma tese condicional entra ou sai da peça** (§4A) —
+essa decisão é sempre da etapa estratégica, nunca de heurística em código
+Python. **Não gera o DOCX final enquanto qualquer bloco condicional
+permanecer `INDETERMINADO`** — pergunta ao advogado quando resolvível,
+relata a pendência e para quando não for.

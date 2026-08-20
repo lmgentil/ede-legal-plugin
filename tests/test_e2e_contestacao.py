@@ -66,8 +66,8 @@ def test_happy_path_pipeline_completo():
         assert r["status"] == "OK", r
         nomes_stage = {s["name"] for s in r["stages"]}
         assert nomes_stage == {"facts", "tempestividade", "strategy",
-                                "rag_legal_validation", "drafting_humanization",
-                                "template_engine"}
+                                "block_composition_decisoes", "rag_legal_validation",
+                                "drafting_humanization", "template_engine"}
         assert all(s["status"] == "ok" for s in r["stages"]), r["stages"]
 
         assert r["fatos_com_proveniencia"] == 11
@@ -298,7 +298,8 @@ def test_fail_closed_template_institucional_ausente():
         # só a etapa que depende do asset externo falhou.
         nomes_ok = {s["name"] for s in r["stages"] if s["status"] == "ok"}
         assert nomes_ok == {"facts", "tempestividade", "strategy",
-                             "rag_legal_validation", "drafting_humanization"}
+                             "block_composition_decisoes", "rag_legal_validation",
+                             "drafting_humanization"}
         assert not saida.exists()
 
 

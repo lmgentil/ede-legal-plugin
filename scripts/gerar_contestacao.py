@@ -51,7 +51,8 @@ sys.path.insert(0, str(BASE / "rag"))
 sys.path.insert(0, str(BASE / "skills" / "calendario-forense-tjba-2026" / "scripts"))
 
 from calcular_tempestividade import PENDENTE, calcular_tempestividade  # noqa: E402
-from docx_template_engine import garantir_utf8, gerar_peca  # noqa: E402
+from docx_block_engine import ComposicaoAbortada, carregar_catalogo, gerar_peca_com_blocos, validar_catalogo  # noqa: E402
+from docx_template_engine import garantir_utf8  # noqa: E402
 from legal_validation import validar_citacao  # noqa: E402
 from validate_fatos import validar_fatos  # noqa: E402
 from validate_placeholder_semantics import validar_semantica  # noqa: E402
@@ -60,6 +61,7 @@ garantir_utf8()
 
 TEMPLATE_PADRAO = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
 SCHEMA_PADRAO = BASE / "templates" / "contestacao" / "schema.json"
+CATALOGO_BLOCOS_PADRAO = BASE / "templates" / "contestacao" / "blocos.json"
 
 MARCADOR_FOTOS = "[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]"
 
@@ -200,6 +202,31 @@ def _etapa_estrategia(caso: Path, stages: list):
     return texto
 
 
+def _etapa_blocos(caso: Path, stages: list, catalogo_path: Path = CATALOGO_BLOCOS_PADRAO):
+    """INV-COMPOSICAO-BLOCOS (SPEC-0001 §5, REQ-002-B): as decisões de
+    inclusão/exclusão de teses condicionais vêm exclusivamente da etapa
+    estratégica (registradas pela Skill `contestacao` em
+    `decisoes_blocos.json` — ver skills/contestacao/SKILL.md §4A). Este
+    script só valida o catálogo e as decisões recebidas (mecânica, nunca
+    decide) — qualquer INDETERMINADO, decisão ausente ou catálogo
+    inconsistente aborta antes de qualquer redação/geração."""
+    caminho = caso / "decisoes_blocos.json"
+    if not caminho.exists():
+        return _abortar(stages, "block_composition",
+                         "decisoes_blocos.json (decisões de blocos condicionais da "
+                         "etapa estratégica — INV-COMPOSICAO-BLOCOS) ausente")
+    decisoes = json.loads(caminho.read_text(encoding="utf-8"))
+    try:
+        catalogo = carregar_catalogo(catalogo_path)
+        validar_catalogo(catalogo)
+    except ComposicaoAbortada as e:
+        return _abortar(stages, e.stage, e.motivo)
+
+    stages.append({"name": "block_composition_decisoes", "status": "ok",
+                    "fonte": str(caminho), "catalogo": str(catalogo_path)})
+    return decisoes
+
+
 def _etapa_rag_validacao(caso: Path, stages: list):
     caminho = caso / "citacoes.json"
     if not caminho.exists():
@@ -260,17 +287,24 @@ def _etapa_placeholders(caso: Path, stages: list, tempestividade_valor: str):
     return dados
 
 
-def _etapa_template(dados: dict, template: Path, schema: Path, output: Path, stages: list):
-    relatorio = gerar_peca(str(template), str(schema), dados, str(output))
+def _etapa_template(dados: dict, decisoes_blocos: dict, template: Path, schema: Path,
+                     catalogo: Path, output: Path, stages: list):
+    relatorio = gerar_peca_com_blocos(str(template), str(schema), str(catalogo),
+                                       dados, decisoes_blocos, str(output))
     if relatorio["status"] != "OK":
-        return _abortar(stages, "template_engine",
-                         f"{relatorio.get('etapa')}: {relatorio.get('erros')}")
+        return _abortar(stages, "block_composition" if relatorio.get("etapa", "").startswith(
+            ("catalogo", "decisao", "sdt_", "tag_", "cardinalidade", "estado")) else "template_engine",
+            f"{relatorio.get('etapa')}: {relatorio.get('erros')}")
     stages.append({"name": "template_engine", "status": "ok",
-                    "template_lock": relatorio["template_lock"]})
+                    "template_lock": relatorio["template_lock"],
+                    "blocos_incluidos": relatorio["blocos_incluidos"],
+                    "blocos_excluidos": relatorio["blocos_excluidos"],
+                    "containers_derivados": relatorio["containers_derivados"]})
     return relatorio
 
 
-def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO) -> dict:
+def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO,
+          catalogo_blocos=CATALOGO_BLOCOS_PADRAO) -> dict:
     caso = Path(caso_dir)
     stages = []
 
@@ -286,14 +320,18 @@ def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO)
     if isinstance(estrategia, dict) and estrategia.get("status") == "PIPELINE_ABORTED":
         return estrategia
 
+    decisoes_blocos = _etapa_blocos(caso, stages, Path(catalogo_blocos))
+    if isinstance(decisoes_blocos, dict) and decisoes_blocos.get("status") == "PIPELINE_ABORTED":
+        return decisoes_blocos
+
     validadas, nao_validadas = _etapa_rag_validacao(caso, stages)
 
     dados = _etapa_placeholders(caso, stages, tempestividade_valor)
     if isinstance(dados, dict) and dados.get("status") == "PIPELINE_ABORTED":
         return dados
 
-    relatorio_engine = _etapa_template(dados, Path(template), Path(schema),
-                                        Path(output_path), stages)
+    relatorio_engine = _etapa_template(dados, decisoes_blocos, Path(template), Path(schema),
+                                        Path(catalogo_blocos), Path(output_path), stages)
     if isinstance(relatorio_engine, dict) and relatorio_engine.get("status") == "PIPELINE_ABORTED":
         return relatorio_engine
 
@@ -312,6 +350,10 @@ def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO)
         "template_lock": "OK",
         "placeholders": "OK",
         "fotos": "INSERÇÃO MANUAL",
+        "blocos_incluidos": relatorio_engine["blocos_incluidos"],
+        "blocos_excluidos": relatorio_engine["blocos_excluidos"],
+        "containers_derivados": relatorio_engine["containers_derivados"],
+        "blocos_indeterminados": relatorio_engine["blocos_indeterminados"],
         "documento_final": relatorio_engine["documento_final"],
     }
 
@@ -324,9 +366,10 @@ def main():
     ap.add_argument("--relatorio", help="se informado, grava o relatório operacional aqui")
     ap.add_argument("--template", default=str(TEMPLATE_PADRAO))
     ap.add_argument("--schema", default=str(SCHEMA_PADRAO))
+    ap.add_argument("--catalogo-blocos", default=str(CATALOGO_BLOCOS_PADRAO))
     args = ap.parse_args()
 
-    relatorio = gerar(args.caso, args.output, args.template, args.schema)
+    relatorio = gerar(args.caso, args.output, args.template, args.schema, args.catalogo_blocos)
     saida = json.dumps(relatorio, ensure_ascii=False, indent=2)
     print(saida)
     if args.relatorio:

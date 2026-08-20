@@ -1,0 +1,12 @@
+{
+  "PRELIMINAR_CDC_INAPLICAVEL": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste (fail-closed de VALOR_FRA)."},
+  "PRELIMINAR_REVOGACAO_GRATUIDADE": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste."},
+  "DEVER_LEGAL_FISCALIZACAO": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste."},
+  "DESNECESSIDADE_AVISO_PREVIO": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste."},
+  "CALCULOS_RECUPERACAO_CONSUMO": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste."},
+  "EVOLUCAO_CONSUMO": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — histórico de consumo não apresentado neste cenário (mesmo motivo do VALOR_FRA ausente)."},
+  "LICITUDE_CORTE_SUSPENSAO": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste."},
+  "NEXO_CAUSAL_INDEMONSTRADO": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste."},
+  "DESCABIMENTO_DANO_MORAL": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste."},
+  "RECONVENCAO": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — memorial de cálculo (VALOR_FRA) não apresentado, sem base para reconvenção."}
+}

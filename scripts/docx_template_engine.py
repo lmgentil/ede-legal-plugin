@@ -284,10 +284,19 @@ def validar_placeholders(template_xml: str, dados: dict, schema: dict) -> dict:
 
 
 # --------------------------------------------------------------- Template Lock
-def verificar_template_lock(template_dir: Path, gerado_dir: Path, dados: dict) -> dict:
+def verificar_template_lock(template_dir: Path, gerado_dir: Path, dados: dict, transformar_xml=None) -> dict:
     """TEST-001/TEST-002: o gerado deve ser idêntico ao template exceto pela
     substituição controlada em word/document.xml. Qualquer outra diferença
-    (cabeçalho, rodapé, imagem, estilo, parágrafo novo/removido) reprova."""
+    (cabeçalho, rodapé, imagem, estilo, parágrafo novo/removido) reprova.
+
+    `transformar_xml`, se informado, substitui `substituir_placeholders`
+    como função de recomputação do "esperado" — assinatura
+    `(template_xml: str) -> (esperado_xml: str, info)`. Extensão usada pela
+    composição de blocos condicionais (docx_block_engine.py): o "esperado"
+    passa a ser template -> composição de blocos -> substituição de
+    placeholders, mas a lógica de diff arquivo-a-arquivo abaixo (a parte
+    que garante que NADA fora do document.xml foi tocado) permanece
+    exatamente a mesma — não duplicada."""
     template_dir, gerado_dir = Path(template_dir), Path(gerado_dir)
     divergencias = []
     doc_xml_rel = Path("word/document.xml")
@@ -307,7 +316,8 @@ def verificar_template_lock(template_dir: Path, gerado_dir: Path, dados: dict) -
             divergencias.append(f"arquivo alterado fora de word/document.xml (não autorizado): {rel}")
 
     template_xml = (template_dir / doc_xml_rel).read_text(encoding="utf-8")
-    esperado_xml, _ = substituir_placeholders(template_xml, dados)
+    transformar = transformar_xml or (lambda xml: substituir_placeholders(xml, dados))
+    esperado_xml, _ = transformar(template_xml)
     gerado_xml = (gerado_dir / doc_xml_rel).read_text(encoding="utf-8")
     if esperado_xml != gerado_xml:
         divergencias.append(

@@ -72,7 +72,13 @@ relator, data ou ementa. Quando não houver precedente confirmado nos
 elementos do caso, escreva **"PESQUISA JURISPRUDENCIAL NECESSÁRIA."** em vez
 de citar algo de memória — jurisprudência é exatamente o tipo de dado que
 muda e que, citado errado, mina a credibilidade de toda a peça diante do
-juízo.
+juízo. **Essa frase é só um marcador textual na sua análise — nunca uma
+instrução para você buscar a jurisprudência por conta própria.** Você não
+aciona ferramenta, agente, subagente ou MCP externo de jurisprudência
+(Jurisprudências.ai ou equivalente) sob nenhuma circunstância, mesmo que
+esteja disponível no ambiente — a lacuna jurisprudencial é reportada, não
+preenchida por pesquisa externa (INV-JURISPRUDENCIA-EXTERNA-DESABILITADA,
+`skills/contestacao/SKILL.md` §7).
 
 ## 3. O que você está tentando responder
 

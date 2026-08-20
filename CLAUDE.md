@@ -373,6 +373,22 @@ redação
 
 Mantenha o RAG desacoplado das Skills.
 
+### INV-JURISPRUDENCIA-EXTERNA-DESABILITADA (achado do Teste Real 01-B)
+
+Enquanto `PEND-002` (indexação de jurisprudência real na busca híbrida)
+permanecer não implementada, nenhuma Skill do EDE Legal Plugin aciona,
+direta ou indiretamente: Jurisprudências.ai ou equivalente; agente/
+subagente externo de jurisprudência/precedentes; MCP de jurisprudência
+(o plugin não declara nenhum — `.claude-plugin/plugin.json`); ou qualquer
+API/ferramenta externa de pesquisa jurisprudencial — mesmo que disponível
+na sessão por integração alheia ao plugin. A ausência de jurisprudência
+indexada nunca autoriza buscá-la por outro caminho; a Contestação
+prossegue sem citação jurisprudencial, usando o conteúdo-base do modelo,
+o corpus local (legislação/regulamentos já indexados) e a validação
+jurídica existente. `"PESQUISA JURISPRUDENCIAL NECESSÁRIA."` é marcador
+textual de lacuna, nunca instrução de busca. Detalhe operacional em
+`skills/contestacao/SKILL.md` §7.
+
 ---
 
 ## 11. Separação fato × direito

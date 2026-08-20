@@ -452,14 +452,48 @@ redação precisarem citar:
    ```
    Só use `r["status"] == "VALIDADA"` (ou `PARCIALMENTE_VALIDADA`, com a
    ressalva explícita) como fundamento confirmado. `NAO_VALIDADA`,
-   `AMBIGUA` ou `FONTE_INSUFICIENTE` significam: não cite — pesquise de
-   novo, refaça a citação, ou marque a dependência no texto (ver
-   `estrategista-contestacao-ede` §2: `"TESE CONDICIONADA À CONFIRMAÇÃO
-   DOCUMENTAL."`/`"PESQUISA JURISPRUDENCIAL NECESSÁRIA."`).
+   `AMBIGUA` ou `FONTE_INSUFICIENTE` significam: não cite — refaça a
+   consulta a `rag/search_hybrid.py` com termos diferentes (o RAG local,
+   nunca ferramenta externa alguma — ver INV-JURISPRUDENCIA-EXTERNA-
+   DESABILITADA abaixo), refaça a citação, ou marque a dependência no
+   texto (ver `estrategista-contestacao-ede` §2: `"TESE CONDICIONADA À
+   CONFIRMAÇÃO DOCUMENTAL."`/`"PESQUISA JURISPRUDENCIAL NECESSÁRIA."`).
 3. Jurisprudência real (`rag/jurisprudencia/`) **não está indexada** nesta
    fase (`PEND-002`) — não a use como fonte automatizada. Uma citação
-   jurisprudencial só pode vir de confirmação manual do advogado ou de
-   pesquisa externa explícita, nunca do RAG atual.
+   jurisprudencial só pode vir de confirmação manual do advogado — **nunca**
+   de pesquisa externa (ferramenta, agente, subagente ou MCP de
+   jurisprudência, dentro ou fora do plugin), **nunca** do RAG atual (não
+   indexado). Ver INV-JURISPRUDENCIA-EXTERNA-DESABILITADA abaixo — a
+   ausência de jurisprudência indexada é motivo para prosseguir sem
+   citação jurisprudencial, nunca motivo para buscá-la em outro lugar.
+
+### INV-JURISPRUDENCIA-EXTERNA-DESABILITADA (achado do Teste Real 01-B)
+
+Enquanto `PEND-002` (indexação de jurisprudência real na busca híbrida)
+permanecer não implementada, a elaboração da Contestação **nunca** aciona,
+direta ou indiretamente:
+
+- Jurisprudências.ai ou qualquer nome equivalente;
+- agente ou subagente externo de jurisprudência/precedentes;
+- MCP de jurisprudência (o plugin não declara nenhum MCP — `.claude-plugin/
+  plugin.json` — e não deve depender de nenhum conectado externamente à
+  sessão);
+- API externa ou ferramenta de pesquisa jurisprudencial de qualquer
+  espécie, ainda que disponível no ambiente/sessão do Claude Code.
+
+Isso vale mesmo que tal ferramenta esteja conectada à sessão por
+configuração alheia ao plugin (integração pessoal do usuário, MCP global,
+etc.) — a execução da Contestação **não autoriza seu uso**, e a Skill não
+deve presumir que "pesquisa externa" é uma alternativa válida à ausência
+de RAG jurisprudencial local. `"PESQUISA JURISPRUDENCIAL NECESSÁRIA."` é
+**apenas texto** a ser inserido como marcador na análise/peça (sinaliza a
+lacuna ao advogado) — nunca uma instrução para você, agente, ir buscar a
+jurisprudência por conta própria. Ausência de jurisprudência **não
+bloqueia** a Contestação: prossiga com o conteúdo-base do modelo, o
+corpus jurídico local (legislação/regulamentos já indexados) e a
+validação jurídica existente — exatamente como qualquer outra lacuna
+fail-closed deste projeto (marque a ausência, não a preencha por outro
+caminho).
 
 Esta etapa mantém a separação fato × direito do §5: o que sai daqui é
 conhecimento jurídico verificável, nunca fato do processo.
@@ -574,7 +608,12 @@ pronto desde a Fase 3.
 
 Não inventa fato, data, número de processo, valor, dispositivo legal,
 súmula, precedente ou conteúdo de decisão (CLAUDE.md §9/§12). Não usa
-jurisprudência real do RAG (`PEND-002`, ausente). Não insere imagem no
+jurisprudência real do RAG (`PEND-002`, ausente). **Não aciona ferramenta,
+agente, subagente ou MCP externo de jurisprudência (Jurisprudências.ai ou
+equivalente) sob nenhuma circunstância** — mesmo disponível na sessão,
+mesmo diante de lacuna jurisprudencial (INV-JURISPRUDENCIA-EXTERNA-
+DESABILITADA, §7); a ausência de jurisprudência indexada nunca é
+justificativa para buscá-la por outro caminho. Não insere imagem no
 placeholder de foto — decisão V1 (`PEND-001`, `DEFERRED`): o campo recebe
 só o marcador textual de pós-edição manual (§9). Não executa o fluxo fim-a-fim
 contra um DOCX real nesta fase (Fase 7). **Não avança para o RAG ou para a

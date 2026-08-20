@@ -1,288 +1,181 @@
 # EDE Legal Plugin
 
-Plugin jurídico para [Claude Code](https://claude.com/claude-code) destinado
-à elaboração assistida de peças processuais, combinando Skills jurídicas
-especializadas, um modelo DOCX institucional protegido (Template Lock) e um
-RAG jurídico próprio (busca híbrida lexical + vetorial sobre legislação e
-jurisprudência).
+Plugin jurídico para [Claude](https://claude.com) voltado à elaboração
+assistida de peças processuais, combinando Skills jurídicas
+especializadas, recuperação de conhecimento jurídico (RAG), validação de
+citações e geração estruturada de documentos.
 
-O primeiro módulo processual suportado é a **Contestação**. A arquitetura é
-projetada para permanecer extensível a outros tipos de peça — ver
-[`CLAUDE.md`](./CLAUDE.md) e [`docs/specs/SPEC-0001.md`](./docs/specs/SPEC-0001.md).
+> Atualmente, o módulo processual disponível é a Contestação.
 
-## Status atual (v0.9.0 — publicado e validado)
+**Versão:** 0.9.0 · **Licença:** source-available · **Repositório:**
+[`lmgentil/ede-legal-plugin`](https://github.com/lmgentil/ede-legal-plugin)
 
-✅ **Repositório público no GitHub, marketplace remoto e instalação via
-Claude Code validados (Gate Final de Publicação). Decisão de arquitetura
-definitiva: repositório e plugin são públicos, o modelo institucional
-(`.docx`) é asset externo que nunca integra o repositório — ver "Template
-institucional" abaixo. `PEND-004` (definição da licença) foi resolvida.
-Hardening final (Fase 9) segue pendente.**
+## Principais recursos
 
-| Camada | Status |
-|---|---|
-| Estrutura do plugin, versionamento, segurança básica | ✅ Fase 1 |
-| Skills transversais (redator, humanizer, calendário) | ✅ Fase 2 |
-| Template Engine + Template Lock | ✅ Fase 3 — ver pendência PEND-001 abaixo |
-| RAG jurídico | ✅ Fase 4 (legislação/regulamentos); jurisprudência adiada — `PEND-002` |
-| Validação jurídica (citações, vigência, rastreabilidade) | ✅ Fase 5 |
-| Skill Contestação + estrategista-contestacao-ede (orquestração obrigatória) | ✅ Fase 6 |
-| Integração end-to-end (`scripts/gerar_contestacao.py`) | ✅ Fase 7 — caso sintético, ver `docs/E2E_FASE7.md` |
-| Distribuição via marketplace + `/updateEde` | ✅ Fase 8 — publicação externa concluída e validada, ver "Instalação" |
-| Hardening final | ⏳ Fase 9 |
+- Elaboração assistida de Contestação.
+- Análise estratégica obrigatória antes da redação.
+- Recuperação de legislação e regulamentação por RAG (busca lexical + vetorial).
+- Validação de citações jurídicas.
+- Separação entre fatos documentados, alegações e inferências.
+- Análise de tempestividade quando aplicável.
+- Redação jurídica estruturada.
+- Humanização textual.
+- Geração de DOCX a partir de template institucional.
+- Mecanismo fail-closed: impede geração silenciosa quando falta elemento essencial.
 
-O progresso por fase é controlado por gates explícitos — ver `CLAUDE.md §4`.
-Nenhuma fase é iniciada sem autorização.
-
-> **PEND-001** (`docs/PENDENCIAS.md`, status `DEFERRED` desde a correção
-> v0.6.1): suporte a imagem embutida no placeholder
-> `FOTOS_DA_IRREGULARIADE` não será automatizado na V1 — decisão explícita
-> do usuário. O campo recebe um marcador textual de inserção manual pelo
-> advogado. Não bloqueia a Fase 8.
-
-## RAG jurídico (já funcional)
-
-O componente de recuperação de conhecimento jurídico (`rag/`) foi migrado de
-um projeto anterior e já está operacional, independente do restante do
-plugin:
-
-- 434 chunks cobrindo 6 diplomas (CPC, Código Civil, CDC, Lei 8.987/1995,
-  Lei 9.427/1996, REN ANEEL 1.000/2021), com cobertura de artigos de 100%.
-- Busca híbrida (BM25 + embeddings) com lookup direto por número de artigo.
-- Camada de confiança calibrada (alta/média/baixa) e avaliação de regressão
-  contra um gold-set de consultas.
-
-```bash
-pip install -r rag/requirements.txt
-python rag/search_hybrid.py "prazo para contestação no procedimento comum"
-python rag/search_hybrid.py "art. 373 CPC"
-```
-
-Detalhes em [`rag/CONTEXTO_RAG.md`](./rag/CONTEXTO_RAG.md).
-
-> A jurisprudência curada do escritório (`rag/jurisprudencia/`) existe
-> localmente mas **não é distribuída com o repositório público** e ainda não
-> está integrada à busca híbrida — ver
-> [`docs/adr/ADR-0006-assets-institucionais.md`](./docs/adr/ADR-0006-assets-institucionais.md).
-
-## Template institucional
-
-O EDE Legal Plugin é o **motor** de elaboração da Contestação — RAG,
-validação jurídica, orquestração de Skills, Template Engine, Template
-Lock. O modelo institucional propriamente dito,
+## Contestação
 
 ```text
-templates/contestacao/modelo-oficial.docx
+Documentos do processo
+        ↓
+Extração e organização dos fatos
+        ↓
+Análise de tempestividade
+        ↓
+Estratégia defensiva
+        ↓
+Pesquisa jurídica
+        ↓
+Validação das citações
+        ↓
+Redação
+        ↓
+Revisão/humanização
+        ↓
+Documento final
 ```
 
-é um **asset externo ao plugin**, decisão definitiva (não uma questão em
-aberto — ver `docs/adr/ADR-0009-distribuicao-publica-template-externo.md`):
+## RAG jurídico
 
-1. **não integra o repositório** (nunca foi commitado, confirmado no
-   histórico git completo, não só no índice atual);
-2. **não é distribuído com o plugin público** — instalar o plugin via
-   marketplace nunca inclui esse arquivo;
-3. é **fornecido separadamente**, fora deste repositório, aos usuários
-   autorizados a recebê-lo (o timbrado revela identidade do escritório,
-   dados de contato e OAB);
-4. o caminho esperado, quando fornecido, é exatamente
-   `templates/contestacao/modelo-oficial.docx`;
-5. **sem esse arquivo, o resto do plugin continua disponível** — Skills,
-   RAG, validação jurídica e análise estratégica funcionam normalmente;
-6. **só a geração do DOCX institucional final exige o template** — nesse
-   ponto específico, a ausência interrompe só essa etapa
-   (`scripts/gerar_contestacao.py` reporta `PIPELINE_ABORTED` no estágio
-   `template_engine`, nunca inventa, baixa ou reconstrói um template).
+O plugin possui mecanismo próprio de recuperação de conhecimento
+jurídico, combinando busca lexical e vetorial sobre legislação e
+regulamentação. O objetivo é fornecer contexto jurídico rastreável para
+a elaboração das peças e reduzir o risco de citações inexistentes ou
+desconectadas da fonte.
 
-`python scripts/validar_instalacao.py` trata este item como **opcional**
-— sua ausência não significa instalação incorreta.
+Diplomas cobertos atualmente: Código de Processo Civil, Código Civil,
+Código de Defesa do Consumidor, Lei 8.987/1995, Lei 9.427/1996 e a
+Resolução Normativa ANEEL 1.000/2021.
+
+> A jurisprudência do escritório ainda não integra a busca híbrida nesta versão.
 
 ## Instalação
 
-Três caminhos, conforme seu perfil. Advogados sem familiaridade com
-terminal devem preferir a **Opção 1**.
-
 ### Opção 1 — Claude Cowork
 
-Método recomendado para uso sem terminal. Pré-requisitos confirmados na
-documentação oficial da Anthropic ([Central de Ajuda do
-Claude](https://support.claude.com/en/articles/13837440-use-plugins-in-claude)):
-acesso ao Claude em plano pago (Pro, Max, Team ou Enterprise — plugins
-não estão disponíveis em conta gratuita) e acesso à funcionalidade de
-Plugins do Cowork, hoje em research preview.
+Método recomendado para quem deseja utilizar o plugin sem terminal.
 
-> Nomes de menu conforme a documentação oficial vigente nesta data
-> (2026-08-19); a interface do Claude pode evoluir — confirme na Central
-> de Ajuda se algo não corresponder exatamente.
-
-1. **Adicionar o marketplace do EDE:**
-   - Abra **Customize** (menu lateral) → aba **Plugins**.
-   - Na seção **Personal plugins**, clique em **"+"** → **Add
-     marketplace** → **Add from a repository**.
-   - Informe `lmgentil/ede-legal-plugin` (ou a URL completa
-     `https://github.com/lmgentil/ede-legal-plugin`, caso a interface
-     peça uma URL de Git em vez do formato curto).
-2. **Instalar o plugin:**
-   - Em **Customize** → **Plugins**, clique em **Browse plugins**.
-   - Localize **EDE Legal Plugin** — identificador técnico
-     `ede-legal-plugin`, dentro do marketplace `ede` (não confunda os
-     dois nomes) — e clique em **Install**.
-3. **Usar as Skills:** depois de instalado, acesse as Skills digitando
-   **`/`** no chat ou pelo botão **"+"** — a Skill certa é escolhida
-   automaticamente a partir do que você pedir, sem sintaxe adicional.
-   Exemplo, sem vínculo com comando técnico obrigatório: *"Elabore uma
-   contestação com base nos documentos desta pasta, usando o EDE Legal
-   Plugin."*
-
-**Template institucional no Cowork:** vale a mesma regra do restante do
-plugin — instalar sem `templates/contestacao/modelo-oficial.docx` é
-instalação válida (Skills, RAG e análise estratégica funcionam
-normalmente); só a geração do `.docx` final exige esse arquivo, que o
-Cowork não baixa, reconstrói nem hospeda — ver "Template institucional"
-acima.
-
-**Atualização no Cowork:** a documentação oficial consultada não
-descreve, até esta escrita, um mecanismo específico de atualização de
-plugin dentro do Cowork. Gerencie atualizações pelo mecanismo de
-Plugins/Marketplace do próprio Claude — não há passo adicional deste
-plugin.
-
-**Cowork × Claude Code:** são instalações independentes, cada uma com
-seu próprio marketplace configurado — instalar no Cowork não instala
-automaticamente no Claude Code CLI (Opção 2), nem o inverso; repita o
-passo de instalação em cada ambiente que for usar.
+1. **Adicionar o marketplace:** Customize → Plugins → Personal plugins
+   → **+** → Add marketplace → Add from a repository → informe
+   `lmgentil/ede-legal-plugin`.
+2. **Instalar o plugin:** Browse plugins → **EDE Legal Plugin** → Install.
+3. **Usar as Skills:** digite `/` no chat ou use o botão **+** — a Skill
+   certa é acionada conforme o pedido.
 
 ### Opção 2 — Claude Code
 
-Pré-requisitos: Claude Code com suporte a Plugin Marketplace (versão
-atual da CLI) e Python 3.10+ no PATH (testado em 3.12) para os scripts do
-RAG e do Template Engine — ver "Dependências Python" abaixo.
+```text
+/plugin marketplace add lmgentil/ede-legal-plugin
+/plugin install ede-legal-plugin@ede
+```
 
-1. **Adicionar o marketplace:**
-   ```text
-   /plugin marketplace add lmgentil/ede-legal-plugin
-   ```
-2. **Instalar o plugin:**
-   ```text
-   /plugin install ede-legal-plugin@ede
-   ```
-3. **Instalar dependências Python** (fora do Claude Code, uma vez):
-   ```bash
-   pip install -r rag/requirements.txt
-   pip install -r scripts/requirements.txt
-   ```
-   O toolkit `docx` (usado pelo Template Engine) não é distribuído com
-   este plugin — precisa estar disponível em `~/.claude/skills/docx` ou
-   `~/.agents/skills/docx`. Sem ele, `render_docx.py`/`validate_template.py`
-   falham explicitamente (fail closed), não silenciosamente.
-4. **Fornecer o template institucional** — asset externo, ver "Template
-   institucional" acima. Copie o `.docx` real do seu escritório para
-   `templates/contestacao/modelo-oficial.docx` antes de gerar uma
-   Contestação.
-5. **Validar a instalação:**
-   ```bash
-   python scripts/validar_instalacao.py
-   ```
-   `STATUS: OK` confirma que as 5 Skills, o schema do template e a
-   configuração do RAG estão presentes (o `.docx` institucional real é
-   opcional nesta checagem — ver passo 4).
+O plugin fica disponível na sessão atual do Claude Code.
 
 ### Opção 3 — Clone pelo terminal
-
-Alternativa para estudo, desenvolvimento, inspeção do código ou
-contribuição/adaptação nos limites da `LICENSE` — não é um requisito
-para quem só vai usar o plugin pelo Cowork ou pelo Claude Code.
 
 ```bash
 git clone https://github.com/lmgentil/ede-legal-plugin.git
 ```
 
-O uso do código clonado continua sujeito aos termos do [`LICENSE`](./LICENSE)
-— ver "Licença" abaixo.
+Indicado para estudo do código, desenvolvimento ou adaptação nos limites
+da licença.
+
+## Como usar
+
+Depois de instalado, não é necessário conhecer o nome de cada Skill —
+basta pedir em linguagem natural, por exemplo:
+
+- "Analise os documentos desta pasta e elabore uma contestação."
+- "Elabore uma contestação utilizando o EDE Legal Plugin."
+- "Analise estrategicamente este processo antes de elaborar a defesa."
+
+## Skills incluídas
+
+| Skill | Função |
+|---|---|
+| `contestacao` | Orquestra a elaboração da Contestação |
+| `estrategista-contestacao-ede` | Define a estratégia defensiva antes da redação |
+| `redator-peca-processual-elite` | Realiza a redação jurídica estruturada |
+| `humanizer-pt-br` | Refina a naturalidade e fluidez do texto |
+| `calendario-forense-tjba-2026` | Auxilia na análise de tempestividade |
+| `atualizar-ede` | Auxilia na atualização do plugin |
+
+## Template institucional
+
+O template DOCX institucional não é distribuído neste repositório.
+Usuários autorizados podem receber o arquivo separadamente e utilizá-lo
+com o mecanismo de geração documental do plugin.
+
+A ausência do template não impede a instalação nem o uso das Skills e
+dos recursos jurídicos; ela apenas impede a geração do DOCX
+institucional correspondente.
 
 ## Atualização
 
-Digite **`/updateEde`** — aciona a Skill `atualizar-ede`, que identifica
-sua versão atual, explica e conduz os dois comandos oficiais do Claude
-Code:
+Claude Code:
+
 ```text
 /plugin marketplace update ede
 /plugin update ede-legal-plugin@ede
 ```
-e valida o resultado com `scripts/validar_instalacao.py` depois que você
-reiniciar/recarregar a sessão (necessário para a nova versão carregar).
 
-**Não existe atualização automática disparada pelo próprio plugin** — o
-Claude Code verifica e aplica atualizações em segundo plano
-periodicamente, mas o gatilho é sempre do usuário ou desse mecanismo
-nativo, nunca do plugin instalado. `/updateEde` nunca afirma que uma
-atualização terminou sem essa validação (Fail Closed).
-
-Para ver o que mudou entre versões, consulte [`CHANGELOG.md`](./CHANGELOG.md)
-— procure o cabeçalho `## [<sua-versão-nova>]`.
+Também é possível digitar `/updateEde`.
 
 ## Desinstalação
 
 ```text
 /plugin uninstall ede-legal-plugin@ede
 ```
-Comando oficial confirmado na documentação vigente do Claude Code — não
-há passo adicional específico deste plugin.
 
 ## Solução de problemas
 
 | Sintoma | O que fazer |
 |---|---|
-| Marketplace não encontrado | Confirme o caminho/origem exato passado a `/plugin marketplace add`; rode `/plugin marketplace list` para ver o que já foi adicionado. |
-| Plugin não encontrado | Confirme que o marketplace `ede` foi adicionado antes de `/plugin install ede-legal-plugin@ede`; o nome do plugin é `ede-legal-plugin`, não "EDE Legal Plugin" (esse é só o `displayName`). |
-| Versão antiga ainda carregada | Rode `/plugin update ede-legal-plugin@ede` e **reinicie/recarregue a sessão** — a nova versão só é aplicada após reload. |
-| Dependência Python ausente | `pip install -r rag/requirements.txt -r scripts/requirements.txt`. Scripts falham explicitamente (fail closed), nunca silenciosamente, quando uma dependência falta. |
-| RAG indisponível | Confirme `rag/config.yaml` e `rag/index_artigos.json` presentes (`python scripts/validar_instalacao.py`); sem `sentence-transformers` instalado, a busca cai automaticamente para o fallback TF-IDF+LSA — não é erro. |
-| Template ausente | Esperado logo após instalar — `modelo-oficial.docx` é asset privado do escritório, não vem com o plugin público. Copie o seu para `templates/contestacao/modelo-oficial.docx`. |
-| `claude plugin validate .` falha | Rode `claude plugin validate .claude-plugin/plugin.json` para isolar erros do plugin dos do marketplace (`marketplace.json`), validados separadamente quando ambos existem no mesmo diretório. |
+| Marketplace não encontrado | Confirme que adicionou `lmgentil/ede-legal-plugin` como marketplace antes de instalar o plugin. |
+| Plugin não encontrado | O identificador técnico é `ede-legal-plugin`, dentro do marketplace `ede`. |
+| Template institucional ausente | Esperado antes do fornecimento do arquivo pelo escritório — não é erro de instalação. |
+| Versão antiga carregada | Rode a atualização (acima) e reinicie/recarregue a sessão. |
 
 ## Segurança
 
-- Documentos processuais reais (petições, TOIs, laudos, faturas) **nunca
-  devem ser commitados** — mantenha-os fora da árvore do repositório ou
-  em diretórios cobertos pelo `.gitignore` (CLAUDE.md §18-19).
-- `.env` nunca deve ser versionado — use `.env.example` como referência
-  de nomes de variável, nunca com valores reais.
-- Fotografias da irregularidade são inseridas **manualmente pelo
-  advogado** na V1 — o placeholder `FOTOS_DA_IRREGULARIADE` só recebe um
-  marcador textual (`PEND-001`, `DEFERRED`), nunca imagem automática.
-- Jurisprudência real do escritório (`rag/jurisprudencia/`) **não integra
-  a distribuição atual** — `PEND-002`, adiada. Nada desse diretório é
-  lido pela busca híbrida nem publicado.
-- O template institucional real é asset privado — ver "Instalação" acima
-  e `docs/adr/ADR-0006-assets-institucionais.md`.
-
-## Documentação
-
-- [`CLAUDE.md`](./CLAUDE.md) — regras operacionais permanentes do agente.
-- [`docs/specs/SPEC-0001.md`](./docs/specs/SPEC-0001.md) — especificação da Arquitetura v1.
-- [`docs/adr/`](./docs/adr/) — decisões arquiteturais registradas.
-- [`docs/PENDENCIAS.md`](./docs/PENDENCIAS.md) — pendências abertas com ID rastreável e fase de bloqueio.
-- [`docs/E2E_FASE7.md`](./docs/E2E_FASE7.md) — execução end-to-end registrada sobre caso sintético.
-- [`CHANGELOG.md`](./CHANGELOG.md) — histórico de mudanças.
+> Não versione nem publique documentos processuais, credenciais,
+> informações sigilosas ou outros dados de clientes junto ao repositório.
 
 ## Licença
 
-O código-fonte é disponibilizado publicamente sob uma licença
-proprietária de código-fonte disponível ("source-available") — ver
-[`LICENSE`](./LICENSE). Isso não o torna *open source* nem *free
-software*. Resumo (não substitui a leitura do texto integral):
+O projeto utiliza licença própria **source-available** — não é open
+source. Ver [`LICENSE`](./LICENSE) para o texto integral.
 
-* **Permitido sem pedir autorização:** visualizar, baixar, clonar,
-  instalar e executar o plugin (inclusive via marketplace), estudar o
-  código, modificar cópias locais, usar profissionalmente — inclusive
-  internamente por escritórios de advocacia diferentes do titular.
-* **Permitido com condições:** criar e distribuir versões modificadas,
-  desde que mantidos os avisos de copyright/licença, identificado
-  claramente como versão modificada, e sem se apresentar como o EDE
-  Legal Plugin original.
-* **Proibido sem autorização prévia e expressa por escrito do
-  titular:** redistribuir o software original por canal próprio,
-  sublicenciar, comercializar o plugin ou derivados, apropriar-se da
-  autoria, remover avisos, ou usar o nome/marcas do projeto ou de
-  terceiros de forma a sugerir endosso inexistente.
+**Permitido:** visualizar, baixar/clonar, instalar, utilizar conforme os
+termos da licença, estudar o código, uso profissional nos limites
+definidos.
+
+**Condicionado:** criar modificações e derivados, redistribuir
+derivados — conforme os requisitos da licença.
+
+**Proibido sem autorização prévia:** redistribuir o projeto original
+como produto próprio, sublicenciar, vender ou oferecer comercialmente
+cópia/derivado, remover avisos de autoria, apresentar o projeto como de
+autoria própria, usar indevidamente marcas ou timbrados institucionais.
+
+## Aviso
+
+O EDE Legal Plugin é uma ferramenta de apoio à atividade jurídica e não
+substitui a análise profissional do advogado responsável. O usuário deve
+revisar fatos, fundamentos jurídicos, citações, tempestividade e
+conteúdo final antes de qualquer protocolo ou utilização profissional.
+
+## Documentação técnica
+
+Para desenvolvedores e interessados na arquitetura:
+[`CLAUDE.md`](./CLAUDE.md), [`docs/`](./docs/), [`CHANGELOG.md`](./CHANGELOG.md).

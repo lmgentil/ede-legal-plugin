@@ -174,6 +174,20 @@ ingestão/chunking/embeddings/indexação de `search_hybrid.py` e atualizar
 `rag/config.yaml` (`corpus.diplomas`), `CONTEXTO_RAG.md`, este registro e
 `ADR-0006`.
 
+### Nota — INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL (achado do Teste Real 01-B)
+
+Auditada após o achado do Teste Real 01-B ("Calling Jurisprudências.ai
+5 times", `docs/specs/SPEC-0001.md` §46): esta pendência é sobre a
+INFRAESTRUTURA do RAG (se/como indexar `rag/jurisprudencia/` na busca
+híbrida geral do projeto) — não é, em si, "adicionar jurisprudência à
+Contestação". Por isso permanece `ABERTA`, sem alteração de escopo ou
+critério de resolução. O que muda: independentemente de quando/se esta
+pendência for resolvida, a Skill `contestacao` **não consumirá**
+jurisprudência para citação — decisão arquitetural distinta e permanente
+da peça (`INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL`). As duas
+decisões são independentes; resolver esta pendência não reabilita
+pesquisa/uso de jurisprudência pela Contestação.
+
 ### Fechamento
 
 Em aberto, sem prazo. Ao resolver, mover a linha da tabela para "RESOLVIDA

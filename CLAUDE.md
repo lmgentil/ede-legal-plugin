@@ -373,21 +373,29 @@ redação
 
 Mantenha o RAG desacoplado das Skills.
 
-### INV-JURISPRUDENCIA-EXTERNA-DESABILITADA (achado do Teste Real 01-B)
+### INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL (achado do Teste Real 01-B)
 
-Enquanto `PEND-002` (indexação de jurisprudência real na busca híbrida)
-permanecer não implementada, nenhuma Skill do EDE Legal Plugin aciona,
-direta ou indiretamente: Jurisprudências.ai ou equivalente; agente/
-subagente externo de jurisprudência/precedentes; MCP de jurisprudência
-(o plugin não declara nenhum — `.claude-plugin/plugin.json`); ou qualquer
-API/ferramenta externa de pesquisa jurisprudencial — mesmo que disponível
-na sessão por integração alheia ao plugin. A ausência de jurisprudência
-indexada nunca autoriza buscá-la por outro caminho; a Contestação
-prossegue sem citação jurisprudencial, usando o conteúdo-base do modelo,
-o corpus local (legislação/regulamentos já indexados) e a validação
-jurídica existente. `"PESQUISA JURISPRUDENCIAL NECESSÁRIA."` é marcador
-textual de lacuna, nunca instrução de busca. Detalhe operacional em
-`skills/contestacao/SKILL.md` §7.
+A Contestação é autossuficiente e estrita ao modelo institucional: sua
+elaboração não realiza pesquisa jurisprudencial de espécie alguma. Isto é
+**decisão arquitetural permanente da peça** — não uma restrição temporária
+decorrente de `PEND-002` estar aberta, e não muda se/quando `PEND-002` for
+resolvida (indexar jurisprudência no RAG é decisão sobre a infraestrutura
+do RAG, não autorização para a Contestação consumi-la). A execução de
+`/contestacao` nunca: pesquisa jurisprudência (RAG, web, ou qualquer outro
+meio); aciona Jurisprudências.ai ou equivalente; aciona MCP de
+jurisprudência (o plugin não declara nenhum — `.claude-plugin/
+plugin.json`); aciona agente/subagente de jurisprudência; usa busca web ou
+API jurisprudencial; consulta tribunal; solicita automaticamente ao
+advogado que pesquise; ou interrompe a geração por ausência de
+jurisprudência — mesmo que tal recurso esteja disponível na sessão por
+integração alheia ao plugin (disponibilidade não é autorização de uso).
+A Contestação prossegue sempre com o conteúdo-base institucional do
+modelo, o corpus local (legislação/regulamentos já indexados) e a
+validação jurídica existente; súmula/precedente só aparece onde já
+preservado no conteúdo-base fixo do modelo, nunca acrescentado durante a
+elaboração de um caso. Detalhe operacional em `skills/contestacao/
+SKILL.md` §7; auditoria e origem do achado em `docs/specs/SPEC-0001.md`
+§46.
 
 ---
 

@@ -134,9 +134,10 @@ Acione `estrategista-contestacao-ede` com os documentos do caso
 imediatamente após a extração factual (§5) e a identificação de
 pedidos/datas (§6) — **antes** de consultar o RAG e **antes** de acionar o
 redator. Ela entrega uma "ANÁLISE ESTRATÉGICA" estruturada (teses, matriz
-de impugnação, riscos, documentos, jurisprudência sugerida — sempre
-marcando o que não estiver confirmado como `NÃO INFORMADO NOS ELEMENTOS
-DISPONIBILIZADOS` ou `PESQUISA JURISPRUDENCIAL NECESSÁRIA`) — é o insumo
+de impugnação, riscos, documentos — sempre marcando o que não estiver
+confirmado como `NÃO INFORMADO NOS ELEMENTOS DISPONIBILIZADOS`; a
+Contestação não trabalha com jurisprudência sugerida —
+INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL, §7) — é o insumo
 principal para as seções V-XIV dessa análise, que por sua vez alimentam os
 placeholders de §9.
 
@@ -444,6 +445,9 @@ redação precisarem citar:
    s = HybridSearcher()
    resultados = s.query("recuperação de consumo por irregularidade no medidor", k=5)
    ```
+   O corpus indexado é exclusivamente legislação/regulamentação (CPC, CC,
+   CDC, L8987, L9427, REN 1000/2021) — nunca jurisprudência (ver
+   INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL abaixo).
 2. **Nunca cite um resultado de recuperação diretamente.** Antes de
    qualquer citação entrar na peça, valide-a:
    ```python
@@ -453,50 +457,61 @@ redação precisarem citar:
    Só use `r["status"] == "VALIDADA"` (ou `PARCIALMENTE_VALIDADA`, com a
    ressalva explícita) como fundamento confirmado. `NAO_VALIDADA`,
    `AMBIGUA` ou `FONTE_INSUFICIENTE` significam: não cite — refaça a
-   consulta a `rag/search_hybrid.py` com termos diferentes (o RAG local,
-   nunca ferramenta externa alguma — ver INV-JURISPRUDENCIA-EXTERNA-
-   DESABILITADA abaixo), refaça a citação, ou marque a dependência no
-   texto (ver `estrategista-contestacao-ede` §2: `"TESE CONDICIONADA À
-   CONFIRMAÇÃO DOCUMENTAL."`/`"PESQUISA JURISPRUDENCIAL NECESSÁRIA."`).
-3. Jurisprudência real (`rag/jurisprudencia/`) **não está indexada** nesta
-   fase (`PEND-002`) — não a use como fonte automatizada. Uma citação
-   jurisprudencial só pode vir de confirmação manual do advogado — **nunca**
-   de pesquisa externa (ferramenta, agente, subagente ou MCP de
-   jurisprudência, dentro ou fora do plugin), **nunca** do RAG atual (não
-   indexado). Ver INV-JURISPRUDENCIA-EXTERNA-DESABILITADA abaixo — a
-   ausência de jurisprudência indexada é motivo para prosseguir sem
-   citação jurisprudencial, nunca motivo para buscá-la em outro lugar.
+   consulta a `rag/search_hybrid.py` com termos diferentes (o RAG local de
+   legislação/regulamentação, nunca ferramenta externa alguma), refaça a
+   citação, ou marque a dependência no texto (`estrategista-contestacao-ede`
+   §2: `"TESE CONDICIONADA À CONFIRMAÇÃO DOCUMENTAL."`).
+3. Jurisprudência (súmula, precedente, entendimento de tribunal) **não
+   integra a camada variável desta peça** — decisão arquitetural
+   permanente, não uma lacuna temporária de `PEND-002`. A Contestação não
+   pesquisa, não solicita ao advogado que pesquise, e não deixa de gerar a
+   peça por ausência de jurisprudência. Ver
+   INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL abaixo.
 
-### INV-JURISPRUDENCIA-EXTERNA-DESABILITADA (achado do Teste Real 01-B)
+### INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL
 
-Enquanto `PEND-002` (indexação de jurisprudência real na busca híbrida)
-permanecer não implementada, a elaboração da Contestação **nunca** aciona,
-direta ou indiretamente:
+A Contestação é **autossuficiente e estrita ao modelo institucional**: sua
+elaboração não realiza pesquisa jurisprudencial de espécie alguma. Isto
+não decorre de `PEND-002` estar aberta — é uma decisão arquitetural da
+peça, que **não muda** se/quando `PEND-002` for resolvida (indexar
+jurisprudência no RAG é uma decisão sobre a infraestrutura do RAG, não
+uma autorização para a Contestação consumi-la). A execução de
+`/contestacao`:
 
-- Jurisprudências.ai ou qualquer nome equivalente;
-- agente ou subagente externo de jurisprudência/precedentes;
-- MCP de jurisprudência (o plugin não declara nenhum MCP — `.claude-plugin/
-  plugin.json` — e não deve depender de nenhum conectado externamente à
-  sessão);
-- API externa ou ferramenta de pesquisa jurisprudencial de qualquer
-  espécie, ainda que disponível no ambiente/sessão do Claude Code.
+- **não** pesquisa jurisprudência (RAG local, web, ou qualquer outro meio);
+- **não** aciona Jurisprudências.ai ou nome equivalente;
+- **não** aciona MCP de jurisprudência (o plugin não declara nenhum —
+  `.claude-plugin/plugin.json`);
+- **não** aciona agente ou subagente de jurisprudência;
+- **não** usa busca web para jurisprudência;
+- **não** usa API jurisprudencial de qualquer espécie;
+- **não** consulta tribunal;
+- **não** pesquisa precedentes por nenhum caminho, externo ou não;
+- **não** solicita automaticamente ao advogado que pesquise jurisprudência;
+- **não** interrompe ou bloqueia a geração da peça por ausência de
+  jurisprudência.
 
-Isso vale mesmo que tal ferramenta esteja conectada à sessão por
-configuração alheia ao plugin (integração pessoal do usuário, MCP global,
-etc.) — a execução da Contestação **não autoriza seu uso**, e a Skill não
-deve presumir que "pesquisa externa" é uma alternativa válida à ausência
-de RAG jurisprudencial local. `"PESQUISA JURISPRUDENCIAL NECESSÁRIA."` é
-**apenas texto** a ser inserido como marcador na análise/peça (sinaliza a
-lacuna ao advogado) — nunca uma instrução para você, agente, ir buscar a
-jurisprudência por conta própria. Ausência de jurisprudência **não
-bloqueia** a Contestação: prossiga com o conteúdo-base do modelo, o
-corpus jurídico local (legislação/regulamentos já indexados) e a
-validação jurídica existente — exatamente como qualquer outra lacuna
-fail-closed deste projeto (marque a ausência, não a preencha por outro
-caminho).
+Isso vale **mesmo que** tal ferramenta esteja disponível no
+ambiente/sessão do Claude Code por integração alheia ao plugin (MCP
+pessoal do usuário, busca web habilitada, etc.) — disponibilidade não é
+autorização de uso. A Contestação parte do conteúdo-base institucional já
+existente no modelo oficial, complementado apenas pelos fatos do caso e
+pela fundamentação normativa/regulatória validada localmente — nunca por
+precedente novo. Súmula/precedente/entendimento jurisprudencial só
+aparece na peça onde já estiver preservado no conteúdo-base fixo do
+modelo — nunca acrescentado, atualizado, substituído ou expandido durante
+a elaboração de um caso.
+
+Ausência de jurisprudência **nunca é lacuna a ser preenchida** — não gere
+o marcador `"PESQUISA JURISPRUDENCIAL NECESSÁRIA."` (obsoleto para esta
+peça); simplesmente não trabalhe com jurisprudência. Se uma tese só puder
+ser sustentada mediante precedente, isso é sinal de deficiência estrutural
+do modelo institucional — registre como achado para revisão humana futura
+do modelo, nunca como motivo para pesquisar.
 
 Esta etapa mantém a separação fato × direito do §5: o que sai daqui é
-conhecimento jurídico verificável, nunca fato do processo.
+conhecimento jurídico verificável (legislação/regulamentação), nunca fato
+do processo, e nunca jurisprudência.
 
 ## 8. Redação e humanização (obrigatórias)
 
@@ -595,9 +610,10 @@ despejar no texto.
 
 Cada valor final passa pelo mesmo Fail Closed do restante do projeto: se
 um placeholder depende de dado ausente, o valor deve dizer isso
-explicitamente (`"NÃO INFORMADO NOS ELEMENTOS DISPONIBILIZADOS."`,
-`"PESQUISA JURISPRUDENCIAL NECESSÁRIA."`, etc.) — nunca ficar vazio
-silenciosamente nem ser preenchido por suposição. Exceção:
+explicitamente (`"NÃO INFORMADO NOS ELEMENTOS DISPONIBILIZADOS."`, etc.)
+— nunca ficar vazio silenciosamente nem ser preenchido por suposição
+(jurisprudência não gera sentinela — simplesmente não aparece na peça,
+INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL, §7). Exceção:
 `TEMPESTIVIDADE_CASO` não admite sentinela de ausência — sem marco
 resolvido (§6, INV-TEMPESTIVIDADE-MARCO), o pipeline aborta antes de
 chegar aqui. A validação estrutural final (placeholder desconhecido,
@@ -607,13 +623,15 @@ pronto desde a Fase 3.
 ## 10. O que esta skill nunca faz
 
 Não inventa fato, data, número de processo, valor, dispositivo legal,
-súmula, precedente ou conteúdo de decisão (CLAUDE.md §9/§12). Não usa
-jurisprudência real do RAG (`PEND-002`, ausente). **Não aciona ferramenta,
-agente, subagente ou MCP externo de jurisprudência (Jurisprudências.ai ou
-equivalente) sob nenhuma circunstância** — mesmo disponível na sessão,
-mesmo diante de lacuna jurisprudencial (INV-JURISPRUDENCIA-EXTERNA-
-DESABILITADA, §7); a ausência de jurisprudência indexada nunca é
-justificativa para buscá-la por outro caminho. Não insere imagem no
+súmula, precedente ou conteúdo de decisão (CLAUDE.md §9/§12). **Não
+trabalha com jurisprudência de espécie alguma na camada variável** — nem
+pesquisa (RAG, web, tribunal, ou qualquer outro meio), nem aciona
+ferramenta, agente, subagente ou MCP de jurisprudência (Jurisprudências.ai
+ou equivalente), nem solicita ao advogado que pesquise, mesmo disponível
+na sessão, mesmo diante de lacuna jurisprudencial, mesmo que `PEND-002`
+seja resolvida no futuro (INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL,
+§7 — decisão arquitetural permanente, não vinculada a `PEND-002`). Não
+insere imagem no
 placeholder de foto — decisão V1 (`PEND-001`, `DEFERRED`): o campo recebe
 só o marcador textual de pós-edição manual (§9). Não executa o fluxo fim-a-fim
 contra um DOCX real nesta fase (Fase 7). **Não avança para o RAG ou para a

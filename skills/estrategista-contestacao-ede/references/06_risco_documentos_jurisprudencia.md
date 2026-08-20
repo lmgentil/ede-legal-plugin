@@ -42,18 +42,18 @@ Para cada documento, explique qual fato ele pretende provar. Exemplo:
 > **Histórico de consumo** → demonstra o comportamento da unidade
 > consumidora e pode auxiliar na análise da metodologia de recuperação.
 
-## Jurisprudência
+## Jurisprudência (obsoleto — INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL)
 
-Use jurisprudência de forma estratégica, nunca por volume. Para cada
-precedente sugerido (apenas se efetivamente confirmado nos elementos
-disponíveis — nunca invente número de processo, relator, data ou ementa),
-indique: tribunal; tema; orientação; pertinência ao caso; como utilizar;
-risco de distinção (o precedente pode ser afastado por diferença fática
-relevante?).
-
-Quando não houver precedente confirmado disponível, escreva:
-
-> **"PESQUISA JURISPRUDENCIAL NECESSÁRIA."**
+A Contestação foi definida como autossuficiente e estrita ao modelo
+institucional: sua elaboração não pesquisa, não usa e não sinaliza lacuna
+de jurisprudência (`skills/contestacao/SKILL.md` §7). Não produza seção
+de jurisprudência na análise, não sugira precedente, e não escreva
+marcador de pesquisa jurisprudencial necessária — essa prática está
+obsoleta para esta peça. Construa risco e teses subsidiárias com base em
+REN ANEEL 1.000/2021, CPC, CDC e nos fatos do caso (seções anteriores
+deste arquivo); se uma tese só se sustentar com precedente, registre isso
+como achado de deficiência estrutural do modelo para revisão humana
+futura, nunca como pesquisa a realizar.
 
 ## Teses subsidiárias obrigatórias
 

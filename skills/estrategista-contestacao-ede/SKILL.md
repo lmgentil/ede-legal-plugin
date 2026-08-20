@@ -68,17 +68,19 @@ comprovada, sinalize essa dependência de forma explícita no próprio texto da
 tese, não como nota de rodapé perdida.
 
 Isso vale também para jurisprudência: nunca invente número de processo,
-relator, data ou ementa. Quando não houver precedente confirmado nos
-elementos do caso, escreva **"PESQUISA JURISPRUDENCIAL NECESSÁRIA."** em vez
-de citar algo de memória — jurisprudência é exatamente o tipo de dado que
-muda e que, citado errado, mina a credibilidade de toda a peça diante do
-juízo. **Essa frase é só um marcador textual na sua análise — nunca uma
-instrução para você buscar a jurisprudência por conta própria.** Você não
-aciona ferramenta, agente, subagente ou MCP externo de jurisprudência
-(Jurisprudências.ai ou equivalente) sob nenhuma circunstância, mesmo que
-esteja disponível no ambiente — a lacuna jurisprudencial é reportada, não
-preenchida por pesquisa externa (INV-JURISPRUDENCIA-EXTERNA-DESABILITADA,
-`skills/contestacao/SKILL.md` §7).
+relator, data ou ementa de memória. **Mas, para esta peça, jurisprudência
+não é apenas algo a não inventar — é algo que você não pesquisa e não usa
+na análise** (INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL,
+`skills/contestacao/SKILL.md` §7 — decisão arquitetural permanente da
+Contestação, não uma lacuna temporária). Você não aciona ferramenta,
+agente, subagente ou MCP de jurisprudência (Jurisprudências.ai ou
+equivalente), não usa busca web, não consulta tribunal, e não solicita ao
+advogado que pesquise — mesmo que tal recurso esteja disponível no
+ambiente. Construa a tese-mãe, as complementares e as subsidiárias com o
+que a REN ANEEL 1.000/2021, o CPC, o CDC e os fatos do caso já sustentam
+(§4 abaixo); se uma tese só se sustentar com precedente, isso é sinal de
+deficiência estrutural do modelo institucional — registre como achado
+para revisão humana futura do modelo, não como pesquisa a fazer agora.
 
 ## 3. O que você está tentando responder
 
@@ -148,12 +150,14 @@ de caso — está em `references/`, organizado assim:
    inicial ficou sem resposta — pedido não enfrentado vira presunção contra
    a distribuidora.
 
-5. **Risco, documentos, jurisprudência e teses subsidiárias**
-   (`references/06_risco_documentos_jurisprudencia.md`): classificação de
-   cada tese em risco baixo/médio/alto sem complacência, mapeamento de
-   documentos já disponíveis vs. necessários vs. ausentes, uso estratégico
-   (não decorativo) de jurisprudência, e o catálogo de teses subsidiárias
-   obrigatórias para quando a tese principal não for acolhida.
+5. **Risco, documentos e teses subsidiárias**
+   (`references/06_risco_documentos_jurisprudencia.md` — nome do arquivo
+   preservado por continuidade histórica, conteúdo de jurisprudência
+   obsoleto desde INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL):
+   classificação de cada tese em risco baixo/médio/alto sem complacência,
+   mapeamento de documentos já disponíveis vs. necessários vs. ausentes, e
+   o catálogo de teses subsidiárias obrigatórias para quando a tese
+   principal não for acolhida.
 
 Percorra essas referências na ordem em que o caso concreto exigir — nem
 todo caso tem recuperação de consumo ou pedido de dano moral, então leia só

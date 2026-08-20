@@ -309,7 +309,7 @@ Monte um único JSON `{PLACEHOLDER: valor}` (ver
 |---|---|
 | `JUIZO` | Extração factual (§5) — documento processual |
 | `NUMERO_PROCESSO` | Extração factual (§5) |
-| `AUTOR` | Extração factual (§5) |
+| `AUTOR` | Extração factual (§5) — **apenas o nome da parte autora.** O texto fixo do template já formula a cláusula de qualificação ("já qualificado(a) nos autos") e o CPF, quando aplicável, imediatamente depois do placeholder. Nunca produza `"Fulano de Tal, já qualificado nos autos, portador do CPF nº..."` — a duplicação dessa cláusula já causou quebra de página real, confirmada por diagnóstico forense (isolamento causal: encurtar só o AUTOR eliminou a quebra). Contrato completo em `templates/contestacao/schema.json` (`placeholder_contracts.AUTOR`), verificado automaticamente por `scripts/validate_placeholder_semantics.py` antes da geração final |
 | `TEMPESTIVIDADE_CASO` | Tempestividade (§6) — memória de cálculo com marco temporal resolvido (INV-TEMPESTIVIDADE-MARCO); nunca `PENDENTE DE VALIDAÇÃO` |
 | `SINOPSE_FATOS` | Extração factual (§5) + redator/humanizer |
 | `REALIDADE_FATICA` | Extração factual (§5) + análise estratégica (§4) + redator/humanizer |
@@ -324,6 +324,17 @@ Monte um único JSON `{PLACEHOLDER: valor}` (ver
 Nenhum destes campos pode ser gerado sem que a etapa estratégica (§4) já
 tenha sido executada e concluída — sete dos treze dependem diretamente da
 saída de `estrategista-contestacao-ede`.
+
+Cada placeholder tem um contrato semântico formal (tipo, restrições) em
+`templates/contestacao/schema.json` (`placeholder_contracts`) —
+`scripts/validate_placeholder_semantics.py` verifica automaticamente
+`AUTOR`, `NUMERO_PROCESSO`, `VALOR_FRA` e `LOCAL_DATA` antes da geração
+final; conteúdo semanticamente incompatível aborta o pipeline
+(`PIPELINE_ABORTED`, stage `placeholders`), nunca chega ao template. O
+Template Engine, automaticamente e sem ação desta Skill, marca em
+vermelho (`FF0000`) todo texto inserido nos placeholders — regra
+transversal ao motor documental (não exclusiva da Contestação); o texto
+fixo institucional nunca muda de cor.
 
 Cada valor final passa pelo mesmo Fail Closed do restante do projeto: se
 um placeholder depende de dado ausente, o valor deve dizer isso

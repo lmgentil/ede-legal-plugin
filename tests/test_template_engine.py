@@ -57,6 +57,25 @@ XML_SINTETICO = (
 )
 SCHEMA_SINTETICO = {"editable_placeholders": ["JUIZO", "LOCAL_DATA", "SINOPSE_FATOS"]}
 
+# XML sintético para os testes de cor (Etapa 3) — cobre as combinações
+# reais de rPr encontradas no template real: sem rPr, com rPr+outras
+# propriedades, com EE0000 pré-existente (inconsistência histórica do
+# asset), multilinha, e texto fixo institucional que nunca pode mudar de
+# cor. Também reproduz, entre parágrafos, o pretty-print com quebra de
+# linha DENTRO do próprio <w:rPr> que o toolkit unpack.py produz — achado
+# real desta implementação (regex "." não casava \n sem re.DOTALL).
+XML_SINTETICO_COR = (
+    '<w:document><w:body>'
+    '<w:p><w:r><w:t>{{JUIZO}}</w:t></w:r></w:p>'
+    '<w:p><w:r><w:rPr><w:b/><w:color w:val="000000"/><w:sz w:val="24"/></w:rPr>'
+    '<w:t>{{AUTOR}}</w:t></w:r></w:p>'
+    '<w:p><w:r><w:rPr><w:color w:val="EE0000"/></w:rPr><w:t>{{VALOR_FRA}}</w:t></w:r></w:p>'
+    '<w:p><w:r><w:rPr>\n  <w:i/>\n</w:rPr>\n<w:t>{{SINOPSE_FATOS}}</w:t></w:r></w:p>'
+    '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Texto institucional fixo</w:t></w:r></w:p>'
+    '</w:body></w:document>'
+)
+SCHEMA_SINTETICO_COR = {"editable_placeholders": ["JUIZO", "AUTOR", "VALOR_FRA", "SINOPSE_FATOS"]}
+
 
 def test_substituicao_simples():
     xml, subst = substituir_placeholders(XML_SINTETICO, {"JUIZO": "1ª Vara Cível"})
@@ -86,6 +105,75 @@ def test_escapa_caracteres_xml_no_valor():
     xml, _ = substituir_placeholders(XML_SINTETICO, {"JUIZO": "Vara & Cia <teste>"})
     assert "Vara &amp; Cia &lt;teste&gt;" in xml
     assert "Vara & Cia <teste>" not in xml  # não pode vazar & / < / > crus
+
+
+# --------------------------------------------------------------- cor (Etapa 3)
+def test_cor_placeholder_sem_rpr_cria_ff0000():
+    # A: placeholder sem rPr -> cria/injeta FF0000
+    xml, _ = substituir_placeholders(XML_SINTETICO_COR, {"JUIZO": "1ª Vara Cível"})
+    assert '<w:rPr><w:color w:val="FF0000"/></w:rPr>' in xml
+    assert ">1ª Vara Cível</w:t>" in xml  # tag pode ganhar xml:space="preserve"
+
+
+def test_cor_placeholder_com_rpr_preserva_demais_propriedades():
+    # B: placeholder com rPr preto + outras propriedades -> preserva as
+    # demais propriedades, troca só a cor
+    xml, _ = substituir_placeholders(XML_SINTETICO_COR, {"AUTOR": "Fulano de Tal"})
+    assert '<w:b/><w:color w:val="FF0000"/><w:sz w:val="24"/>' in xml
+    assert 'w:val="000000"' not in xml
+
+
+def test_cor_placeholder_ja_ee0000_vira_ff0000():
+    # C: placeholder já EE0000 -> resultado FF0000 (EE0000 é inconsistência
+    # histórica do template, não convenção — decisão já registrada)
+    xml, _ = substituir_placeholders(XML_SINTETICO_COR, {"VALOR_FRA": "R$ 10,00"})
+    assert "FF0000" in xml
+    assert "EE0000" not in xml
+
+
+def test_cor_multiline_todas_linhas_ff0000():
+    # D: multilinha -> uma única <w:rPr> vermelha governa todas as linhas
+    # (mesma run, <w:br/> intercalado, mecanismo de newline intocado)
+    xml, _ = substituir_placeholders(
+        XML_SINTETICO_COR, {"SINOPSE_FATOS": "Primeira linha.\nSegunda linha."})
+    assert xml.count("<w:br/>") == 1
+    assert xml.count('<w:color w:val="FF0000"/>') == 1
+    assert "<w:i/>" in xml  # propriedade original preservada
+    assert "Primeira linha." in xml and "Segunda linha." in xml
+
+
+def test_cor_texto_fixo_nao_muda():
+    # E: texto fixo institucional -> rPr e cor inalterados
+    xml, _ = substituir_placeholders(XML_SINTETICO_COR, {"JUIZO": "1ª Vara"})
+    assert "<w:rPr><w:b/></w:rPr><w:t>Texto institucional fixo</w:t>" in xml
+
+
+def test_cor_adulterada_em_texto_fixo_reprovada_pelo_lock():
+    # F: Template Lock deve continuar reprovando cor alterada FORA de
+    # placeholder — mesmo mecanismo de sempre (recomputa e compara byte a
+    # byte), nenhuma lógica nova de "zonas" precisou ser criada.
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        template_dir, gerado_dir = tmp / "template", tmp / "gerado"
+        (template_dir / "word").mkdir(parents=True)
+        (gerado_dir / "word").mkdir(parents=True)
+        (template_dir / "word" / "document.xml").write_text(XML_SINTETICO_COR, encoding="utf-8")
+
+        dados = {"JUIZO": "1ª Vara", "AUTOR": "Fulano", "VALOR_FRA": "R$ 10,00",
+                  "SINOPSE_FATOS": "texto"}
+        esperado_xml, _ = substituir_placeholders(XML_SINTETICO_COR, dados)
+
+        (gerado_dir / "word" / "document.xml").write_text(esperado_xml, encoding="utf-8")
+        ok = verificar_template_lock(template_dir, gerado_dir, dados)
+        assert ok["ok"], ok["divergencias"]
+
+        adulterado = esperado_xml.replace(
+            "<w:rPr><w:b/></w:rPr><w:t>Texto institucional fixo</w:t>",
+            '<w:rPr><w:b/><w:color w:val="FF0000"/></w:rPr><w:t>Texto institucional fixo</w:t>')
+        (gerado_dir / "word" / "document.xml").write_text(adulterado, encoding="utf-8")
+        ruim = verificar_template_lock(template_dir, gerado_dir, dados)
+        assert not ruim["ok"], "Template Lock deveria reprovar cor de texto fixo alterada"
 
 
 def test_validar_placeholders_rejeita_desconhecido_no_schema():
@@ -214,6 +302,12 @@ def test_pipeline_completo_contra_template_real():
             gerado_xml = z.read("word/document.xml").decode("utf-8")
         assert not extrair_placeholders(gerado_xml), "documento final não pode ter placeholder residual (TEST-004)"
         assert "COELBA" in gerado_xml, "texto fixo institucional não pode sumir"
+
+        # Etapa 3: todo conteúdo substituído fica em FF0000 — contra o
+        # template real, com <w:rPr> pretty-printado pelo unpack.py
+        # (achado real desta implementação).
+        assert 'w:val="FF0000"' in gerado_xml, "conteúdo substituído deveria estar em FF0000"
+        assert "FULANO DE TAL" in gerado_xml  # AUTOR fictício, sem qualificação (Etapa 3, achado real)
 
         # TEST-001, contra o arquivo real (não só XML sintético): adultera
         # texto fixo fora de qualquer placeholder e confirma que o Template

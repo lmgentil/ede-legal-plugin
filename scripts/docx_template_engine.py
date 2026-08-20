@@ -10,9 +10,12 @@ Princípios não negociáveis:
     cópia de trabalho do template oficial; o template mestre nunca é lido
     em modo escrita nem sobrescrito.
   - Template Lock: o documento gerado deve ser, byte a byte, o template
-    original com APENAS os nós <w:t> de placeholder alterados. Qualquer
-    outra diferença (cabeçalho, rodapé, estilo, imagem, parágrafo
-    adicionado/removido) reprova a geração.
+    original com APENAS os nós <w:t> de placeholder alterados e a cor do
+    run correspondente forçada para FF0000 (Etapa 3, regra transversal:
+    todo conteúdo inserido pelo plugin fica em vermelho — texto fixo
+    institucional nunca muda de cor). Qualquer outra diferença (cabeçalho,
+    rodapé, estilo, fonte, imagem, parágrafo adicionado/removido) reprova
+    a geração.
   - Fail closed: schema ausente, placeholder desconhecido, placeholder sem
     dado fornecido (geraria resíduo) ou toolkit OOXML ausente => falha
     explícita, nunca geração silenciosa incorreta.
@@ -43,8 +46,35 @@ import sys
 import tempfile
 from pathlib import Path
 
-_T_TAG_RE = re.compile(r"<w:t((?:\s[^>]*)?)>([^<]*)</w:t>")
+# Casa opcionalmente o <w:rPr> anterior ao <w:t> (sempre o primeiro filho
+# de <w:r> quando presente, por schema OOXML — nunca some nada semântico
+# entre eles dentro da mesma run) + o próprio <w:t>. Entre rPr e t só pode
+# haver espaço em branco insignificante — o toolkit unpack.py PRETTY-PRINTA
+# o XML (indentação/quebra de linha) durante o desempacotamento, então
+# "imediatamente adjacente" não pode exigir zero caracteres (achado real:
+# exigir isso fazia cair no ramo "sem rPr" e criar um <w:rPr> duplicado,
+# inválido — confirmado via validação XSD real desta implementação). O
+# conteúdo do <w:rPr>, quando existe, nunca contém outro <w:rPr>/<w:t>
+# aninhado (schema CT_RPr só tem propriedades simples), então o
+# "não-guloso" aqui é seguro — diferente de tentar casar <w:p>/<w:r>
+# inteiros, que PODEM conter cópias aninhadas via shape/txbxContent
+# (achado real da Etapa 2 do diagnóstico forense).
+_RUN_RE = re.compile(
+    r"(?P<rpr_full><w:rPr>(?:(?!</w:rPr>).)*?</w:rPr>|<w:rPr/>)?"
+    r"(?P<entre>[ \t\r\n]*)"
+    r"<w:t(?P<tattrs>(?:\s[^>]*)?)>(?P<ttext>[^<]*)</w:t>",
+    re.DOTALL,  # o próprio conteúdo do <w:rPr> pode vir pretty-printado
+                # (uma propriedade por linha) pelo unpack.py — "." precisa
+                # casar \n aqui, ou o rPr inteiro nunca é capturado (achado
+                # real: caía silenciosamente no ramo "sem rPr" e duplicava).
+)
 _PLACEHOLDER_RE = re.compile(r"\{\{([A-Z_]+)\}\}")
+_COLOR_RE = re.compile(r"<w:color\b[^/]*/>")
+
+# Decisão aprovada (gate pós-diagnóstico forense): todo conteúdo inserido
+# pelo plugin fica em FF0000 — regra transversal ao motor documental, não
+# exclusiva da Contestação. Texto fixo do template nunca é tocado.
+COR_CONTEUDO_GERADO = "FF0000"
 
 
 def garantir_utf8():
@@ -127,10 +157,57 @@ def _xml_escape(s) -> str:
     return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _substituir_um_no(attrs: str, texto: str, dados: dict, substituidos: set) -> str:
+def _rpr_inner(rpr_full):
+    """Conteúdo interno do <w:rPr> original (sem as tags de abertura/
+    fechamento) — string vazia se não havia rPr algum ou se era
+    <w:rPr/> (self-closing, sem propriedades)."""
+    if not rpr_full or rpr_full == "<w:rPr/>":
+        return ""
+    return rpr_full[len("<w:rPr>"):-len("</w:rPr>")]
+
+
+# CT_RPr (OOXML/ECMA-376) exige sequência fixa de elementos — w:color não
+# pode ser simplesmente prependido: se o rPr já tiver w:rFonts/w:b/w:i/...
+# (que precedem color no schema), inserir color antes deles invalida o
+# documento ("Element rPr: This element is not expected", confirmado nesta
+# implementação). Lista dos elementos que devem vir DEPOIS de w:color —
+# a cor entra imediatamente antes do primeiro que existir; se nenhum
+# existir, vai ao final do rPr.
+_RPR_APOS_COR = (
+    "w:spacing", "w:w", "w:kern", "w:position", "w:sz", "w:szCs",
+    "w:highlight", "w:u", "w:effect", "w:bdr", "w:shd", "w:fitText",
+    "w:vertAlign", "w:rtl", "w:cs", "w:em", "w:lang", "w:eastAsianLayout",
+    "w:specVanish", "w:oMath",
+)
+
+
+def _inserir_cor_na_posicao_certa(rpr_sem_cor: str) -> str:
+    cor = f'<w:color w:val="{COR_CONTEUDO_GERADO}"/>'
+    pos_insercao = len(rpr_sem_cor)
+    for tag in _RPR_APOS_COR:
+        m = re.search(r"<" + re.escape(tag) + r"\b", rpr_sem_cor)
+        if m and m.start() < pos_insercao:
+            pos_insercao = m.start()
+    return rpr_sem_cor[:pos_insercao] + cor + rpr_sem_cor[pos_insercao:]
+
+
+def _rpr_com_cor_forcada(rpr_full) -> str:
+    """<w:rPr> com <w:color w:val="FF0000"/> — única propriedade
+    adicionada/sobrescrita, na posição exigida pela sequência do schema
+    CT_RPr; qualquer <w:color/> pré-existente (inclusive o EE0000 já usado
+    em parte do template real, tratado como inconsistência histórica do
+    asset, não convenção) é removido antes. Todas as demais propriedades
+    do run (fonte, tamanho, negrito, itálico...) permanecem exatamente
+    como estavam, na mesma ordem relativa entre si."""
+    sem_cor = _COLOR_RE.sub("", _rpr_inner(rpr_full))
+    return f"<w:rPr>{_inserir_cor_na_posicao_certa(sem_cor)}</w:rPr>"
+
+
+def _substituir_um_no(rpr_full, entre: str, attrs: str, texto: str, dados: dict, substituidos: set) -> str:
     tokens = _PLACEHOLDER_RE.findall(texto)
+    rpr_original = rpr_full or ""
     if not tokens:
-        return f"<w:t{attrs}>{texto}</w:t>"
+        return f"{rpr_original}{entre}<w:t{attrs}>{texto}</w:t>"
     if len(tokens) > 1:
         raise ValueError(
             f"Nó <w:t> com mais de um placeholder não é suportado por esta "
@@ -138,17 +215,20 @@ def _substituir_um_no(attrs: str, texto: str, dados: dict, substituidos: set) ->
         )
     nome = tokens[0]
     if nome not in dados:
-        # placeholder sem dado fornecido: mantém como está aqui; é rejeitado
-        # antes disso por validar_placeholders() (evita gerar resíduo).
-        return f"<w:t{attrs}>{texto}</w:t>"
+        # placeholder sem dado fornecido: mantém como está aqui (rPr
+        # original e espaçamento entre tags incluídos, intocados); é
+        # rejeitado antes disso por validar_placeholders() (evita gerar
+        # resíduo).
+        return f"{rpr_original}{entre}<w:t{attrs}>{texto}</w:t>"
 
     substituidos.add(nome)
     token = "{{" + nome + "}}"
     linhas = [_xml_escape(l) for l in str(dados[nome]).split("\n")]
     attrs_ps = attrs if "xml:space" in attrs else attrs + ' xml:space="preserve"'
+    rpr_vermelho = _rpr_com_cor_forcada(rpr_full)
 
     if len(linhas) == 1:
-        return f"<w:t{attrs_ps}>{texto.replace(token, linhas[0])}</w:t>"
+        return f"{rpr_vermelho}{entre}<w:t{attrs_ps}>{texto.replace(token, linhas[0])}</w:t>"
 
     prefixo, sufixo = texto.split(token, 1)
     n = len(linhas)
@@ -161,8 +241,10 @@ def _substituir_um_no(attrs: str, texto: str, dados: dict, substituidos: set) ->
             p = p + sufixo
         partes.append(p)
     # múltiplas linhas dentro do MESMO <w:r>: <w:t> + <w:br/> intercalados,
-    # sem tocar em <w:rPr> nem em limites de parágrafo (INV-008).
-    return "<w:br/>".join(f"<w:t{attrs_ps}>{p}</w:t>" for p in partes)
+    # sem tocar em limites de parágrafo (INV-008) — todas herdam a MESMA
+    # <w:rPr> vermelha injetada uma única vez, à frente da sequência.
+    corpo = "<w:br/>".join(f"<w:t{attrs_ps}>{p}</w:t>" for p in partes)
+    return f"{rpr_vermelho}{entre}{corpo}"
 
 
 def substituir_placeholders(document_xml: str, dados: dict):
@@ -170,9 +252,11 @@ def substituir_placeholders(document_xml: str, dados: dict):
     substituidos = set()
 
     def _cb(m):
-        return _substituir_um_no(m.group(1), m.group(2), dados, substituidos)
+        return _substituir_um_no(m.group("rpr_full"), m.group("entre"),
+                                  m.group("tattrs"), m.group("ttext"),
+                                  dados, substituidos)
 
-    novo = _T_TAG_RE.sub(_cb, document_xml)
+    novo = _RUN_RE.sub(_cb, document_xml)
     return novo, substituidos
 
 

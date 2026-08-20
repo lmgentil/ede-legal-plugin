@@ -54,6 +54,7 @@ from calcular_tempestividade import PENDENTE, calcular_tempestividade  # noqa: E
 from docx_template_engine import garantir_utf8, gerar_peca  # noqa: E402
 from legal_validation import validar_citacao  # noqa: E402
 from validate_fatos import validar_fatos  # noqa: E402
+from validate_placeholder_semantics import validar_semantica  # noqa: E402
 
 garantir_utf8()
 
@@ -244,6 +245,15 @@ def _etapa_placeholders(caso: Path, stages: list, tempestividade_valor: str):
                          f"inventou o valor), mas um compromisso financeiro/"
                          f"factual concreto não pode ficar como sentinela de "
                          f"ausência no documento final (CLAUDE.md §17).")
+
+    # Etapa 3 (gate pós-diagnóstico forense): conteúdo semanticamente
+    # incompatível com o contrato do placeholder (ex.: AUTOR com cláusula
+    # de qualificação/CPF duplicando o texto fixo do template — achado
+    # real que causou quebra de página) nunca alcança o template.
+    ok_semantica, erros_semantica = validar_semantica(dados)
+    if not ok_semantica:
+        return _abortar(stages, "placeholders",
+                         f"conteúdo semanticamente inválido: {erros_semantica}")
 
     stages.append({"name": "drafting_humanization", "status": "ok",
                     "fonte": str(caminho)})

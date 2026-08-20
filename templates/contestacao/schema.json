@@ -27,5 +27,92 @@
       "descricao": "Campo textual — não recebe imagem embutida automaticamente na V1. O valor gerado deve ser um marcador explícito instruindo o advogado a inserir manualmente as fotografias da irregularidade após a geração do DOCX (ex.: \"[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]\"), não uma descrição textual da irregularidade em si (essa é IRREGULARIDADE_ENCONTRADA). Campo puramente informativo — não lido pelo Template Engine (docx_template_engine.py só consome 'editable_placeholders'); documenta a semântica para quem gerar os valores dos placeholders (skills/contestacao/SKILL.md).",
       "referencia": "PEND-001 (docs/PENDENCIAS.md) — status DEFERRED, não bloqueia mais a Fase 7"
     }
+  },
+  "_nota_placeholder_contracts": "Contrato semântico dos 13 placeholders (Etapa 3, pós-diagnóstico forense do bug real de paginação — ver CHANGELOG). Metadado informativo/documental, mesmo status de 'placeholder_semantics' acima: docx_template_engine.py não lê este bloco. A validação executável do que está aqui vive em scripts/validate_placeholder_semantics.py (só os campos com 'restricoes' concretas e verificáveis têm checagem automática — os demais são só documentação de contrato).",
+  "placeholder_contracts": {
+    "JUIZO": {
+      "tipo": "IDENTIFICADOR",
+      "descricao": "Juízo/vara competente.",
+      "multiline": false,
+      "restricoes": []
+    },
+    "NUMERO_PROCESSO": {
+      "tipo": "IDENTIFICADOR",
+      "descricao": "Número do processo, formato CNJ (NNNNNNN-DD.AAAA.J.TR.OOOO).",
+      "multiline": false,
+      "restricoes": ["formato CNJ obrigatório — validado por scripts/validate_placeholder_semantics.py"]
+    },
+    "AUTOR": {
+      "tipo": "IDENTIFICADOR",
+      "descricao": "Nome da parte autora — apenas o nome. O texto fixo do template já formula a cláusula de qualificação (\"já qualificado(a) nos autos\") e, quando aplicável, o CPF, imediatamente depois do placeholder.",
+      "multiline": false,
+      "restricoes": [
+        "não incluir CPF/RG",
+        "não incluir endereço/profissão/estado civil",
+        "não incluir cláusula de qualificação (\"já qualificado(a)\", \"qualificado(a) nos autos\", \"residente\", \"domiciliado(a)\", \"portador(a)\")",
+        "não incluir texto narrativo adicional",
+        "achado real (gate de diagnóstico forense): duplicar a cláusula de qualificação já causou quebra de página confirmada por isolamento causal — validado por scripts/validate_placeholder_semantics.py"
+      ]
+    },
+    "TEMPESTIVIDADE_CASO": {
+      "tipo": "TEXTO_TECNICO",
+      "descricao": "Memória de cálculo da tempestividade (INV-TEMPESTIVIDADE-MARCO, SPEC-0001 §5).",
+      "multiline": true,
+      "restricoes": ["nunca \"PENDENTE DE VALIDAÇÃO\" — bloqueado estruturalmente antes de chegar aqui (scripts/gerar_contestacao.py)"]
+    },
+    "SINOPSE_FATOS": {
+      "tipo": "TEXTO_LONGO",
+      "descricao": "Síntese dos fatos relevantes do caso.",
+      "multiline": true,
+      "restricoes": []
+    },
+    "REALIDADE_FATICA": {
+      "tipo": "TEXTO_LONGO",
+      "descricao": "Contraposição factual da Ré aos fatos alegados pela parte autora.",
+      "multiline": true,
+      "restricoes": []
+    },
+    "IRREGULARIDADE_ENCONTRADA": {
+      "tipo": "TEXTO_TECNICO",
+      "descricao": "Descrição da irregularidade constatada (TOI/laudo).",
+      "multiline": true,
+      "restricoes": []
+    },
+    "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": {
+      "tipo": "TEXTO_TECNICO",
+      "descricao": "Análise técnica artigo-por-artigo da REN ANEEL 1.000/2021 aplicada ao caso.",
+      "multiline": true,
+      "restricoes": []
+    },
+    "FOTOS_DA_IRREGULARIADE": {
+      "tipo": "MARCADOR_MANUAL",
+      "descricao": "Ver 'placeholder_semantics.FOTOS_DA_IRREGULARIADE' acima — marcador textual de pós-edição manual, PEND-001 DEFERRED.",
+      "multiline": false,
+      "restricoes": []
+    },
+    "ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA": {
+      "tipo": "TEXTO_TECNICO",
+      "descricao": "Argumentação sobre a evolução do histórico de consumo da unidade consumidora.",
+      "multiline": true,
+      "restricoes": []
+    },
+    "VALOR_FRA": {
+      "tipo": "VALOR",
+      "descricao": "Valor monetário da recuperação de consumo (FRA) — nunca calculado/estimado por inferência; extraído dos documentos ou sinalizado como ausente.",
+      "multiline": false,
+      "restricoes": ["deve conter dígito (valor monetário) ou a sentinela de ausência \"NÃO INFORMADO...\" — validado por scripts/validate_placeholder_semantics.py"]
+    },
+    "PEDIDOS_FINAIS": {
+      "tipo": "TEXTO_LONGO",
+      "descricao": "Impugnação dos pedidos do autor e teses subsidiárias.",
+      "multiline": true,
+      "restricoes": []
+    },
+    "LOCAL_DATA": {
+      "tipo": "IDENTIFICADOR",
+      "descricao": "Local do escritório e data de assinatura (dado operacional, não jurídico).",
+      "multiline": false,
+      "restricoes": ["não deve conter narrativa jurídica — validado por scripts/validate_placeholder_semantics.py"]
+    }
   }
 }

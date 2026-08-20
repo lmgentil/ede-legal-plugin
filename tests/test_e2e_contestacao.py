@@ -115,6 +115,7 @@ def _validar_conteudo_sintetico(caminho: Path):
     for trecho in esperados:
         assert trecho in document_xml, f"trecho esperado não encontrado no DOCX gerado: {trecho!r}"
     assert "{{" not in document_xml, "placeholder residual (chaves duplas) no XML final"
+    assert 'w:val="FF0000"' in document_xml, "conteúdo gerado deveria estar em FF0000 (Etapa 3)"
 
 
 # --------------------------------------------------------------- fail-closed
@@ -129,6 +130,29 @@ def test_fail_closed_valor_essencial_ausente():
         assert r["stage"] == "placeholders"
         assert "VALOR_FRA" in r["reason"]
         assert not saida.exists(), "PIPELINE_ABORTED não pode deixar DOCX no disco"
+
+
+def test_fail_closed_autor_semanticamente_invalido():
+    # Etapa 3 (gate pós-diagnóstico forense): AUTOR com cláusula de
+    # qualificação/CPF duplicando o texto fixo do template — o padrão
+    # exato do bug real — nunca pode alcançar o template.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        placeholders = json.loads((caso_tmp / "placeholders.json").read_text(encoding="utf-8"))
+        placeholders["AUTOR"] = ("Fulana de Tal, já qualificada nos autos, "
+                                  "portadora do CPF nº 011.730.795-56")
+        (caso_tmp / "placeholders.json").write_text(json.dumps(placeholders), encoding="utf-8")
+
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED"
+        assert r["stage"] == "placeholders"
+        assert "AUTOR" in r["reason"]
+        assert not saida.exists()
 
 
 def test_fail_closed_estrategista_indisponivel():

@@ -23,8 +23,22 @@ encurtar só o AUTOR eliminou a quebra, nada mais precisou mudar).
 Só valida os campos com regra objetivamente segura (CLAUDE.md: preferir
 falhar explicitamente só quando o padrão é confiável, nunca bloquear
 texto jurídico legítimo por heurística agressiva de comprimento). Os
-campos de texto longo/técnico (SINOPSE_FATOS, REALIDADE_FATICA etc.) não
-recebem validação semântica de conteúdo aqui.
+campos de texto longo/técnico (REALIDADE_FATICA, IRREGULARIDADE_ENCONTRADA
+etc.) não recebem validação semântica de conteúdo aqui.
+
+SINOPSE_FATOS (Etapa 5.2, INV-SINOPSE-ESTRITAMENTE-AUTORAL) é exceção
+parcial: recebe um backstop LEXICAL — uma lista fechada de marcadores
+defensivos que não têm lugar numa síntese puramente narrativa da inicial
+("não comprovou", "não merece prosperar", "os documentos demonstram"...).
+Isto é deliberadamente um backstop, não o controle real: ocorrência
+lexical prova contaminação defensiva o bastante para reprovar
+(CLAUDE.md §17, fail closed), mas AUSÊNCIA de qualquer marcador aqui NÃO
+prova que a Sinopse está correta — texto defensivo bem escrito, sem essas
+palavras específicas, passa por este validador sem ser pego. O controle
+real (a Sinopse é estritamente a narrativa da inicial, nunca a versão da
+Ré) é COMPORTAMENTAL — reforçado nas instruções de
+skills/contestacao/SKILL.md e skills/redator-peca-processual-elite/
+SKILL.md, não algo que uma lista de palavras-proibidas resolve sozinha.
 
 Uso:
   python validate_placeholder_semantics.py --dados dados.json
@@ -100,6 +114,32 @@ def _validar_valor_fra(valor) -> list:
     return []
 
 
+# Etapa 5.2 — INV-SINOPSE-ESTRITAMENTE-AUTORAL: marcadores defensivos que
+# não pertencem à Sinopse (função exclusivamente narrativa da inicial).
+# Lista fechada e deliberadamente conservadora (só frases inequivocamente
+# defensivas) — ver docstring do módulo sobre os limites deste backstop.
+_MARCADORES_DEFENSIVOS_SINOPSE = (
+    "NAO COMPROVOU", "NAO MERECE PROSPERAR", "AO CONTRARIO DO ALEGADO",
+    "OS DOCUMENTOS DEMONSTRAM", "NAO HA PROVA", "NAO HA PROVAS",
+    "COBRANCA E LEGITIMA", "LEGITIMIDADE DA COBRANCA",
+    "REGULARIDADE DA ATUACAO", "ATUACAO REGULAR DA RE",
+    "IMPROCEDE", "IMPROCEDENTE",
+)
+
+
+def _validar_sinopse_fatos(valor) -> list:
+    v = _sem_acento(str(valor)).upper()
+    achados = [m for m in _MARCADORES_DEFENSIVOS_SINOPSE if m in v]
+    if achados:
+        return [
+            f"SINOPSE_FATOS contém marcador(es) de linguagem defensiva "
+            f"{achados} — INV-SINOPSE-ESTRITAMENTE-AUTORAL: a Sinopse é "
+            f"exclusivamente a narrativa da inicial (fatos alegados + "
+            f"pedidos), nunca a versão ou impugnação da Ré; a defesa "
+            f"pertence a REALIDADE_FATICA e aos tópicos de mérito"]
+    return []
+
+
 def _validar_local_data(valor) -> list:
     texto = str(valor)
     erros = []
@@ -124,6 +164,7 @@ VALIDADORES_ESPECIFICOS = {
     "NUMERO_PROCESSO": _validar_numero_processo,
     "VALOR_FRA": _validar_valor_fra,
     "LOCAL_DATA": _validar_local_data,
+    "SINOPSE_FATOS": _validar_sinopse_fatos,
 }
 
 

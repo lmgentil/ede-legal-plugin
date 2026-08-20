@@ -95,16 +95,26 @@ documentos do processo
    estrutura defensiva / matriz de impugnação / teses / riscos
   ↓
 4A. decisões de blocos condicionais (INCLUIR/EXCLUIR/INDETERMINADO) — §4A
+    + estado_processual.json (GRATUIDADE_CONCEDIDA vincula
+    PRELIMINAR_REVOGACAO_GRATUIDADE deterministicamente; CORTE_EFETIVO
+    é gate fático para LICITUDE_CORTE_SUSPENSAO) + reconvenção via
+    AskUserQuestion (SIM/NÃO) — §4A
   ↓
 5. RAG jurídico -> validação jurídica de cada citação (§7)
   ↓
 6. redator-peca-processual-elite -> humanizer-pt-br (§8)
   ↓
-7. geração dos 13 valores de placeholder (§9)
+7. geração dos 13 valores de placeholder (§9) — Sinopse estritamente
+   autoral (INV-SINOPSE-ESTRITAMENTE-AUTORAL), parágrafos ≤380 caracteres
+   (INV-PARAGRAFO-380)
   ↓
-8. (Fase 7) motor documental (scripts/gerar_contestacao.py: block_composition
-   via scripts/docx_block_engine.py -> Template Engine, scripts/
-   docx_template_engine.py) -> Template Lock composicional -> Contestação
+8. validação de INV-PARAGRAFO-380 (scripts/validate_paragrafos.py) —
+   parágrafo >380 aborta antes do motor documental (stage=paragrafo_380)
+  ↓
+9. (Fase 7) motor documental (scripts/gerar_contestacao.py: block_composition
+   via scripts/docx_block_engine.py, com os gates fáticos de 4A -> Template
+   Engine, scripts/docx_template_engine.py) -> Template Lock composicional
+   -> Contestação
 ```
 
 Não pule etapas para "adiantar" a peça — um pedido da inicial sem resposta,
@@ -156,7 +166,8 @@ for decidido aqui e nunca decide por conta própria (nenhuma heurística
 jurídica em Python).
 
 Depois de `estrategista-contestacao-ede` (§4) concluída, para cada bloco
-folha do catálogo (`decision_mode: "estrategista"`), registre um estado —
+folha do catálogo (`decision_mode: "estrategista"` **ou** `"humano"` — ver
+RECONVENCAO abaixo), registre um estado —
 **apenas um destes três, sem sinônimo, sem booleano, sem número**:
 
 - `INCLUIR` — a tese se aplica ao caso, com fundamento.
@@ -169,16 +180,119 @@ bloco, com proveniência:
 ```json
 {
   "PRELIMINAR_CDC_INAPLICAVEL": {"decisao": "INCLUIR", "fundamento": "parte autora é pessoa jurídica que usa a energia como insumo produtivo — sem relação de consumo"},
-  "PRELIMINAR_REVOGACAO_GRATUIDADE": {"decisao": "EXCLUIR", "fundamento": "não há gratuidade de justiça deferida nestes autos"},
-  "RECONVENCAO": {"decisao": "INCLUIR", "fundamento": "há débito de recuperação de consumo (FRA) comprovado e não adimplido"}
+  "RECONVENCAO": {"decisao": "INCLUIR", "fundamento": "advogado respondeu SIM à pergunta obrigatória — há débito de recuperação de consumo (FRA) comprovado e não adimplido"}
 }
 ```
 
-Blocos `CONTAINER_DERIVED` (ex.: `PRELIMINARES`) e o inline vinculado
-(`INLINE:COM_RECONVENCAO`) **nunca recebem decisão manual** — seu estado é
-derivado automaticamente pelo motor a partir dos filhos/bloco vinculado
-(`docx_block_engine.validar_e_resolver_decisoes`); incluí-los em
-`decisoes_blocos.json` é erro (`stage=decisao_invalida`).
+Blocos `CONTAINER_DERIVED` (ex.: `PRELIMINARES`), o inline vinculado
+(`INLINE:COM_RECONVENCAO`) e o vinculado a estado processual
+(`PRELIMINAR_REVOGACAO_GRATUIDADE`, ver INV-GRATUIDADE-LINKED abaixo)
+**nunca recebem decisão manual** — seus estados são derivados
+automaticamente pelo motor a partir dos filhos/bloco vinculado/estado
+processual (`docx_block_engine.validar_e_resolver_decisoes`); incluí-los
+em `decisoes_blocos.json` é erro (`stage=decisao_invalida`).
+
+### INV-RECONVENCAO-AUTORIZACAO-EXPRESSA (Etapa 5.2)
+
+`RECONVENCAO` é `decision_mode: "humano"` no catálogo — não `"estrategista"`
+(mudança da Etapa 5.2; o Teste Real 01 mostrou reconvenção inserida sem
+autorização expressa do advogado). `estrategista-contestacao-ede` pode
+identificar a **possibilidade material** de reconvenção (débito de FRA
+comprovado), mas **você, Skill `contestacao`, decide se pergunta e registra
+a decisão** — nunca o estrategista sozinho, nunca por inferência da
+existência de `VALOR_FRA`/irregularidade/tese favorável. Fluxo obrigatório:
+
+1. Se a análise estratégica indicar possibilidade material de reconvenção,
+   pergunte — `AskUserQuestion` — ao advogado: **"Deseja apresentar
+   reconvenção neste processo?"** (SIM/NÃO).
+2. Resposta **NÃO** → registre `{"decisao": "EXCLUIR", "fundamento":
+   "advogado respondeu NÃO à pergunta obrigatória"}`. `INLINE_COM_RECONVENCAO`
+   segue automaticamente (linked) — nenhum resíduo "COM RECONVENÇÃO" no
+   título.
+3. Resposta **SIM** → registre `{"decisao": "INCLUIR", ...}` **somente se**
+   as dependências já existentes estiverem satisfeitas (`VALOR_FRA` com
+   valor real, não sentinela — `scripts/validate_placeholder_semantics.py`).
+4. **Sem resposta** (advogado não respondeu, ou a pergunta não foi feita) →
+   não registre decisão nenhuma para `RECONVENCAO` (ou registre
+   `INDETERMINADO` se precisar deixar rastro) — o fail-closed já existente
+   (`decisao_ausente`/`decisao_indeterminada`) aborta o pipeline
+   (`PIPELINE_ABORTED`, `stage=block_composition`). Nunca presuma SIM.
+
+### INV-GRATUIDADE-LINKED (Etapa 5.2, corrigida) — vínculo determinístico, não decisão
+
+**`PRELIMINAR_REVOGACAO_GRATUIDADE` não é decisão sua nem do estrategista
+— nunca registre uma entrada para ela em `decisoes_blocos.json`.** No
+catálogo, `decision_mode: "state_linked"` com `linked_fact:
+"GRATUIDADE_CONCEDIDA"`: o estado do bloco **é** o estado processual,
+resolvido inteiramente por `docx_block_engine.py` a partir de
+`estado_processual.json` (mesmo diretório do caso; ausente conta como
+`{}`):
+
+```json
+{
+  "GRATUIDADE_CONCEDIDA": {"valor": true, "fonte_documento": "decisao-fls-20.pdf", "pagina": 2}
+}
+```
+
+Contrato determinístico, sem etapa intermediária de "elegibilidade +
+decisão estratégica":
+
+- `GRATUIDADE_CONCEDIDA: true` → `PRELIMINAR_REVOGACAO_GRATUIDADE = INCLUIR`,
+  automaticamente.
+- `GRATUIDADE_CONCEDIDA` ausente, `false`, ou não confirmada (**mero
+  pedido de gratuidade, declaração de hipossuficiência sem decisão, ou
+  pedido pendente**) → `EXCLUIR`, automaticamente. Só decisão/ato
+  processual inequívoco de concessão conta como `true` — ausência simples
+  de informação NUNCA vira ambiguidade, resolve para `false`/`EXCLUIR`.
+- `GRATUIDADE_CONCEDIDA: "INDETERMINADO"` (documentos genuinamente
+  contraditórios ou insuficientes para determinar se houve concessão) →
+  o motor aborta (`PIPELINE_ABORTED`, `stage=block_composition`,
+  `decisao_indeterminada`) — pergunte ao advogado antes de prosseguir,
+  nunca decida silenciosamente.
+- Se, por engano, `decisoes_blocos.json` incluir uma entrada para
+  `PRELIMINAR_REVOGACAO_GRATUIDADE`, o motor **rejeita explicitamente**
+  (`stage=block_composition`, `decisao_invalida`) — nunca ignora a
+  decisão indevida em silêncio, mesmo que ela coincida com o estado real.
+
+Resolva `GRATUIDADE_CONCEDIDA` a partir dos documentos do caso (mesma
+disciplina de proveniência de §5) — **nunca por ocorrência lexical**
+("requer gratuidade" não vira `GRATUIDADE_CONCEDIDA: true`). Você (e o
+estrategista) podem desenvolver o conteúdo/argumentação do bloco quando
+ele já estiver presente — mas não decidem se ele existe.
+
+### INV-CORTE-EFETIVO (Etapa 5.2) — gate fático + decisão estratégica
+
+Diferente da gratuidade: `LICITUDE_CORTE_SUSPENSAO` continua
+`decision_mode: "estrategista"`, com um gate fático (`requires_fact`) por
+cima — `INCLUIR` só é aceito se `CORTE_EFETIVO: true` em
+`estado_processual.json`, mas a decisão `INCLUIR`/`EXCLUIR` em si
+continua sendo da análise estratégica quando o fato é verdadeiro (ao
+contrário da gratuidade, aqui HÁ decisão do estrategista a registrar em
+`decisoes_blocos.json`). **Mera ameaça de corte, aviso de possível
+suspensão, ou pedido preventivo para impedir corte futuro NÃO satisfazem
+o gate** — só corte/suspensão/interrupção efetivamente ocorrido conta
+como `true`. Nunca por ocorrência lexical: "não houve corte" no texto de
+um documento não vira `CORTE_EFETIVO: true`. Se o gate falhar (`INCLUIR`
+sem o fato confirmado), o motor aborta com `stage=block_composition`,
+`etapa=gate_fatico_nao_satisfeito` — trate como qualquer outro
+fail-closed deste pipeline, nunca contorne registrando `EXCLUIR` "para
+destravar" sem reavaliar se `INCLUIR` era mesmo a decisão certa.
+
+### INV-BLOCO-SUPORTE-FATICO (Etapa 5.2) — princípio geral
+
+Nenhum bloco condicional entra na peça só porque existe no catálogo, é
+juridicamente possível, é comum nesse tipo de processo, ou o RAG recuperou
+legislação relacionada. Para todo bloco (não só os dois acima), exija de
+si mesma um fato/alegação/estado processual concreto, com proveniência,
+antes de considerar a tese elegível — só depois disso a decide como
+estratégica. Para `DESCABIMENTO_DANO_MORAL`, especificamente: só é
+elegível se a autora formulou pretensão de dano moral (extraída
+estruturalmente dos pedidos, §6 — nunca por busca lexical na petição).
+Diferente do vínculo de gratuidade e do gate de corte, esta é uma
+invariante **comportamental** (não há validação Python determinística
+para "há suporte fático" em geral — seria heurística jurídica em código,
+vedada por CLAUDE.md §3/§6) — a disciplina é sua, como
+orquestradora, e do estrategista.
 
 **`INDETERMINADO` nunca chega ao DOCX.** Se, depois de examinar os
 documentos e a análise estratégica, um bloco permanecer `INDETERMINADO`
@@ -375,7 +489,7 @@ Monte um único JSON `{PLACEHOLDER: valor}` (ver
 | `NUMERO_PROCESSO` | Extração factual (§5) |
 | `AUTOR` | Extração factual (§5) — **apenas o nome da parte autora.** O texto fixo do template já formula a cláusula de qualificação ("já qualificado(a) nos autos") e o CPF, quando aplicável, imediatamente depois do placeholder. Nunca produza `"Fulano de Tal, já qualificado nos autos, portador do CPF nº..."` — a duplicação dessa cláusula já causou quebra de página real, confirmada por diagnóstico forense (isolamento causal: encurtar só o AUTOR eliminou a quebra). Contrato completo em `templates/contestacao/schema.json` (`placeholder_contracts.AUTOR`), verificado automaticamente por `scripts/validate_placeholder_semantics.py` antes da geração final |
 | `TEMPESTIVIDADE_CASO` | Tempestividade (§6) — memória de cálculo com marco temporal resolvido (INV-TEMPESTIVIDADE-MARCO); nunca `PENDENTE DE VALIDAÇÃO` |
-| `SINOPSE_FATOS` | Extração factual (§5) + redator/humanizer |
+| `SINOPSE_FATOS` | Extração factual (§5) + redator/humanizer — **estritamente autoral, INV-SINOPSE-ESTRITAMENTE-AUTORAL (Etapa 5.2)**, ver detalhe abaixo |
 | `REALIDADE_FATICA` | Extração factual (§5) + análise estratégica (§4) + redator/humanizer |
 | `IRREGULARIDADE_ENCONTRADA` | Extração factual (TOI/laudo) + análise estratégica (§4) + RAG/validação (§7) + redator/humanizer |
 | `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` | Análise estratégica (§4, análise artigo-por-artigo REN 1.000/2021) + RAG/validação (§7) + redator/humanizer |
@@ -392,13 +506,58 @@ saída de `estrategista-contestacao-ede`.
 Cada placeholder tem um contrato semântico formal (tipo, restrições) em
 `templates/contestacao/schema.json` (`placeholder_contracts`) —
 `scripts/validate_placeholder_semantics.py` verifica automaticamente
-`AUTOR`, `NUMERO_PROCESSO`, `VALOR_FRA` e `LOCAL_DATA` antes da geração
-final; conteúdo semanticamente incompatível aborta o pipeline
-(`PIPELINE_ABORTED`, stage `placeholders`), nunca chega ao template. O
-Template Engine, automaticamente e sem ação desta Skill, marca em
-vermelho (`FF0000`) todo texto inserido nos placeholders — regra
-transversal ao motor documental (não exclusiva da Contestação); o texto
-fixo institucional nunca muda de cor.
+`AUTOR`, `NUMERO_PROCESSO`, `VALOR_FRA`, `LOCAL_DATA` e (Etapa 5.2)
+`SINOPSE_FATOS` antes da geração final; conteúdo semanticamente
+incompatível aborta o pipeline (`PIPELINE_ABORTED`, stage `placeholders`),
+nunca chega ao template. O Template Engine, automaticamente e sem ação
+desta Skill, marca em vermelho (`FF0000`) todo texto inserido nos
+placeholders — regra transversal ao motor documental (não exclusiva da
+Contestação); o texto fixo institucional nunca muda de cor.
+
+### INV-SINOPSE-ESTRITAMENTE-AUTORAL (Etapa 5.2)
+
+`SINOPSE_FATOS` tem função **exclusivamente narrativa** — responde só "o
+que a parte autora afirma que aconteceu e o que pretende obter
+judicialmente?", com fonte primária na petição inicial. Pode conter:
+relação jurídica narrada, fatos alegados, evento que originou a demanda,
+condutas atribuídas à ré, consequências alegadas, pedidos formulados,
+valores pedidos, causa de pedir em síntese. **É proibido** nela: versão
+da ré, análise comercial, argumentação defensiva, impugnação, valoração
+de prova, ou qualquer formulação do tipo "não comprovou", "não merece
+prosperar", "ao contrário do alegado", "os documentos demonstram", "não
+há prova", "a cobrança é legítima", "regularidade da atuação" — essas
+pertencem a `REALIDADE_FATICA` e aos tópicos de defesa, nunca à Sinopse.
+`scripts/validate_placeholder_semantics.py` roda um backstop lexical
+sobre um conjunto fechado desses marcadores (rejeita se encontrar — mas a
+ausência deles não prova que a Sinopse está correta: texto defensivo bem
+escrito passa incólume por esse backstop). **O controle real é seu, como
+orquestradora**: ao montar `SINOPSE_FATOS`, releia e confirme que não há
+nenhuma palavra de valoração/impugnação, só narrativa + pedidos. Se não
+for possível identificar a petição inicial com segurança, não fabrique a
+Sinopse — trate como qualquer outra lacuna fática (fail closed/interação).
+
+### INV-PARAGRAFO-380 / INV-NAO-REDUNDANCIA / INV-NAO-REDUNDANCIA-NORMATIVA (Etapa 5.2)
+
+Ao consumir o texto produzido por `redator-peca-processual-elite` +
+`humanizer-pt-br` para os campos multiline (`SINOPSE_FATOS`,
+`REALIDADE_FATICA`, `IRREGULARIDADE_ENCONTRADA`,
+`DESENVOLVIMENTO_TECNICO_IRREGULARIDADE`,
+`ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA`, `PEDIDOS_FINAIS`,
+`TEMPESTIVIDADE_CASO`), confira que cada parágrafo (separado por `\n`
+dentro do valor — a mesma quebra que vira `<w:br/>` no DOCX final) tem no
+máximo **380 caracteres com espaços**. `scripts/validate_paragrafos.py`
+valida isso estruturalmente antes do motor documental
+(`stage=paragrafo_380`, `PIPELINE_ABORTED` se violado) — mas não corta
+texto automaticamente: se um parágrafo estourar o limite, devolva ao
+redator para decompor o raciocínio em mais parágrafos, nunca resuma o
+conteúdo. Cada novo parágrafo deve acrescentar um elemento argumentativo
+útil (fato, prova, subsunção, conclusão) — não multiplique parágrafos só
+para meter o texto no limite (INV-NAO-REDUNDANCIA, comportamental, sem
+validação Python). Igualmente comportamental: não deixe a redação
+variável repetir dispositivo normativo já presente no tópico-base fixo do
+modelo institucional (INV-NAO-REDUNDANCIA-NORMATIVA) — o RAG (§7) valida/
+complementa a fundamentação já existente, não gera lista de artigos para
+despejar no texto.
 
 Cada valor final passa pelo mesmo Fail Closed do restante do projeto: se
 um placeholder depende de dado ausente, o valor deve dizer isso
@@ -429,4 +588,16 @@ documental decidir, se uma tese condicional entra ou sai da peça** (§4A) —
 essa decisão é sempre da etapa estratégica, nunca de heurística em código
 Python. **Não gera o DOCX final enquanto qualquer bloco condicional
 permanecer `INDETERMINADO`** — pergunta ao advogado quando resolvível,
-relata a pendência e para quando não for.
+relata a pendência e para quando não for. **Não decide reconvenção por
+conta própria nem deixa o estrategista decidir sozinho** — sempre
+pergunta SIM/NÃO ao advogado (INV-RECONVENCAO-AUTORIZACAO-EXPRESSA, §4A).
+**Não inclui `LICITUDE_CORTE_SUSPENSAO` sem corte/suspensão efetivamente
+noticiado** (INV-CORTE-EFETIVO, §4A), **nem decide, registra ou tenta
+influenciar a existência de `PRELIMINAR_REVOGACAO_GRATUIDADE`** — esse
+bloco é vinculado deterministicamente a `GRATUIDADE_CONCEDIDA` em
+`estado_processual.json`, nunca a uma decisão em `decisoes_blocos.json`
+(INV-GRATUIDADE-LINKED, §4A) — em nenhum dos dois casos por busca
+lexical. **Não deixa parágrafo de
+conteúdo variável ultrapassar 380 caracteres** (INV-PARAGRAFO-380, §9)
+nem permite que `SINOPSE_FATOS` contenha valoração/impugnação defensiva
+(INV-SINOPSE-ESTRITAMENTE-AUTORAL, §9).

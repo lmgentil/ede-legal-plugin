@@ -29,6 +29,7 @@
     }
   },
   "_nota_placeholder_contracts": "Contrato semântico dos 13 placeholders (Etapa 3, pós-diagnóstico forense do bug real de paginação — ver CHANGELOG). Metadado informativo/documental, mesmo status de 'placeholder_semantics' acima: docx_template_engine.py não lê este bloco. A validação executável do que está aqui vive em scripts/validate_placeholder_semantics.py (só os campos com 'restricoes' concretas e verificáveis têm checagem automática — os demais são só documentação de contrato).",
+  "_nota_paragrafo_380": "INV-PARAGRAFO-380 (Etapa 5.2): todo placeholder com 'multiline': true está sujeito ao limite de 380 caracteres por parágrafo (separador '\\n' dentro do valor). Validado por scripts/validate_paragrafos.py, não duplicado como 'restricoes' individual de cada campo abaixo.",
   "placeholder_contracts": {
     "JUIZO": {
       "tipo": "IDENTIFICADOR",
@@ -62,9 +63,9 @@
     },
     "SINOPSE_FATOS": {
       "tipo": "TEXTO_LONGO",
-      "descricao": "Síntese dos fatos relevantes do caso.",
+      "descricao": "Síntese exclusivamente narrativa da petição inicial (fatos alegados + pedidos) — INV-SINOPSE-ESTRITAMENTE-AUTORAL (Etapa 5.2). Nunca contém versão/impugnação da Ré.",
       "multiline": true,
-      "restricoes": []
+      "restricoes": ["sem valoração/impugnação defensiva — backstop lexical em scripts/validate_placeholder_semantics.py (não exaustivo; controle real é comportamental)"]
     },
     "REALIDADE_FATICA": {
       "tipo": "TEXTO_LONGO",

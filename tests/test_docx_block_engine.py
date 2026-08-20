@@ -134,6 +134,51 @@ def test_mc_choice_fallback_preservados_juntos():
     assert "choice" in saida and "fallback" in saida
 
 
+def test_sdt_aninhado_dentro_de_textbox_e_processado():
+    # Etapa 5.2 — achado real: INLINE_COM_RECONVENCAO vive dentro de
+    # wps:txbx/w:txbxContent (caixa de texto do título), não como filho
+    # direto de w:body nem de outro w:sdtContent. A composição precisa
+    # alcançar esse SDT mesmo assim (regressão do bug em que ele ficava
+    # intocado, qualquer que fosse a decisão).
+    wps = "http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
+    xml = (
+        '<w:document xmlns:w="%s" xmlns:wps="%s"><w:body>'
+        '<w:p><w:r><w:drawing><wps:wsp><wps:txbx><w:txbxContent>'
+        '<w:p><w:r><w:t>CONTESTAÇÃO</w:t></w:r>'
+        '<w:sdt><w:sdtPr><w:tag w:val="BLOCO:A"/><w:id w:val="1"/></w:sdtPr>'
+        '<w:sdtContent><w:r><w:t> conteudo A</w:t></w:r></w:sdtContent></w:sdt>'
+        '</w:p></w:txbxContent></wps:txbx></wps:wsp></w:drawing></w:r></w:p>'
+        '</w:body></w:document>'
+    ) % (W, wps)
+    catalogo = {"blocks": [CATALOGO_SIMPLES["blocks"][0]]}
+    root = _parse(xml)
+    r = compor_blocos(root, catalogo, {"FOLHA_A": "INCLUIR"})
+    assert r["incluidos"] == ["FOLHA_A"]
+    saida = LET.tostring(root).decode("utf-8")
+    assert "conteudo A" in saida
+    assert "<w:sdt>" not in saida  # unwrap efetivo — não ficou intocado
+
+
+def test_sdt_aninhado_dentro_de_textbox_excluir_remove():
+    wps = "http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
+    xml = (
+        '<w:document xmlns:w="%s" xmlns:wps="%s"><w:body>'
+        '<w:p><w:r><w:drawing><wps:wsp><wps:txbx><w:txbxContent>'
+        '<w:p><w:r><w:t>CONTESTAÇÃO</w:t></w:r>'
+        '<w:sdt><w:sdtPr><w:tag w:val="BLOCO:A"/><w:id w:val="1"/></w:sdtPr>'
+        '<w:sdtContent><w:r><w:t> COM RECONVENÇÃO</w:t></w:r></w:sdtContent></w:sdt>'
+        '</w:p></w:txbxContent></wps:txbx></wps:wsp></w:drawing></w:r></w:p>'
+        '</w:body></w:document>'
+    ) % (W, wps)
+    catalogo = {"blocks": [CATALOGO_SIMPLES["blocks"][0]]}
+    root = _parse(xml)
+    r = compor_blocos(root, catalogo, {"FOLHA_A": "EXCLUIR"})
+    assert r["excluidos"] == ["FOLHA_A"]
+    saida = LET.tostring(root).decode("utf-8")
+    assert "COM RECONVENÇÃO" not in saida
+    assert "<w:sdt>" not in saida
+
+
 # --------------------------------------------------------------- negativos I-O
 def test_I_sdt_duplicado_cardinalidade_one():
     xml = (
@@ -250,23 +295,38 @@ def test_pipeline_completo_com_blocos_contra_template_real():
         "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
     }
     decisoes_tudo_incluido = {b["id"]: {"decisao": "INCLUIR"}
-                               for b in catalogo["blocks"] if b["decision_mode"] == "estrategista"}
+                               for b in catalogo["blocks"] if b["decision_mode"] in ("estrategista", "humano")}
+    # Etapa 5.2 — gates fáticos (INV-GRATUIDADE-LINKED/INV-CORTE-EFETIVO):
+    # para o cenário "tudo incluído" ser um cenário válido, os estados
+    # processuais que os gates exigem precisam estar confirmados.
+    fatos_processuais_tudo = {"GRATUIDADE_CONCEDIDA": True, "CORTE_EFETIVO": True}
 
     with __import__("tempfile").TemporaryDirectory() as tmp:
         saida = Path(tmp) / "contestacao-blocos-teste.docx"
         r = gerar_peca_com_blocos(TEMPLATE_REAL, SCHEMA_REAL, CATALOGO_REAL,
-                                   dados, decisoes_tudo_incluido, saida)
+                                   dados, decisoes_tudo_incluido, saida,
+                                   fatos_processuais=fatos_processuais_tudo)
         assert r["status"] == "OK", r
         assert r["template_lock"] == "OK"
         assert saida.exists() and saida.stat().st_size > 0
         assert "PRELIMINARES" in r["blocos_incluidos"]
         assert "PRELIMINAR_CDC_INAPLICAVEL" in r["blocos_incluidos"]
+        # GRATUIDADE_CONCEDIDA=true (fatos_processuais_tudo) inclui o bloco
+        # automaticamente (state_linked) — sem decisão manual do estrategista.
+        assert "PRELIMINAR_REVOGACAO_GRATUIDADE" in r["blocos_incluidos"]
+        assert "PRELIMINAR_REVOGACAO_GRATUIDADE" not in decisoes_tudo_incluido
         assert r["containers_derivados"]["PRELIMINARES"] == "INCLUIR"
 
-        # cenário "nenhuma preliminar / evolução excluída / reconvenção excluída"
+        # cenário "nenhuma preliminar / evolução excluída / reconvenção excluída
+        # / sem corte efetivo" — LICITUDE_CORTE_SUSPENSAO também excluído aqui
+        # (Etapa 5.2: sem fatos_processuais informado, só EXCLUIR é aceito).
+        # PRELIMINAR_REVOGACAO_GRATUIDADE NÃO entra neste loop — é
+        # 'state_linked' (correção pontual pós-Etapa 5.2), nunca aceita
+        # decisão manual; sem fatos_processuais nesta chamada, resolve
+        # automaticamente para EXCLUIR (GRATUIDADE_CONCEDIDA ausente).
         decisoes_minimo = dict(decisoes_tudo_incluido)
-        for bid in ("PRELIMINAR_CDC_INAPLICAVEL", "PRELIMINAR_REVOGACAO_GRATUIDADE",
-                    "EVOLUCAO_CONSUMO", "RECONVENCAO"):
+        for bid in ("PRELIMINAR_CDC_INAPLICAVEL",
+                    "EVOLUCAO_CONSUMO", "RECONVENCAO", "LICITUDE_CORTE_SUSPENSAO"):
             decisoes_minimo[bid] = {"decisao": "EXCLUIR"}
         dados_sem_evolucao = dict(dados)
         saida2 = Path(tmp) / "contestacao-blocos-minimo.docx"
@@ -276,6 +336,9 @@ def test_pipeline_completo_com_blocos_contra_template_real():
         assert r2["containers_derivados"]["PRELIMINARES"] == "EXCLUIR"
         assert "RECONVENCAO" in r2["blocos_excluidos"]
         assert "EVOLUCAO_CONSUMO" in r2["blocos_excluidos"]
+        # sem fatos_processuais nesta chamada -> GRATUIDADE_CONCEDIDA ausente
+        # -> EXCLUIR automático (state_linked), sem decisão manual alguma.
+        assert "PRELIMINAR_REVOGACAO_GRATUIDADE" in r2["blocos_excluidos"]
 
         import zipfile as _zf
         with _zf.ZipFile(saida2) as z:
@@ -291,6 +354,43 @@ def test_pipeline_completo_com_blocos_contra_template_real():
                                     dados, decisoes_indeterminada, saida3)
         assert r3["status"] == "FALHOU"
         assert not saida3.exists()
+
+        # Etapa 5.2 (correção pontual) — INV-GRATUIDADE-LINKED contra o
+        # template real: decisão manual do estrategista para o bloco
+        # state_linked é sempre rejeitada, mesmo quando o fato coincide
+        # com a decisão fornecida — a decisão simplesmente não existe.
+        decisoes_com_decisao_indevida = dict(decisoes_tudo_incluido)
+        decisoes_com_decisao_indevida["PRELIMINAR_REVOGACAO_GRATUIDADE"] = {"decisao": "INCLUIR"}
+        saida4 = Path(tmp) / "nao_deve_existir_gratuidade.docx"
+        r4 = gerar_peca_com_blocos(TEMPLATE_REAL, SCHEMA_REAL, CATALOGO_REAL,
+                                    dados, decisoes_com_decisao_indevida, saida4,
+                                    fatos_processuais={"GRATUIDADE_CONCEDIDA": True, "CORTE_EFETIVO": True})
+        assert r4["status"] == "FALHOU" and r4["etapa"] == "decisao_invalida"
+        assert not saida4.exists()
+
+        # GRATUIDADE_CONCEDIDA indeterminada -> aborta para interação com o
+        # advogado, nunca decisão silenciosa.
+        saida4b = Path(tmp) / "nao_deve_existir_gratuidade_indeterminada.docx"
+        r4b = gerar_peca_com_blocos(TEMPLATE_REAL, SCHEMA_REAL, CATALOGO_REAL,
+                                     dados, decisoes_tudo_incluido, saida4b,
+                                     fatos_processuais={"GRATUIDADE_CONCEDIDA": "INDETERMINADO", "CORTE_EFETIVO": True})
+        assert r4b["status"] == "FALHOU" and r4b["etapa"] == "decisao_indeterminada"
+        assert not saida4b.exists()
+
+        saida5 = Path(tmp) / "nao_deve_existir_corte.docx"
+        r5 = gerar_peca_com_blocos(TEMPLATE_REAL, SCHEMA_REAL, CATALOGO_REAL,
+                                    dados, decisoes_tudo_incluido, saida5,
+                                    fatos_processuais={"GRATUIDADE_CONCEDIDA": True, "CORTE_EFETIVO": False})
+        assert r5["status"] == "FALHOU" and r5["etapa"] == "gate_fatico_nao_satisfeito"
+        assert not saida5.exists()
+
+        # gate ausente (fatos_processuais=None) tem o mesmo efeito que falso
+        # — fail closed por omissão, nunca por presunção de verdadeiro.
+        saida6 = Path(tmp) / "nao_deve_existir_sem_estado.docx"
+        r6 = gerar_peca_com_blocos(TEMPLATE_REAL, SCHEMA_REAL, CATALOGO_REAL,
+                                    dados, decisoes_tudo_incluido, saida6)
+        assert r6["status"] == "FALHOU" and r6["etapa"] == "gate_fatico_nao_satisfeito"
+        assert not saida6.exists()
 
     print("Pipeline completo com blocos contra o template real: OK "
           "(tudo incluído, mínimo, INDETERMINADO aborta sem DOCX).")

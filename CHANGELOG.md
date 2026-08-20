@@ -7,6 +7,54 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Adicionado (Etapa 5.2 — Calibração redacional, pertinência fática e controle de decisões)
+- Sete novas invariantes decorrentes do Teste Real 01 (`docs/specs/SPEC-0001.md`
+  §45, `CLAUDE.md` §7): `INV-PARAGRAFO-380` (parágrafo de conteúdo variável
+  ≤380 caracteres, `scripts/validate_paragrafos.py`, novo `stage=paragrafo_380`
+  em `scripts/gerar_contestacao.py`), `INV-NAO-REDUNDANCIA` e
+  `INV-NAO-REDUNDANCIA-NORMATIVA` (comportamentais), `INV-SINOPSE-ESTRITAMENTE-
+  AUTORAL` (`SINOPSE_FATOS` exclusivamente narrativa — backstop lexical em
+  `scripts/validate_placeholder_semantics.py`), `INV-RECONVENCAO-AUTORIZACAO-
+  EXPRESSA` (`RECONVENCAO` muda de `decision_mode: "estrategista"` para
+  `"humano"` em `templates/contestacao/blocos.json` — autorização expressa do
+  advogado via `AskUserQuestion`, não mais decisão do estrategista sozinho),
+  `INV-BLOCO-SUPORTE-FATICO` (princípio geral), `INV-GRATUIDADE-LINKED` e
+  `INV-CORTE-EFETIVO`. `estado_processual.json` (novo, opcional no diretório
+  do caso) carrega ambos os estados; nenhum dos dois aceita ocorrência
+  lexical como prova.
+- **Correção pontual pré-commit (auditoria do usuário)**:
+  `PRELIMINAR_REVOGACAO_GRATUIDADE` havia sido implementada como
+  `decision_mode: "estrategista"` + gate `requires_fact` — gate + decisão
+  estratégica, não o vínculo determinístico exigido ("a preliminar de
+  gratuidade deve ser linked"). Corrigido para novo `decision_mode:
+  "state_linked"` (`templates/contestacao/blocos.json`, campo
+  `linked_fact: "GRATUIDADE_CONCEDIDA"`) — o estado do bloco *é* o estado
+  processual (`true`→`INCLUIR`, ausente/`false`→`EXCLUIR`,
+  `"INDETERMINADO"`→aborta), nunca uma decisão da etapa estratégica;
+  decisão manual em `decisoes_blocos.json` para este bloco é rejeitada
+  explicitamente (`scripts/docx_block_engine.py`,
+  `_estado_fato_processual`, nova resolução `state_linked` antes dos
+  containers `derived`). `LICITUDE_CORTE_SUSPENSAO`/`INV-CORTE-EFETIVO`
+  preserva o mecanismo de gate original — a correção é específica da
+  gratuidade.
+- Corrigido bug real de composição: `compor_blocos`
+  (`scripts/docx_block_engine.py`) só descia por `w:sdtContent`, então um SDT
+  aninhado fora dessa cadeia (`INLINE:COM_RECONVENCAO`, dentro de
+  `wps:txbx/w:txbxContent` — a caixa de texto do título) nunca era alcançado
+  e ficava intocado independentemente da decisão de `RECONVENCAO`. Recursão
+  generalizada para descer por qualquer elemento, não só `w:sdtContent`.
+- `skills/contestacao/SKILL.md`, `skills/estrategista-contestacao-ede/SKILL.md`,
+  `skills/redator-peca-processual-elite/SKILL.md` atualizadas para explicar
+  como cumprir as sete invariantes acima. `estrategista-contestacao-ede`
+  continua obrigatória (`INV-CONTESTACAO-ESTRATEGIA` inalterada).
+- Fixture `tests/fixtures/contestacao/happy_path/placeholders.json`
+  reescrita (parágrafos ≤380 caracteres, `SINOPSE_FATOS` sem linguagem
+  defensiva) — mesmos fatos/valores sintéticos, sem alteração de conteúdo
+  substantivo. Novos testes em `tests/test_blocos_contestacao.py`,
+  `tests/test_docx_block_engine.py`, `tests/test_e2e_contestacao.py`,
+  `tests/test_validate_placeholder_semantics.py`, e novos arquivos
+  `scripts/validate_paragrafos.py`/`tests/test_validate_paragrafos.py`.
+
 ### Adicionado (Gate 5.1 — Trava de validação humana da Contestação)
 - `INV-GATE-CONTESTACAO` (`docs/specs/SPEC-0001.md` §32, `CLAUDE.md` §27,
   `tests/test_gate_contestacao.py`): enquanto a Contestação não for

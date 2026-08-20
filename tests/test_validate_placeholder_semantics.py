@@ -95,16 +95,66 @@ def test_local_data_narrativo_rejeitado():
 
 # --------------------------------------------------------------- campos livres
 def test_campos_narrativos_sem_validador_especifico_nao_bloqueiam():
-    # SINOPSE_FATOS/REALIDADE_FATICA/etc. não têm heurística de conteúdo
-    # (CLAUDE.md: nunca bloquear texto jurídico legítimo por comprimento).
+    # REALIDADE_FATICA/IRREGULARIDADE_ENCONTRADA/etc. não têm heurística de
+    # conteúdo (CLAUDE.md: nunca bloquear texto jurídico legítimo por
+    # comprimento). SINOPSE_FATOS é exceção — ver testes próprios abaixo.
     ok, erros = validar_semantica({
-        "SINOPSE_FATOS": "Texto longo qualquer, sem restrição semântica "
-                          "específica " * 20})
+        "REALIDADE_FATICA": "Texto longo qualquer, sem restrição semântica "
+                             "específica " * 20})
     assert ok, erros
 
 
 def test_dados_sem_nenhum_campo_com_validador_passa():
-    ok, erros = validar_semantica({"SINOPSE_FATOS": "x"})
+    ok, erros = validar_semantica({"REALIDADE_FATICA": "x"})
+    assert ok, erros
+
+
+# --------------------------------------------------------------- SINOPSE_FATOS (INV-SINOPSE-ESTRITAMENTE-AUTORAL)
+def test_sinopse_puramente_autoral_aceita():
+    ok, erros = validar_semantica({
+        "SINOPSE_FATOS": "A autora é titular da unidade consumidora. Em "
+                          "14/11/2025 foi lavrado TOI apontando irregularidade "
+                          "na medição. A autora nega a irregularidade e pede "
+                          "a declaração de inexigibilidade do débito."})
+    assert ok, erros
+
+
+def test_sinopse_com_nao_comprovou_rejeitada():
+    ok, erros = validar_semantica({
+        "SINOPSE_FATOS": "A autora alega dano moral, mas não comprovou "
+                          "qualquer abalo psicológico."})
+    assert not ok
+    assert any("SINOPSE_FATOS" in e for e in erros)
+
+
+def test_sinopse_com_analise_comercial_da_re_rejeitada():
+    ok, erros = validar_semantica({
+        "SINOPSE_FATOS": "Os documentos demonstram que a cobrança é legítima "
+                          "e decorre de irregularidade real na medição."})
+    assert not ok
+    assert any("SINOPSE_FATOS" in e for e in erros)
+
+
+def test_sinopse_com_conclusao_sobre_legitimidade_rejeitada():
+    ok, erros = validar_semantica({
+        "SINOPSE_FATOS": "A autora pede a declaração de inexigibilidade, "
+                          "mas a cobrança é legítima e regular."})
+    assert not ok
+
+
+def test_sinopse_com_regularidade_da_atuacao_rejeitada():
+    ok, erros = validar_semantica({
+        "SINOPSE_FATOS": "A autora questiona o procedimento, sem prejuízo da "
+                          "regularidade da atuação da concessionária."})
+    assert not ok
+
+
+def test_sinopse_objetiva_com_pedidos_aceita():
+    ok, erros = validar_semantica({
+        "SINOPSE_FATOS": "A autora narra ter recebido fatura de recuperação "
+                          "de consumo após TOI. Requer a declaração de "
+                          "inexigibilidade do débito e indenização por danos "
+                          "morais no valor de R$ 10.000,00."})
     assert ok, erros
 
 

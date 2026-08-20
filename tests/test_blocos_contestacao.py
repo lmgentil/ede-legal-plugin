@@ -95,6 +95,203 @@ def test_catalogo_real_reconvencao_e_inline_vinculados():
     assert por_id["INLINE_COM_RECONVENCAO"]["cardinality"] == "MC_PAIR"
 
 
+# --------------------------------------------------------------- Etapa 5.2
+def test_catalogo_real_reconvencao_e_decision_mode_humano():
+    # INV-RECONVENCAO-AUTORIZACAO-EXPRESSA: não pode mais ser decidida pela
+    # análise estratégica sozinha.
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    por_id = {b["id"]: b for b in catalogo["blocks"]}
+    assert por_id["RECONVENCAO"]["decision_mode"] == "humano"
+
+
+def test_catalogo_real_gratuidade_e_state_linked():
+    # INV-GRATUIDADE-LINKED (correção pontual): vínculo determinístico
+    # estado processual -> bloco, NÃO gate + decisão estratégica.
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    por_id = {b["id"]: b for b in catalogo["blocks"]}
+    assert por_id["PRELIMINAR_REVOGACAO_GRATUIDADE"]["decision_mode"] == "state_linked"
+    assert por_id["PRELIMINAR_REVOGACAO_GRATUIDADE"]["linked_fact"] == "GRATUIDADE_CONCEDIDA"
+    assert "requires_fact" not in por_id["PRELIMINAR_REVOGACAO_GRATUIDADE"]
+
+
+def test_catalogo_real_corte_tem_requires_fact():
+    # INV-CORTE-EFETIVO: continua GATE + decisão estratégica (preservado
+    # intocado pela correção pontual — só a gratuidade mudou de mecanismo).
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    por_id = {b["id"]: b for b in catalogo["blocks"]}
+    assert por_id["LICITUDE_CORTE_SUSPENSAO"]["decision_mode"] == "estrategista"
+    assert por_id["LICITUDE_CORTE_SUSPENSAO"]["requires_fact"]["key"] == "CORTE_EFETIVO"
+    # os demais blocos condicionais não ganharam gate/vínculo algum por acidente
+    sem_gate = {"PRELIMINAR_CDC_INAPLICAVEL", "DEVER_LEGAL_FISCALIZACAO",
+                "DESNECESSIDADE_AVISO_PREVIO", "CALCULOS_RECUPERACAO_CONSUMO",
+                "EVOLUCAO_CONSUMO", "NEXO_CAUSAL_INDEMONSTRADO", "DESCABIMENTO_DANO_MORAL"}
+    for bid in sem_gate:
+        assert "requires_fact" not in por_id[bid], bid
+        assert por_id[bid]["decision_mode"] not in ("state_linked", "linked"), bid
+
+
+def test_decisao_manual_em_bloco_humano_e_aceita_como_estrategista():
+    catalogo = {"blocks": [_base_bloco(id="H", tag="BLOCO:H", decision_mode="humano")]}
+    estados = validar_e_resolver_decisoes(catalogo, {"H": {"decisao": "INCLUIR"}})
+    assert estados == {"H": "INCLUIR"}
+
+
+def test_bloco_humano_sem_decisao_aborta_decisao_ausente():
+    catalogo = {"blocks": [_base_bloco(id="H", tag="BLOCO:H", decision_mode="humano")]}
+    e = _abortou(validar_e_resolver_decisoes, catalogo, {})
+    assert e and e.stage == "decisao_ausente"
+
+
+def test_bloco_humano_indeterminado_aborta():
+    # Cenário A/CENÁRIO 6 do prompt: reconvenção sem resposta -> aborta.
+    catalogo = {"blocks": [_base_bloco(id="H", tag="BLOCO:H", decision_mode="humano")]}
+    e = _abortou(validar_e_resolver_decisoes, catalogo, {"H": {"decisao": "INDETERMINADO"}})
+    assert e and e.stage == "decisao_indeterminada"
+
+
+CATALOGO_COM_GATE = {"blocks": [
+    _base_bloco(id="GATED", tag="BLOCO:GATED",
+                requires_fact={"key": "ESTADO_X"}),
+]}
+
+
+def test_requires_fact_bloqueia_incluir_sem_fato():
+    e = _abortou(validar_e_resolver_decisoes, CATALOGO_COM_GATE,
+                  {"GATED": {"decisao": "INCLUIR"}})
+    assert e and e.stage == "gate_fatico_nao_satisfeito"
+
+
+def test_requires_fact_bloqueia_incluir_com_fato_falso():
+    e = _abortou(validar_e_resolver_decisoes, CATALOGO_COM_GATE,
+                  {"GATED": {"decisao": "INCLUIR"}}, {"ESTADO_X": False})
+    assert e and e.stage == "gate_fatico_nao_satisfeito"
+
+
+def test_requires_fact_bloqueia_incluir_com_fato_ausente_do_dict():
+    e = _abortou(validar_e_resolver_decisoes, CATALOGO_COM_GATE,
+                  {"GATED": {"decisao": "INCLUIR"}}, {"OUTRO_ESTADO": True})
+    assert e and e.stage == "gate_fatico_nao_satisfeito"
+
+
+def test_requires_fact_permite_incluir_com_fato_verdadeiro():
+    estados = validar_e_resolver_decisoes(CATALOGO_COM_GATE,
+                  {"GATED": {"decisao": "INCLUIR"}}, {"ESTADO_X": True})
+    assert estados["GATED"] == "INCLUIR"
+
+
+def test_requires_fact_aceita_forma_com_proveniencia():
+    estados = validar_e_resolver_decisoes(CATALOGO_COM_GATE,
+                  {"GATED": {"decisao": "INCLUIR"}},
+                  {"ESTADO_X": {"valor": True, "fonte_documento": "decisao.pdf"}})
+    assert estados["GATED"] == "INCLUIR"
+
+
+def test_requires_fact_nao_bloqueia_excluir():
+    # o gate só restringe INCLUIR — EXCLUIR nunca precisa de suporte fático.
+    estados = validar_e_resolver_decisoes(CATALOGO_COM_GATE,
+                  {"GATED": {"decisao": "EXCLUIR"}})
+    assert estados["GATED"] == "EXCLUIR"
+
+
+def test_requires_fact_malformado_e_catalogo_invalido():
+    catalogo = {"blocks": [_base_bloco(id="G", tag="BLOCO:G", requires_fact={})]}
+    e = _abortou(validar_catalogo, catalogo)
+    assert e and e.stage == "catalogo_invalido" and "requires_fact" in e.motivo
+
+
+def test_requires_fact_em_bloco_derived_e_catalogo_invalido():
+    catalogo = {"blocks": [
+        _base_bloco(id="PAI", tag="BLOCO:PAI", tipo="CONTAINER_DERIVED",
+                    decision_mode="derived", derived_rule="ANY_CHILD_INCLUDED",
+                    children=["FILHO"], requires_fact={"key": "X"}),
+        _base_bloco(id="FILHO", tag="BLOCO:FILHO", parent="PAI"),
+    ]}
+    e = _abortou(validar_catalogo, catalogo)
+    assert e and e.stage == "catalogo_invalido" and "requires_fact" in e.motivo
+
+
+# ------------------------------------------ Etapa 5.2 (correção): state_linked
+CATALOGO_STATE_LINKED = {"blocks": [
+    _base_bloco(id="GRAT", tag="BLOCO:GRAT", decision_mode="state_linked",
+                linked_fact="GRATUIDADE_CONCEDIDA"),
+]}
+
+
+def test_state_linked_sem_linked_fact_e_catalogo_invalido():
+    catalogo = {"blocks": [_base_bloco(id="G", tag="BLOCO:G", decision_mode="state_linked")]}
+    e = _abortou(validar_catalogo, catalogo)
+    assert e and e.stage == "catalogo_invalido" and "linked_fact" in e.motivo
+
+
+def test_linked_fact_fora_de_state_linked_e_catalogo_invalido():
+    catalogo = {"blocks": [_base_bloco(id="G", tag="BLOCO:G", linked_fact="X")]}
+    e = _abortou(validar_catalogo, catalogo)
+    assert e and e.stage == "catalogo_invalido" and "linked_fact" in e.motivo
+
+
+def test_state_linked_A_fato_verdadeiro_inclui_sem_decisao_do_estrategista():
+    estados = validar_e_resolver_decisoes(CATALOGO_STATE_LINKED, {},
+                                           {"GRATUIDADE_CONCEDIDA": True})
+    assert estados == {"GRAT": "INCLUIR"}
+
+
+def test_state_linked_B_fato_falso_exclui_sem_decisao_do_estrategista():
+    estados = validar_e_resolver_decisoes(CATALOGO_STATE_LINKED, {},
+                                           {"GRATUIDADE_CONCEDIDA": False})
+    assert estados == {"GRAT": "EXCLUIR"}
+
+
+def test_state_linked_C_mero_pedido_sem_concessao_exclui():
+    # "mero pedido" não é modelado como um valor especial — é
+    # simplesmente ausência de GRATUIDADE_CONCEDIDA=true (fail closed).
+    estados = validar_e_resolver_decisoes(CATALOGO_STATE_LINKED, {}, {})
+    assert estados == {"GRAT": "EXCLUIR"}
+
+
+def test_state_linked_D_ausencia_total_do_dict_tambem_exclui():
+    estados = validar_e_resolver_decisoes(CATALOGO_STATE_LINKED, {}, None)
+    assert estados == {"GRAT": "EXCLUIR"}
+
+
+def test_state_linked_E_indeterminado_aborta():
+    e = _abortou(validar_e_resolver_decisoes, CATALOGO_STATE_LINKED, {},
+                  {"GRATUIDADE_CONCEDIDA": "INDETERMINADO"})
+    assert e and e.stage == "decisao_indeterminada"
+
+
+def test_state_linked_F_decisao_excluir_do_estrategista_e_rejeitada_mesmo_com_fato_verdadeiro():
+    e = _abortou(validar_e_resolver_decisoes, CATALOGO_STATE_LINKED,
+                  {"GRAT": {"decisao": "EXCLUIR"}}, {"GRATUIDADE_CONCEDIDA": True})
+    assert e and e.stage == "decisao_invalida" and "não aceita decisão manual" in e.motivo
+
+
+def test_state_linked_G_decisao_incluir_do_estrategista_e_rejeitada_mesmo_com_fato_falso():
+    e = _abortou(validar_e_resolver_decisoes, CATALOGO_STATE_LINKED,
+                  {"GRAT": {"decisao": "INCLUIR"}}, {"GRATUIDADE_CONCEDIDA": False})
+    assert e and e.stage == "decisao_invalida" and "não aceita decisão manual" in e.motivo
+
+
+def test_state_linked_valor_nao_reconhecido_aborta_estado_processual_invalido():
+    e = _abortou(validar_e_resolver_decisoes, CATALOGO_STATE_LINKED, {},
+                  {"GRATUIDADE_CONCEDIDA": "talvez"})
+    assert e and e.stage == "estado_processual_invalido"
+
+
+def test_state_linked_como_filho_de_container_derived_resolve_antes():
+    catalogo = {"blocks": [
+        _base_bloco(id="OUTRO_FILHO", tag="BLOCO:OF", parent="PAI"),
+        _base_bloco(id="GRAT", tag="BLOCO:GRAT", parent="PAI",
+                    decision_mode="state_linked", linked_fact="GRATUIDADE_CONCEDIDA"),
+        _base_bloco(id="PAI", tag="BLOCO:PAI", tipo="CONTAINER_DERIVED",
+                    decision_mode="derived", derived_rule="ANY_CHILD_INCLUDED",
+                    children=["OUTRO_FILHO", "GRAT"]),
+    ]}
+    estados = validar_e_resolver_decisoes(catalogo, {"OUTRO_FILHO": {"decisao": "EXCLUIR"}},
+                                           {"GRATUIDADE_CONCEDIDA": True})
+    assert estados["GRAT"] == "INCLUIR"
+    assert estados["PAI"] == "INCLUIR"  # ANY_CHILD_INCLUDED via GRAT
+
+
 # --------------------------------------------------------------- validação estrutural (A-H)
 def test_A_parent_inexistente():
     catalogo = {"blocks": [_base_bloco(id="A", parent="NAO_EXISTE")]}

@@ -1,6 +1,5 @@
 {
   "PRELIMINAR_CDC_INAPLICAVEL": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste (fail-closed de VALOR_FRA)."},
-  "PRELIMINAR_REVOGACAO_GRATUIDADE": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste."},
   "DEVER_LEGAL_FISCALIZACAO": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste."},
   "DESNECESSIDADE_AVISO_PREVIO": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste."},
   "CALCULOS_RECUPERACAO_CONSUMO": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — irrelevante para o teste."},

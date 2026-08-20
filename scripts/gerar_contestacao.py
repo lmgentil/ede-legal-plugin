@@ -52,9 +52,10 @@ sys.path.insert(0, str(BASE / "skills" / "calendario-forense-tjba-2026" / "scrip
 
 from calcular_tempestividade import PENDENTE, calcular_tempestividade  # noqa: E402
 from docx_block_engine import ComposicaoAbortada, carregar_catalogo, gerar_peca_com_blocos, validar_catalogo  # noqa: E402
-from docx_template_engine import garantir_utf8  # noqa: E402
+from docx_template_engine import carregar_schema, garantir_utf8  # noqa: E402
 from legal_validation import validar_citacao  # noqa: E402
 from validate_fatos import validar_fatos  # noqa: E402
+from validate_paragrafos import validar_paragrafos_placeholders  # noqa: E402
 from validate_placeholder_semantics import validar_semantica  # noqa: E402
 
 garantir_utf8()
@@ -209,13 +210,29 @@ def _etapa_blocos(caso: Path, stages: list, catalogo_path: Path = CATALOGO_BLOCO
     `decisoes_blocos.json` — ver skills/contestacao/SKILL.md §4A). Este
     script só valida o catálogo e as decisões recebidas (mecânica, nunca
     decide) — qualquer INDETERMINADO, decisão ausente ou catálogo
-    inconsistente aborta antes de qualquer redação/geração."""
+    inconsistente aborta antes de qualquer redação/geração.
+
+    `estado_processual.json` (Etapa 5.2, opcional — ausente conta como
+    "{}") carrega os estados processuais fatos-gate de INV-GRATUIDADE-LINKED
+    /INV-CORTE-EFETIVO (ex.: {"GRATUIDADE_CONCEDIDA": true}); a validação
+    do gate em si é feita por docx_block_engine.validar_e_resolver_decisoes,
+    não duplicada aqui — este script só carrega o arquivo se existir."""
     caminho = caso / "decisoes_blocos.json"
     if not caminho.exists():
         return _abortar(stages, "block_composition",
                          "decisoes_blocos.json (decisões de blocos condicionais da "
                          "etapa estratégica — INV-COMPOSICAO-BLOCOS) ausente")
     decisoes = json.loads(caminho.read_text(encoding="utf-8"))
+
+    caminho_estado = caso / "estado_processual.json"
+    if caminho_estado.exists():
+        fatos_processuais = json.loads(caminho_estado.read_text(encoding="utf-8"))
+        if not isinstance(fatos_processuais, dict):
+            return _abortar(stages, "block_composition",
+                             "estado_processual.json deve ser um objeto {ESTADO: valor}")
+    else:
+        fatos_processuais = {}
+
     try:
         catalogo = carregar_catalogo(catalogo_path)
         validar_catalogo(catalogo)
@@ -224,7 +241,7 @@ def _etapa_blocos(caso: Path, stages: list, catalogo_path: Path = CATALOGO_BLOCO
 
     stages.append({"name": "block_composition_decisoes", "status": "ok",
                     "fonte": str(caminho), "catalogo": str(catalogo_path)})
-    return decisoes
+    return decisoes, fatos_processuais
 
 
 def _etapa_rag_validacao(caso: Path, stages: list):
@@ -287,13 +304,30 @@ def _etapa_placeholders(caso: Path, stages: list, tempestividade_valor: str):
     return dados
 
 
+def _etapa_paragrafo_380(dados: dict, schema_path: Path, stages: list):
+    """INV-PARAGRAFO-380 (Etapa 5.2): parágrafo de conteúdo variável acima
+    de 380 caracteres aborta antes da geração do DOCX final — nunca gera
+    sabendo que a invariante foi violada (CLAUDE.md §17)."""
+    schema = carregar_schema(schema_path)
+    ok, erros = validar_paragrafos_placeholders(dados, schema)
+    if not ok:
+        return _abortar(stages, "paragrafo_380",
+                         f"parágrafo(s) acima de 380 caracteres (INV-PARAGRAFO-380): {erros}")
+    stages.append({"name": "paragrafo_380", "status": "ok"})
+    return True
+
+
 def _etapa_template(dados: dict, decisoes_blocos: dict, template: Path, schema: Path,
-                     catalogo: Path, output: Path, stages: list):
+                     catalogo: Path, output: Path, stages: list, fatos_processuais: dict = None):
     relatorio = gerar_peca_com_blocos(str(template), str(schema), str(catalogo),
-                                       dados, decisoes_blocos, str(output))
+                                       dados, decisoes_blocos, str(output),
+                                       fatos_processuais=fatos_processuais)
     if relatorio["status"] != "OK":
-        return _abortar(stages, "block_composition" if relatorio.get("etapa", "").startswith(
-            ("catalogo", "decisao", "sdt_", "tag_", "cardinalidade", "estado")) else "template_engine",
+        etapa_engine = relatorio.get("etapa", "")
+        eh_block_composition = etapa_engine.startswith(
+            ("catalogo", "decisao", "sdt_", "tag_", "cardinalidade", "estado")
+        ) or etapa_engine == "gate_fatico_nao_satisfeito"
+        return _abortar(stages, "block_composition" if eh_block_composition else "template_engine",
             f"{relatorio.get('etapa')}: {relatorio.get('erros')}")
     stages.append({"name": "template_engine", "status": "ok",
                     "template_lock": relatorio["template_lock"],
@@ -320,9 +354,10 @@ def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO,
     if isinstance(estrategia, dict) and estrategia.get("status") == "PIPELINE_ABORTED":
         return estrategia
 
-    decisoes_blocos = _etapa_blocos(caso, stages, Path(catalogo_blocos))
-    if isinstance(decisoes_blocos, dict) and decisoes_blocos.get("status") == "PIPELINE_ABORTED":
-        return decisoes_blocos
+    resultado_blocos = _etapa_blocos(caso, stages, Path(catalogo_blocos))
+    if isinstance(resultado_blocos, dict) and resultado_blocos.get("status") == "PIPELINE_ABORTED":
+        return resultado_blocos
+    decisoes_blocos, fatos_processuais = resultado_blocos
 
     validadas, nao_validadas = _etapa_rag_validacao(caso, stages)
 
@@ -330,8 +365,13 @@ def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO,
     if isinstance(dados, dict) and dados.get("status") == "PIPELINE_ABORTED":
         return dados
 
+    paragrafo_ok = _etapa_paragrafo_380(dados, Path(schema), stages)
+    if isinstance(paragrafo_ok, dict) and paragrafo_ok.get("status") == "PIPELINE_ABORTED":
+        return paragrafo_ok
+
     relatorio_engine = _etapa_template(dados, decisoes_blocos, Path(template), Path(schema),
-                                        Path(catalogo_blocos), Path(output_path), stages)
+                                        Path(catalogo_blocos), Path(output_path), stages,
+                                        fatos_processuais=fatos_processuais)
     if isinstance(relatorio_engine, dict) and relatorio_engine.get("status") == "PIPELINE_ABORTED":
         return relatorio_engine
 

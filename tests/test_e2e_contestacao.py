@@ -67,7 +67,7 @@ def test_happy_path_pipeline_completo():
         nomes_stage = {s["name"] for s in r["stages"]}
         assert nomes_stage == {"facts", "tempestividade", "strategy",
                                 "block_composition_decisoes", "rag_legal_validation",
-                                "drafting_humanization", "template_engine"}
+                                "drafting_humanization", "paragrafo_380", "template_engine"}
         assert all(s["status"] == "ok" for s in r["stages"]), r["stages"]
 
         assert r["fatos_com_proveniencia"] == 11
@@ -116,6 +116,11 @@ def _validar_conteudo_sintetico(caminho: Path):
         assert trecho in document_xml, f"trecho esperado não encontrado no DOCX gerado: {trecho!r}"
     assert "{{" not in document_xml, "placeholder residual (chaves duplas) no XML final"
     assert 'w:val="FF0000"' in document_xml, "conteúdo gerado deveria estar em FF0000 (Etapa 3)"
+    # RECONVENCAO=INCLUIR neste fixture (happy_path/decisoes_blocos.json) —
+    # o inline vinculado (INLINE_COM_RECONVENCAO) deve refletir isso no
+    # título (Etapa 5.2 — regressão do achado real de composição em
+    # wps:txbx/w:txbxContent, ver docx_block_engine.compor_blocos).
+    assert "COM RECONVENÇÃO" in document_xml, "título deveria conter 'COM RECONVENÇÃO' (RECONVENCAO=INCLUIR)"
 
 
 # --------------------------------------------------------------- fail-closed
@@ -299,8 +304,199 @@ def test_fail_closed_template_institucional_ausente():
         nomes_ok = {s["name"] for s in r["stages"] if s["status"] == "ok"}
         assert nomes_ok == {"facts", "tempestividade", "strategy",
                              "block_composition_decisoes", "rag_legal_validation",
-                             "drafting_humanization"}
+                             "drafting_humanization", "paragrafo_380"}
         assert not saida.exists()
+
+
+# --------------------------------------------- Etapa 5.2: INV-PARAGRAFO-380
+def test_fail_closed_paragrafo_acima_de_380():
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        placeholders = json.loads((caso_tmp / "placeholders.json").read_text(encoding="utf-8"))
+        placeholders["PEDIDOS_FINAIS"] = "x" * 381
+        (caso_tmp / "placeholders.json").write_text(json.dumps(placeholders), encoding="utf-8")
+
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED"
+        assert r["stage"] == "paragrafo_380"
+        assert "PEDIDOS_FINAIS" in r["reason"]
+        assert not saida.exists()
+
+
+# ------------------------------------- Etapa 5.2: INV-RECONVENCAO-AUTORIZACAO-EXPRESSA
+def test_fail_closed_reconvencao_indeterminada():
+    # CENÁRIO 6 do prompt da Etapa 5.2: reconvenção sem resposta -> aborta.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        decisoes = json.loads((caso_tmp / "decisoes_blocos.json").read_text(encoding="utf-8"))
+        decisoes["RECONVENCAO"] = {"decisao": "INDETERMINADO"}
+        (caso_tmp / "decisoes_blocos.json").write_text(json.dumps(decisoes), encoding="utf-8")
+
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED"
+        assert r["stage"] == "block_composition"
+        assert not saida.exists()
+
+
+def test_reconvencao_nao_autorizada_pelo_advogado_nao_aparece_no_titulo():
+    # CENÁRIO 7: reconvenção respondida NÃO pelo advogado -> exclui, e o
+    # título final não contém "COM RECONVENÇÃO" (INLINE_COM_RECONVENCAO
+    # continua espelhando RECONVENCAO).
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        decisoes = json.loads((caso_tmp / "decisoes_blocos.json").read_text(encoding="utf-8"))
+        decisoes["RECONVENCAO"] = {"decisao": "EXCLUIR", "fundamento": "advogado respondeu NÃO à pergunta obrigatória"}
+        (caso_tmp / "decisoes_blocos.json").write_text(json.dumps(decisoes), encoding="utf-8")
+
+        saida = Path(tmp) / "contestacao_sem_reconvencao.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "OK", r
+        assert "RECONVENCAO" in r["blocos_excluidos"]
+        assert "INLINE_COM_RECONVENCAO" in r["blocos_excluidos"]
+        with zipfile.ZipFile(saida) as z:
+            document_xml = z.read("word/document.xml").decode("utf-8")
+        assert "COM RECONVENÇÃO" not in document_xml.upper().replace("Ç", "C")  # sem resíduo textual
+        assert "COM RECONVEN" not in document_xml.upper()
+
+
+# ------------------------------- Etapa 5.2 (correção): INV-GRATUIDADE-LINKED (state_linked)
+def test_gratuidade_sem_estado_processual_resolve_para_excluir():
+    # CENÁRIO 4: gratuidade apenas requerida/não concedida — sem
+    # estado_processual.json algum, o vínculo determinístico resolve para
+    # EXCLUIR por omissão (fail closed), sem qualquer decisão manual.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        saida = Path(tmp) / "contestacao_sem_gratuidade.docx"
+        r = gerar(FIXTURES / "happy_path", saida)
+
+        assert r["status"] == "OK", r
+        assert "PRELIMINAR_REVOGACAO_GRATUIDADE" in r["blocos_excluidos"]
+        assert r["containers_derivados"]["PRELIMINARES"] == "EXCLUIR"
+
+
+def test_fail_closed_decisao_manual_do_estrategista_para_gratuidade_e_rejeitada():
+    # A preliminar de gratuidade NÃO é decisão do estrategista — se
+    # decisoes_blocos.json trouxer uma decisão para ela (mesmo coerente com
+    # o estado real), o pipeline rejeita explicitamente (nunca ignora em
+    # silêncio a decisão indevida).
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        decisoes = json.loads((caso_tmp / "decisoes_blocos.json").read_text(encoding="utf-8"))
+        decisoes["PRELIMINAR_REVOGACAO_GRATUIDADE"] = {"decisao": "EXCLUIR", "fundamento": "cenário de teste"}
+        (caso_tmp / "decisoes_blocos.json").write_text(json.dumps(decisoes), encoding="utf-8")
+
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED"
+        assert r["stage"] == "block_composition"
+        assert "não aceita decisão manual" in r["reason"]
+        assert not saida.exists()
+
+
+def test_gratuidade_concedida_inclui_automaticamente_a_preliminar():
+    # CENÁRIO 5: gratuidade efetivamente concedida -> preliminar vinculada
+    # incluída automaticamente (sem qualquer decisão em decisoes_blocos.json
+    # para esse bloco) e PRELIMINARES passa a INCLUIR via ANY_CHILD_INCLUDED.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        (caso_tmp / "estado_processual.json").write_text(json.dumps({
+            "GRATUIDADE_CONCEDIDA": {"valor": True, "fonte_documento": "decisao-fls-20.pdf"},
+        }), encoding="utf-8")
+
+        saida = Path(tmp) / "contestacao_com_revogacao.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "OK", r
+        assert "PRELIMINAR_REVOGACAO_GRATUIDADE" in r["blocos_incluidos"]
+        assert r["containers_derivados"]["PRELIMINARES"] == "INCLUIR"
+
+
+def test_fail_closed_gratuidade_indeterminada():
+    # CENÁRIO 3.1 do prompt de correção: documentos contraditórios/
+    # insuficientes -> GRATUIDADE_CONCEDIDA = "INDETERMINADO" -> aborta
+    # para interação com o advogado, nunca decisão silenciosa.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        (caso_tmp / "estado_processual.json").write_text(json.dumps({
+            "GRATUIDADE_CONCEDIDA": "INDETERMINADO",
+        }), encoding="utf-8")
+
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED"
+        assert r["stage"] == "block_composition"
+        assert not saida.exists()
+
+
+def test_fail_closed_corte_sem_efetivo():
+    # CENÁRIOS 1/2: sem notícia de corte, ou só ameaça -> INCLUIR rejeitado.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        decisoes = json.loads((caso_tmp / "decisoes_blocos.json").read_text(encoding="utf-8"))
+        decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "INCLUIR", "fundamento": "cenário de teste"}
+        (caso_tmp / "decisoes_blocos.json").write_text(json.dumps(decisoes), encoding="utf-8")
+        # mera ameaça registrada como fato — mas CORTE_EFETIVO continua falso.
+        (caso_tmp / "estado_processual.json").write_text(json.dumps({
+            "CORTE_EFETIVO": False,
+        }), encoding="utf-8")
+
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED"
+        assert r["stage"] == "block_composition"
+        assert "CORTE_EFETIVO" in r["reason"]
+        assert not saida.exists()
+
+
+def test_corte_efetivo_permite_inclusao_do_bloco():
+    # CENÁRIO 3: corte efetivo -> bloco elegível (INCLUIR aceito).
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        decisoes = json.loads((caso_tmp / "decisoes_blocos.json").read_text(encoding="utf-8"))
+        decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "INCLUIR", "fundamento": "fornecimento efetivamente suspenso em 20/01/2026, conforme relato da autora e registro da concessionária"}
+        (caso_tmp / "decisoes_blocos.json").write_text(json.dumps(decisoes), encoding="utf-8")
+        (caso_tmp / "estado_processual.json").write_text(json.dumps({
+            "CORTE_EFETIVO": True,
+        }), encoding="utf-8")
+
+        saida = Path(tmp) / "contestacao_com_corte.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "OK", r
+        assert "LICITUDE_CORTE_SUSPENSAO" in r["blocos_incluidos"]
 
 
 # ------------------------------------------------------- rastreabilidade

@@ -44,7 +44,9 @@
       "tipo": "CONDICIONAL_PADRAO",
       "parent": "PRELIMINARES",
       "children": [],
-      "decision_mode": "estrategista",
+      "decision_mode": "state_linked",
+      "linked_fact": "GRATUIDADE_CONCEDIDA",
+      "_nota_decision_mode": "INV-GRATUIDADE-LINKED (correção pontual pós-Etapa 5.2): vínculo DETERMINÍSTICO ao estado processual GRATUIDADE_CONCEDIDA — não é decisão do estrategista (decision_mode NUNCA foi 'estrategista' com um gate por cima; é 'state_linked' puro, mesma família de 'linked', só que estado processual -> bloco em vez de bloco -> bloco). GRATUIDADE_CONCEDIDA=true -> INCLUIR; false (inclusive ausência, mero pedido, ou declaração de hipossuficiência sem decisão) -> EXCLUIR; 'INDETERMINADO' (documentos contraditórios) -> aborta para interação com o advogado. O estrategista NÃO decide a existência deste bloco em decisoes_blocos.json (decisão manual é rejeitada) — pode apenas desenvolver o conteúdo/argumentação quando o bloco já estiver presente. Resolvido pela Skill `contestacao` em estado_processual.json, nunca por busca lexical.",
       "placeholders": [],
       "dependencies": [],
       "cardinality": "ONE"
@@ -109,6 +111,10 @@
       "decision_mode": "estrategista",
       "placeholders": [],
       "dependencies": [],
+      "requires_fact": {
+        "key": "CORTE_EFETIVO",
+        "descricao": "INV-CORTE-EFETIVO (Etapa 5.2): só é elegível a INCLUIR se o fornecimento tiver sido efetivamente cortado/suspenso/interrompido — mera ameaça, aviso de possível suspensão ou pedido preventivo NÃO satisfazem este gate. Corte efetivo torna o bloco elegível; a decisão de INCLUIR vs. EXCLUIR continua da etapa estratégica. Resolvido pela Skill `contestacao` em estado_processual.json, nunca por busca lexical (ex.: 'não houve corte' não vira CORTE_EFETIVO=true)."
+      },
       "cardinality": "ONE"
     },
     {
@@ -139,7 +145,8 @@
       "tipo": "CONDICIONAL_HIBRIDO",
       "parent": null,
       "children": [],
-      "decision_mode": "estrategista",
+      "decision_mode": "humano",
+      "_nota_decision_mode": "INV-RECONVENCAO-AUTORIZACAO-EXPRESSA (Etapa 5.2): decision_mode mudou de 'estrategista' para 'humano' — a possibilidade material de reconvenção pode ser identificada pela análise estratégica, mas a decisão de apresentá-la é reservada ao advogado (AskUserQuestion na Skill `contestacao`, SIM/NÃO explícito). Mesmo contrato de decisoes_blocos.json de antes; sem resposta o bloco fica ausente/INDETERMINADO e o fail-closed já existente aborta o pipeline.",
       "placeholders": ["VALOR_FRA", "IRREGULARIDADE_ENCONTRADA"],
       "dependencies": [
         {

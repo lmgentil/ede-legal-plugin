@@ -225,6 +225,69 @@ decididos. Formalizada na SPEC como `INV-COMPOSICAO-BLOCOS`
 (SPEC-0001 §5, REQ-002-B) — detalhes de catálogo/cardinalidade/Template
 Lock composicional ficam lá, não duplicados aqui.
 
+### Invariantes de calibração redacional e composição (Etapa 5.2)
+
+Decorrentes dos problemas confirmados no primeiro teste prático real da
+Contestação (parágrafos excessivamente extensos, Sinopse contaminada por
+argumentação defensiva, Reconvenção incluída sem autorização do advogado,
+LICITUDE_CORTE_SUSPENSAO incluído sem notícia concreta de corte). Não
+substituem nenhuma invariante anterior. Definição completa em
+`docs/specs/SPEC-0001.md` (seção "Invariantes de calibração redacional,
+Etapa 5.2") — resumo operacional aqui:
+
+- **INV-PARAGRAFO-380** — todo parágrafo de conteúdo variável (novo,
+  gerado pela IA para os placeholders multiline) tem no máximo 380
+  caracteres com espaços; validado estruturalmente por
+  `scripts/validate_paragrafos.py` antes do DOCX final
+  (`stage=paragrafo_380`). Não se aplica ao texto-base institucional
+  fixo do template.
+- **INV-NAO-REDUNDANCIA** — o limite de 380 caracteres não pode ser
+  contornado multiplicando parágrafos artificialmente; cada parágrafo
+  novo deve acrescentar um elemento argumentativo útil. Comportamental
+  (sem validação Python — detectar redundância semântica de forma
+  confiável seria heurística jurídica embutida em código, vedada).
+- **INV-SINOPSE-ESTRITAMENTE-AUTORAL** — `SINOPSE_FATOS` é exclusivamente
+  a narrativa da petição inicial (fatos alegados + pedidos), nunca a
+  versão ou impugnação da Ré. Backstop lexical em
+  `scripts/validate_placeholder_semantics.py` (não exaustivo); controle
+  real é comportamental, da Skill `contestacao`/`redator-peca-processual-
+  elite`.
+- **INV-RECONVENCAO-AUTORIZACAO-EXPRESSA** — Reconvenção é decisão
+  reservada ao advogado, nunca do estrategista sozinho:
+  `RECONVENCAO` é `decision_mode: "humano"` no catálogo
+  (`templates/contestacao/blocos.json`) — a Skill `contestacao` deve
+  perguntar SIM/NÃO (`AskUserQuestion`) antes de registrar a decisão; sem
+  resposta, o bloco permanece ausente/`INDETERMINADO` e o fail-closed já
+  existente aborta o pipeline.
+- **INV-BLOCO-SUPORTE-FATICO** — nenhum bloco condicional entra só porque
+  existe no catálogo, é juridicamente possível, ou o RAG recuperou
+  legislação relacionada; exige suporte fático/processual concreto, com
+  proveniência. Princípio geral, majoritariamente comportamental — dois
+  blocos específicos (abaixo) têm mecanismo determinístico.
+- **INV-GRATUIDADE-LINKED** — `PRELIMINAR_REVOGACAO_GRATUIDADE` **não é
+  decisão do estrategista** (nem livre, nem sob gate): é vinculada
+  deterministicamente ao estado processual `GRATUIDADE_CONCEDIDA`
+  (`decision_mode: "state_linked"`, `linked_fact` no catálogo) — o estado
+  do bloco *é* o estado processual (`true`→`INCLUIR`, `false`/
+  ausente→`EXCLUIR`, `"INDETERMINADO"`→aborta). Decisão manual para este
+  bloco em `decisoes_blocos.json` é rejeitada explicitamente. Distinto de
+  `requires_fact` (abaixo) — este é vínculo, não gate.
+- **INV-CORTE-EFETIVO** — `LICITUDE_CORTE_SUSPENSAO` só é elegível a
+  `INCLUIR` se o fornecimento tiver sido efetivamente cortado/suspenso
+  (não mera ameaça ou pedido preventivo) — GATE `requires_fact:
+  CORTE_EFETIVO` no catálogo (`decision_mode` continua `"estrategista"`,
+  a decisão INCLUIR/EXCLUIR quando o fato é verdadeiro continua sendo da
+  etapa estratégica), validado por `scripts/docx_block_engine.py` a
+  partir de `estado_processual.json`. Nem este gate nem o vínculo de
+  gratuidade aceitam ocorrência lexical ("não houve corte" no texto de um
+  documento nunca vira `CORTE_EFETIVO: true`) como prova — o estado é
+  resolvido pela Skill `contestacao` a partir dos documentos, com
+  proveniência, nunca por busca textual.
+- **INV-NAO-REDUNDANCIA-NORMATIVA** — a redação variável não repete
+  dispositivo normativo já presente no tópico-base institucional fixo do
+  modelo; o RAG valida/complementa fundamentação, não é gerador de lista
+  de artigos.
+
 ---
 
 ## 8. Tempestividade

@@ -274,6 +274,47 @@ regular sem checar os elementos disponíveis — essa última é a armadilha
 mais comum, porque "a distribuidora normalmente segue o procedimento" não é
 prova de que seguiu *neste* caso.
 
+## 8A. Disciplina pós-Teste Real 01 (Etapa 5.2) — pertinência fática antes de utilidade estratégica
+
+"Tese disponível" (existe no catálogo) ≠ "tese aplicável" (há suporte
+fático no caso) ≠ "tese necessariamente útil" (vale a pena incluir).
+Percorra sempre nessa ordem — suporte → aplicabilidade → utilidade
+estratégica → inclusão — e nunca use a mera disponibilidade da tese como
+justificativa de inclusão. Três pontos específicos, decorrentes de
+problemas confirmados no primeiro teste real:
+
+- **Reconvenção não é decisão sua.** Você pode (e deve) apontar quando há
+  possibilidade material de reconvenção (débito de recuperação de consumo
+  comprovado e não adimplido) no Diagnóstico Executivo/Teses — mas a
+  decisão de apresentá-la é sempre do advogado, mediada pela Skill
+  `contestacao` (`AskUserQuestion`, SIM/NÃO). Não a inclua na "Estrutura
+  da Contestação" (seção XV) como se já estivesse decidida.
+- **Licitude de corte/suspensão exige corte efetivo**, não mera ameaça,
+  aviso de possível suspensão ou pedido preventivo do autor para impedir
+  corte futuro — se os elementos do caso não mostrarem interrupção
+  efetiva do fornecimento, não recomende essa tese.
+- **Revogação de gratuidade não é decisão sua, nem gate — é vínculo
+  determinístico.** Diferente da licitude de corte, você não decide
+  incluir ou excluir `PRELIMINAR_REVOGACAO_GRATUIDADE`: o bloco existe
+  automaticamente se, e só se, a gratuidade de justiça tiver sido
+  efetivamente CONCEDIDA (ato/decisão processual inequívoca) — mero
+  pedido de gratuidade na inicial, ou declaração de hipossuficiência sem
+  decisão, resolve para ausência do bloco, não para uma preliminar que
+  você "decidiu excluir". Se identificar gratuidade concedida nos autos,
+  aponte-a no Diagnóstico Executivo/Fatos comprovados (é insumo para a
+  Skill `contestacao` registrar em `estado_processual.json`) — mas não
+  liste esta preliminar como uma tese que você inclui/exclui.
+- **Descabimento de dano moral só é pertinente se a autora formulou
+  pretensão de dano moral** — não insira esse tópico genericamente quando
+  a inicial não pedir indenização por dano moral.
+
+Evite também multiplicar argumentos equivalentes com palavras diferentes
+só para parecer mais robusto (mesmo princípio de `redator-peca-processual-
+elite` para parágrafos: uma ideia relevante por vez, sem redundância) e
+não cite dispositivo normativo já coberto pelo texto-base institucional
+fixo do modelo — o RAG (§4) valida/complementa fundamentação, não gera
+lista de artigos para empilhar na análise.
+
 ## 9. Depois da análise
 
 Se o usuário pedir a peça pronta em seguida, entregue esta análise primeiro

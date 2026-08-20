@@ -19,6 +19,31 @@ Separação estrita entre DECISÃO e MECÂNICA:
 Fail-closed em cada etapa — ver ComposicaoAbortada. Nenhuma etapa produz
 DOCX parcial: qualquer falha aborta antes da escrita final.
 
+Etapa 5.2 (calibração pós-Teste Real 01) acrescenta três conceitos
+puramente mecânicos, nenhum deles heurística jurídica:
+  - decision_mode "humano": mesmo contrato de decisão que "estrategista"
+    (decisoes_blocos.json), só documenta que a origem exigida da decisão é
+    autorização expressa do advogado, não a análise estratégica sozinha
+    (RECONVENCAO — INV-RECONVENCAO-AUTORIZACAO-EXPRESSA). Sem decisão
+    registrada, o fail-closed de sempre (decisao_ausente/
+    decisao_indeterminada) já cobre o caso — nenhuma mecânica nova.
+  - `requires_fact` (catálogo): GATE fático opcional por bloco
+    'estrategista'/'humano' — INCLUIR só é aceito se
+    `fatos_processuais[key]` for verdadeiro; a decisão de INCLUIR vs.
+    EXCLUIR quando o fato é verdadeiro continua exclusivamente estratégica
+    (LICITUDE_CORTE_SUSPENSAO — INV-CORTE-EFETIVO).
+  - decision_mode "state_linked" + `linked_fact` (catálogo, correção
+    pontual pós-Etapa 5.2): VÍNCULO determinístico ESTADO PROCESSUAL ->
+    BLOCO — o estado do bloco *é* `fatos_processuais[linked_fact]`
+    (true->INCLUIR, false->EXCLUIR, 'INDETERMINADO'->aborta); nenhuma
+    decisão da etapa estratégica é aceita (PRELIMINAR_REVOGACAO_
+    GRATUIDADE — INV-GRATUIDADE-LINKED). Diferente de "linked"
+    (BLOCO -> BLOCO, ex.: INLINE_COM_RECONVENCAO -> RECONVENCAO,
+    preservado intocado) e diferente de `requires_fact` (que é um gate,
+    não um vínculo — ainda deixa a decisão para o estrategista). Estado
+    processual resolvido pela Skill `contestacao` a partir dos
+    documentos, nunca por busca lexical em texto.
+
 lxml.etree é a tecnologia obrigatória para toda manipulação estrutural
 (SDT/container/hierarquia/parágrafo/drawing/bookmark) — regex continua
 reservado exclusivamente à substituição pontual de <w:t> já implementada
@@ -45,7 +70,34 @@ W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 NS = {"w": W}
 ESTADOS_VALIDOS = ("INCLUIR", "EXCLUIR", "INDETERMINADO")
 TIPOS_VALIDOS = ("FIXO", "CONDICIONAL_PADRAO", "CONDICIONAL_HIBRIDO", "CONTAINER_DERIVED")
-DECISION_MODES_VALIDOS = ("estrategista", "derived", "linked")
+# "humano" (Etapa 5.2, INV-RECONVENCAO-AUTORIZACAO-EXPRESSA): mesmo contrato
+# de decisão que "estrategista" (vem de decisoes_blocos.json, um dos três
+# estados) — a diferença é só documental/de origem: sinaliza que a decisão
+# não pode ser tomada pela análise estratégica sozinha, e sim por
+# autorização expressa do advogado (AskUserQuestion na Skill `contestacao`).
+# Sem resposta, o bloco fica ausente/INDETERMINADO em decisoes_blocos.json
+# e o fail-closed já existente (decisao_ausente/decisao_indeterminada)
+# aborta o pipeline — nenhuma mecânica nova precisa disso além do rótulo.
+#
+# "state_linked" (correção pontual pós-Etapa 5.2 — INV-GRATUIDADE-LINKED):
+# vínculo determinístico ESTADO PROCESSUAL -> BLOCO, distinto de "linked"
+# (que é BLOCO -> BLOCO, ex.: INLINE_COM_RECONVENCAO -> RECONVENCAO, e
+# permanece intocado). Um bloco "state_linked" declara `linked_fact: "<KEY>"`
+# no catálogo; seu estado é resolvido exclusivamente a partir de
+# `fatos_processuais[KEY]` (true->INCLUIR, false->EXCLUIR,
+# "INDETERMINADO"->aborta) — NUNCA aceita decisão manual em
+# decisoes_blocos.json (mesmo tratamento fail-closed já dado a
+# "derived"/"linked": decisão fornecida é rejeitada, não ignorada). Isto é
+# deliberadamente diferente de `requires_fact` (usado por
+# LICITUDE_CORTE_SUSPENSAO/INV-CORTE-EFETIVO): `requires_fact` é um GATE
+# que só restringe INCLUIR, deixando a decisão INCLUIR/EXCLUIR para a
+# etapa estratégica quando o fato é verdadeiro; `state_linked` não deixa
+# decisão alguma para o estrategista — o estado do bloco *é* o estado
+# processual, sempre.
+DECISION_MODES_VALIDOS = ("estrategista", "humano", "derived", "linked", "state_linked")
+# Blocos cujo decision_mode aceita decisão registrada em decisoes_blocos.json
+# (folhas "reais" — não containers/inline resolvidos automaticamente).
+DECISION_MODES_MANUAIS = ("estrategista", "humano")
 CARDINALIDADES_VALIDAS = ("ONE", "MC_PAIR")
 _CARDINALIDADE_ESPERADA = {"ONE": 1, "MC_PAIR": 2}
 
@@ -120,6 +172,21 @@ def validar_catalogo(catalogo: dict) -> None:
             raise ComposicaoAbortada("catalogo_invalido", f"{bid}: CONTAINER_DERIVED sem derived_rule")
         if b["decision_mode"] == "linked" and not b.get("linked_to"):
             raise ComposicaoAbortada("catalogo_invalido", f"{bid}: decision_mode='linked' sem linked_to")
+        if b["decision_mode"] == "state_linked" and not str(b.get("linked_fact", "")).strip():
+            raise ComposicaoAbortada("catalogo_invalido", f"{bid}: decision_mode='state_linked' sem linked_fact")
+        if b["decision_mode"] != "state_linked" and b.get("linked_fact"):
+            raise ComposicaoAbortada("catalogo_invalido", f"{bid}: linked_fact só é válido em decision_mode='state_linked'")
+
+        # Etapa 5.2 — INV-CORTE-EFETIVO: gate fático
+        # opcional (estado processual, não outro bloco) que condiciona
+        # INCLUIR. Puramente estrutural aqui — nenhuma heurística jurídica:
+        # só garante que, quando declarado, tem a forma esperada.
+        gate = b.get("requires_fact")
+        if gate is not None:
+            if b["decision_mode"] not in DECISION_MODES_MANUAIS:
+                raise ComposicaoAbortada("catalogo_invalido", f"{bid}: requires_fact só é válido em blocos decision_mode {DECISION_MODES_MANUAIS}")
+            if not isinstance(gate, dict) or not str(gate.get("key", "")).strip():
+                raise ComposicaoAbortada("catalogo_invalido", f"{bid}: requires_fact malformado (precisa de 'key' não vazia): {gate}")
 
     for b in blocos:
         bid, parent = b["id"], b["parent"]
@@ -157,22 +224,86 @@ def validar_catalogo(catalogo: dict) -> None:
         raise ComposicaoAbortada("catalogo_invalido", "ciclo detectado na hierarquia parent/children")
 
 
+def _fato_processual_verdadeiro(fatos_processuais: dict, key: str) -> bool:
+    """Lê um estado processual (ex.: CORTE_EFETIVO) de forma puramente
+    mecânica — nunca interpreta texto, só o booleano já resolvido pela
+    Skill `contestacao`/pelo estrategista a partir dos documentos
+    (fail-closed: ausente ou mal formado conta como falso, nunca como
+    verdadeiro por omissão). Aceita tanto `{"KEY": true}` quanto
+    `{"KEY": {"valor": true, ...proveniência...}}`. Usado só pelo gate
+    `requires_fact` (INV-CORTE-EFETIVO) — para `state_linked`
+    (INV-GRATUIDADE-LINKED), ver `_estado_fato_processual` abaixo, que
+    distingue um terceiro estado (`INDETERMINADO`)."""
+    valor = (fatos_processuais or {}).get(key)
+    if isinstance(valor, bool):
+        return valor
+    if isinstance(valor, dict):
+        return valor.get("valor") is True
+    return False
+
+
+def _estado_fato_processual(fatos_processuais: dict, key: str, bid: str) -> str:
+    """Resolve um estado processual para exatamente um destes três:
+    'TRUE', 'FALSE', 'INDETERMINADO' — usado pelos blocos 'state_linked'
+    (INV-GRATUIDADE-LINKED). Diferença deliberada de
+    `_fato_processual_verdadeiro`: aqui a ausência simples da chave conta
+    como FALSE (nunca vira ambiguidade — "não transformar simples
+    ausência de decisão em ambiguidade"), mas um valor presente e
+    reconhecido como indeterminado (`"INDETERMINADO"`) é distinguido de
+    falso, e propaga a mesma ambiguidade em vez de ser tratado como
+    corte/gratuidade não concedida. Qualquer valor fora do contrato
+    aceito (não é bool, não é 'INDETERMINADO', não é um dict com esses
+    valores em 'valor') aborta explicitamente — nunca interpretado
+    silenciosamente."""
+    fatos_processuais = fatos_processuais or {}
+    if key not in fatos_processuais:
+        return "FALSE"
+    bruto = fatos_processuais[key]
+    if isinstance(bruto, dict):
+        bruto = bruto.get("valor")
+    if bruto is True:
+        return "TRUE"
+    if bruto is False:
+        return "FALSE"
+    if bruto == "INDETERMINADO":
+        return "INDETERMINADO"
+    raise ComposicaoAbortada(
+        "estado_processual_invalido",
+        f"{bid}: estado processual '{key}' com valor não reconhecido "
+        f"{bruto!r} (esperado true, false ou 'INDETERMINADO')",
+    )
+
+
 # ============================================================== Fase C/D/E/F — decisões
-def validar_e_resolver_decisoes(catalogo: dict, decisoes: dict) -> dict:
+def validar_e_resolver_decisoes(catalogo: dict, decisoes: dict, fatos_processuais: dict = None) -> dict:
     """Valida as decisões da etapa estratégica contra o catálogo, aborta
     em qualquer INDETERMINADO (mesmo com irmãos já decididos — nenhuma
     inferência jurídica parcial), e resolve os estados CONTAINER_DERIVED/
     'linked' a partir dos filhos/bloco referenciado. Retorna {id: estado}
     completo (folhas + containers + inline vinculado).
 
-    `decisoes` deve conter, para cada bloco decision_mode='estrategista',
-    {'decisao': 'INCLUIR'|'EXCLUIR'|'INDETERMINADO', ...}. Blocos
-    'derived'/'linked' não devem aparecer em `decisoes`."""
+    `decisoes` deve conter, para cada bloco decision_mode em
+    ('estrategista', 'humano'), {'decisao': 'INCLUIR'|'EXCLUIR'|
+    'INDETERMINADO', ...}. Blocos 'derived'/'linked'/'state_linked' não
+    devem aparecer em `decisoes` — decisão manual para qualquer um deles é
+    rejeitada explicitamente, nunca ignorada em silêncio.
+
+    `fatos_processuais` (opcional) é o estado processual (ex.:
+    {"GRATUIDADE_CONCEDIDA": true, "CORTE_EFETIVO": false}), com dois usos
+    distintos:
+      - blocos que declaram `requires_fact` (INV-CORTE-EFETIVO): GATE —
+        INCLUIR só é aceito se o fato for verdadeiro; a decisão
+        INCLUIR/EXCLUIR em si continua exclusivamente da etapa
+        estratégica quando o fato é verdadeiro.
+      - blocos 'state_linked' (INV-GRATUIDADE-LINKED): VÍNCULO
+        determinístico — o estado do bloco *é* o estado processual
+        (true->INCLUIR, false->EXCLUIR, 'INDETERMINADO'->aborta); não há
+        decisão alguma da etapa estratégica para esses blocos."""
     por_id = {b["id"]: b for b in catalogo["blocks"]}
     estados = {}
 
     for bid, b in por_id.items():
-        if b["decision_mode"] != "estrategista":
+        if b["decision_mode"] not in DECISION_MODES_MANUAIS:
             if bid in decisoes:
                 raise ComposicaoAbortada(
                     "decisao_invalida",
@@ -187,7 +318,33 @@ def validar_e_resolver_decisoes(catalogo: dict, decisoes: dict) -> dict:
             raise ComposicaoAbortada("decisao_invalida", f"{bid}: estado inválido '{estado}' (sem normalização — só INCLUIR/EXCLUIR/INDETERMINADO)")
         if estado == "INDETERMINADO":
             raise ComposicaoAbortada("decisao_indeterminada", f"{bid}: permanece INDETERMINADO")
+        gate = b.get("requires_fact")
+        if estado == "INCLUIR" and gate and not _fato_processual_verdadeiro(fatos_processuais, gate["key"]):
+            raise ComposicaoAbortada(
+                "gate_fatico_nao_satisfeito",
+                f"{bid}: INCLUIR exige estado processual '{gate['key']}' confirmado "
+                f"(ausente ou falso em estado_processual.json) — suporte fático "
+                f"insuficiente para a tese, independentemente da análise estratégica.",
+            )
         estados[bid] = estado
+
+    # 'state_linked' (INV-GRATUIDADE-LINKED) resolve ANTES dos containers
+    # 'derived' — um bloco state_linked pode ser filho de um container
+    # (ex.: PRELIMINAR_REVOGACAO_GRATUIDADE é filho de PRELIMINARES), e o
+    # loop de containers abaixo exige todos os filhos já resolvidos.
+    for bid, b in por_id.items():
+        if b["decision_mode"] != "state_linked":
+            continue
+        estado_fato = _estado_fato_processual(fatos_processuais, b["linked_fact"], bid)
+        if estado_fato == "INDETERMINADO":
+            raise ComposicaoAbortada(
+                "decisao_indeterminada",
+                f"{bid}: estado processual '{b['linked_fact']}' está "
+                f"INDETERMINADO — documentos contraditórios ou insuficientes "
+                f"para determinar o fato; requer interação com o advogado, "
+                f"nunca decisão silenciosa.",
+            )
+        estados[bid] = "INCLUIR" if estado_fato == "TRUE" else "EXCLUIR"
 
     pendentes = [b for b in por_id.values() if b["decision_mode"] == "derived"]
     mudou = True
@@ -270,13 +427,24 @@ def compor_blocos(root, catalogo: dict, estados: dict) -> dict:
     preservados por referência — nunca recriados). EXCLUIR = remove o
     <w:sdt> inteiro. Nunca assume índice de parágrafo == índice de filho
     do corpo — sempre caminha list(pai) diretamente (o template real
-    intercala <w:bookmarkEnd> soltos entre parágrafos)."""
+    intercala <w:bookmarkEnd> soltos entre parágrafos).
+
+    Recursão totalmente genérica — desce por QUALQUER elemento, não só por
+    w:sdtContent — porque um SDT do catálogo pode estar aninhado dentro de
+    parágrafo/run/drawing/shape/textbox (achado real da Etapa 5.2:
+    INLINE:COM_RECONVENCAO vive dentro de wps:txbx/w:txbxContent, a caixa
+    de texto do título — não filho direto de w:body nem de outro
+    w:sdtContent; a versão anterior, que só recursava sdtContent, nunca
+    alcançava esse SDT e o deixava intocado, qualquer que fosse a decisão).
+    A cirurgia (remove/insert) continua sempre relativa ao pai imediato do
+    próprio <w:sdt>, então descer por qualquer nível é seguro."""
     tags_catalogo = {b["tag"]: b for b in catalogo["blocks"]}
     resultado = {"incluidos": [], "excluidos": []}
 
     def processar(pai):
         for filho in list(pai):
             if filho.tag != _qn("sdt"):
+                processar(filho)  # desce por qualquer elemento não-sdt em busca de SDTs aninhados
                 continue
             tag_el = filho.find("w:sdtPr/w:tag", NS)
             if tag_el is None:
@@ -327,7 +495,7 @@ def compor_xml(document_xml: str, catalogo: dict, estados: dict):
 
 # ============================================================== Fase G-M — orquestração
 def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict,
-                           decisoes_blocos: dict, output_path) -> dict:
+                           decisoes_blocos: dict, output_path, fatos_processuais: dict = None) -> dict:
     """Pipeline completo com composição de blocos: valida catálogo ->
     valida/resolve decisões -> abre template -> valida SDTs contra
     catálogo -> compõe (unwrap/remove) -> substitui placeholders (já
@@ -345,7 +513,7 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
     try:
         catalogo = carregar_catalogo(catalogo_path)
         validar_catalogo(catalogo)
-        estados = validar_e_resolver_decisoes(catalogo, decisoes_blocos)
+        estados = validar_e_resolver_decisoes(catalogo, decisoes_blocos, fatos_processuais)
     except ComposicaoAbortada as e:
         return {"status": "FALHOU", "etapa": e.stage, "erros": [e.motivo]}
 

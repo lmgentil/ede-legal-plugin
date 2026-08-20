@@ -99,6 +99,61 @@ aberto — ver `docs/adr/ADR-0009-distribuicao-publica-template-externo.md`):
 
 ## Instalação
 
+Três caminhos, conforme seu perfil. Advogados sem familiaridade com
+terminal devem preferir a **Opção 1**.
+
+### Opção 1 — Claude Cowork
+
+Método recomendado para uso sem terminal. Pré-requisitos confirmados na
+documentação oficial da Anthropic ([Central de Ajuda do
+Claude](https://support.claude.com/en/articles/13837440-use-plugins-in-claude)):
+acesso ao Claude em plano pago (Pro, Max, Team ou Enterprise — plugins
+não estão disponíveis em conta gratuita) e acesso à funcionalidade de
+Plugins do Cowork, hoje em research preview.
+
+> Nomes de menu conforme a documentação oficial vigente nesta data
+> (2026-08-19); a interface do Claude pode evoluir — confirme na Central
+> de Ajuda se algo não corresponder exatamente.
+
+1. **Adicionar o marketplace do EDE:**
+   - Abra **Customize** (menu lateral) → aba **Plugins**.
+   - Na seção **Personal plugins**, clique em **"+"** → **Add
+     marketplace** → **Add from a repository**.
+   - Informe `lmgentil/ede-legal-plugin` (ou a URL completa
+     `https://github.com/lmgentil/ede-legal-plugin`, caso a interface
+     peça uma URL de Git em vez do formato curto).
+2. **Instalar o plugin:**
+   - Em **Customize** → **Plugins**, clique em **Browse plugins**.
+   - Localize **EDE Legal Plugin** — identificador técnico
+     `ede-legal-plugin`, dentro do marketplace `ede` (não confunda os
+     dois nomes) — e clique em **Install**.
+3. **Usar as Skills:** depois de instalado, acesse as Skills digitando
+   **`/`** no chat ou pelo botão **"+"** — a Skill certa é escolhida
+   automaticamente a partir do que você pedir, sem sintaxe adicional.
+   Exemplo, sem vínculo com comando técnico obrigatório: *"Elabore uma
+   contestação com base nos documentos desta pasta, usando o EDE Legal
+   Plugin."*
+
+**Template institucional no Cowork:** vale a mesma regra do restante do
+plugin — instalar sem `templates/contestacao/modelo-oficial.docx` é
+instalação válida (Skills, RAG e análise estratégica funcionam
+normalmente); só a geração do `.docx` final exige esse arquivo, que o
+Cowork não baixa, reconstrói nem hospeda — ver "Template institucional"
+acima.
+
+**Atualização no Cowork:** a documentação oficial consultada não
+descreve, até esta escrita, um mecanismo específico de atualização de
+plugin dentro do Cowork. Gerencie atualizações pelo mecanismo de
+Plugins/Marketplace do próprio Claude — não há passo adicional deste
+plugin.
+
+**Cowork × Claude Code:** são instalações independentes, cada uma com
+seu próprio marketplace configurado — instalar no Cowork não instala
+automaticamente no Claude Code CLI (Opção 2), nem o inverso; repita o
+passo de instalação em cada ambiente que for usar.
+
+### Opção 2 — Claude Code
+
 Pré-requisitos: Claude Code com suporte a Plugin Marketplace (versão
 atual da CLI) e Python 3.10+ no PATH (testado em 3.12) para os scripts do
 RAG e do Template Engine — ver "Dependências Python" abaixo.
@@ -132,6 +187,19 @@ RAG e do Template Engine — ver "Dependências Python" abaixo.
    configuração do RAG estão presentes (o `.docx` institucional real é
    opcional nesta checagem — ver passo 4).
 
+### Opção 3 — Clone pelo terminal
+
+Alternativa para estudo, desenvolvimento, inspeção do código ou
+contribuição/adaptação nos limites da `LICENSE` — não é um requisito
+para quem só vai usar o plugin pelo Cowork ou pelo Claude Code.
+
+```bash
+git clone https://github.com/lmgentil/ede-legal-plugin.git
+```
+
+O uso do código clonado continua sujeito aos termos do [`LICENSE`](./LICENSE)
+— ver "Licença" abaixo.
+
 ## Atualização
 
 Digite **`/updateEde`** — aciona a Skill `atualizar-ede`, que identifica
@@ -160,17 +228,6 @@ Para ver o que mudou entre versões, consulte [`CHANGELOG.md`](./CHANGELOG.md)
 ```
 Comando oficial confirmado na documentação vigente do Claude Code — não
 há passo adicional específico deste plugin.
-
-## Clonar para estudo
-
-Para inspecionar o código-fonte diretamente (sem passar pelo marketplace):
-
-```bash
-git clone https://github.com/lmgentil/ede-legal-plugin.git
-```
-
-O uso do código clonado continua sujeito aos termos do [`LICENSE`](./LICENSE)
-— ver "Licença" abaixo.
 
 ## Solução de problemas
 

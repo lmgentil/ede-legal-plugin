@@ -237,6 +237,15 @@ Não invente:
 
 Quando os dados forem insuficientes, sinalize a pendência.
 
+Sinalizar a pendência não basta para permitir a conclusão da peça: a
+Contestação não pode alcançar a etapa de redação final/template com
+tempestividade pendente. Quando o marco temporal (citação, intimação ou
+publicação) não estiver documentalmente identificado com proveniência, a
+Skill `contestacao` deve perguntar obrigatoriamente ao advogado antes de
+prosseguir — nunca presumir, nunca deixar `PENDENTE DE VALIDAÇÃO`
+alcançar o documento final. Formalizada na SPEC como
+`INV-TEMPESTIVIDADE-MARCO` (SPEC-0001 §5).
+
 ---
 
 ## 9. Integridade jurídica

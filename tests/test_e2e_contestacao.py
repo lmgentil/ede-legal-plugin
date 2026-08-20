@@ -32,6 +32,7 @@ Mesmo padrão sem framework: asserts + `if __name__ == "__main__"`.
 Uso:
   python tests/test_e2e_contestacao.py
 """
+import json
 import shutil
 import sys
 import tempfile
@@ -170,6 +171,87 @@ def test_fail_closed_estrategia_estruturalmente_invalida():
         assert r["status"] == "PIPELINE_ABORTED"
         assert r["stage"] == "strategy"
         assert not saida.exists()
+
+
+# ---------------------------------------------- tempestividade (INV-TEMPESTIVIDADE-MARCO)
+def test_fail_closed_tempestividade_marco_ausente():
+    # Teste negativo obrigatório: sem data de citação/intimação/publicação
+    # nenhuma, o pipeline não pode avançar além da etapa de tempestividade
+    # — nunca gera DOCX com "PENDENTE DE VALIDAÇÃO" no lugar do marco.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        (caso_tmp / "tempestividade.json").write_text(json.dumps({
+            "aplicavel": True, "data_pratica_ato": "2026-02-10",
+            "prazo_legal_dias": 15, "tipo_prazo": "uteis",
+            "fundamento_normativo": "art. 335, caput, CPC",
+        }), encoding="utf-8")
+
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED"
+        assert r["stage"] == "tempestividade"
+        assert not saida.exists()
+
+
+def test_fail_closed_tempestividade_marco_sem_origem():
+    # Data presente, mas sem 'marco_origem' registrado — equivalente a
+    # marco ambíguo/conflitante/insuficientemente comprovado: também
+    # bloqueia, nunca é tratado como documentado só porque uma data existe.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        dados = json.loads((caso_tmp / "tempestividade.json").read_text(encoding="utf-8"))
+        dados.pop("marco_origem", None)
+        dados.pop("marco_source_document", None)
+        (caso_tmp / "tempestividade.json").write_text(json.dumps(dados), encoding="utf-8")
+
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED"
+        assert r["stage"] == "tempestividade"
+        assert not saida.exists()
+
+
+def test_tempestividade_informada_pelo_advogado():
+    # Teste positivo (informado): marco não documentado nos autos, mas o
+    # advogado respondeu à pergunta obrigatória — registrado com origem e
+    # resposta verbatim; calendario-forense-tjba-2026 é acionado
+    # normalmente e o pipeline prossegue até o fim.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        (caso_tmp / "tempestividade.json").write_text(json.dumps({
+            "aplicavel": True,
+            "data_pratica_ato": "2026-02-10",
+            "data_ciencia": "2026-01-05",
+            "prazo_legal_dias": 15,
+            "tipo_prazo": "uteis",
+            "fundamento_normativo": "art. 335, caput, CPC",
+            "marco_origem": "informado_pelo_advogado",
+            "marco_resposta_advogado": "A citação ocorreu em 05/01/2026, "
+                                        "conforme confirmado pelo advogado "
+                                        "responsável (não constava nos "
+                                        "documentos anexados).",
+        }), encoding="utf-8")
+
+        saida = Path(tmp) / "contestacao_marco_informado.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "OK", r
+        tempestividade_stage = next(s for s in r["stages"] if s["name"] == "tempestividade")
+        assert tempestividade_stage["status"] == "ok"
+        assert tempestividade_stage["marco_origem"] == "informado_pelo_advogado"
+        assert r["tempestividade"].startswith("TEMPESTIVO")
+        assert saida.exists()
 
 
 def test_fail_closed_template_institucional_ausente():

@@ -168,20 +168,91 @@ apresentados como fato incontroverso.
 dos documentos do processo ou de informação expressa do advogado. O RAG
 nunca é fonte de fato processual — só de fundamento jurídico (§7).
 
-## 6. Pedidos, datas e tempestividade
+## 6. Pedidos, datas e tempestividade — INV-TEMPESTIVIDADE-MARCO
 
 Identifique todos os pedidos do autor (sem omitir nenhum — a análise do
 estrategista, §4, vai exigir isso na matriz de impugnação) e as datas
-relevantes extraídas com proveniência (§5). Se houver prazo a contar e o
-processo tramitar no TJBA em 2026, acione `calendario-forense-tjba-2026`
-(`skills/calendario-forense-tjba-2026/scripts/calcular_tempestividade.py`)
-com data de publicação/ciência extraída dos documentos (nunca presumida).
-Se faltar dado essencial (REQ-012), o valor do placeholder
-`TEMPESTIVIDADE_CASO` deve registrar `PENDENTE DE VALIDAÇÃO` e a memória
-de cálculo parcial — nunca uma data inventada ou uma conclusão de
-tempestividade sem lastro. Esta Skill orquestra o acionamento do
-calendário — não recalcula dias úteis/feriados/suspensões por conta
-própria (CLAUDE.md §8).
+relevantes extraídas com proveniência (§5).
+
+**INV-TEMPESTIVIDADE-MARCO** (SPEC-0001 §5, CLAUDE.md §8): nenhuma
+Contestação pode alcançar a etapa de redação final/geração do template
+sem marco temporal (data da citação, intimação ou publicação) concreto —
+documentalmente identificado com proveniência, ou expressamente
+informado pelo advogado. `PENDENTE DE VALIDAÇÃO` deixou de ser um estado
+terminal aceitável para `TEMPESTIVIDADE_CASO`: é fail-closed rígido, sem
+opção de "prosseguir mesmo assim sob responsabilidade do advogado" — o
+pipeline (`scripts/gerar_contestacao.py`) impõe isso estruturalmente
+(`PIPELINE_ABORTED`, stage `tempestividade`) exatamente como faz para a
+etapa estratégica (§4).
+
+Fluxo obrigatório, nesta ordem:
+
+1. **Procure o marco nos documentos do caso primeiro.** Se a data da
+   citação, intimação ou publicação estiver inequivocamente documentada
+   — sem ambiguidade, sem conflito entre fontes, com prova documental
+   suficiente — extraia-a com proveniência (mesmo contrato de §5:
+   documento-fonte identificado) e registre em `tempestividade.json`:
+   ```json
+   {
+     "aplicavel": true,
+     "data_ciencia": "2026-01-05",
+     "marco_origem": "documental",
+     "marco_source_document": "certidao-citacao.pdf",
+     "marco_page": 1,
+     "prazo_legal_dias": 15,
+     "tipo_prazo": "uteis",
+     "fundamento_normativo": "art. 335, caput, CPC",
+     "data_pratica_ato": "..."
+   }
+   ```
+   Com `marco_origem: "documental"` e proveniência registrada, **não
+   pergunte novamente ao advogado** — acione
+   `calendario-forense-tjba-2026` diretamente com esses dados.
+
+2. **Se o marco estiver ausente, ambíguo, conflitante ou
+   insuficientemente comprovado nos documentos**, pergunte
+   obrigatoriamente ao advogado — use `AskUserQuestion` (já declarada em
+   `allowed-tools` deste `SKILL.md`) com a pergunta:
+
+   > "Qual foi a data da citação, intimação ou publicação relevante para
+   > a contagem do prazo?"
+
+   Nunca presuma, nunca invente, nunca deixe o campo vazio "para revisar
+   depois" — a pergunta acontece agora, antes de acionar o redator.
+
+3. **Se o advogado responder com uma data concreta**, registre a origem
+   e a resposta literal em `tempestividade.json`:
+   ```json
+   {
+     "aplicavel": true,
+     "data_ciencia": "2026-01-05",
+     "marco_origem": "informado_pelo_advogado",
+     "marco_resposta_advogado": "Resposta literal do advogado aqui.",
+     "prazo_legal_dias": 15,
+     "tipo_prazo": "uteis",
+     "fundamento_normativo": "art. 335, caput, CPC",
+     "data_pratica_ato": "..."
+   }
+   ```
+   e acione `calendario-forense-tjba-2026` normalmente com essa data.
+
+4. **Se, mesmo após a pergunta, não houver data concreta** (advogado não
+   sabe, ainda não localizou a certidão, etc.), **não gere a peça**. Não
+   existe opção de prosseguir "sob responsabilidade do advogado" — relate
+   isso claramente e aguarde a informação antes de continuar. O pipeline
+   abortará (`PIPELINE_ABORTED`, stage `tempestividade`) se
+   `tempestividade.json` for gravado sem marco resolvido.
+
+5. **Qualquer outro dado essencial ao cálculo** (prazo legal em dias,
+   fundamento normativo, calendário forense verificado) que falte também
+   impede a conclusão — o mesmo `PENDENTE DE VALIDAÇÃO` que hoje só
+   sinalizava passa a bloquear o pipeline, não só o marco temporal
+   especificamente.
+
+Em todos os casos, esta Skill **orquestra** o acionamento do calendário —
+não recalcula dias úteis/feriados/suspensões por conta própria
+(CLAUDE.md §8); `calendario-forense-tjba-2026` continua sendo o único
+mecanismo de cálculo.
 
 ## 7. Questões jurídicas — RAG + validação de citações
 
@@ -217,8 +288,9 @@ conhecimento jurídico verificável, nunca fato do processo.
 
 ## 8. Redação e humanização (obrigatórias)
 
-Com fatos validados (§5), tempestividade resolvida ou sinalizada (§6),
-a análise estratégica concluída (§4) e citações validadas (§7) em mãos,
+Com fatos validados (§5), tempestividade resolvida — nunca meramente
+sinalizada como pendente, INV-TEMPESTIVIDADE-MARCO (§6) —, a análise
+estratégica concluída (§4) e citações validadas (§7) em mãos,
 acione `redator-peca-processual-elite` para redigir cada seção com esse
 conteúdo — nunca deixe o redator inventar tese, fato ou fundamento; ele
 recebe conteúdo definido (pela análise do estrategista e pelos fatos
@@ -238,7 +310,7 @@ Monte um único JSON `{PLACEHOLDER: valor}` (ver
 | `JUIZO` | Extração factual (§5) — documento processual |
 | `NUMERO_PROCESSO` | Extração factual (§5) |
 | `AUTOR` | Extração factual (§5) |
-| `TEMPESTIVIDADE_CASO` | Tempestividade (§6) — memória de cálculo ou `PENDENTE DE VALIDAÇÃO` |
+| `TEMPESTIVIDADE_CASO` | Tempestividade (§6) — memória de cálculo com marco temporal resolvido (INV-TEMPESTIVIDADE-MARCO); nunca `PENDENTE DE VALIDAÇÃO` |
 | `SINOPSE_FATOS` | Extração factual (§5) + redator/humanizer |
 | `REALIDADE_FATICA` | Extração factual (§5) + análise estratégica (§4) + redator/humanizer |
 | `IRREGULARIDADE_ENCONTRADA` | Extração factual (TOI/laudo) + análise estratégica (§4) + RAG/validação (§7) + redator/humanizer |
@@ -256,10 +328,13 @@ saída de `estrategista-contestacao-ede`.
 Cada valor final passa pelo mesmo Fail Closed do restante do projeto: se
 um placeholder depende de dado ausente, o valor deve dizer isso
 explicitamente (`"NÃO INFORMADO NOS ELEMENTOS DISPONIBILIZADOS."`,
-`PENDENTE DE VALIDAÇÃO`, etc.) — nunca ficar vazio silenciosamente nem ser
-preenchido por suposição. A validação estrutural final (placeholder
-desconhecido, placeholder residual) é feita por
-`scripts/validate_placeholders.py`, já pronto desde a Fase 3.
+`"PESQUISA JURISPRUDENCIAL NECESSÁRIA."`, etc.) — nunca ficar vazio
+silenciosamente nem ser preenchido por suposição. Exceção:
+`TEMPESTIVIDADE_CASO` não admite sentinela de ausência — sem marco
+resolvido (§6, INV-TEMPESTIVIDADE-MARCO), o pipeline aborta antes de
+chegar aqui. A validação estrutural final (placeholder desconhecido,
+placeholder residual) é feita por `scripts/validate_placeholders.py`, já
+pronto desde a Fase 3.
 
 ## 10. O que esta skill nunca faz
 

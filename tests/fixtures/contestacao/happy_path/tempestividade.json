@@ -4,5 +4,8 @@
   "data_ciencia": "2026-01-05",
   "prazo_legal_dias": 15,
   "tipo_prazo": "uteis",
-  "fundamento_normativo": "art. 335, caput, CPC"
+  "fundamento_normativo": "art. 335, caput, CPC",
+  "marco_origem": "documental",
+  "marco_source_document": "certidao_citacao_sintetica.txt",
+  "marco_page": 1
 }

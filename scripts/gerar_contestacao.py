@@ -111,7 +111,24 @@ def _etapa_fatos(caso: Path, stages: list):
     return fatos
 
 
-def _etapa_tempestividade(caso: Path, stages: list) -> str:
+MARCO_ORIGENS_VALIDAS = ("documental", "informado_pelo_advogado")
+# Campos de proveniência do marco — nunca repassados a calcular_tempestividade()
+# (que só aceita os parâmetros do cálculo em si).
+CAMPOS_TEMPESTIVIDADE_META = ("aplicavel", "marco_origem",
+                               "marco_source_document", "marco_page",
+                               "marco_resposta_advogado")
+
+
+def _etapa_tempestividade(caso: Path, stages: list):
+    """INV-TEMPESTIVIDADE-MARCO (SPEC-0001 §5, CLAUDE.md §8): nenhuma
+    Contestação alcança a etapa de template com tempestividade PENDENTE —
+    nem por marco temporal (citação/intimação/publicação) ausente ou sem
+    proveniência, nem por qualquer outro dado essencial faltando (prazo
+    legal, fundamento normativo, calendário não verificado). Perguntar ao
+    advogado é responsabilidade da Skill `contestacao` (AskUserQuestion,
+    já declarada em allowed-tools) — este script só verifica a EVIDÊNCIA
+    estrutural de que isso foi resolvido, o mesmo padrão já usado para
+    INV-CONTESTACAO-ESTRATEGIA (ver _etapa_estrategia)."""
     caminho = caso / "tempestividade.json"
     if not caminho.exists():
         stages.append({"name": "tempestividade", "status": "nao_aplicavel"})
@@ -120,13 +137,43 @@ def _etapa_tempestividade(caso: Path, stages: list) -> str:
     if not t.get("aplicavel", True):
         stages.append({"name": "tempestividade", "status": "nao_aplicavel"})
         return "NÃO APLICÁVEL"
-    args = {k: v for k, v in t.items() if k != "aplicavel"}
+
+    marco_origem = t.get("marco_origem")
+    tem_marco = bool(t.get("data_ciencia") or t.get("data_publicacao"))
+    if not tem_marco:
+        return _abortar(stages, "tempestividade",
+            "marco temporal (data da citação, intimação ou publicação) "
+            "ausente — INV-TEMPESTIVIDADE-MARCO exige que a Skill "
+            "`contestacao` pergunte obrigatoriamente ao advogado antes de "
+            "prosseguir; pipeline não pode avançar sem data concreta.")
+    if marco_origem not in MARCO_ORIGENS_VALIDAS:
+        return _abortar(stages, "tempestividade",
+            f"marco temporal presente sem 'marco_origem' válido "
+            f"({MARCO_ORIGENS_VALIDAS}) — INV-TEMPESTIVIDADE-MARCO exige "
+            f"proveniência explícita, nunca uma data solta sem origem "
+            f"registrada (ambígua, conflitante ou insuficientemente "
+            f"comprovada conta como ausente).")
+    if marco_origem == "documental" and not str(t.get("marco_source_document", "")).strip():
+        return _abortar(stages, "tempestividade",
+            "marco_origem='documental' exige 'marco_source_document' "
+            "(proveniência do marco, mesmo contrato de fatos.json/REQ-030) "
+            "— INV-TEMPESTIVIDADE-MARCO.")
+    if marco_origem == "informado_pelo_advogado" and not str(t.get("marco_resposta_advogado", "")).strip():
+        return _abortar(stages, "tempestividade",
+            "marco_origem='informado_pelo_advogado' exige "
+            "'marco_resposta_advogado' (registro da resposta dada pelo "
+            "advogado) — INV-TEMPESTIVIDADE-MARCO.")
+
+    args = {k: v for k, v in t.items() if k not in CAMPOS_TEMPESTIVIDADE_META}
     r = calcular_tempestividade(**args)
     if r.status == PENDENTE:
-        stages.append({"name": "tempestividade", "status": "pendente",
-                        "motivo": r.motivo_pendencia})
-        return f"PENDENTE DE VALIDAÇÃO — {r.motivo_pendencia}"
+        # Marco resolvido, mas outro dado essencial falta (prazo legal,
+        # fundamento normativo, calendário não verificado) — mesma regra:
+        # "PENDENTE DE VALIDAÇÃO" nunca alcança o DOCX final.
+        return _abortar(stages, "tempestividade", r.motivo_pendencia)
+
     stages.append({"name": "tempestividade", "status": "ok",
+                    "marco_origem": marco_origem,
                     "memoria_calculo": r.memoria_calculo()})
     return (f"{r.status} — termo inicial {r.termo_inicial}, prazo de "
             f"{r.prazo_legal_dias} dias {r.tipo_prazo} ({r.fundamento_normativo}), "
@@ -222,6 +269,8 @@ def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO)
         return fatos
 
     tempestividade_valor = _etapa_tempestividade(caso, stages)
+    if isinstance(tempestividade_valor, dict) and tempestividade_valor.get("status") == "PIPELINE_ABORTED":
+        return tempestividade_valor
 
     estrategia = _etapa_estrategia(caso, stages)
     if isinstance(estrategia, dict) and estrategia.get("status") == "PIPELINE_ABORTED":

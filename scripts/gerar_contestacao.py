@@ -102,6 +102,20 @@ PLACEHOLDERS_OBRIGATORIOS_NAO_VAZIOS = [
     "VALOR_FRA", "PEDIDOS_FINAIS", "LOCAL_DATA",
 ]
 
+# Correção — dano moral pretendido: VALOR_DANO_MORAL_PRETENDIDO NÃO entra
+# em nenhuma das duas listas acima, deliberadamente. Diferente de
+# VALOR_FRA (sempre presente na narrativa central do caso), este
+# placeholder só existe dentro do bloco condicional
+# DESCABIMENTO_DANO_MORAL — ausência de pedido de dano moral na inicial
+# é o cenário comum, e o bloco fica EXCLUIR (SDT removido antes da
+# substituição); tratá-lo como obrigatório aqui quebraria exatamente esse
+# caso comum. Quando o bloco está INCLUIR, a obrigatoriedade já é
+# garantida automaticamente por docx_template_engine.validar_placeholders
+# ("placeholders do template sem dado fornecido") sobre a XML já
+# composta — nenhuma lista global adicional necessária. E diferente da
+# sentinela fail-closed de VALOR_FRA, "a ser arbitrado pelo Juízo" é
+# conteúdo legítimo para este campo, não pode abortar o pipeline.
+
 
 def _abortar(stages: list, etapa: str, motivo: str) -> dict:
     stages.append({"name": etapa, "status": "abortado", "motivo": motivo})

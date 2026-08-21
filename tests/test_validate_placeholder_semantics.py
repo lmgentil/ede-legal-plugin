@@ -78,6 +78,51 @@ def test_valor_fra_sem_digito_nem_sentinela_rejeitado():
     assert any("VALOR_FRA" in e for e in erros)
 
 
+# --------------------------------------------------------------- VALOR_DANO_MORAL_PRETENDIDO
+def test_valor_dano_moral_monetario_aceito():
+    ok, erros = validar_semantica({"VALOR_DANO_MORAL_PRETENDIDO": "R$ 10.000,00"})
+    assert ok, erros
+
+
+def test_valor_dano_moral_sem_quantificacao_aceito():
+    # Item 4/5 da correção: inicial pede dano moral "a ser arbitrado pelo
+    # Juízo" — legítimo, não pode virar fail-closed como a sentinela de
+    # VALOR_FRA.
+    ok, erros = validar_semantica({"VALOR_DANO_MORAL_PRETENDIDO": "a ser arbitrado pelo Juízo"})
+    assert ok, erros
+
+
+def test_valor_dano_moral_sem_digito_nem_indicacao_de_arbitramento_rejeitado():
+    ok, erros = validar_semantica({"VALOR_DANO_MORAL_PRETENDIDO": "dano moral relevante"})
+    assert not ok
+    assert any("VALOR_DANO_MORAL_PRETENDIDO" in e for e in erros)
+
+
+def test_valor_dano_moral_formato_invalido_rejeitado():
+    # Item 6 da correção: dígito presente, mas fora do formato monetário BR.
+    for formato_invalido in ("10000", "R$10000", "10.000", "R$ 10,000.00"):
+        ok, erros = validar_semantica({"VALOR_DANO_MORAL_PRETENDIDO": formato_invalido})
+        assert not ok, f"{formato_invalido!r} deveria ter sido rejeitado"
+        assert any("VALOR_DANO_MORAL_PRETENDIDO" in e for e in erros)
+
+
+def test_valor_dano_moral_multiplos_valores_divergentes_rejeitado():
+    # Item 5/6 da correção (fail-closed): dois valores monetários
+    # divergentes no mesmo campo — não escolher maior/menor/último.
+    ok, erros = validar_semantica({
+        "VALOR_DANO_MORAL_PRETENDIDO": "R$ 10.000,00 ou, alternativamente, R$ 20.000,00"})
+    assert not ok
+    assert any("VALOR_DANO_MORAL_PRETENDIDO" in e for e in erros)
+
+
+def test_valor_dano_moral_mesmo_valor_repetido_nao_e_falso_positivo():
+    # O mesmo valor mencionado duas vezes não é "divergência" — só valores
+    # DISTINTOS configuram contradição.
+    ok, erros = validar_semantica({
+        "VALOR_DANO_MORAL_PRETENDIDO": "R$ 10.000,00, ou seja, R$ 10.000,00"})
+    assert ok, erros
+
+
 # --------------------------------------------------------------- LOCAL_DATA
 def test_local_data_curto_aceito():
     ok, erros = validar_semantica({"LOCAL_DATA": "Salvador/BA, 10 de fevereiro de 2026."})

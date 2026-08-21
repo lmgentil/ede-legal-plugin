@@ -290,6 +290,7 @@ def test_pipeline_completo_com_blocos_contra_template_real():
         "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": "Desenvolvimento técnico fictício de teste.",
         "FOTOS_DA_IRREGULARIADE": "(nenhuma foto anexada, dado fictício de teste)",
         "VALOR_FRA": "R$ 0,00 (dado fictício de teste)",
+        "VALOR_DANO_MORAL_PRETENDIDO": "R$ 0,00 (dado fictício de teste)",
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
         "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
     }

@@ -15,10 +15,12 @@
     "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE",
     "FOTOS_DA_IRREGULARIADE",
     "VALOR_FRA",
+    "VALOR_DANO_MORAL_PRETENDIDO",
     "PEDIDOS_FINAIS",
     "LOCAL_DATA"
   ],
   "_nota_auditoria_fase3": "Lista extraída por auditoria direta do DOCX (não da versão original da SPEC-0001 REQ-014, que previa TIPO_ACAO/TITULO_TESE_FATICA/VALOR_DANO_MORAL — nenhum dos três existe neste template real). SPEC-0001 e CLAUDE.md foram atualizados para refletir este contrato. Ver docs/adr ou CHANGELOG para o registro da divergência.",
+  "_nota_valor_dano_moral_pretendido": "Correção pontual (não a auditoria de Fase 3 acima): VALOR_DANO_MORAL_PRETENDIDO foi inserido manualmente pelo advogado no modelo-oficial.docx, dentro do bloco BLOCO:DESCABIMENTO_DANO_MORAL ('...no valor de {{VALOR_DANO_MORAL_PRETENDIDO}}, contudo, a mera formulação de pretensão indenizatória não se revela suficiente...'). É homônimo do VALOR_DANO_MORAL previsto na SPEC-0001 original e removido na auditoria de Fase 3, mas semanticamente distinto: aquele seria um placeholder de pedido de dano moral (que este modelo, de Contestação, nunca formula); este é o valor que a AUTORA pediu, citado defensivamente no tópico que argumenta pelo descabimento do dano moral. 12→13 placeholders — ver docs/specs/SPEC-0001.md §53.",
   "_nota_fotos": "FOTOS_DA_IRREGULARIADE (nome com erro de digitação no próprio DOCX, mantido literal) é tratado como texto/legenda pela engine atual. Decisão da V1 (correção v0.6.1, PEND-001 DEFERRED): a inserção de imagem embutida não será automatizada nesta versão — o campo recebe um marcador textual indicando pós-edição manual pelo advogado. Ver placeholder_semantics abaixo e docs/PENDENCIAS.md.",
   "placeholder_semantics": {
     "FOTOS_DA_IRREGULARIADE": {
@@ -95,6 +97,16 @@
       "descricao": "Valor monetário da recuperação de consumo (FRA) — nunca calculado/estimado por inferência; extraído dos documentos ou sinalizado como ausente.",
       "multiline": false,
       "restricoes": ["deve conter dígito (valor monetário) ou a sentinela de ausência \"NÃO INFORMADO...\" — validado por scripts/validate_placeholder_semantics.py"]
+    },
+    "VALOR_DANO_MORAL_PRETENDIDO": {
+      "tipo": "VALOR",
+      "descricao": "Valor da indenização por danos morais efetivamente pretendido pela parte AUTORA na petição inicial (INV-VALOR-DANO-MORAL-DOCUMENTAL) — dado documental, nunca estimado/inferido/arredondado/confundido com valor da causa, dano material ou qualquer outro pedido econômico. Vive dentro do bloco condicional DESCABIMENTO_DANO_MORAL; só é exigido quando esse bloco está INCLUIR (ausência de pedido de dano moral -> bloco EXCLUIR -> placeholder não exigido, automático via scripts/docx_template_engine.py sobre a composição de blocos, sem regra adicional em blocos.json).",
+      "multiline": false,
+      "restricoes": [
+        "formato monetário brasileiro (ex. \"R$ 10.000,00\") quando a inicial quantifica o pedido, ou frase natural indicando ausência de quantificação (ex. \"a ser arbitrado pelo Juízo\") quando não quantifica — nunca dígitos sem formatação BR, nunca a sentinela \"NÃO INFORMADO\"/\"NÃO ESPECIFICADO\" impressa literalmente",
+        "no máximo um valor monetário — múltiplos valores divergentes no mesmo campo aborta o pipeline (fail-closed); extração deve ser confirmada com o advogado, nunca escolhido automaticamente maior/menor/último",
+        "validado por scripts/validate_placeholder_semantics.py"
+      ]
     },
     "PEDIDOS_FINAIS": {
       "tipo": "TEXTO_LONGO",

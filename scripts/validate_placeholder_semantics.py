@@ -174,6 +174,61 @@ def _validar_valor_fra(valor) -> list:
     return []
 
 
+# Correção — dano moral pretendido: INV-VALOR-DANO-MORAL-DOCUMENTAL.
+# VALOR_DANO_MORAL_PRETENDIDO representa exclusivamente o valor de
+# indenização por danos morais efetivamente pretendido pela parte AUTORA
+# na petição inicial — dado documental, nunca estimado/inferido/
+# arredondado, nunca confundido com valor da causa, dano material ou
+# qualquer outro pedido econômico. Vive dentro do bloco condicional
+# DESCABIMENTO_DANO_MORAL ("...no valor de {{VALOR_DANO_MORAL_
+# PRETENDIDO}}, contudo..."); só é exigido quando esse bloco está
+# INCLUIR — mecanismo automático de scripts/docx_template_engine.py
+# (validar_placeholders sobre a XML já composta: bloco EXCLUIR remove o
+# SDT inteiro antes da substituição, o placeholder nunca é cobrado), por
+# isso NÃO entra em PLACEHOLDERS_OBRIGATORIOS_NAO_VAZIOS
+# (scripts/gerar_contestacao.py).
+#
+# Diferente de VALOR_FRA: pedido de dano moral "a ser arbitrado pelo
+# Juízo" é juridicamente comum e legítimo — não pode virar fail-closed
+# obrigatório como a sentinela de ausência de VALOR_FRA. Por isso este
+# campo NÃO entra em PLACEHOLDERS_CRITICOS_NAO_SENTINELA nem usa
+# SENTINELA_AUSENCIA; usa marcadores lexicais próprios de "sem
+# quantificação" (backstop não exaustivo, mesmo padrão dos demais desta
+# camada).
+_VALOR_MONETARIO_BR_RE = re.compile(r"R\$\s?\d{1,3}(?:\.\d{3})*,\d{2}(?!\d)")
+_MARCADORES_VALOR_NAO_ESPECIFICADO = (
+    "arbitr",              # arbitrado / arbitrada / arbitramento / arbitrável
+    "nao especific",
+    "sem quantific",
+    "a ser fixad",         # quantia/valor a ser fixado(a)
+    "sem valor determinado",
+)
+
+
+def _validar_valor_dano_moral_pretendido(valor) -> list:
+    texto = str(valor)
+    valores = set(_VALOR_MONETARIO_BR_RE.findall(texto))
+    if len(valores) > 1:
+        return [
+            f"VALOR_DANO_MORAL_PRETENDIDO contém {len(valores)} valores "
+            f"monetários divergentes {sorted(valores)} — não é possível "
+            f"determinar qual corresponde ao pedido de dano moral da "
+            f"petição inicial; extração deve ser confirmada com o "
+            f"advogado, nunca escolhido automaticamente o maior, menor "
+            f"ou último valor (fail-closed): {valor!r}"]
+    if valores:
+        return []  # exatamente um valor, já no formato monetário BR
+    if any(m in _sem_acento(texto).lower() for m in _MARCADORES_VALOR_NAO_ESPECIFICADO):
+        return []  # pedido sem quantificação na inicial — legítimo, não inventar valor
+    if re.search(r"\d", texto):
+        return [f"VALOR_DANO_MORAL_PRETENDIDO contém dígito mas não está "
+                f"no formato monetário brasileiro esperado (ex.: "
+                f"'R$ 10.000,00'): {valor!r}"]
+    return [f"VALOR_DANO_MORAL_PRETENDIDO não contém valor monetário nem "
+            f"indicação de pedido sem quantificação (ex.: 'a ser "
+            f"arbitrado pelo Juízo'): {valor!r}"]
+
+
 # Etapa 5.2 — INV-SINOPSE-ESTRITAMENTE-AUTORAL: marcadores defensivos que
 # não pertencem à Sinopse (função exclusivamente narrativa da inicial).
 # Lista fechada e deliberadamente conservadora (só frases inequivocamente
@@ -450,6 +505,7 @@ VALIDADORES_ESPECIFICOS = {
     "IRREGULARIDADE_ENCONTRADA": _validar_irregularidade_encontrada,
     "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": _validar_desenvolvimento_tecnico,
     "VALOR_FRA": _validar_valor_fra,
+    "VALOR_DANO_MORAL_PRETENDIDO": _validar_valor_dano_moral_pretendido,
     "PEDIDOS_FINAIS": _validar_pedidos_finais,
     "LOCAL_DATA": _validar_local_data,
 }

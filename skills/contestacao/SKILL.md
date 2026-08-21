@@ -370,7 +370,14 @@ Diferente do vínculo `state_linked` de `PRELIMINAR_REVOGACAO_GRATUIDADE`,
 esta é uma invariante **comportamental** (não há validação Python
 determinística para "há suporte fático" em geral — seria heurística
 jurídica em código, vedada por CLAUDE.md §3/§6) — a disciplina é sua, como
-orquestradora, e do estrategista.
+orquestradora, e do estrategista. Quando este bloco é `INCLUIR`, o
+placeholder `VALOR_DANO_MORAL_PRETENDIDO` (§5) é obrigatório — extraia o
+valor exato pedido na inicial, nunca invente; se a inicial não
+quantificar, use uma frase natural de ausência de quantificação ("a ser
+arbitrado pelo Juízo"), nunca a sentinela literal; se houver valores
+contraditórios ou incerteza sobre qual corresponde ao dano moral,
+pergunte ao advogado em vez de escolher automaticamente
+(INV-VALOR-DANO-MORAL-DOCUMENTAL, `docs/specs/SPEC-0001.md` §53).
 
 **`INDETERMINADO` nunca chega ao DOCX.** Se, depois de examinar os
 documentos e a análise estratégica, um bloco permanecer `INDETERMINADO`
@@ -660,8 +667,8 @@ institucional do modelo nunca é tocado por esta regra.
 
 Monte um único JSON `{PLACEHOLDER: valor}` (ver
 `templates/contestacao/schema.json`) para consumo por
-`scripts/render_docx.py` na Fase 7. O template ainda tem 12
-placeholders, mas você (redator) só produz 11 — `JUIZO` é resolvido à
+`scripts/render_docx.py` na Fase 7. O template tem 13
+placeholders, mas você (redator) só produz 12 — `JUIZO` é resolvido à
 parte pela orquestração, nunca por você (INV-JUIZO-DATAJUD, ver linha
 abaixo e detalhe mais adiante). Mapeamento de origem de cada campo:
 
@@ -677,24 +684,29 @@ abaixo e detalhe mais adiante). Mapeamento de origem de cada campo:
 | `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` | Análise estratégica (§4) + RAG/validação (§7) + redator/humanizer — foco em SUBSUNÇÃO ao caso concreto, não em reexplicar artigo por artigo o que o modelo já traz (Etapa 5.3 §12-§13); acrescenta o mecanismo técnico concreto, nunca só reafirma o rótulo de `IRREGULARIDADE_ENCONTRADA` com outras palavras (INV-NAO-REPETICAO-FATICA, Etapa 5.5), ver detalhe abaixo |
 | `FOTOS_DA_IRREGULARIADE` | Marcador textual de pós-edição manual (ex.: `"[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]"`) — decisão V1, `PEND-001` `DEFERRED`; nunca uma legenda da irregularidade (isso é `IRREGULARIDADE_ENCONTRADA`), nem imagem embutida automatizada |
 | `VALOR_FRA` | Extração factual — **nunca calculado ou estimado por inferência**; se ausente dos documentos, sinalizar, não inventar |
+| `VALOR_DANO_MORAL_PRETENDIDO` | Extração factual da petição inicial — **nunca inventado, estimado, arredondado, ou confundido com valor da causa/dano material/outro pedido econômico** (INV-VALOR-DANO-MORAL-DOCUMENTAL). Só é produzido quando `DESCABIMENTO_DANO_MORAL` está `INCLUIR` (§4 acima). Inicial sem quantificação ("a ser arbitrado pelo Juízo") → frase natural nesse sentido, nunca a sentinela "NÃO ESPECIFICADO"/"NÃO INFORMADO" impressa literalmente. Valores divergentes na inicial (contraditórios, ou incerteza sobre qual corresponde ao dano moral) → não escolha automaticamente maior/menor/último; sinalize a pendência e, se não resolvida pelos documentos, pergunte ao advogado antes de prosseguir. Formato monetário brasileiro (`R$ 10.000,00`) quando há quantia |
 | `PEDIDOS_FINAIS` | Análise estratégica (§4) + redator/humanizer — **curto, institucional e conclusivo** (Etapa 5.3 §16-§20), refletindo exatamente os blocos incluídos/excluídos, ver detalhe abaixo |
 | `LOCAL_DATA` | **Sempre "Salvador"** + data de elaboração da peça (Etapa 5.3 §21-§22) — nunca a comarca do processo; dado operacional, não jurídico |
 
 Nenhum destes campos pode ser gerado sem que a etapa estratégica (§4) já
 tenha sido executada e concluída — a maioria depende diretamente da
-saída de `estrategista-contestacao-ede`. Lista com 12 placeholders (era
-13 — `ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA` removido definitivamente:
-o modelo oficial já traz a argumentação de evolução de consumo
-inteiramente fixa, sem marcador; a IA nunca a gera/parafraseia. Bloco
-`EVOLUCAO_CONSUMO` (catálogo de composição) continua existindo, agora
-sem placeholder próprio — só decisão INCLUIR/EXCLUIR da etapa
-estratégica, sem preenchimento algum. Ver `docs/specs/SPEC-0001.md` §49).
+saída de `estrategista-contestacao-ede`. Lista com 13 placeholders (foi
+12 por um tempo, e antes disso 13 por outro motivo — histórico completo
+em `docs/specs/SPEC-0001.md` §49/§53, não repetido aqui):
+`ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA` foi removido definitivamente
+(o modelo oficial já traz a argumentação de evolução de consumo
+inteiramente fixa, sem marcador; a IA nunca a gera/parafraseia — bloco
+`EVOLUCAO_CONSUMO` continua existindo, sem placeholder próprio); depois
+disso, `VALOR_DANO_MORAL_PRETENDIDO` foi acrescentado (inserido
+manualmente pelo advogado no template, dentro de `DESCABIMENTO_DANO_
+MORAL` — INV-VALOR-DANO-MORAL-DOCUMENTAL, ver §4 e a tabela acima).
 
 Cada placeholder tem um contrato semântico formal (tipo, restrições) em
 `templates/contestacao/schema.json` (`placeholder_contracts`) —
 `scripts/validate_placeholder_semantics.py` verifica automaticamente
-`AUTOR`, `NUMERO_PROCESSO`, `VALOR_FRA`, `LOCAL_DATA` e (Etapa 5.2)
-`SINOPSE_FATOS` antes da geração final; conteúdo semanticamente
+`AUTOR`, `NUMERO_PROCESSO`, `VALOR_FRA`, `VALOR_DANO_MORAL_PRETENDIDO`,
+`LOCAL_DATA` e (Etapa 5.2) `SINOPSE_FATOS` antes da geração final;
+conteúdo semanticamente
 incompatível aborta o pipeline (`PIPELINE_ABORTED`, stage `placeholders`),
 nunca chega ao template. O Template Engine, automaticamente e sem ação
 desta Skill, marca em vermelho (`FF0000`) todo texto inserido nos

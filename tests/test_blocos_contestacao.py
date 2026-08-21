@@ -91,6 +91,16 @@ def test_catalogo_real_evolucao_consumo_e_puramente_fixo_sem_placeholder():
     assert por_id["EVOLUCAO_CONSUMO"]["dependencies"] == []
 
 
+def test_catalogo_real_descabimento_dano_moral_tem_placeholder():
+    # Correção — dano moral pretendido: VALOR_DANO_MORAL_PRETENDIDO vive
+    # dentro deste bloco, sem 'dependencies' (o SDT já garante
+    # obrigatoriedade quando INCLUIR — ver _nota_placeholder no catálogo).
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    por_id = {b["id"]: b for b in catalogo["blocks"]}
+    assert por_id["DESCABIMENTO_DANO_MORAL"]["placeholders"] == ["VALOR_DANO_MORAL_PRETENDIDO"]
+    assert por_id["DESCABIMENTO_DANO_MORAL"]["dependencies"] == []
+
+
 def test_catalogo_real_reconvencao_e_inline_vinculados():
     catalogo = carregar_catalogo(CATALOGO_REAL)
     por_id = {b["id"]: b for b in catalogo["blocks"]}

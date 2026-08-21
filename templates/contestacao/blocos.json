@@ -129,8 +129,9 @@
       "parent": null,
       "children": [],
       "decision_mode": "estrategista",
-      "placeholders": [],
+      "placeholders": ["VALOR_DANO_MORAL_PRETENDIDO"],
       "dependencies": [],
+      "_nota_placeholder": "Correção — dano moral pretendido: VALOR_DANO_MORAL_PRETENDIDO vive dentro deste SDT ('...no valor de {{VALOR_DANO_MORAL_PRETENDIDO}}, contudo...'). Sem 'dependencies' aqui, DIFERENTE de RECONVENCAO/VALOR_FRA acima — não é um gate adicional: como o placeholder está fisicamente dentro do próprio conteúdo do bloco, INCLUIR sem o dado é pego automaticamente por scripts/docx_template_engine.py (validar_placeholders, 'placeholders do template sem dado fornecido') sobre a XML já composta; EXCLUIR remove o SDT inteiro antes da substituição, então o placeholder nunca é cobrado. Nenhuma regra 'obrigatorio_nao_sentinela' se aplica: diferente de VALOR_FRA, pedido de dano moral sem quantificação ('a ser arbitrado pelo Juízo') é legítimo e não deve virar fail-closed.",
       "cardinality": "ONE"
     },
     {

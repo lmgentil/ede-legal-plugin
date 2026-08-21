@@ -557,6 +557,7 @@ Lista real, auditada diretamente em `templates/contestacao/modelo-oficial.docx`
 {{DESENVOLVIMENTO_TECNICO_IRREGULARIDADE}}
 {{FOTOS_DA_IRREGULARIADE}}
 {{VALOR_FRA}}
+{{VALOR_DANO_MORAL_PRETENDIDO}}
 {{PEDIDOS_FINAIS}}
 {{LOCAL_DATA}}
 ```
@@ -700,6 +701,41 @@ no OOXML) só se aplicavam UMA vez ao bloco inteiro, não entre as linhas.
   Backstop lexical específico (não genérico) em
   `scripts/validate_placeholder_semantics.py`
   (`_validar_irregularidade_encontrada`).
+
+### INV-VALOR-DANO-MORAL-DOCUMENTAL — correção pontual (13º placeholder)
+
+`{{VALOR_DANO_MORAL_PRETENDIDO}}` foi inserido manualmente pelo advogado
+no modelo oficial, dentro do bloco condicional `DESCABIMENTO_DANO_MORAL`
+("...ao pagamento de indenização por danos morais no valor de
+`{{VALOR_DANO_MORAL_PRETENDIDO}}`, contudo, a mera formulação de
+pretensão indenizatória não se revela suficiente..."). Representa
+exclusivamente o valor da indenização por danos morais efetivamente
+pretendido pela parte **autora** na petição inicial — dado factual
+documental, nunca gerado/estimado/arredondado pelo Redator, Humanizer ou
+Estrategista, e nunca confundido com valor da causa, dano material,
+multa, astreintes ou qualquer outro pedido econômico distinto.
+
+Só é exigido quando `DESCABIMENTO_DANO_MORAL` está `INCLUIR` (autora
+formulou pedido de dano moral) — ausência de pedido mantém o bloco
+`EXCLUIR` e o placeholder some junto com ele, automaticamente (o SDT
+inteiro é removido antes da substituição; nenhuma regra adicional em
+`blocos.json` é necessária, diferente de `VALOR_FRA`/`RECONVENCAO`).
+Pedido de dano moral sem quantificação na inicial ("a ser arbitrado pelo
+Juízo") é conteúdo legítimo, nunca vira fail-closed obrigatório como a
+sentinela de ausência de `VALOR_FRA` — mas nunca pode ser impresso como a
+sentinela literal ("NÃO ESPECIFICADO"/"NÃO INFORMADO"). Valores
+monetários divergentes no mesmo campo (inicial contraditória ou
+extração incerta) são fail-closed: nunca escolher automaticamente
+maior/menor/último, sempre confirmar com o advogado. Formato monetário
+brasileiro obrigatório quando há quantia (`R$ 10.000,00`, nunca
+`10000`/`R$10000`/`10.000`/formato americano). Backstop determinístico
+em `scripts/validate_placeholder_semantics.py`
+(`_validar_valor_dano_moral_pretendido`). Detalhe completo em
+`docs/specs/SPEC-0001.md` §53. 12→13 placeholders — não reabre a
+discussão do `VALOR_DANO_MORAL` original (removido na auditoria de Fase
+3, REQ-014): este é homônimo, mas semanticamente distinto (valor citado
+defensivamente no tópico de descabimento, não um pedido de dano moral
+que este modelo de Contestação nunca formula).
 
 ---
 

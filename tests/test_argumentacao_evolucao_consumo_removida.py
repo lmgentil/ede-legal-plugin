@@ -88,6 +88,7 @@ def test_B_F_I_docx_real_sem_marcador_bloco_funciona_lock_integro():
         "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": "Desenvolvimento técnico fictício de teste.",
         "FOTOS_DA_IRREGULARIADE": "(nenhuma foto anexada, dado fictício de teste)",
         "VALOR_FRA": "R$ 0,00 (dado fictício de teste)",
+        "VALOR_DANO_MORAL_PRETENDIDO": "R$ 0,00 (dado fictício de teste)",
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
         "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
     }

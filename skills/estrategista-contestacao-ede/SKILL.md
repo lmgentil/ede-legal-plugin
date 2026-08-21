@@ -316,7 +316,14 @@ problemas confirmados no primeiro teste real:
   liste esta preliminar como uma tese que você inclui/exclui.
 - **Descabimento de dano moral só é pertinente se a autora formulou
   pretensão de dano moral** — não insira esse tópico genericamente quando
-  a inicial não pedir indenização por dano moral.
+  a inicial não pedir indenização por dano moral. Quando pertinente,
+  identifique também o valor exato pedido (ou a ausência de
+  quantificação, ex. "a ser arbitrado pelo Juízo") no Diagnóstico
+  Executivo/Fatos relevantes — insumo para a Skill `contestacao`
+  preencher `VALOR_DANO_MORAL_PRETENDIDO` (INV-VALOR-DANO-MORAL-
+  DOCUMENTAL, `docs/specs/SPEC-0001.md` §53); nunca estime ou arredonde
+  esse valor, e sinalize se a inicial trouxer quantificações
+  incompatíveis para o mesmo pedido.
 
 Evite também multiplicar argumentos equivalentes com palavras diferentes
 só para parecer mais robusto (mesmo princípio de `redator-peca-processual-

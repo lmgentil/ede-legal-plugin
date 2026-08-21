@@ -46,7 +46,8 @@ titular do projeto.
    └── documentação
    ```
 
-   `schema.json` (o contrato de 13 placeholders entre a Skill
+   `schema.json` (o contrato de 13 placeholders — 12 da auditoria de
+   Fase 3 + `VALOR_DANO_MORAL_PRETENDIDO`, SPEC-0001 §53 — entre a Skill
    `contestacao` e o Template Engine) **permanece público** — ele não
    contém o timbrado, só a lista de campos.
 4. **Ausência do template não é falha de instalação.** Uma instalação

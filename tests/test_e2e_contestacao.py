@@ -144,6 +144,7 @@ def _validar_conteudo_sintetico(caminho: Path):
         "MARIA JOS", "8000001-11.2026.8.05.0080",
         "445566-7",  # unidade consumidora, citada em SINOPSE_FATOS/REALIDADE_FATICA
         "4.328,17",  # VALOR_FRA
+        "R$ 10.000,00",  # VALOR_DANO_MORAL_PRETENDIDO (DESCABIMENTO_DANO_MORAL=INCLUIR neste fixture)
         MARCADOR_FOTOS,
         "AO JUÍZO DA VARA",  # endereçamento institucional (Etapa 5.3 §1)
         "FEIRA DE SANTANA",  # comarca do processo, dentro do JUIZO (caixa alta)
@@ -198,6 +199,101 @@ def test_fail_closed_valor_essencial_ausente():
         assert r["stage"] == "placeholders"
         assert "VALOR_FRA" in r["reason"]
         assert not saida.exists(), "PIPELINE_ABORTED não pode deixar DOCX no disco"
+
+
+# ------------------------------------- Correção — dano moral pretendido
+def test_dano_moral_ausente_placeholder_nao_exigido():
+    # Item 7 da correção: sem pedido de dano moral, DESCABIMENTO_DANO_MORAL
+    # = EXCLUIR remove o SDT (e o placeholder dentro dele) antes da
+    # substituição — VALOR_DANO_MORAL_PRETENDIDO não precisa estar em
+    # placeholders.json, e nenhum marcador residual pode sobrar no DOCX.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        decisoes = json.loads((caso_tmp / "decisoes_blocos.json").read_text(encoding="utf-8"))
+        decisoes["DESCABIMENTO_DANO_MORAL"] = {"decisao": "EXCLUIR", "fundamento": "autora não formulou pedido de dano moral"}
+        (caso_tmp / "decisoes_blocos.json").write_text(json.dumps(decisoes), encoding="utf-8")
+        placeholders = json.loads((caso_tmp / "placeholders.json").read_text(encoding="utf-8"))
+        del placeholders["VALOR_DANO_MORAL_PRETENDIDO"]
+        (caso_tmp / "placeholders.json").write_text(json.dumps(placeholders), encoding="utf-8")
+
+        saida = Path(tmp) / "sem_dano_moral.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "OK", r
+        assert "DESCABIMENTO_DANO_MORAL" in r["blocos_excluidos"]
+        with zipfile.ZipFile(saida) as z:
+            document_xml = z.read("word/document.xml").decode("utf-8")
+        assert "{{" not in document_xml, "placeholder residual no DOCX sem pedido de dano moral"
+        assert "VALOR_DANO_MORAL_PRETENDIDO" not in document_xml
+
+
+def test_fail_closed_dano_moral_incluido_sem_valor():
+    # Contraparte do teste acima: DESCABIMENTO_DANO_MORAL = INCLUIR exige
+    # o placeholder (fisicamente dentro do SDT) — sem ele, o pipeline
+    # aborta em vez de deixar "{{VALOR_DANO_MORAL_PRETENDIDO}}" no DOCX.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        placeholders = json.loads((caso_tmp / "placeholders.json").read_text(encoding="utf-8"))
+        del placeholders["VALOR_DANO_MORAL_PRETENDIDO"]
+        (caso_tmp / "placeholders.json").write_text(json.dumps(placeholders), encoding="utf-8")
+
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED", r
+        assert "VALOR_DANO_MORAL_PRETENDIDO" in r["reason"]
+        assert not saida.exists()
+
+
+def test_dano_moral_sem_valor_determinado_aceita_frase_arbitramento():
+    # Item 4/5 da correção: inicial pede dano moral "a ser arbitrado pelo
+    # Juízo", sem quantia — não inventar valor, e a peça final não pode
+    # exibir a sentinela literalmente ("NÃO ESPECIFICADO"/"NÃO INFORMADO").
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        placeholders = json.loads((caso_tmp / "placeholders.json").read_text(encoding="utf-8"))
+        placeholders["VALOR_DANO_MORAL_PRETENDIDO"] = "a ser arbitrado pelo Juízo"
+        (caso_tmp / "placeholders.json").write_text(json.dumps(placeholders), encoding="utf-8")
+
+        saida = Path(tmp) / "sem_quantificacao.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "OK", r
+        with zipfile.ZipFile(saida) as z:
+            document_xml = z.read("word/document.xml").decode("utf-8")
+        assert "a ser arbitrado pelo Juízo" in document_xml
+        assert "NÃO ESPECIFICADO" not in document_xml.upper() and "NAO ESPECIFICADO" not in document_xml.upper()
+        assert "NÃO INFORMADO" not in document_xml.upper()
+
+
+def test_fail_closed_dano_moral_valores_contraditorios():
+    # Item 5/6 da correção: dois valores monetários divergentes no mesmo
+    # campo — não escolher automaticamente maior/menor/último, abortar.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        placeholders = json.loads((caso_tmp / "placeholders.json").read_text(encoding="utf-8"))
+        placeholders["VALOR_DANO_MORAL_PRETENDIDO"] = "R$ 10.000,00 ou, alternativamente, R$ 20.000,00"
+        (caso_tmp / "placeholders.json").write_text(json.dumps(placeholders), encoding="utf-8")
+
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED", r
+        assert r["stage"] == "placeholders"
+        assert "VALOR_DANO_MORAL_PRETENDIDO" in r["reason"]
+        assert not saida.exists()
 
 
 def test_fail_closed_autor_semanticamente_invalido():

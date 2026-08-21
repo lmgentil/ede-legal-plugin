@@ -7,7 +7,7 @@ citações e geração estruturada de documentos.
 
 > Atualmente, o módulo processual disponível é a Contestação.
 
-**Versão:** 0.9.0 · **Licença:** source-available · **Repositório:**
+**Versão:** 0.9.1 · **Licença:** source-available · **Repositório:**
 [`lmgentil/ede-legal-plugin`](https://github.com/lmgentil/ede-legal-plugin)
 
 ## Principais recursos

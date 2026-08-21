@@ -7,6 +7,93 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [0.9.1] - 2026-08-21 — Etapa 5.3–5.5, DataJud, vedação de pesquisa jurisprudencial e dano moral documental
+
+### Adicionado (INV-VALOR-DANO-MORAL-DOCUMENTAL — 13º placeholder)
+- `{{VALOR_DANO_MORAL_PRETENDIDO}}` (`docs/specs/SPEC-0001.md` §53):
+  inserido manualmente pelo advogado no `modelo-oficial.docx`, dentro do
+  bloco `DESCABIMENTO_DANO_MORAL` já catalogado — representa
+  exclusivamente o valor de indenização por danos morais pretendido pela
+  parte autora na petição inicial, dado documental (nunca gerado/
+  estimado/arredondado). Só é exigido quando o bloco está `INCLUIR`,
+  automaticamente (sem gate novo em `blocos.json` — o mecanismo já
+  existente de `docx_template_engine.validar_placeholders` sobre a XML
+  composta cobre os dois casos). Aceita frase de "sem quantificação"
+  ("a ser arbitrado pelo Juízo"); rejeita valores monetários divergentes
+  no mesmo campo (fail-closed) e formato fora do padrão BR. Novo
+  `_validar_valor_dano_moral_pretendido` em
+  `scripts/validate_placeholder_semantics.py`. 12→13 placeholders.
+
+### Adicionado (Etapa 5.5 — tempestividade natural e não-repetição fática)
+- `INV-TEMPESTIVIDADE-PROCEDIMENTO-COMUM` (`docs/specs/SPEC-0001.md`
+  §52): esta Contestação sempre calcula tempestividade pelo
+  procedimento comum do CPC (15 dias úteis, art. 335), nunca a Lei
+  9.099/95, mesmo quando o rito concreto admitiria aplicação
+  subsidiária; `scripts/gerar_contestacao.py` aplica o padrão fixo e
+  aborta diante de qualquer especificação incompatível.
+  `TEMPESTIVIDADE_CASO` passa a receber prosa jurídica natural e curta
+  (nunca dump robótico do tipo "TEMPESTIVO: termo inicial...", nunca
+  data ISO, nunca menção ao Juizado Especial) — a memória de cálculo
+  completa permanece só na auditoria interna do pipeline.
+- `INV-NAO-REPETICAO-FATICA`: o mesmo fato técnico não pode reaparecer
+  quase palavra por palavra em `REALIDADE_FATICA`,
+  `IRREGULARIDADE_ENCONTRADA` e `DESENVOLVIMENTO_TECNICO_
+  IRREGULARIDADE` — cada placeholder narrativo passa a ter função
+  própria e exclusiva. Backstop determinístico narrow (não exaustivo)
+  em `scripts/validate_placeholder_semantics.py`
+  (`_validar_nao_repeticao_realidade_fatica`).
+
+### Adicionado (INV-JUIZO-DATAJUD)
+- `{{JUIZO}}` deixa de ser conteúdo gerativo (`docs/specs/SPEC-0001.md`
+  §51): resolvido deterministicamente por `scripts/datajud_client.py` a
+  partir de `NUMERO_PROCESSO` — identifica o tribunal pelo número CNJ,
+  consulta a API Pública DataJud/CNJ para o órgão julgador real, resolve
+  a comarca via API do IBGE, monta `AO JUÍZO DA [...] DA COMARCA DE
+  [...]` em caixa alta. Fail-closed em qualquer indisponibilidade/
+  ambiguidade/processo não encontrado — nunca presume a vara. Chave
+  pública do DataJud versionada em `DATAJUD_API_KEY_PADRAO` (exceção
+  expressa do secret scan, ver `CLAUDE.md` §18).
+
+### Corrigido (INV-CONTESTACAO-SEM-TRAVESSAO)
+- `redator-peca-processual-elite` e `humanizer-pt-br` inseriam o
+  travessão ("—", U+2014) no texto da Contestação (`docs/specs/
+  SPEC-0001.md` §50). Backstop determinístico em `scripts/
+  validate_placeholder_semantics.py` (`_checar_travessao`) roda sobre
+  todo placeholder fornecido — travessão encontrado aborta o pipeline,
+  nunca é substituído automaticamente.
+
+### Removido (correção pontual)
+- `ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA` removido definitivamente
+  (`docs/specs/SPEC-0001.md` §49) — o modelo oficial já traz a
+  argumentação de evolução de consumo inteiramente fixa, sem marcador;
+  a IA nunca mais a gera/parafraseia. Bloco `EVOLUCAO_CONSUMO` continua
+  existindo, agora sem placeholder próprio.
+
+### Adicionado (Etapa 5.3 e 5.3-B — Calibração final do Teste Real 01-B)
+- Sete achados reais corrigidos (`docs/specs/SPEC-0001.md` §47):
+  endereçamento institucional (`JUIZO` sempre em caixa alta, padrão "AO
+  JUÍZO DA VARA [...] DA COMARCA DE [...]"), proibição de meta-
+  informação no documento final, densidade por bloco além do teto de
+  380 caracteres por parágrafo, `PEDIDOS_FINAIS` curto e composicional,
+  `LOCAL_DATA` sempre Salvador independentemente da comarca do
+  processo.
+- Contrato atômico de `IRREGULARIDADE_ENCONTRADA` e normalização visual
+  dos parágrafos multiline (`docs/specs/SPEC-0001.md` §48,
+  `INV-PARAGRAFO-HERDA-TEMPLATE`): cada linha lógica de um placeholder
+  multiline vira um `<w:p>` irmão real herdando o `w:pPr` do parágrafo-
+  placeholder, em vez de `<w:br/>` dentro de um único parágrafo — corrige
+  bug real de espaçamento visual divergente do texto nativo do modelo.
+
+### Vedado (INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL)
+- Achado do Teste Real 01-B (`docs/specs/SPEC-0001.md` §46):
+  comportamento "Calling Jurisprudências.ai 5 times" durante a
+  elaboração da Contestação, nunca autorizado pela arquitetura. Decisão
+  arquitetural permanente: a Contestação nunca pesquisa jurisprudência
+  (RAG, web, MCP, agente) — disponibilidade de uma ferramenta no
+  ambiente não é autorização de uso. `skills/contestacao/SKILL.md`
+  corrigida; teste audita o texto das Skills, sobrevivendo à existência
+  futura de qualquer ferramenta de pesquisa.
+
 ### Adicionado (Etapa 5.2 — Calibração redacional, pertinência fática e controle de decisões)
 - Sete novas invariantes decorrentes do Teste Real 01 (`docs/specs/SPEC-0001.md`
   §45, `CLAUDE.md` §7): `INV-PARAGRAFO-380` (parágrafo de conteúdo variável

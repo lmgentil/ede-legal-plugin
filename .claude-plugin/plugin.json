@@ -1,7 +1,7 @@
 {
   "name": "ede-legal-plugin",
   "displayName": "EDE Legal Plugin",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Plugin jurídico para Claude Code destinado à elaboração assistida de peças processuais, combinando Skills jurídicas, RAG jurídico (busca híbrida lexical + vetorial) e Template Lock institucional. Primeiro módulo processual: Contestação.",
   "author": {
     "name": "Luiz Mario Gentil da Silva Neto",

@@ -139,6 +139,22 @@ def test_F_datajud_indisponivel_fail_closed():
         _restaurar(originais)
 
 
+# erro de autenticação (chave inválida/expirada) é marcado com
+# TAG_ERRO_AUTENTICACAO e nunca degrada para um JUIZO parcial/inventado.
+def test_erro_de_autenticacao_marcado_e_nunca_degrada():
+    fake = _RespostaFalsa(erro=dj.JuizoResolutionError(
+        "DataJud rejeitou a credencial (HTTP 401: Unauthorized).", codigo=dj.TAG_ERRO_AUTENTICACAO))
+    originais = _instalar(fake)
+    try:
+        try:
+            resultado = dj.resolver_juizo("8000099-11.2026.8.05.0080", api_key="x", cache_path=_cache_tmp())
+            assert False, f"deveria ter levantado JuizoResolutionError, retornou: {resultado!r}"
+        except dj.JuizoResolutionError as e:
+            assert e.codigo == dj.TAG_ERRO_AUTENTICACAO
+    finally:
+        _restaurar(originais)
+
+
 # G. processo inexistente -> fail-closed.
 def test_G_processo_inexistente_fail_closed():
     resposta_vazia = {"hits": {"total": {"value": 0}, "hits": []}}
@@ -235,18 +251,37 @@ def test_K_cache_funciona_sem_api_key_apos_primeira_resolucao():
 
 
 # fail-closed adicional: sem DATAJUD_API_KEY (nem argumento, nem ambiente) -> erro claro.
-def test_sem_api_key_configurada_fail_closed(monkeypatch=None):
+# Etapa 5.5: sem DATAJUD_API_KEY no ambiente (nem api_key explícito), o
+# cliente usa a chave canônica versionada (DATAJUD_API_KEY_PADRAO)
+# automaticamente — plugin autossuficiente, sem configuração manual.
+def test_sem_datajud_api_key_no_ambiente_usa_chave_canonica_automaticamente():
     import os
     valor_original = os.environ.pop("DATAJUD_API_KEY", None)
+    fake = _RespostaFalsa(resposta_datajud=_RESPOSTA_TJBA_OK, resposta_ibge=_RESPOSTA_IBGE_VALENCA)
+    originais = _instalar(fake)
+    try:
+        r = dj.resolver_juizo("8000099-11.2026.8.05.0080", api_key=None, cache_path=_cache_tmp())
+        assert r["comarca"] == "Valença"
+    finally:
+        _restaurar(originais)
+        if valor_original is not None:
+            os.environ["DATAJUD_API_KEY"] = valor_original
+
+
+# ausência da chave canônica (e de qualquer override) continua fail-closed
+# — coberto em detalhe por tests/test_pacote_distribuicao.py (teste D),
+# checagem direta aqui também por completude do módulo.
+def test_ausencia_total_de_chave_fail_closed():
+    original = dj.DATAJUD_API_KEY_PADRAO
+    dj.DATAJUD_API_KEY_PADRAO = ""
     try:
         try:
             dj.resolver_orgao_julgador("8000099-11.2026.8.05.0080", api_key=None, cache_path=_cache_tmp())
             assert False, "deveria ter levantado JuizoResolutionError"
         except dj.JuizoResolutionError as e:
-            assert "DATAJUD_API_KEY" in e.motivo
+            assert "chave" in e.motivo.lower()
     finally:
-        if valor_original is not None:
-            os.environ["DATAJUD_API_KEY"] = valor_original
+        dj.DATAJUD_API_KEY_PADRAO = original
 
 
 # fail-closed: segmento de justiça não suportado.

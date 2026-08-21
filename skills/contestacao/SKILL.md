@@ -97,8 +97,9 @@ documentos do processo
 4A. decisões de blocos condicionais (INCLUIR/EXCLUIR/INDETERMINADO) — §4A
     + estado_processual.json (GRATUIDADE_CONCEDIDA vincula
     PRELIMINAR_REVOGACAO_GRATUIDADE deterministicamente; CORTE_EFETIVO
-    vincula LICITUDE_CORTE_SUSPENSAO deterministicamente — mesmo
-    mecanismo) + reconvenção via AskUserQuestion (SIM/NÃO) — §4A
+    condiciona LICITUDE_CORTE_SUSPENSAO — gate fático, decisão continua
+    sendo do advogado via AskUserQuestion) + reconvenção via
+    AskUserQuestion (SIM/NÃO) — §4A
   ↓
 5. RAG jurídico -> validação jurídica de cada citação (§7)
   ↓
@@ -268,14 +269,20 @@ disciplina de proveniência de §5) — **nunca por ocorrência lexical**
 estrategista) podem desenvolver o conteúdo/argumentação do bloco quando
 ele já estiver presente — mas não decidem se ele existe.
 
-### INV-CORTE-LINKED — vínculo determinístico, não decisão (correção arquitetural)
+### INV-CORTE-GATE-HUMANO — gate fático + decisão humana (Etapa 5.5, 3ª correção arquitetural)
 
-**`LICITUDE_CORTE_SUSPENSAO` não é decisão sua nem do estrategista —
-nunca registre uma entrada para ela em `decisoes_blocos.json`.** Mesma
-arquitetura de `PRELIMINAR_REVOGACAO_GRATUIDADE` logo acima:
-`decision_mode: "state_linked"` com `linked_fact: "CORTE_EFETIVO"` no
-catálogo — o estado do bloco **é** o estado processual, resolvido
-inteiramente por `docx_block_engine.py` a partir de
+**`LICITUDE_CORTE_SUSPENSAO` é `decision_mode: "humano"` com
+`requires_fact: {"key": "CORTE_EFETIVO"}` no catálogo** — não mais
+`state_linked` (a versão anterior, corrigida por este achado do Teste
+Real). O corte efetivo comprovado é **condição necessária, mas nunca
+suficiente**, para incluir o bloco: mesmo com `CORTE_EFETIVO: true`
+confirmado, a inclusão da tese continua sendo **decisão reservada ao
+advogado**, nunca automática. Mesma filosofia de controle humano de
+`INV-RECONVENCAO-AUTORIZACAO-EXPRESSA` (§ acima), com um gate fático por
+cima.
+
+Resolva `CORTE_EFETIVO` a partir dos documentos do caso (mesma
+disciplina de proveniência de §5) e registre em
 `estado_processual.json`:
 
 ```json
@@ -284,21 +291,32 @@ inteiramente por `docx_block_engine.py` a partir de
 }
 ```
 
-- `CORTE_EFETIVO: true` → `LICITUDE_CORTE_SUSPENSAO = INCLUIR`,
-  automaticamente.
-- `CORTE_EFETIVO` ausente ou `false` → `EXCLUIR`, automaticamente.
-- `CORTE_EFETIVO: "INDETERMINADO"` → o motor aborta
-  (`decisao_indeterminada`) — pergunte ao advogado antes de prosseguir.
-- Entrada indevida em `decisoes_blocos.json` para este bloco → rejeitada
-  explicitamente (`decisao_invalida`), mesmo coincidindo com o fato real.
+Fluxo obrigatório:
 
-**Correção arquitetural (achado real):** a modelagem anterior (gate
-`requires_fact` + decisão estratégica) permitia registrar `INCLUIR`
-sempre que `CORTE_EFETIVO: true` estivesse confirmado — e, num teste
-real, o bloco entrou com base numa **alegação da própria autora na
-petição inicial**, tratada incorretamente como suporte suficiente.
-Corrigido para `state_linked`: não há mais "elegibilidade + decisão", só
-vínculo direto.
+1. `CORTE_EFETIVO` ausente ou `false` → **não pergunte nada** — registre
+   `EXCLUIR` (ou simplesmente não registre decisão nenhuma; o motor
+   resolve `EXCLUIR` automaticamente pela ausência do gate). Nada a
+   decidir sobre uma tese sem suporte fático; não desperdice interação
+   humana com uma pergunta cuja resposta já está determinada pelos
+   fatos.
+2. `CORTE_EFETIVO: "INDETERMINADO"` → o motor aborta
+   (`decisao_indeterminada`), com ou sem decisão registrada — pergunte
+   ao advogado sobre o **fato** (houve corte efetivo ou não?) antes de
+   prosseguir, nunca sobre a inclusão do bloco ainda.
+3. `CORTE_EFETIVO: true` **sem** decisão registrada em
+   `decisoes_blocos.json` → o motor aborta (`decisao_ausente`) — isso é
+   o sinal para você perguntar — `AskUserQuestion` — ao advogado:
+   **"Deseja incluir o tópico relativo à licitude do corte/suspensão?"**
+   (SIM/NÃO). Nunca gere o DOCX final calado nesse estado.
+4. Resposta **SIM** → registre `{"decisao": "INCLUIR", "fundamento": ...}`.
+5. Resposta **NÃO** (ou nenhuma resposta obtida) → registre `{"decisao":
+   "EXCLUIR", ...}` (ou simplesmente não registre — mesmo efeito: o gate
+   já não seria satisfeito para uma decisão ausente, mas registrar
+   `EXCLUIR` explicitamente deixa rastro da pergunta feita). Nunca
+   presuma SIM.
+6. Tentar `INCLUIR` com `CORTE_EFETIVO: false`/ausente → rejeitado
+   explicitamente (`gate_fatico_nao_satisfeito`) — o gate protege mesmo
+   uma decisão humana mal informada.
 
 **Alegação da autora não é prova de corte efetivo — exceção expressa a
 INV-BLOCO-SUPORTE-FATICO (abaixo).** Mera ameaça de corte, aviso de
@@ -314,29 +332,44 @@ da narrativa da própria autora. Nunca por ocorrência lexical: "não
 houve corte" no texto de um documento não vira `CORTE_EFETIVO: true`.
 Resolva a partir dos documentos do caso (mesma disciplina de
 proveniência de §5). Você (e o estrategista) podem desenvolver o
-conteúdo/argumentação do bloco quando ele já estiver presente — mas não
-decidem se ele existe.
+conteúdo/argumentação do bloco quando ele já estiver presente — mas a
+decisão final de incluí-lo, mesmo com o fato comprovado, é sempre do
+advogado.
+
+**Histórico da modelagem (2 correções anteriores, ambas superadas):**
+(1) `estrategista` + gate `requires_fact` permitia `INCLUIR` sempre que
+`CORTE_EFETIVO: true` estivesse confirmado, sem checagem adicional — um
+teste real mostrou o bloco entrar com base numa alegação isolada da
+própria autora, tratada incorretamente como suporte suficiente. (2)
+Corrigido para `state_linked` (vínculo puramente determinístico, sem
+decisão alguma) — um teste real seguinte mostrou que isso incluía o
+bloco automaticamente sempre que o corte fosse comprovado, sem o
+advogado ter manifestado vontade de desenvolver a tese. A modelagem
+atual (`humano` + `requires_fact`) combina os dois requisitos: suporte
+fático **e** decisão humana, nenhum dos dois dispensa o outro.
 
 ### INV-BLOCO-SUPORTE-FATICO (Etapa 5.2) — princípio geral
 
 Nenhum bloco condicional entra na peça só porque existe no catálogo, é
 juridicamente possível, é comum nesse tipo de processo, ou o RAG recuperou
 legislação relacionada. Para todo bloco decidido por você/estrategista
-(não os dois `state_linked` acima), exija de si mesma um
-fato/alegação/estado processual concreto, com proveniência, antes de
-considerar a tese elegível — só depois disso a decide como estratégica.
-**Exceção expressa: `CORTE_EFETIVO` (que alimenta `LICITUDE_CORTE_
+(não `PRELIMINAR_REVOGACAO_GRATUIDADE`, o único `state_linked` puro
+acima — `LICITUDE_CORTE_SUSPENSAO` É decidido por você, com o gate
+fático por cima), exija de si mesma um fato/alegação/estado processual
+concreto, com proveniência, antes de considerar a tese elegível — só
+depois disso a decide como estratégica/humana.
+**Exceção expressa: `CORTE_EFETIVO` (que condiciona `LICITUDE_CORTE_
 SUSPENSAO` acima) exige padrão mais rigoroso que "alegação basta" —
 alegação isolada e não corroborada da autora nunca satisfaz esse estado
-específico** (INV-CORTE-LINKED acima detalha o porquê: foi exatamente
-essa confusão que causou o achado real que motivou a correção). Para
-`DESCABIMENTO_DANO_MORAL`, especificamente: só é elegível se a autora
-formulou pretensão de dano moral (extraída estruturalmente dos pedidos,
-§6 — nunca por busca lexical na petição). Diferente dos dois vínculos
-`state_linked` acima, esta é uma invariante **comportamental** (não há
-validação Python determinística para "há suporte fático" em geral —
-seria heurística jurídica em código, vedada por CLAUDE.md §3/§6) — a
-disciplina é sua, como
+específico** (INV-CORTE-GATE-HUMANO acima detalha o porquê: foi
+exatamente essa confusão que causou o achado real que motivou a
+correção). Para `DESCABIMENTO_DANO_MORAL`, especificamente: só é
+elegível se a autora formulou pretensão de dano moral (extraída
+estruturalmente dos pedidos, §6 — nunca por busca lexical na petição).
+Diferente do vínculo `state_linked` de `PRELIMINAR_REVOGACAO_GRATUIDADE`,
+esta é uma invariante **comportamental** (não há validação Python
+determinística para "há suporte fático" em geral — seria heurística
+jurídica em código, vedada por CLAUDE.md §3/§6) — a disciplina é sua, como
 orquestradora, e do estrategista.
 
 **`INDETERMINADO` nunca chega ao DOCX.** Se, depois de examinar os
@@ -396,6 +429,19 @@ nunca é fonte de fato processual — só de fundamento jurídico (§7).
 Identifique todos os pedidos do autor (sem omitir nenhum — a análise do
 estrategista, §4, vai exigir isso na matriz de impugnação) e as datas
 relevantes extraídas com proveniência (§5).
+
+**INV-TEMPESTIVIDADE-PROCEDIMENTO-COMUM (Etapa 5.5 — decisão de produto
+fixa e permanente).** Esta Contestação SEMPRE calcula tempestividade
+pelo procedimento comum do CPC — prazo de 15 dias, contagem em dias
+úteis, art. 335 do CPC. Nunca a lógica do Juizado Especial (Lei
+9.099/95), mesmo quando o caso concreto tramitar por rito que admitiria
+aplicação subsidiária dessa lei — não pergunte ao advogado qual rito
+aplicar, não deixe o estrategista escolher, não escreva
+`"fundamento_normativo"` mencionando "9.099"/"Juizado Especial" em
+`tempestividade.json` (o pipeline rejeita explicitamente,
+`stage=tempestividade`). Se você omitir `prazo_legal_dias`/`tipo_prazo`/
+`fundamento_normativo`, o pipeline aplica esse padrão fixo
+automaticamente.
 
 **INV-TEMPESTIVIDADE-MARCO** (SPEC-0001 §5, CLAUDE.md §8): nenhuma
 Contestação pode alcançar a etapa de redação final/geração do template
@@ -476,6 +522,30 @@ Em todos os casos, esta Skill **orquestra** o acionamento do calendário —
 não recalcula dias úteis/feriados/suspensões por conta própria
 (CLAUDE.md §8); `calendario-forense-tjba-2026` continua sendo o único
 mecanismo de cálculo.
+
+**Cálculo e redação são coisas diferentes (Etapa 5.5 §2-§3, achado
+real).** O cálculo interno (marco, termo inicial/final, dias úteis,
+suspensões, feriados, memória de cálculo) fica em `stages[...]
+['memoria_calculo']` — nunca despejado no DOCX. Quando você não fornecer
+`TEMPESTIVIDADE_CASO` em `placeholders.json`, `scripts/
+gerar_contestacao.py` já gera automaticamente uma redação natural a
+partir do resultado do cálculo (ex.: `"A presente Contestação é
+tempestiva. Considerado o marco processual ocorrido em [data
+DD/MM/AAAA] e a contagem do prazo de 15 (quinze) dias úteis, nos termos
+do art. 335 do Código de Processo Civil, o prazo defensivo encerra-se em
+[data], razão pela qual a defesa é apresentada tempestivamente."`) —
+prefira deixar o campo vazio e usar esse texto automático. Se você
+mesma escrever `TEMPESTIVIDADE_CASO`, siga a mesma disciplina: prosa
+jurídica curta e institucional, nunca formato de relatório
+(`"TEMPESTIVO: termo inicial ..., termo final ..."`), nunca data em
+formato ISO (`AAAA-MM-DD` — sempre `DD/MM/AAAA` ou por extenso), nunca
+menção a "aplicado subsidiariamente ao rito da Lei 9.099/1995" ou
+equivalente, nunca menção a algoritmo/cálculo interno/input/advogado/
+sistema/JSON/calendário como ferramenta (mesma proibição de
+meta-proveniência de §9). Backstop determinístico em
+`scripts/validate_placeholder_semantics.py`
+(`_validar_tempestividade_caso`) rejeita qualquer um desses padrões
+antes da geração final, independentemente da fonte do valor.
 
 ## 7. Questões jurídicas — RAG + validação de citações
 
@@ -602,9 +672,9 @@ abaixo e detalhe mais adiante). Mapeamento de origem de cada campo:
 | `AUTOR` | Extração factual (§5) — **apenas o nome da parte autora, em CAIXA ALTA** (Etapa 5.3 §3). O texto fixo do template já formula a cláusula de qualificação ("já qualificado(a) nos autos") e o CPF, quando aplicável, imediatamente depois do placeholder. Nunca produza `"Fulano de Tal, já qualificado nos autos, portador do CPF nº..."` — a duplicação dessa cláusula já causou quebra de página real, confirmada por diagnóstico forense (isolamento causal: encurtar só o AUTOR eliminou a quebra). Contrato completo em `templates/contestacao/schema.json` (`placeholder_contracts.AUTOR`), verificado automaticamente por `scripts/validate_placeholder_semantics.py` antes da geração final |
 | `TEMPESTIVIDADE_CASO` | Tempestividade (§6) — memória de cálculo com marco temporal resolvido (INV-TEMPESTIVIDADE-MARCO); nunca `PENDENTE DE VALIDAÇÃO`. Redija como texto jurídico natural (Etapa 5.3 §5), nunca revelando a mecânica de obtenção do dado — ver "Proibição de meta-informação" abaixo |
 | `SINOPSE_FATOS` | Extração factual (§5) + redator/humanizer — **estritamente autoral, INV-SINOPSE-ESTRITAMENTE-AUTORAL (Etapa 5.2)**, compacta e em tempo verbal uniforme (Etapa 5.3 §7-§8), ver detalhe abaixo |
-| `REALIDADE_FATICA` | Extração factual (§5) + análise estratégica (§4) + redator/humanizer |
+| `REALIDADE_FATICA` | Extração factual (§5) + análise estratégica (§4) + redator/humanizer — contraposição fática GLOBAL e objetiva, sem antecipar o detalhe técnico que pertence a `IRREGULARIDADE_ENCONTRADA`/`DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` (INV-NAO-REPETICAO-FATICA, Etapa 5.5), ver detalhe abaixo |
 | `IRREGULARIDADE_ENCONTRADA` | Extração factual (TOI/laudo) + análise estratégica (§4) + RAG/validação (§7) + redator/humanizer — contrato ATÔMICO (Etapa 5.3-B §15): EXCLUSIVAMENTE o nome/tipo, em **negrito**, minúsculas/natural (nunca caixa alta forçada), nunca repete o texto fixo do template ao redor do placeholder, nunca menciona assinatura do TOI (§11), ver detalhe abaixo |
-| `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` | Análise estratégica (§4) + RAG/validação (§7) + redator/humanizer — foco em SUBSUNÇÃO ao caso concreto, não em reexplicar artigo por artigo o que o modelo já traz (Etapa 5.3 §12-§13), ver detalhe abaixo |
+| `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` | Análise estratégica (§4) + RAG/validação (§7) + redator/humanizer — foco em SUBSUNÇÃO ao caso concreto, não em reexplicar artigo por artigo o que o modelo já traz (Etapa 5.3 §12-§13); acrescenta o mecanismo técnico concreto, nunca só reafirma o rótulo de `IRREGULARIDADE_ENCONTRADA` com outras palavras (INV-NAO-REPETICAO-FATICA, Etapa 5.5), ver detalhe abaixo |
 | `FOTOS_DA_IRREGULARIADE` | Marcador textual de pós-edição manual (ex.: `"[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]"`) — decisão V1, `PEND-001` `DEFERRED`; nunca uma legenda da irregularidade (isso é `IRREGULARIDADE_ENCONTRADA`), nem imagem embutida automatizada |
 | `VALOR_FRA` | Extração factual — **nunca calculado ou estimado por inferência**; se ausente dos documentos, sinalizar, não inventar |
 | `PEDIDOS_FINAIS` | Análise estratégica (§4) + redator/humanizer — **curto, institucional e conclusivo** (Etapa 5.3 §16-§20), refletindo exatamente os blocos incluídos/excluídos, ver detalhe abaixo |
@@ -652,6 +722,50 @@ orquestradora**: ao montar `SINOPSE_FATOS`, releia e confirme que não há
 nenhuma palavra de valoração/impugnação, só narrativa + pedidos. Se não
 for possível identificar a petição inicial com segurança, não fabrique a
 Sinopse — trate como qualquer outra lacuna fática (fail closed/interação).
+
+### INV-NAO-REPETICAO-FATICA (Etapa 5.5, achado do Teste Real)
+
+O mesmo fato técnico (ex. "desvio de energia antes do medidor")
+reapareceu quase palavra por palavra em `REALIDADE_FATICA`, na
+identificação da irregularidade e no desenvolvimento técnico —
+produzindo sensação de texto gerado por IA sem edição. **Um fato não
+deve ser reapresentado em vários parágrafos apenas com palavras
+diferentes.** Cada placeholder narrativo tem função própria e exclusiva
+(ver tabela acima) — nenhum é uma "nova versão" do anterior:
+`SINOPSE_FATOS` só a narrativa autoral (acima); `REALIDADE_FATICA`
+contraposição global/objetiva, sem antecipar detalhe técnico (exemplo
+corrigido: `"A inspeção identificou irregularidade no sistema de
+medição, dando origem ao procedimento de recuperação de consumo
+documentado nos autos."`); `IRREGULARIDADE_ENCONTRADA` só o rótulo
+atômico; `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` acrescenta o mecanismo
+técnico concreto (não copia o rótulo); `EVOLUCAO_CONSUMO` só dado
+concreto; `PEDIDOS_FINAIS` conclusão processual, sem reencenar fatos.
+Dado técnico concreto (código de irregularidade, número do TOI, data da
+inspeção, critério de cálculo, período, ciclos, kWh, valor), quando
+documentado, distribua racionalmente — um dado, uma função
+argumentativa, um local primário, não repetido em múltiplos blocos.
+
+**Presença da titular na inspeção**: mencionar a presença física da
+titular (quando documentalmente relevante) não vira automaticamente a
+conclusão jurídica de que o contraditório foi "assegurado" — presença
+física ≠ conclusão jurídica de contraditório garantido. Preserva-se a
+regra já existente: a assinatura do TOI nunca é usada como argumento
+defensivo (§11).
+
+Antes de finalizar um parágrafo narrativo, verifique se ele: (A)
+apresenta fato novo; (B) desenvolve consequência nova; (C) realiza
+subsunção necessária; ou (D) apenas parafraseia informação já dita
+noutro placeholder — só (D) exige remoção/reescrita. O problema é
+SEMÂNTICO (paráfrase), não mera igualdade textual — não existe (nem
+deveria existir) um bloqueador destrutivo de similaridade textual
+genérica no código (geraria falsos positivos). **Classificação:
+majoritariamente COMPORTAMENTAL, sua e do redator/humanizer, com um
+backstop determinístico NARROW**: `scripts/validate_placeholder_
+semantics.py` (`_validar_nao_repeticao_realidade_fatica`, não exaustivo)
+rejeita quando o rótulo atômico de `IRREGULARIDADE_ENCONTRADA` aparece
+verbatim dentro de `REALIDADE_FATICA` — só o sintoma mais grave e
+inequívoco; paráfrase com palavras diferentes fica fora do escopo do
+código, é controle seu.
 
 ### INV-PARAGRAFO-380 / INV-NAO-REDUNDANCIA / INV-NAO-REDUNDANCIA-NORMATIVA (Etapa 5.2)
 
@@ -862,12 +976,17 @@ relata a pendência e para quando não for. **Não decide reconvenção por
 conta própria nem deixa o estrategista decidir sozinho** — sempre
 pergunta SIM/NÃO ao advogado (INV-RECONVENCAO-AUTORIZACAO-EXPRESSA, §4A).
 **Nem decide, registra ou tenta influenciar a existência de
-`LICITUDE_CORTE_SUSPENSAO` nem de `PRELIMINAR_REVOGACAO_GRATUIDADE`** —
-ambos os blocos são vinculados deterministicamente a `CORTE_EFETIVO`/
+`PRELIMINAR_REVOGACAO_GRATUIDADE`** — vinculado deterministicamente a
 `GRATUIDADE_CONCEDIDA` em `estado_processual.json`, nunca a uma decisão
-em `decisoes_blocos.json` (INV-CORTE-LINKED/INV-GRATUIDADE-LINKED, §4A)
-— em nenhum dos dois casos por busca lexical, e a alegação isolada da
-autora nunca basta para `CORTE_EFETIVO: true` (INV-CORTE-LINKED, §4A).
+em `decisoes_blocos.json` (INV-GRATUIDADE-LINKED, §4A). **Já
+`LICITUDE_CORTE_SUSPENSAO` é diferente**: `CORTE_EFETIVO` (também em
+`estado_processual.json`) só condiciona a *elegibilidade* do bloco —
+mesmo com `CORTE_EFETIVO: true` comprovado, a inclusão continua exigindo
+pergunta expressa ao advogado (`AskUserQuestion`, INV-CORTE-GATE-HUMANO,
+§4A); nunca inclui automaticamente, e nunca gera o DOCX final com
+`CORTE_EFETIVO: true` sem essa decisão registrada. Em nenhum dos dois
+casos por busca lexical, e a alegação isolada da autora nunca basta para
+`CORTE_EFETIVO: true` (INV-CORTE-GATE-HUMANO, §4A).
 **Nem produz, aceita ou reconcilia um `JUIZO` fornecido pelo
 redator/humanizer** — é resolvido automaticamente via DataJud/CNJ
 (`scripts/datajud_client.py`, INV-JUIZO-DATAJUD, §9); qualquer `JUIZO`

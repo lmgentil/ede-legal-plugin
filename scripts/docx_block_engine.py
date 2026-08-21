@@ -29,26 +29,36 @@ puramente mecânicos, nenhum deles heurística jurídica:
     decisao_indeterminada) já cobre o caso — nenhuma mecânica nova.
   - `requires_fact` (catálogo): GATE fático opcional por bloco
     'estrategista'/'humano' — INCLUIR só é aceito se
-    `fatos_processuais[key]` for verdadeiro; a decisão de INCLUIR vs.
-    EXCLUIR quando o fato é verdadeiro continua exclusivamente
-    estratégica. Infraestrutura geral do motor, disponível para futuros
-    blocos — nenhum bloco do catálogo atual o usa (LICITUDE_CORTE_
-    SUSPENSAO migrou para `state_linked` numa correção arquitetural
-    posterior, ver abaixo — INV-CORTE-LINKED).
+    `fatos_processuais[key]` estiver resolvido para TRUE (ver
+    `_estado_fato_processual` abaixo); quando o fato é FALSE/ausente e
+    NENHUMA decisão manual está registrada, o gate resolve sozinho para
+    EXCLUIR (sem perguntar — nada a decidir sobre uma tese sem suporte
+    fático); quando o fato é TRUE e nenhuma decisão está registrada, o
+    fail-closed de sempre (decisao_ausente) aborta, sinalizando que uma
+    decisão humana ainda precisa ser tomada; a decisão INCLUIR vs. EXCLUIR
+    quando o fato é TRUE continua exclusivamente da etapa
+    estratégica/humana — o gate nunca decide por conta própria, só
+    restringe. Usado por LICITUDE_CORTE_SUSPENSAO (decision_mode
+    'humano') — INV-CORTE-GATE-HUMANO, Etapa 5.5, 3ª correção
+    arquitetural: as duas modelagens anteriores (gate puro sem checagem
+    adicional; depois `state_linked` puro) se mostraram incorretas em
+    testes reais — ver `INV-CORTE-GATE-HUMANO` em
+    skills/contestacao/SKILL.md §4A e docs/specs/SPEC-0001.md.
   - decision_mode "state_linked" + `linked_fact` (catálogo, correção
     pontual pós-Etapa 5.2): VÍNCULO determinístico ESTADO PROCESSUAL ->
     BLOCO — o estado do bloco *é* `fatos_processuais[linked_fact]`
     (true->INCLUIR, false->EXCLUIR, 'INDETERMINADO'->aborta); nenhuma
-    decisão da etapa estratégica é aceita (PRELIMINAR_REVOGACAO_
-    GRATUIDADE — INV-GRATUIDADE-LINKED; LICITUDE_CORTE_SUSPENSAO —
-    INV-CORTE-LINKED, correção arquitetural: modelagem anterior como
-    gate + decisão estratégica permitiu, em teste real, inclusão baseada
-    em mera alegação da autora, não em corte efetivamente comprovado).
-    Diferente de "linked"
+    decisão da etapa estratégica é aceita. Usado por PRELIMINAR_REVOGACAO_
+    GRATUIDADE (INV-GRATUIDADE-LINKED) — único bloco do catálogo atual
+    neste modo; LICITUDE_CORTE_SUSPENSAO usou este modo numa correção
+    intermediária (INV-CORTE-LINKED, já superada — ver acima), mas um
+    teste real seguinte mostrou que corte efetivo comprovado não deve
+    incluir automaticamente sem decisão do advogado, daí a migração para
+    `requires_fact` + `humano`. Diferente de "linked"
     (BLOCO -> BLOCO, ex.: INLINE_COM_RECONVENCAO -> RECONVENCAO,
     preservado intocado) e diferente de `requires_fact` (que é um gate,
-    não um vínculo — ainda deixa a decisão para o estrategista). Estado
-    processual resolvido pela Skill `contestacao` a partir dos
+    não um vínculo — ainda deixa a decisão para o estrategista/humano).
+    Estado processual resolvido pela Skill `contestacao` a partir dos
     documentos, nunca por busca lexical em texto.
 
 lxml.etree é a tecnologia obrigatória para toda manipulação estrutural
@@ -97,11 +107,10 @@ TIPOS_VALIDOS = ("FIXO", "CONDICIONAL_PADRAO", "CONDICIONAL_HIBRIDO", "CONTAINER
 # decisoes_blocos.json (mesmo tratamento fail-closed já dado a
 # "derived"/"linked": decisão fornecida é rejeitada, não ignorada). Isto é
 # deliberadamente diferente de `requires_fact` (gate + decisão
-# estratégica — infraestrutura geral, sem uso atual no catálogo desde
-# que LICITUDE_CORTE_SUSPENSAO migrou para `state_linked`,
-# INV-CORTE-LINKED): `requires_fact` é um GATE que só restringe INCLUIR,
-# deixando a decisão INCLUIR/EXCLUIR para a etapa estratégica quando o
-# fato é verdadeiro; `state_linked` não deixa
+# estratégica/humana — usado por LICITUDE_CORTE_SUSPENSAO,
+# INV-CORTE-GATE-HUMANO, Etapa 5.5): `requires_fact` é um GATE que só
+# restringe INCLUIR, deixando a decisão INCLUIR/EXCLUIR para a etapa
+# estratégica/humana quando o fato é verdadeiro; `state_linked` não deixa
 # decisão alguma para o estrategista — o estado do bloco *é* o estado
 # processual, sempre.
 DECISION_MODES_VALIDOS = ("estrategista", "humano", "derived", "linked", "state_linked")
@@ -191,8 +200,8 @@ def validar_catalogo(catalogo: dict) -> None:
         # opcional (estado processual, não outro bloco) que condiciona
         # INCLUIR. Puramente estrutural aqui — nenhuma heurística jurídica:
         # só garante que, quando declarado, tem a forma esperada.
-        # Infraestrutura geral, sem uso atual no catálogo (LICITUDE_CORTE_
-        # SUSPENSAO migrou para state_linked — INV-CORTE-LINKED).
+        # Usado por LICITUDE_CORTE_SUSPENSAO (decision_mode 'humano') —
+        # INV-CORTE-GATE-HUMANO, Etapa 5.5.
         gate = b.get("requires_fact")
         if gate is not None:
             if b["decision_mode"] not in DECISION_MODES_MANUAIS:
@@ -236,37 +245,23 @@ def validar_catalogo(catalogo: dict) -> None:
         raise ComposicaoAbortada("catalogo_invalido", "ciclo detectado na hierarquia parent/children")
 
 
-def _fato_processual_verdadeiro(fatos_processuais: dict, key: str) -> bool:
-    """Lê um estado processual (ex.: CORTE_EFETIVO) de forma puramente
-    mecânica — nunca interpreta texto, só o booleano já resolvido pela
-    Skill `contestacao`/pelo estrategista a partir dos documentos
-    (fail-closed: ausente ou mal formado conta como falso, nunca como
-    verdadeiro por omissão). Aceita tanto `{"KEY": true}` quanto
-    `{"KEY": {"valor": true, ...proveniência...}}`. Usado só pelo gate
-    `requires_fact` (infraestrutura geral, sem uso atual no catálogo) —
-    para `state_linked` (INV-GRATUIDADE-LINKED/INV-CORTE-LINKED), ver
-    `_estado_fato_processual` abaixo, que
-    distingue um terceiro estado (`INDETERMINADO`)."""
-    valor = (fatos_processuais or {}).get(key)
-    if isinstance(valor, bool):
-        return valor
-    if isinstance(valor, dict):
-        return valor.get("valor") is True
-    return False
-
-
 def _estado_fato_processual(fatos_processuais: dict, key: str, bid: str) -> str:
-    """Resolve um estado processual para exatamente um destes três:
-    'TRUE', 'FALSE', 'INDETERMINADO' — usado pelos blocos 'state_linked'
-    (INV-GRATUIDADE-LINKED). Diferença deliberada de
-    `_fato_processual_verdadeiro`: aqui a ausência simples da chave conta
-    como FALSE (nunca vira ambiguidade — "não transformar simples
-    ausência de decisão em ambiguidade"), mas um valor presente e
-    reconhecido como indeterminado (`"INDETERMINADO"`) é distinguido de
-    falso, e propaga a mesma ambiguidade em vez de ser tratado como
-    corte/gratuidade não concedida. Qualquer valor fora do contrato
-    aceito (não é bool, não é 'INDETERMINADO', não é um dict com esses
-    valores em 'valor') aborta explicitamente — nunca interpretado
+    """Resolve um estado processual (ex.: CORTE_EFETIVO, GRATUIDADE_
+    CONCEDIDA) para exatamente um destes três: 'TRUE', 'FALSE',
+    'INDETERMINADO' — nunca interpreta texto, só o valor já resolvido
+    pela Skill `contestacao`/estrategista a partir dos documentos. Aceita
+    tanto `{"KEY": true}` quanto `{"KEY": {"valor": true,
+    ...proveniência...}}`. Usado pelos blocos 'state_linked'
+    (INV-GRATUIDADE-LINKED) e, desde a Etapa 5.5, também pela resolução
+    de gate fático + decisão humana de blocos com `requires_fact`
+    (INV-CORTE-GATE-HUMANO) quando não há decisão registrada. A ausência
+    simples da chave conta como FALSE (nunca vira ambiguidade — "não
+    transformar simples ausência de decisão em ambiguidade"), mas um
+    valor presente e reconhecido como indeterminado (`"INDETERMINADO"`)
+    é distinguido de falso, e propaga a mesma ambiguidade em vez de ser
+    tratado como corte/gratuidade não concedida. Qualquer valor fora do
+    contrato aceito (não é bool, não é 'INDETERMINADO', não é um dict com
+    esses valores em 'valor') aborta explicitamente — nunca interpretado
     silenciosamente."""
     fatos_processuais = fatos_processuais or {}
     if key not in fatos_processuais:
@@ -304,10 +299,15 @@ def validar_e_resolver_decisoes(catalogo: dict, decisoes: dict, fatos_processuai
     `fatos_processuais` (opcional) é o estado processual (ex.:
     {"GRATUIDADE_CONCEDIDA": true, "CORTE_EFETIVO": false}), com dois usos
     distintos:
-      - blocos que declaram `requires_fact` (infraestrutura geral, sem
-        uso atual no catálogo): GATE — INCLUIR só é aceito se o fato for
-        verdadeiro; a decisão INCLUIR/EXCLUIR em si continua exclusivamente da etapa
-        estratégica quando o fato é verdadeiro.
+      - blocos que declaram `requires_fact` (ex.: LICITUDE_CORTE_
+        SUSPENSAO — INV-CORTE-GATE-HUMANO, Etapa 5.5): GATE FÁTICO +
+        DECISÃO HUMANA. Fato falso/ausente -> EXCLUIR automático, SEM
+        exigir decisão em `decisoes` (nada a perguntar sobre tese sem
+        suporte). Fato INDETERMINADO -> aborta (`decisao_indeterminada`),
+        com ou sem decisão presente. Fato verdadeiro SEM decisão em
+        `decisoes` -> aborta (`decisao_ausente`) — a Skill orquestradora
+        interpreta isso como "pergunte ao advogado". Fato verdadeiro COM
+        decisão -> INCLUIR/EXCLUIR conforme a decisão registrada.
       - blocos 'state_linked' (INV-GRATUIDADE-LINKED): VÍNCULO
         determinístico — o estado do bloco *é* o estado processual
         (true->INCLUIR, false->EXCLUIR, 'INDETERMINADO'->aborta); não há
@@ -323,7 +323,31 @@ def validar_e_resolver_decisoes(catalogo: dict, decisoes: dict, fatos_processuai
                     f"{bid}: decision_mode='{b['decision_mode']}' não aceita decisão manual",
                 )
             continue
+        gate = b.get("requires_fact")
         if bid not in decisoes:
+            # Etapa 5.5 (INV-CORTE-GATE-HUMANO): bloco com gate fático +
+            # decisão manual — sem suporte fático algum, não há nada a
+            # perguntar (nunca desperdiçar interação humana com tese sem
+            # suporte): resolve automaticamente para EXCLUIR, sem exigir
+            # entrada em decisoes_blocos.json. Fato INDETERMINADO aborta
+            # (mesmo sem decisão pendente, a incerteza factual em si já é
+            # fail-closed). Só quando o fato é verdadeiro E não há decisão
+            # é que cai no abort padrão abaixo — que a Skill orquestradora
+            # interpreta como "pergunte ao advogado".
+            if gate:
+                estado_fato = _estado_fato_processual(fatos_processuais, gate["key"], bid)
+                if estado_fato == "INDETERMINADO":
+                    raise ComposicaoAbortada(
+                        "decisao_indeterminada",
+                        f"{bid}: estado processual '{gate['key']}' está "
+                        f"INDETERMINADO — documentos contraditórios ou "
+                        f"insuficientes para determinar o fato; requer "
+                        f"interação com o advogado antes de decidir o bloco.")
+                if estado_fato == "FALSE":
+                    estados[bid] = "EXCLUIR"
+                    continue
+                # estado_fato == "TRUE": gate satisfeito, mas nenhuma
+                # decisão humana registrada — cai no abort abaixo.
             raise ComposicaoAbortada("decisao_ausente", f"{bid}: sem decisão da etapa estratégica")
         d = decisoes[bid]
         estado = d.get("decisao") if isinstance(d, dict) else d
@@ -331,14 +355,22 @@ def validar_e_resolver_decisoes(catalogo: dict, decisoes: dict, fatos_processuai
             raise ComposicaoAbortada("decisao_invalida", f"{bid}: estado inválido '{estado}' (sem normalização — só INCLUIR/EXCLUIR/INDETERMINADO)")
         if estado == "INDETERMINADO":
             raise ComposicaoAbortada("decisao_indeterminada", f"{bid}: permanece INDETERMINADO")
-        gate = b.get("requires_fact")
-        if estado == "INCLUIR" and gate and not _fato_processual_verdadeiro(fatos_processuais, gate["key"]):
-            raise ComposicaoAbortada(
-                "gate_fatico_nao_satisfeito",
-                f"{bid}: INCLUIR exige estado processual '{gate['key']}' confirmado "
-                f"(ausente ou falso em estado_processual.json) — suporte fático "
-                f"insuficiente para a tese, independentemente da análise estratégica.",
-            )
+        if estado == "INCLUIR" and gate:
+            estado_fato = _estado_fato_processual(fatos_processuais, gate["key"], bid)
+            if estado_fato == "INDETERMINADO":
+                raise ComposicaoAbortada(
+                    "decisao_indeterminada",
+                    f"{bid}: estado processual '{gate['key']}' está "
+                    f"INDETERMINADO — documentos contraditórios ou "
+                    f"insuficientes para determinar o fato; requer "
+                    f"interação com o advogado antes de decidir o bloco.")
+            if estado_fato != "TRUE":
+                raise ComposicaoAbortada(
+                    "gate_fatico_nao_satisfeito",
+                    f"{bid}: INCLUIR exige estado processual '{gate['key']}' confirmado "
+                    f"(ausente ou falso em estado_processual.json) — suporte fático "
+                    f"insuficiente para a tese, independentemente da decisão registrada.",
+                )
         estados[bid] = estado
 
     # 'state_linked' (INV-GRATUIDADE-LINKED) resolve ANTES dos containers

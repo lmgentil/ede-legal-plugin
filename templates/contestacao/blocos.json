@@ -102,11 +102,13 @@
       "tipo": "CONDICIONAL_PADRAO",
       "parent": null,
       "children": [],
-      "decision_mode": "state_linked",
-      "linked_fact": "CORTE_EFETIVO",
-      "_nota_decision_mode": "INV-CORTE-LINKED (correção arquitetural pós-achado real: bloco entrou sem corte efetivo comprovado, só com decisão do estrategista sob um gate 'requires_fact' que ele ainda podia contornar informalmente). Vínculo DETERMINÍSTICO ao estado processual CORTE_EFETIVO — mesma família de PRELIMINAR_REVOGACAO_GRATUIDADE/INV-GRATUIDADE-LINKED (state_linked puro, estado processual -> bloco, nunca bloco -> bloco). CORTE_EFETIVO=true -> INCLUIR automaticamente; false (inclusive ausência, mera ameaça, aviso, pedido de restabelecimento isolado, inadimplência/débito) -> EXCLUIR automaticamente; 'INDETERMINADO' (documentos contraditórios/insuficientes) -> aborta para interação com o advogado. O estrategista NÃO decide a existência deste bloco em decisoes_blocos.json (decisão manual é rejeitada explicitamente) — pode só desenvolver o conteúdo/argumentação quando o bloco já estiver presente. CORTE_EFETIVO é resolvido pela Skill `contestacao` a partir de evidência que a Ré não contradiga (nunca da alegação isolada e não corroborada da autora, nunca por busca lexical).",
+      "decision_mode": "humano",
       "placeholders": [],
       "dependencies": [],
+      "requires_fact": {
+        "key": "CORTE_EFETIVO",
+        "descricao": "INV-CORTE-GATE-HUMANO (correção arquitetural pós-Teste Real, substitui o vínculo determinístico puro adotado antes: mesmo com corte efetivo comprovado, a inclusão da tese não pode ser automática — é decisão reservada ao advogado). CORTE_EFETIVO=false/ausente -> EXCLUIR automático, SEM perguntar (nada a decidir sobre tese sem suporte fático — não desperdiça interação humana). CORTE_EFETIVO='INDETERMINADO' -> aborta (decisao_indeterminada), com ou sem decisão registrada. CORTE_EFETIVO=true SEM decisão em decisoes_blocos.json -> aborta (decisao_ausente) — a Skill contestacao interpreta isso como 'pergunte ao advogado: Deseja incluir o tópico relativo à licitude do corte/suspensão?'. CORTE_EFETIVO=true COM decisão humana registrada -> INCLUIR/EXCLUIR conforme a resposta. Mera ameaça, aviso, pedido de restabelecimento isolado, inadimplência/débito NUNCA configuram CORTE_EFETIVO=true. Resolvido pela Skill `contestacao` a partir de evidência que a Ré não contradiga (nunca da alegação isolada e não corroborada da autora, nunca por busca lexical)."
+      },
       "cardinality": "ONE"
     },
     {

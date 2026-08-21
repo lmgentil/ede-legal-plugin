@@ -50,7 +50,7 @@ sys.path.insert(0, str(BASE / "scripts"))
 sys.path.insert(0, str(BASE / "rag"))
 sys.path.insert(0, str(BASE / "skills" / "calendario-forense-tjba-2026" / "scripts"))
 
-from calcular_tempestividade import PENDENTE, calcular_tempestividade  # noqa: E402
+from calcular_tempestividade import INTEMPESTIVO, PENDENTE, TEMPESTIVO, calcular_tempestividade  # noqa: E402
 import datajud_client  # noqa: E402
 from docx_block_engine import (  # noqa: E402
     ComposicaoAbortada,
@@ -129,6 +129,21 @@ CAMPOS_TEMPESTIVIDADE_META = ("aplicavel", "marco_origem",
                                "marco_source_document", "marco_page",
                                "marco_resposta_advogado")
 
+# INV-TEMPESTIVIDADE-PROCEDIMENTO-COMUM (Etapa 5.5 — decisão de produto
+# fixa e permanente, registrada aqui para impedir que Skills futuras
+# tentem escolher outro rito): esta Contestação SEMPRE calcula
+# tempestividade pelo procedimento comum do CPC — prazo de 15 dias,
+# contagem em dias úteis. Nunca a lógica do Juizado Especial (Lei
+# 9.099/95), mesmo quando o caso concreto tramita por um rito que
+# admitiria essa aplicação subsidiária. tempestividade.json que não
+# especificar prazo_legal_dias/tipo_prazo/fundamento_normativo recebe
+# esse padrão fixo; se especificar algo incompatível, o pipeline aborta
+# — nunca escolhe silenciosamente outro rito.
+PRAZO_LEGAL_DIAS_PADRAO = 15
+TIPO_PRAZO_PADRAO = "uteis"
+FUNDAMENTO_NORMATIVO_PADRAO = "art. 335 do CPC (procedimento comum)"
+_MARCADORES_RITO_VEDADO = ("9.099", "9099", "juizado especial", "lei 9.099")
+
 
 def _etapa_tempestividade(caso: Path, stages: list):
     """INV-TEMPESTIVIDADE-MARCO (SPEC-0001 §5, CLAUDE.md §8): nenhuma
@@ -176,6 +191,37 @@ def _etapa_tempestividade(caso: Path, stages: list):
             "advogado) — INV-TEMPESTIVIDADE-MARCO.")
 
     args = {k: v for k, v in t.items() if k not in CAMPOS_TEMPESTIVIDADE_META}
+
+    # INV-TEMPESTIVIDADE-PROCEDIMENTO-COMUM: aplica o padrão fixo quando
+    # não especificado; aborta se algo incompatível for especificado —
+    # nunca escolhe silenciosamente outro rito.
+    prazo_informado = args.get("prazo_legal_dias")
+    if prazo_informado is None:
+        args["prazo_legal_dias"] = PRAZO_LEGAL_DIAS_PADRAO
+    elif prazo_informado != PRAZO_LEGAL_DIAS_PADRAO:
+        return _abortar(stages, "tempestividade",
+            f"prazo_legal_dias={prazo_informado!r} incompatível com a regra "
+            f"fixa deste projeto (procedimento comum do CPC, sempre "
+            f"{PRAZO_LEGAL_DIAS_PADRAO} dias úteis) — "
+            f"INV-TEMPESTIVIDADE-PROCEDIMENTO-COMUM.")
+    tipo_informado = args.get("tipo_prazo")
+    if tipo_informado is None:
+        args["tipo_prazo"] = TIPO_PRAZO_PADRAO
+    elif tipo_informado != TIPO_PRAZO_PADRAO:
+        return _abortar(stages, "tempestividade",
+            f"tipo_prazo={tipo_informado!r} incompatível com a regra fixa "
+            f"deste projeto (sempre dias úteis) — "
+            f"INV-TEMPESTIVIDADE-PROCEDIMENTO-COMUM.")
+    fundamento_informado = str(args.get("fundamento_normativo") or "")
+    if any(m in fundamento_informado.lower() for m in _MARCADORES_RITO_VEDADO):
+        return _abortar(stages, "tempestividade",
+            f"fundamento_normativo menciona Lei 9.099/95/Juizado Especial "
+            f"— incompatível com a regra fixa deste projeto (sempre "
+            f"procedimento comum do CPC) — "
+            f"INV-TEMPESTIVIDADE-PROCEDIMENTO-COMUM: {fundamento_informado!r}")
+    if not fundamento_informado:
+        args["fundamento_normativo"] = FUNDAMENTO_NORMATIVO_PADRAO
+
     r = calcular_tempestividade(**args)
     if r.status == PENDENTE:
         # Marco resolvido, mas outro dado essencial falta (prazo legal,
@@ -186,12 +232,51 @@ def _etapa_tempestividade(caso: Path, stages: list):
     stages.append({"name": "tempestividade", "status": "ok",
                     "marco_origem": marco_origem,
                     "memoria_calculo": r.memoria_calculo()})
-    # INV-CONTESTACAO-SEM-TRAVESSAO: este texto vira o valor de
-    # TEMPESTIVIDADE_CASO quando o redator não fornece um próprio — sem
-    # travessão, mesma regra que vale para conteúdo gerado pela IA.
-    return (f"{r.status}: termo inicial {r.termo_inicial}, prazo de "
-            f"{r.prazo_legal_dias} dias {r.tipo_prazo} ({r.fundamento_normativo}), "
-            f"termo final {r.termo_final}.")
+    # Etapa 5.5 (achado real — redação robótica): a memória de cálculo
+    # completa (acima) é só para auditoria interna — NUNCA despejada no
+    # DOCX. TEMPESTIVIDADE_CASO recebe prosa jurídica natural, sem dump
+    # de relatório, sem data em formato ISO, sem menção a rito alheio ao
+    # procedimento comum.
+    return _redigir_tempestividade_natural(r)
+
+
+def _data_br(data_iso: str) -> str:
+    """"YYYY-MM-DD" -> "DD/MM/YYYY" (nunca ISO na redação final)."""
+    from datetime import datetime as _dt
+    return _dt.strptime(data_iso, "%Y-%m-%d").strftime("%d/%m/%Y")
+
+
+def _redigir_tempestividade_natural(r) -> str:
+    """Transforma o resultado determinístico de calcular_tempestividade()
+    em prosa jurídica curta e institucional (Etapa 5.5 §3) — nunca
+    algoritmo/cálculo interno/input/advogado/sistema/JSON/calendário como
+    ferramenta/proveniência verbalizados na peça.
+
+    r.status já não pode ser PENDENTE aqui (_etapa_tempestividade aborta
+    antes de chamar esta função) — só resta TEMPESTIVO/INTEMPESTIVO, e o
+    resultado precisa declarar explicitamente qual dos dois é o caso
+    (nunca uma frase ambígua que sirva para ambos — regressão real do
+    formato robótico antigo, que ao menos prefixava "INTEMPESTIVO:")."""
+    marco = _data_br(r.termo_inicial)
+    termo_final = _data_br(r.termo_final)
+    if r.status == TEMPESTIVO:
+        return (
+            f"A presente Contestação é tempestiva. Considerado o marco "
+            f"processual ocorrido em {marco} e a contagem do prazo de 15 "
+            f"(quinze) dias úteis, nos termos do art. 335 do Código de "
+            f"Processo Civil, o prazo defensivo encerra-se em "
+            f"{termo_final}, razão pela qual a defesa é apresentada "
+            f"tempestivamente.")
+    if r.status == INTEMPESTIVO:
+        return (
+            f"Considerado o marco processual ocorrido em {marco} e a "
+            f"contagem do prazo de 15 (quinze) dias úteis, nos termos do "
+            f"art. 335 do Código de Processo Civil, o prazo defensivo "
+            f"encerrou-se em {termo_final}, de modo que a presente "
+            f"Contestação é intempestiva.")
+    raise ValueError(f"status de tempestividade não reconhecido: {r.status!r} — "
+                      f"fail-closed, nunca gerar redação para um status "
+                      f"desconhecido/ambíguo.")
 
 
 def _etapa_estrategia(caso: Path, stages: list):
@@ -223,11 +308,12 @@ def _etapa_blocos(caso: Path, stages: list, catalogo_path: Path = CATALOGO_BLOCO
     inconsistente aborta antes de qualquer redação/geração.
 
     `estado_processual.json` (Etapa 5.2, opcional — ausente conta como
-    "{}") carrega os estados processuais vinculados a blocos state_linked
-    de INV-GRATUIDADE-LINKED/INV-CORTE-LINKED (ex.:
-    {"GRATUIDADE_CONCEDIDA": true, "CORTE_EFETIVO": true}); a resolução
-    em si é feita por docx_block_engine.validar_e_resolver_decisoes, não
-    duplicada aqui — este script só carrega o arquivo se existir."""
+    "{}") carrega os estados processuais usados pelo bloco state_linked
+    de INV-GRATUIDADE-LINKED e pelo gate `requires_fact` de
+    INV-CORTE-GATE-HUMANO (Etapa 5.5) (ex.: {"GRATUIDADE_CONCEDIDA": true,
+    "CORTE_EFETIVO": true}); a resolução em si é feita por
+    docx_block_engine.validar_e_resolver_decisoes, não duplicada aqui —
+    este script só carrega o arquivo se existir."""
     caminho = caso / "decisoes_blocos.json"
     if not caminho.exists():
         return _abortar(stages, "block_composition",

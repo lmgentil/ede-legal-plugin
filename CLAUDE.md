@@ -252,6 +252,32 @@ Etapa 5.2") — resumo operacional aqui:
   `scripts/validate_placeholder_semantics.py` (não exaustivo); controle
   real é comportamental, da Skill `contestacao`/`redator-peca-processual-
   elite`.
+- **INV-NAO-REPETICAO-FATICA (Etapa 5.5)** — achado do Teste Real: o
+  mesmo fato técnico (ex. "desvio de energia antes do medidor")
+  reaparecia quase palavra por palavra em `REALIDADE_FATICA`,
+  `IRREGULARIDADE_ENCONTRADA` e `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE`.
+  Um fato não deve ser reapresentado em vários parágrafos apenas com
+  palavras diferentes; cada placeholder narrativo tem função própria e
+  exclusiva — nenhum é uma "nova versão" do anterior:
+  `SINOPSE_FATOS` só a narrativa autoral (acima); `REALIDADE_FATICA` é
+  contraposição global/objetiva, sem antecipar o detalhe técnico que
+  pertence aos subtópicos; `IRREGULARIDADE_ENCONTRADA` só o nome/tipo
+  atômico (contrato já existente, Etapa 5.3-B); `DESENVOLVIMENTO_TECNICO_
+  IRREGULARIDADE` acrescenta explicação técnica nova, nunca só restate o
+  rótulo; `EVOLUCAO_CONSUMO` só dado concreto de evolução;
+  `PEDIDOS_FINAIS` conclusão processual, sem reencenar fatos. Antes de
+  finalizar um parágrafo narrativo, Redator/Humanizer verificam se ele
+  apresenta fato novo, desenvolve consequência nova, faz subsunção
+  necessária, ou apenas parafraseia o que já foi dito noutro
+  placeholder — só o último caso exige reescrita/remoção. O problema é
+  semântico (paráfrase), não mera igualdade textual — não crie
+  bloqueador destrutivo baseado em igualdade/similaridade textual
+  genérica (geraria falsos positivos); backstop determinístico em
+  `scripts/validate_placeholder_semantics.py` cobre só o sintoma mais
+  grave e inequívoco (rótulo atômico de `IRREGULARIDADE_ENCONTRADA`
+  reaparecendo verbatim dentro de `REALIDADE_FATICA`), não exaustivo —
+  controle real é comportamental, das Skills `contestacao`/
+  `redator-peca-processual-elite`/`humanizer-pt-br`.
 - **INV-RECONVENCAO-AUTORIZACAO-EXPRESSA** — Reconvenção é decisão
   reservada ao advogado, nunca do estrategista sozinho:
   `RECONVENCAO` é `decision_mode: "humano"` no catálogo
@@ -271,32 +297,43 @@ Etapa 5.2") — resumo operacional aqui:
   do bloco *é* o estado processual (`true`→`INCLUIR`, `false`/
   ausente→`EXCLUIR`, `"INDETERMINADO"`→aborta). Decisão manual para este
   bloco em `decisoes_blocos.json` é rejeitada explicitamente. Distinto de
-  `requires_fact` (mecanismo de gate + decisão estratégica, ainda
-  disponível como infraestrutura geral do motor, mas sem uso atual no
-  catálogo) — este é vínculo, não gate.
-- **INV-CORTE-LINKED** — `LICITUDE_CORTE_SUSPENSAO` **não é decisão do
-  estrategista** (correção arquitetural: modelagem anterior como gate +
-  decisão estratégica permitiu, em teste real, inclusão baseada em mera
-  alegação da autora — corrigida para a mesma arquitetura de
-  `INV-GRATUIDADE-LINKED`): vinculada deterministicamente ao estado
-  processual `CORTE_EFETIVO` (`decision_mode: "state_linked"`,
-  `linked_fact: "CORTE_EFETIVO"`) — `true`→`INCLUIR` automático, `false`/
-  ausente→`EXCLUIR` automático, `"INDETERMINADO"`→aborta. Decisão manual
-  em `decisoes_blocos.json` é rejeitada explicitamente, mesmo coincidindo
-  com o fato real. **Alegação da autora não é prova de corte efetivo**:
-  mera ameaça, aviso de possível suspensão, pedido preventivo, pedido de
-  restabelecimento isolado, inadimplência/débito não configuram
-  `CORTE_EFETIVO: true` — exige evidência que a Ré não contradiga (ex.:
-  registro operacional da concessionária) ou confirmação expressa do
-  advogado (`AskUserQuestion`) quando os documentos não bastarem para
-  confirmar de forma independente da narrativa da própria autora; esta é
-  exceção expressa ao princípio geral de `INV-BLOCO-SUPORTE-FATICO`
-  (abaixo), que aceita alegação da autora como suporte suficiente para a
-  maioria dos blocos. Nem `CORTE_EFETIVO` nem `GRATUIDADE_CONCEDIDA`
-  aceitam ocorrência lexical ("não houve corte" no texto de um documento
-  nunca vira `CORTE_EFETIVO: true`) como prova — o estado é resolvido
-  pela Skill `contestacao` a partir dos documentos, com proveniência,
-  nunca por busca textual.
+  `requires_fact` (mecanismo de gate fático que só restringe `INCLUIR`,
+  sem dispensar decisão manual — usado por `LICITUDE_CORTE_SUSPENSAO`
+  abaixo) — este é vínculo, não gate.
+- **INV-CORTE-GATE-HUMANO** (Etapa 5.5, 3ª correção arquitetural) —
+  `LICITUDE_CORTE_SUSPENSAO` é `decision_mode: "humano"` com
+  `requires_fact: {"key": "CORTE_EFETIVO"}` no catálogo: suporte fático
+  **e** decisão humana, nenhum dos dois dispensa o outro. `CORTE_EFETIVO:
+  false`/ausente→`EXCLUIR` automático, sem perguntar ao advogado (nada a
+  decidir sobre tese sem suporte fático). `CORTE_EFETIVO:
+  "INDETERMINADO"`→aborta (`decisao_indeterminada`), com ou sem decisão
+  registrada. `CORTE_EFETIVO: true` **sem** decisão em
+  `decisoes_blocos.json`→aborta (`decisao_ausente`) — sinal para a Skill
+  `contestacao` perguntar (`AskUserQuestion`) "Deseja incluir o tópico
+  relativo à licitude do corte/suspensão?"; só resposta afirmativa vira
+  `INCLUIR`. `CORTE_EFETIVO: true` com decisão humana registrada→
+  `INCLUIR`/`EXCLUIR` conforme a resposta. Tentar `INCLUIR` com
+  `CORTE_EFETIVO: false`→rejeitado (`gate_fatico_nao_satisfeito`), mesmo
+  com decisão humana registrada. Duas correções anteriores, ambas
+  superadas: (1) gate + decisão estratégica sem checagem adicional
+  permitiu, em teste real, inclusão baseada em mera alegação da autora;
+  (2) `state_linked` puro (mesma arquitetura de `INV-GRATUIDADE-LINKED`)
+  incluía automaticamente sempre que o corte fosse comprovado, sem o
+  advogado manifestar vontade de desenvolver a tese — um teste real
+  seguinte mostrou que isso também é incorreto. **Alegação da autora não
+  é prova de corte efetivo**: mera ameaça, aviso de possível suspensão,
+  pedido preventivo, pedido de restabelecimento isolado,
+  inadimplência/débito não configuram `CORTE_EFETIVO: true` — exige
+  evidência que a Ré não contradiga (ex.: registro operacional da
+  concessionária) ou confirmação expressa do advogado (`AskUserQuestion`)
+  quando os documentos não bastarem para confirmar de forma independente
+  da narrativa da própria autora; esta é exceção expressa ao princípio
+  geral de `INV-BLOCO-SUPORTE-FATICO` (abaixo), que aceita alegação da
+  autora como suporte suficiente para a maioria dos blocos. Nem
+  `CORTE_EFETIVO` nem `GRATUIDADE_CONCEDIDA` aceitam ocorrência lexical
+  ("não houve corte" no texto de um documento nunca vira `CORTE_EFETIVO:
+  true`) como prova — o estado é resolvido pela Skill `contestacao` a
+  partir dos documentos, com proveniência, nunca por busca textual.
 - **INV-NAO-REDUNDANCIA-NORMATIVA** — a redação variável não repete
   dispositivo normativo já presente no tópico-base institucional fixo do
   modelo; o RAG valida/complementa fundamentação, não é gerador de lista
@@ -337,6 +374,22 @@ Skill `contestacao` deve perguntar obrigatoriamente ao advogado antes de
 prosseguir — nunca presumir, nunca deixar `PENDENTE DE VALIDAÇÃO`
 alcançar o documento final. Formalizada na SPEC como
 `INV-TEMPESTIVIDADE-MARCO` (SPEC-0001 §5).
+
+**INV-TEMPESTIVIDADE-PROCEDIMENTO-COMUM (Etapa 5.5)** — decisão de
+produto fixa e permanente: esta Contestação sempre calcula tempestividade
+pelo procedimento comum do CPC (15 dias, dias úteis, art. 335 do CPC).
+Nunca a lógica do Juizado Especial (Lei 9.099/95), mesmo quando o caso
+concreto tramitar por um rito que admitiria aplicação subsidiária dela —
+`scripts/gerar_contestacao.py` aplica esse padrão fixo quando
+`tempestividade.json` não especifica prazo/tipo/fundamento, e aborta se
+algo incompatível for especificado (nunca escolhe silenciosamente outro
+rito). Cálculo e redação são coisas diferentes: a memória de cálculo
+completa (marco, termo inicial, dias úteis, termo final) fica só na
+auditoria interna do pipeline — o placeholder `TEMPESTIVIDADE_CASO`
+recebe prosa jurídica natural e curta, nunca dump robótico
+("TEMPESTIVO: termo inicial ..., termo final ..."), nunca data em
+formato ISO, nunca menção à Lei 9.099/95/Juizado Especial. Backstop
+lexical em `scripts/validate_placeholder_semantics.py` (não exaustivo).
 
 ---
 
@@ -563,12 +616,23 @@ explicitamente (fail closed), nunca "chutam" um alias. Fail-closed
 processo não encontrado, múltiplos resultados incompatíveis, órgão
 julgador ausente na resposta, alias não determinável, ou
 `placeholders.json` trouxer um `JUIZO` próprio (rejeitado, nunca
-usado/reconciliado). API key tratada como configuração externa
-(`DATAJUD_API_KEY`, variável de ambiente) — nunca gravada em código,
-Skill, fixture, teste, `plugin.json` ou `marketplace.json`, mesmo sendo
-uma chave publicamente documentada pelo DPJ/CNJ. Cache local
-(`.cache/datajud/`, gitignored) evita nova consulta para o mesmo
-processo em elaboração em massa.
+usado/reconciliado). **API key (Etapa 5.5 — decisão expressa do
+projeto, substitui a orientação anterior)**: a chave PÚBLICA do DataJud
+é versionada no repositório, num único ponto canônico
+(`DATAJUD_API_KEY_PADRAO` em `scripts/datajud_client.py`) — plugin
+autossuficiente, sem configuração manual pelo advogado. Não reproduzir
+essa chave em nenhum outro arquivo; demais módulos consomem
+`resolver_juizo`/`resolver_orgao_julgador`. `DATAJUD_API_KEY` (variável
+de ambiente) continua aceita como override, útil se o CNJ rotacionar a
+chave antes do código ser atualizado. Erro de autenticação (credencial
+inválida/expirada) é marcado (`TAG_ERRO_AUTENTICACAO`) e nunca degrada
+para JUIZO gerativo nem busca/inventa nova chave automaticamente — exige
+atualização manual de `DATAJUD_API_KEY_PADRAO`. O secret scan do projeto
+trata esta chave especificamente como exceção expressa (não é mais
+"possível segredo vazado"); demais credenciais continuam proibidas de
+versionamento (CLAUDE.md §18). Cache local (`.cache/datajud/`,
+gitignored) evita nova consulta para o mesmo processo em elaboração em
+massa.
 
 O campo `orgaoJulgador.nome` retornado pelo DataJud constitui a fonte de
 verdade da denominação da unidade judiciária. O plugin não deve expandir,

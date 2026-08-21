@@ -309,6 +309,41 @@ def _validar_irregularidade_encontrada(valor) -> list:
     return erros
 
 
+# INV-NAO-REPETICAO-FATICA (Etapa 5.5 §9-13, achado real do Teste Real:
+# o mesmo fato — ex. "desvio de energia antes do medidor" — reaparecia em
+# REALIDADE_FATICA, IRREGULARIDADE_ENCONTRADA e DESENVOLVIMENTO_TECNICO
+# quase palavra por palavra). O problema real é SEMÂNTICO (paráfrase),
+# não apenas igualdade textual — controle primário é comportamental
+# (Redator/Humanizer, skills/contestacao/SKILL.md), não um bloqueador
+# genérico de similaridade (geraria falsos positivos, vedado pelo Etapa
+# 5.5 §26). Este backstop é NARROW e determinístico, não exaustivo: só
+# cobre o sintoma mais grave e detectável sem ambiguidade — o rótulo
+# atômico de IRREGULARIDADE_ENCONTRADA (que por contrato, §15/Etapa
+# 5.3-B, é só o nome/tipo da irregularidade) reaparecendo VERBATIM dentro
+# de REALIDADE_FATICA, que por contrato (Etapa 5.5 §9) é contraposição
+# global/objetiva e nunca deve antecipar esse detalhe. Mesmo padrão já
+# usado em INV-SINOPSE-ESTRITAMENTE-AUTORAL (CLAUDE.md §7): backstop
+# lexical não exaustivo, o controle real é comportamental.
+def _validar_nao_repeticao_realidade_fatica(dados: dict) -> list:
+    realidade = dados.get("REALIDADE_FATICA")
+    irregularidade = dados.get("IRREGULARIDADE_ENCONTRADA")
+    if not realidade or not irregularidade:
+        return []
+    r = _sem_acento(str(realidade)).lower()
+    i = _sem_acento(str(irregularidade)).lower().strip().strip("*").strip()
+    if len(i) >= 12 and i in r:
+        return [
+            f"REALIDADE_FATICA repete verbatim o rótulo atômico de "
+            f"IRREGULARIDADE_ENCONTRADA ({irregularidade!r}) — "
+            f"INV-NAO-REPETICAO-FATICA (Etapa 5.5): REALIDADE_FATICA é "
+            f"contraposição global/objetiva, nunca deve antecipar o "
+            f"detalhe que é responsabilidade exclusiva de "
+            f"IRREGULARIDADE_ENCONTRADA/DESENVOLVIMENTO_TECNICO_"
+            f"IRREGULARIDADE — um fato não deve ser reapresentado em "
+            f"vários parágrafos, mesmo com palavras diferentes."]
+    return []
+
+
 def _validar_desenvolvimento_tecnico(valor) -> list:
     erros = _checar_meta_proveniencia(valor, "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE")
     erros.extend(_checar_assinatura_toi(valor, "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE"))
@@ -319,8 +354,43 @@ def _validar_pedidos_finais(valor) -> list:
     return _checar_meta_proveniencia(valor, "PEDIDOS_FINAIS")
 
 
+# Etapa 5.5 (achado real — redação robótica da tempestividade): backstop
+# determinístico contra dump de memória de cálculo no DOCX final —
+# independente da fonte do valor (fallback automático do pipeline ou
+# eventual texto do redator). "Cálculo e redação são coisas diferentes":
+# a memória de cálculo pertence à auditoria interna, nunca à peça.
+_DATA_ISO_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+_MARCADORES_DUMP_TEMPESTIVIDADE = (
+    "tempestivo:", "intempestivo:", "termo inicial", "termo final",
+)
+_MARCADORES_RITO_VEDADO_TEMPESTIVIDADE = ("9.099", "9099", "juizado especial")
+
+
 def _validar_tempestividade_caso(valor) -> list:
-    return _checar_meta_proveniencia(valor, "TEMPESTIVIDADE_CASO")
+    texto = str(valor)
+    erros = _checar_meta_proveniencia(valor, "TEMPESTIVIDADE_CASO")
+    if _DATA_ISO_RE.search(texto):
+        erros.append(
+            f"TEMPESTIVIDADE_CASO contém data em formato ISO (AAAA-MM-DD) "
+            f"— proibido na redação final (Etapa 5.5); use DD/MM/AAAA ou "
+            f"escreva a data por extenso: {valor!r}")
+    v = _sem_acento(texto).lower()
+    achados_dump = [m for m in _MARCADORES_DUMP_TEMPESTIVIDADE if m in v]
+    if achados_dump:
+        erros.append(
+            f"TEMPESTIVIDADE_CASO contém marcador(es) de dump de memória de "
+            f"cálculo {achados_dump} — proibida redação robótica tipo "
+            f"'TEMPESTIVO: termo inicial ..., termo final ...' (Etapa 5.5); "
+            f"a peça recebe prosa jurídica natural, a memória de cálculo "
+            f"fica só na auditoria interna do pipeline: {valor!r}")
+    achados_rito = [m for m in _MARCADORES_RITO_VEDADO_TEMPESTIVIDADE if m in v]
+    if achados_rito:
+        erros.append(
+            f"TEMPESTIVIDADE_CASO menciona Lei 9.099/95/Juizado Especial "
+            f"{achados_rito} — esta Contestação sempre segue o "
+            f"procedimento comum do CPC (INV-TEMPESTIVIDADE-PROCEDIMENTO-"
+            f"COMUM, Etapa 5.5): {valor!r}")
+    return erros
 
 
 def _validar_local_data(valor) -> list:
@@ -396,6 +466,9 @@ def validar_semantica(dados: dict) -> tuple:
     for nome, validador in VALIDADORES_ESPECIFICOS.items():
         if nome in dados and dados[nome] is not None:
             erros.extend(validador(dados[nome]))
+    # INV-NAO-REPETICAO-FATICA — cross-field, roda depois dos validadores
+    # por campo (precisa dos dois campos juntos).
+    erros.extend(_validar_nao_repeticao_realidade_fatica(dados))
     return (len(erros) == 0), erros
 
 

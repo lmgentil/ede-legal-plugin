@@ -33,6 +33,7 @@ Uso:
   python tests/test_e2e_contestacao.py
 """
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -42,6 +43,7 @@ from pathlib import Path
 
 BASE = Path(__file__).parent.parent
 FIXTURES = BASE / "tests" / "fixtures" / "contestacao"
+_DATA_ISO_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 sys.path.insert(0, str(BASE / "scripts"))
 from gerar_contestacao import MARCADOR_FOTOS, gerar as _gerar_real  # noqa: E402
 
@@ -104,7 +106,11 @@ def test_happy_path_pipeline_completo():
         assert r["citacoes_nao_validadas"] == 1  # art. 999999 — inexistente, rejeitado
         assert r["template_lock"] == "OK"
         assert r["fotos"] == "INSERÇÃO MANUAL"
-        assert r["tempestividade"].startswith("TEMPESTIVO")
+        # Etapa 5.5: redação natural (não mais o dump robótico "TEMPESTIVO:
+        # ..."), nunca data ISO, nunca menção a Lei 9.099/95.
+        assert r["tempestividade"].startswith("A presente Contestação é tempestiva")
+        assert not _DATA_ISO_RE.search(r["tempestividade"])
+        assert "9.099" not in r["tempestividade"] and "9099" not in r["tempestividade"]
 
         assert saida.exists() and saida.stat().st_size > 0
         _validar_docx_integro(saida)
@@ -336,7 +342,8 @@ def test_tempestividade_informada_pelo_advogado():
         tempestividade_stage = next(s for s in r["stages"] if s["name"] == "tempestividade")
         assert tempestividade_stage["status"] == "ok"
         assert tempestividade_stage["marco_origem"] == "informado_pelo_advogado"
-        assert r["tempestividade"].startswith("TEMPESTIVO")
+        assert r["tempestividade"].startswith("A presente Contestação é tempestiva")
+        assert not _DATA_ISO_RE.search(r["tempestividade"])
         assert saida.exists()
 
 
@@ -542,10 +549,12 @@ def test_fail_closed_gratuidade_indeterminada():
         assert not saida.exists()
 
 
-def test_fail_closed_corte_com_decisao_manual_do_estrategista():
-    # INV-CORTE-LINKED (correção arquitetural pós-achado real): o bloco
-    # é state_linked — decisão manual do estrategista é sempre rejeitada,
-    # mesmo tentando refletir corretamente um estado factual real.
+def test_fail_closed_corte_decisao_incluir_com_fato_falso_e_rejeitada():
+    # INV-CORTE-GATE-HUMANO (Etapa 5.5, 3ª correção arquitetural): o bloco
+    # é decision_mode='humano' com requires_fact — decisão humana INCLUIR
+    # é aceita em tese, mas permanece condicionada ao gate fático. Tentar
+    # INCLUIR sem CORTE_EFETIVO comprovado é rejeitado (gate_fatico_nao_
+    # satisfeito), nunca produz o DOCX calado.
     if _pular_se_sem_template_real():
         return
     with tempfile.TemporaryDirectory() as tmp:
@@ -555,7 +564,7 @@ def test_fail_closed_corte_com_decisao_manual_do_estrategista():
         decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "INCLUIR", "fundamento": "cenário de teste"}
         (caso_tmp / "decisoes_blocos.json").write_text(json.dumps(decisoes), encoding="utf-8")
         (caso_tmp / "estado_processual.json").write_text(json.dumps({
-            "CORTE_EFETIVO": True,
+            "CORTE_EFETIVO": False,
         }), encoding="utf-8")
 
         saida = Path(tmp) / "nao_deveria_existir.docx"
@@ -563,7 +572,7 @@ def test_fail_closed_corte_com_decisao_manual_do_estrategista():
 
         assert r["status"] == "PIPELINE_ABORTED"
         assert r["stage"] == "block_composition"
-        assert "decisao_invalida" in r["reason"]
+        assert "gate_fatico_nao_satisfeito" in r["reason"]
         assert not saida.exists()
 
 
@@ -611,9 +620,10 @@ def test_corte_efetivo_indeterminado_aborta_pipeline():
         assert not saida.exists()
 
 
-def test_corte_efetivo_true_inclui_automaticamente_sem_decisao():
-    # CENÁRIO 3: corte efetivo -> bloco INCLUÍDO automaticamente (state_
-    # linked, INV-CORTE-LINKED) — nenhuma decisão do estrategista.
+def test_corte_efetivo_true_sem_decisao_humana_para_pipeline_e_pergunta():
+    # INV-CORTE-GATE-HUMANO (Etapa 5.5): corte efetivo comprovado NÃO
+    # inclui automaticamente — o pipeline para (decisao_ausente) para que a
+    # Skill contestacao pergunte ao advogado antes de prosseguir.
     if _pular_se_sem_template_real():
         return
     with tempfile.TemporaryDirectory() as tmp:
@@ -623,11 +633,58 @@ def test_corte_efetivo_true_inclui_automaticamente_sem_decisao():
             "CORTE_EFETIVO": True,
         }), encoding="utf-8")
 
+        saida = Path(tmp) / "nao_deveria_existir_corte_sem_decisao.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED"
+        assert r["stage"] == "block_composition"
+        assert "decisao_ausente" in r["reason"]
+        assert not saida.exists()
+
+
+def test_corte_efetivo_true_com_decisao_humana_incluir_inclui_bloco():
+    # CENÁRIO 3 corrigido: corte efetivo comprovado + decisão humana
+    # explícita INCLUIR -> bloco incluído.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        decisoes = json.loads((caso_tmp / "decisoes_blocos.json").read_text(encoding="utf-8"))
+        decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "INCLUIR", "fundamento": "cenário de teste — corte efetivo comprovado e advogado optou por incluir a tese."}
+        (caso_tmp / "decisoes_blocos.json").write_text(json.dumps(decisoes), encoding="utf-8")
+        (caso_tmp / "estado_processual.json").write_text(json.dumps({
+            "CORTE_EFETIVO": True,
+        }), encoding="utf-8")
+
         saida = Path(tmp) / "contestacao_com_corte.docx"
         r = gerar(caso_tmp, saida)
 
         assert r["status"] == "OK", r
         assert "LICITUDE_CORTE_SUSPENSAO" in r["blocos_incluidos"]
+
+
+def test_corte_efetivo_true_com_decisao_humana_excluir_exclui_bloco():
+    # corte efetivo comprovado + decisão humana explícita EXCLUIR -> bloco
+    # excluído (advogado optou por não desenvolver a tese, apesar do
+    # suporte fático existir).
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        decisoes = json.loads((caso_tmp / "decisoes_blocos.json").read_text(encoding="utf-8"))
+        decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "EXCLUIR", "fundamento": "cenário de teste — advogado optou por não incluir a tese."}
+        (caso_tmp / "decisoes_blocos.json").write_text(json.dumps(decisoes), encoding="utf-8")
+        (caso_tmp / "estado_processual.json").write_text(json.dumps({
+            "CORTE_EFETIVO": True,
+        }), encoding="utf-8")
+
+        saida = Path(tmp) / "contestacao_com_corte_excluido_por_decisao.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "OK", r
+        assert "LICITUDE_CORTE_SUSPENSAO" in r["blocos_excluidos"]
 
 
 # ------------------------------------------------------- rastreabilidade

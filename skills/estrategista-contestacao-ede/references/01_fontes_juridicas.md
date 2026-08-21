@@ -83,5 +83,13 @@ incompatibilidade de prova técnica complexa com o rito; limites cognitivos
 do procedimento; ônus processuais; honorários; recursos; enunciados do
 FONAJE, quando efetivamente pertinentes ao caso.
 
+**Exceção: tempestividade nunca é calculada por esta lei**
+(`INV-TEMPESTIVIDADE-PROCEDIMENTO-COMUM`, Etapa 5.5, CLAUDE.md §8) — a
+Contestação sempre segue o procedimento comum do CPC (15 dias, dias
+úteis, art. 335 do CPC), mesmo quando o processo tramitar num Juizado
+Especial. Os demais pontos acima (competência, prova técnica, ônus,
+recursos) continuam análise estratégica legítima quando pertinentes; só
+o cômputo do prazo de resposta é fixo.
+
 No Juizado, a compatibilidade da prova técnica necessária com o rito é uma
 questão que merece análise própria — ver `05_preliminares_merito_dialeticidade.md`.

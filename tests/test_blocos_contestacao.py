@@ -120,18 +120,18 @@ def test_catalogo_real_gratuidade_e_state_linked():
     assert "requires_fact" not in por_id["PRELIMINAR_REVOGACAO_GRATUIDADE"]
 
 
-def test_catalogo_real_corte_e_state_linked():
-    # INV-CORTE-LINKED (correção arquitetural pós-achado real: bloco
-    # entrou sem corte efetivo comprovado, só com decisão do estrategista
-    # sob um gate 'requires_fact' que ele ainda podia contornar
-    # informalmente). Vínculo determinístico estado processual -> bloco,
-    # mesma família de PRELIMINAR_REVOGACAO_GRATUIDADE — NÃO mais gate +
-    # decisão estratégica.
+def test_catalogo_real_corte_e_gate_fatico_mais_decisao_humana():
+    # INV-CORTE-GATE-HUMANO (Etapa 5.5, correção arquitetural que
+    # substitui o vínculo state_linked puro adotado antes: mesmo com
+    # corte efetivo comprovado, a inclusão não pode ser automática — é
+    # decisão reservada ao advogado). Gate fático (requires_fact) +
+    # decision_mode='humano', mesma arquitetura de RECONVENCAO quanto ao
+    # controle humano, mas com gate fático adicional.
     catalogo = carregar_catalogo(CATALOGO_REAL)
     por_id = {b["id"]: b for b in catalogo["blocks"]}
-    assert por_id["LICITUDE_CORTE_SUSPENSAO"]["decision_mode"] == "state_linked"
-    assert por_id["LICITUDE_CORTE_SUSPENSAO"]["linked_fact"] == "CORTE_EFETIVO"
-    assert "requires_fact" not in por_id["LICITUDE_CORTE_SUSPENSAO"]
+    assert por_id["LICITUDE_CORTE_SUSPENSAO"]["decision_mode"] == "humano"
+    assert por_id["LICITUDE_CORTE_SUSPENSAO"]["requires_fact"]["key"] == "CORTE_EFETIVO"
+    assert "linked_fact" not in por_id["LICITUDE_CORTE_SUSPENSAO"]
     # os demais blocos condicionais não ganharam gate/vínculo algum por acidente
     sem_gate = {"PRELIMINAR_CDC_INAPLICAVEL", "DEVER_LEGAL_FISCALIZACAO",
                 "DESNECESSIDADE_AVISO_PREVIO", "CALCULOS_RECUPERACAO_CONSUMO",
@@ -303,84 +303,98 @@ def test_state_linked_como_filho_de_container_derived_resolve_antes():
     assert estados["PAI"] == "INCLUIR"  # ANY_CHILD_INCLUDED via GRAT
 
 
-# ------------------------------------------ INV-CORTE-LINKED (correção arquitetural, A-H)
+# ------------------------------------------ INV-CORTE-GATE-HUMANO (Etapa 5.5, A-K)
 # Testes contra o CATÁLOGO REAL (não um sintético) — regressão específica
-# do achado real (LICITUDE_CORTE_SUSPENSAO incluído sem corte efetivo
-# comprovado, só com alegação da autora). O mecanismo em si (state_linked)
-# já tem cobertura genérica acima via GRATUIDADE_CONCEDIDA — aqui a
-# cobertura é do CONTRATO do bloco real, não do mecanismo genérico.
-def _decisoes_minimas_reais(catalogo):
+# do achado do Teste Real (LICITUDE_CORTE_SUSPENSAO não pode aparecer sem
+# pergunta ao advogado, mesmo com corte efetivo comprovado). O mecanismo
+# genérico (requires_fact resolvendo via decisao_ausente/decisao_
+# indeterminada quando não há decisão) já tem cobertura acima
+# (test_requires_fact_*); aqui a cobertura é do CONTRATO do bloco real.
+def _decisoes_minimas_reais(catalogo, excluir=("LICITUDE_CORTE_SUSPENSAO",)):
     """{id: EXCLUIR} para todo bloco decision_mode estrategista/humano do
-    catálogo real — baseline segura para isolar o comportamento de
-    LICITUDE_CORTE_SUSPENSAO (que nunca aparece aqui: é state_linked)."""
+    catálogo real, exceto os informados em `excluir` — baseline segura
+    para isolar o comportamento de um bloco específico nos testes."""
     return {b["id"]: {"decisao": "EXCLUIR"}
-            for b in catalogo["blocks"] if b["decision_mode"] in ("estrategista", "humano")}
+            for b in catalogo["blocks"]
+            if b["decision_mode"] in ("estrategista", "humano") and b["id"] not in excluir}
 
 
-def test_A_corte_efetivo_true_inclui_automaticamente():
-    catalogo = carregar_catalogo(CATALOGO_REAL)
-    estados = validar_e_resolver_decisoes(catalogo, _decisoes_minimas_reais(catalogo),
-                                           {"CORTE_EFETIVO": True})
-    assert estados["LICITUDE_CORTE_SUSPENSAO"] == "INCLUIR"
-
-
-def test_B_corte_efetivo_false_exclui_automaticamente():
+def test_A_corte_efetivo_false_exclui_sem_pergunta():
     catalogo = carregar_catalogo(CATALOGO_REAL)
     estados = validar_e_resolver_decisoes(catalogo, _decisoes_minimas_reais(catalogo),
                                            {"CORTE_EFETIVO": False})
     assert estados["LICITUDE_CORTE_SUSPENSAO"] == "EXCLUIR"
 
 
-def test_C_corte_efetivo_ausente_exclui():
+def test_B_corte_efetivo_ausente_exclui_sem_pergunta():
     catalogo = carregar_catalogo(CATALOGO_REAL)
     estados = validar_e_resolver_decisoes(catalogo, _decisoes_minimas_reais(catalogo), {})
     assert estados["LICITUDE_CORTE_SUSPENSAO"] == "EXCLUIR"
 
 
-def test_D_corte_efetivo_indeterminado_aborta():
+def test_C_corte_efetivo_indeterminado_fail_closed():
     catalogo = carregar_catalogo(CATALOGO_REAL)
     e = _abortou(validar_e_resolver_decisoes, catalogo, _decisoes_minimas_reais(catalogo),
                   {"CORTE_EFETIVO": "INDETERMINADO"})
     assert e and e.stage == "decisao_indeterminada"
 
 
-def test_E_ameaca_de_corte_registrada_mas_corte_efetivo_false_exclui():
+def test_D_corte_efetivo_true_sem_decisao_humana_para_e_pergunta():
+    # "Pergunta" = decisao_ausente propagado pelo motor — a Skill
+    # contestacao é quem interpreta isso como AskUserQuestion.
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    e = _abortou(validar_e_resolver_decisoes, catalogo, _decisoes_minimas_reais(catalogo),
+                  {"CORTE_EFETIVO": True})
+    assert e and e.stage == "decisao_ausente"
+
+
+def test_E_corte_efetivo_true_mais_humano_incluir_inclui_bloco():
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    decisoes = _decisoes_minimas_reais(catalogo)
+    decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "INCLUIR"}
+    estados = validar_e_resolver_decisoes(catalogo, decisoes, {"CORTE_EFETIVO": True})
+    assert estados["LICITUDE_CORTE_SUSPENSAO"] == "INCLUIR"
+
+
+def test_F_corte_efetivo_true_mais_humano_excluir_exclui_bloco():
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    decisoes = _decisoes_minimas_reais(catalogo)
+    decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "EXCLUIR"}
+    estados = validar_e_resolver_decisoes(catalogo, decisoes, {"CORTE_EFETIVO": True})
+    assert estados["LICITUDE_CORTE_SUSPENSAO"] == "EXCLUIR"
+
+
+def test_G_ameaca_de_corte_registrada_mas_corte_efetivo_false_exclui():
     # AMEACA_DE_CORTE não é uma chave que o motor sequer olha — só
     # CORTE_EFETIVO decide. Presença de qualquer outro fato "distrator"
-    # no dict não muda o resultado.
+    # no dict não muda o resultado nem gera pergunta.
     catalogo = carregar_catalogo(CATALOGO_REAL)
     estados = validar_e_resolver_decisoes(catalogo, _decisoes_minimas_reais(catalogo),
                                            {"AMEACA_DE_CORTE": True, "CORTE_EFETIVO": False})
     assert estados["LICITUDE_CORTE_SUSPENSAO"] == "EXCLUIR"
 
 
-def test_F_pedido_de_restabelecimento_com_corte_efetivo_false_exclui():
+def test_H_pedido_de_restabelecimento_sem_corte_comprovado_exclui():
     catalogo = carregar_catalogo(CATALOGO_REAL)
     estados = validar_e_resolver_decisoes(catalogo, _decisoes_minimas_reais(catalogo),
-                                           {"PEDIDO_DE_RESTABELECIMENTO": True, "CORTE_EFETIVO": False})
+                                           {"PEDIDO_DE_RESTABELECIMENTO": True})
     assert estados["LICITUDE_CORTE_SUSPENSAO"] == "EXCLUIR"
 
 
-def test_G_estrategista_tenta_incluir_com_fato_falso_e_rejeitado():
-    # state_linked: NENHUMA decisão manual é aceita, nem tentando INCLUIR
-    # incompatível com o fato — o estrategista não decide mais este bloco.
+def test_I_estrategista_nao_pode_decidir_diretamente_sem_gate_satisfeito():
+    # decision_mode='humano' já rejeita decisão do "estrategista" por
+    # natureza (só 'humano'/'estrategista' são MODOS distintos — aqui
+    # testamos que uma decisão fornecida sem o gate satisfeito continua
+    # sujeita ao gate, não é uma "porta lateral" para incluir o bloco.
     catalogo = carregar_catalogo(CATALOGO_REAL)
     decisoes = _decisoes_minimas_reais(catalogo)
     decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "INCLUIR"}
     e = _abortou(validar_e_resolver_decisoes, catalogo, decisoes, {"CORTE_EFETIVO": False})
-    assert e and e.stage == "decisao_invalida" and "não aceita decisão manual" in e.motivo
+    assert e and e.stage == "gate_fatico_nao_satisfeito"
 
 
-def test_H_estrategista_tenta_excluir_com_fato_verdadeiro_e_rejeitado():
-    catalogo = carregar_catalogo(CATALOGO_REAL)
-    decisoes = _decisoes_minimas_reais(catalogo)
-    decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "EXCLUIR"}
-    e = _abortou(validar_e_resolver_decisoes, catalogo, decisoes, {"CORTE_EFETIVO": True})
-    assert e and e.stage == "decisao_invalida" and "não aceita decisão manual" in e.motivo
-
-
-def test_inadimplencia_debito_com_corte_efetivo_false_exclui():
-    # extra além da lista A-H: outro "distrator" comum (§4 do prompt).
+def test_inadimplencia_debito_sem_corte_efetivo_exclui():
+    # extra além da lista A-K: outro "distrator" comum (§19 do prompt).
     catalogo = carregar_catalogo(CATALOGO_REAL)
     estados = validar_e_resolver_decisoes(catalogo, _decisoes_minimas_reais(catalogo),
                                            {"INADIMPLENCIA": True, "DEBITO_EXISTENTE": True,
@@ -549,7 +563,7 @@ def test_pedidos_composicionais_reconvencao_excluida_mas_mencionada_e_erro():
 
 
 def test_pedidos_composicionais_corte_excluido_mas_mencionado_e_erro():
-    # Teste J (INV-CORTE-LINKED): bloco excluído não pode ter a tese
+    # INV-CORTE-GATE-HUMANO: bloco excluído não pode ter a tese
     # reintroduzida em PEDIDOS_FINAIS por outro caminho.
     estados = {"LICITUDE_CORTE_SUSPENSAO": "EXCLUIR"}
     erros = validar_pedidos_composicionais(

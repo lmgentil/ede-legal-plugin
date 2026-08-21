@@ -307,6 +307,68 @@ def test_irregularidade_com_sigla_isolada_nao_e_bloqueada_pela_regra_de_caixa_al
     assert ok, erros
 
 
+# --------------------------------------------------------------- INV-NAO-REPETICAO-FATICA (Etapa 5.5 §9-13, §26)
+# Cenário do achado real: "desvio de energia antes do medidor" reaparecia
+# quase palavra por palavra em REALIDADE_FATICA, IRREGULARIDADE_ENCONTRADA
+# e DESENVOLVIMENTO_TECNICO. O backstop determinístico só cobre a
+# repetição VERBATIM do rótulo atômico dentro de REALIDADE_FATICA — a
+# paráfrase (palavras diferentes, mesmo fato) é comportamental (Skills),
+# não bloqueada por código (§13/§26: vedado bloqueador de similaridade
+# genérico, geraria falso positivo).
+def test_redundancia_realidade_fatica_repetindo_rotulo_atomico_e_rejeitada():
+    ok, erros = validar_semantica({
+        "IRREGULARIDADE_ENCONTRADA": "**desvio de energia antes do sistema de medição**",
+        "REALIDADE_FATICA": "Os elementos técnicos confirmam desvio de energia "
+                             "antes do sistema de medição na unidade consumidora.",
+    })
+    assert not ok
+    assert any("INV-NAO-REPETICAO-FATICA" in e for e in erros)
+
+
+def test_redundancia_realidade_fatica_abstrata_sem_rotulo_e_aceita():
+    # Exemplo corrigido (Etapa 5.5 §9): REALIDADE_FATICA global/objetiva,
+    # sem antecipar o tipo/detalhe técnico da irregularidade.
+    ok, erros = validar_semantica({
+        "IRREGULARIDADE_ENCONTRADA": "**desvio de energia antes do sistema de medição**",
+        "REALIDADE_FATICA": "A inspeção identificou irregularidade no sistema de "
+                             "medição, dando origem ao procedimento de recuperação "
+                             "de consumo documentado nos autos.",
+    })
+    assert ok, erros
+
+
+def test_redundancia_realidade_fatica_com_palavras_diferentes_nao_e_bloqueada_por_codigo():
+    # Paráfrase (mesmo fato, palavras diferentes) — fora do escopo do
+    # backstop determinístico por decisão explícita (§13); controle real é
+    # comportamental (Redator/Humanizer, skills/contestacao/SKILL.md).
+    ok, erros = validar_semantica({
+        "IRREGULARIDADE_ENCONTRADA": "**desvio de energia antes do sistema de medição**",
+        "REALIDADE_FATICA": "A perícia constatou captação irregular de energia "
+                             "elétrica em ponto anterior ao equipamento de aferição "
+                             "de consumo instalado na unidade.",
+    })
+    assert ok, erros
+
+
+def test_redundancia_sem_irregularidade_encontrada_nao_bloqueia_realidade_fatica():
+    ok, erros = validar_semantica({
+        "REALIDADE_FATICA": "A inspeção identificou irregularidade no sistema de "
+                             "medição, dando origem ao procedimento de recuperação "
+                             "de consumo documentado nos autos."})
+    assert ok, erros
+
+
+def test_redundancia_irregularidade_curta_nao_gera_falso_positivo_generico():
+    # rótulo curto (< 12 chars normalizados) fica de fora do backstop —
+    # evita falso positivo em substrings triviais/curtas demais.
+    ok, erros = validar_semantica({
+        "IRREGULARIDADE_ENCONTRADA": "**fraude**",
+        "REALIDADE_FATICA": "A Ré nega a fraude alegada pela autora e apresenta "
+                             "os elementos técnicos que amparam a cobrança.",
+    })
+    assert ok, erros
+
+
 # --------------------------------------------------------------- INV-CONTESTACAO-SEM-TRAVESSAO
 # A. texto gerado contendo "—" é rejeitado.
 def test_A_texto_com_travessao_e_rejeitado():

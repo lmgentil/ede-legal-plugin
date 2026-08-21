@@ -48,12 +48,25 @@ Escopo suportado (não adivinhado além disto — falha explícita, nunca
 verificado nesta implementação — falha explícita (fail closed) em vez de
 supor a convenção.
 
-API key: NUNCA gravada em código/Skill/fixture/teste (CLAUDE.md §18 +
-instrução expressa desta correção) — mesmo a chave pública documentada
-pelo DPJ/CNJ é tratada como configuração externa. Lida exclusivamente de
-DATAJUD_API_KEY (variável de ambiente) ou passada explicitamente pelo
-chamador. Obtenha a chave vigente em
-https://datajud-wiki.cnj.jus.br/api-publica/acesso/.
+API key (Etapa 5.5 — decisão expressa do projeto, SUBSTITUI a orientação
+anterior de mantê-la fora do repositório): a chave PÚBLICA do DataJud,
+documentada abertamente pelo DPJ/CNJ para uso livre por qualquer
+consumidor (não uma credencial pessoal secreta), é versionada neste
+único ponto canônico — `DATAJUD_API_KEY_PADRAO`, abaixo — para tornar o
+plugin autossuficiente em elaboração em massa, sem configuração manual
+pelo advogado. Nenhum outro módulo/Skill/fixture/teste deve reproduzir a
+chave — todos consomem `resolver_juizo`/`resolver_orgao_julgador`
+(que já a resolvem internamente) ou, em último caso, leem
+`DATAJUD_API_KEY_PADRAO` deste módulo. `DATAJUD_API_KEY` (variável de
+ambiente) continua aceita como OVERRIDE opcional — necessário se o CNJ
+rotacionar a chave pública antes deste arquivo ser atualizado (ver
+`_TAG_ERRO_AUTENTICACAO` abaixo para o tratamento de chave
+inválida/expirada). Chave vigente documentada em
+https://datajud-wiki.cnj.jus.br/api-publica/acesso/ — o secret scan do
+projeto (`tests/test_pacote_distribuicao.py`) trata esta chave
+especificamente como exceção expressa (não é mais "possível segredo
+vazado"); demais credenciais (privadas, pessoais) continuam proibidas de
+versionamento normalmente (CLAUDE.md §18).
 
 Cache local simples (numero_processo -> resolução), para uso em massa —
 nunca versionado (dados de processo, mesmo tratamento de CLAUDE.md §18-19
@@ -87,6 +100,21 @@ _TIMEOUT_PADRAO = 10  # segundos, por requisição
 _TENTATIVAS_PADRAO = 3  # 1 tentativa inicial + até 2 retries em falha transitória
 _CACHE_PADRAO = Path(__file__).parent.parent / ".cache" / "datajud" / "juizo_cache.json"
 
+# PONTO CANÔNICO ÚNICO da chave pública DataJud (Etapa 5.5 — decisão
+# expressa do projeto, ver docstring do módulo). NÃO reproduzir este
+# valor em nenhum outro arquivo — todo consumidor passa por
+# resolver_juizo()/resolver_orgao_julgador() (que já a resolvem) ou lê
+# esta constante diretamente. Chave documentada publicamente pelo DPJ/CNJ
+# em https://datajud-wiki.cnj.jus.br/api-publica/acesso/ — se o CNJ
+# rotacionar, atualizar SÓ aqui (ou usar o override DATAJUD_API_KEY,
+# variável de ambiente, sem precisar editar código).
+DATAJUD_API_KEY_PADRAO = "cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw=="
+
+# Marcador de erro de autenticação (chave inválida/expirada) — distinto
+# de indisponibilidade genérica: nunca dispara retry (não é transitório),
+# nunca cai para JUIZO gerativo, nunca busca/inventa nova chave sozinho.
+TAG_ERRO_AUTENTICACAO = "DATAJUD_AUTH_ERROR"
+
 # CNJ Resolução 65/2008: segmento 8 (Justiça Estadual), TR 01-27 na ordem
 # alfabética do nome do Estado/Distrito Federal. Alias real confirmado
 # contra datajud-wiki.cnj.jus.br/api-publica/endpoints/ (todos seguem
@@ -106,10 +134,13 @@ _TR_TRF_VALIDOS = {"01", "02", "03", "04", "05", "06"}  # segmento 4: TR = regi�
 
 class JuizoResolutionError(Exception):
     """Fail-closed único desta camada — nunca presume JUIZO. `motivo` é a
-    mensagem destinada ao advogado/operador (stage=juizo_datajud)."""
+    mensagem destinada ao advogado/operador (stage=juizo_datajud).
+    `codigo`, quando presente, distingue casos com tratamento próprio —
+    hoje só `TAG_ERRO_AUTENTICACAO` (chave inválida/expirada)."""
 
-    def __init__(self, motivo: str):
+    def __init__(self, motivo: str, codigo: str = None):
         self.motivo = motivo
+        self.codigo = codigo
         super().__init__(motivo)
 
 
@@ -186,6 +217,15 @@ def _fazer_requisicao(req: urllib.request.Request, timeout: int, tentativas: int
                     bruto = gzip.decompress(bruto)
                 return json.loads(bruto.decode("utf-8"))
         except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
+                raise JuizoResolutionError(
+                    f"{nome_servico} rejeitou a credencial (HTTP {e.code}: {e.reason}) — "
+                    f"a chave pública pode ter sido rotacionada pelo CNJ. Atualize "
+                    f"DATAJUD_API_KEY_PADRAO em scripts/datajud_client.py (ou defina "
+                    f"DATAJUD_API_KEY como override) com a chave vigente em "
+                    f"https://datajud-wiki.cnj.jus.br/api-publica/acesso/ — nunca "
+                    f"inventada/buscada automaticamente.",
+                    codigo=TAG_ERRO_AUTENTICACAO)
             if 400 <= e.code < 500:
                 raise JuizoResolutionError(f"{nome_servico} retornou HTTP {e.code}: {e.reason}")
             ultimo_erro = e
@@ -221,14 +261,17 @@ def resolver_orgao_julgador(numero_processo, api_key: str = None, timeout: int =
     if numero_normalizado in cache and "orgao_julgador_nome" in cache[numero_normalizado]:
         return cache[numero_normalizado]
 
-    api_key = api_key or os.environ.get("DATAJUD_API_KEY")
+    # Etapa 5.5: ponto canônico único (DATAJUD_API_KEY_PADRAO) resolve o
+    # plugin autossuficiente; DATAJUD_API_KEY (ambiente) e o parâmetro
+    # `api_key` continuam aceitos como override, útil se o CNJ rotacionar
+    # a chave pública antes deste arquivo ser atualizado.
+    api_key = api_key or os.environ.get("DATAJUD_API_KEY") or DATAJUD_API_KEY_PADRAO
     if not api_key:
         raise JuizoResolutionError(
-            "DATAJUD_API_KEY não configurada (variável de ambiente) — "
-            "obtenha a chave pública vigente em "
-            "https://datajud-wiki.cnj.jus.br/api-publica/acesso/ e "
-            "configure-a externamente; nunca grave a chave em código, "
-            "Skill, fixture ou arquivo versionado.")
+            "nenhuma chave DataJud disponível (DATAJUD_API_KEY_PADRAO "
+            "está vazia e DATAJUD_API_KEY não foi definida) — configure "
+            "a chave pública vigente em "
+            "https://datajud-wiki.cnj.jus.br/api-publica/acesso/.")
 
     alias = identificar_alias(numero_normalizado)
     url = f"{DATAJUD_BASE_URL}/{alias}/_search"

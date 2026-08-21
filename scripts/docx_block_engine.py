@@ -30,14 +30,21 @@ puramente mecânicos, nenhum deles heurística jurídica:
   - `requires_fact` (catálogo): GATE fático opcional por bloco
     'estrategista'/'humano' — INCLUIR só é aceito se
     `fatos_processuais[key]` for verdadeiro; a decisão de INCLUIR vs.
-    EXCLUIR quando o fato é verdadeiro continua exclusivamente estratégica
-    (LICITUDE_CORTE_SUSPENSAO — INV-CORTE-EFETIVO).
+    EXCLUIR quando o fato é verdadeiro continua exclusivamente
+    estratégica. Infraestrutura geral do motor, disponível para futuros
+    blocos — nenhum bloco do catálogo atual o usa (LICITUDE_CORTE_
+    SUSPENSAO migrou para `state_linked` numa correção arquitetural
+    posterior, ver abaixo — INV-CORTE-LINKED).
   - decision_mode "state_linked" + `linked_fact` (catálogo, correção
     pontual pós-Etapa 5.2): VÍNCULO determinístico ESTADO PROCESSUAL ->
     BLOCO — o estado do bloco *é* `fatos_processuais[linked_fact]`
     (true->INCLUIR, false->EXCLUIR, 'INDETERMINADO'->aborta); nenhuma
     decisão da etapa estratégica é aceita (PRELIMINAR_REVOGACAO_
-    GRATUIDADE — INV-GRATUIDADE-LINKED). Diferente de "linked"
+    GRATUIDADE — INV-GRATUIDADE-LINKED; LICITUDE_CORTE_SUSPENSAO —
+    INV-CORTE-LINKED, correção arquitetural: modelagem anterior como
+    gate + decisão estratégica permitiu, em teste real, inclusão baseada
+    em mera alegação da autora, não em corte efetivamente comprovado).
+    Diferente de "linked"
     (BLOCO -> BLOCO, ex.: INLINE_COM_RECONVENCAO -> RECONVENCAO,
     preservado intocado) e diferente de `requires_fact` (que é um gate,
     não um vínculo — ainda deixa a decisão para o estrategista). Estado
@@ -53,6 +60,7 @@ import json
 import shutil
 import sys
 import tempfile
+import unicodedata
 from pathlib import Path
 
 import lxml.etree as LET
@@ -88,10 +96,12 @@ TIPOS_VALIDOS = ("FIXO", "CONDICIONAL_PADRAO", "CONDICIONAL_HIBRIDO", "CONTAINER
 # "INDETERMINADO"->aborta) — NUNCA aceita decisão manual em
 # decisoes_blocos.json (mesmo tratamento fail-closed já dado a
 # "derived"/"linked": decisão fornecida é rejeitada, não ignorada). Isto é
-# deliberadamente diferente de `requires_fact` (usado por
-# LICITUDE_CORTE_SUSPENSAO/INV-CORTE-EFETIVO): `requires_fact` é um GATE
-# que só restringe INCLUIR, deixando a decisão INCLUIR/EXCLUIR para a
-# etapa estratégica quando o fato é verdadeiro; `state_linked` não deixa
+# deliberadamente diferente de `requires_fact` (gate + decisão
+# estratégica — infraestrutura geral, sem uso atual no catálogo desde
+# que LICITUDE_CORTE_SUSPENSAO migrou para `state_linked`,
+# INV-CORTE-LINKED): `requires_fact` é um GATE que só restringe INCLUIR,
+# deixando a decisão INCLUIR/EXCLUIR para a etapa estratégica quando o
+# fato é verdadeiro; `state_linked` não deixa
 # decisão alguma para o estrategista — o estado do bloco *é* o estado
 # processual, sempre.
 DECISION_MODES_VALIDOS = ("estrategista", "humano", "derived", "linked", "state_linked")
@@ -177,10 +187,12 @@ def validar_catalogo(catalogo: dict) -> None:
         if b["decision_mode"] != "state_linked" and b.get("linked_fact"):
             raise ComposicaoAbortada("catalogo_invalido", f"{bid}: linked_fact só é válido em decision_mode='state_linked'")
 
-        # Etapa 5.2 — INV-CORTE-EFETIVO: gate fático
+        # Etapa 5.2 — requires_fact: gate fático
         # opcional (estado processual, não outro bloco) que condiciona
         # INCLUIR. Puramente estrutural aqui — nenhuma heurística jurídica:
         # só garante que, quando declarado, tem a forma esperada.
+        # Infraestrutura geral, sem uso atual no catálogo (LICITUDE_CORTE_
+        # SUSPENSAO migrou para state_linked — INV-CORTE-LINKED).
         gate = b.get("requires_fact")
         if gate is not None:
             if b["decision_mode"] not in DECISION_MODES_MANUAIS:
@@ -231,8 +243,9 @@ def _fato_processual_verdadeiro(fatos_processuais: dict, key: str) -> bool:
     (fail-closed: ausente ou mal formado conta como falso, nunca como
     verdadeiro por omissão). Aceita tanto `{"KEY": true}` quanto
     `{"KEY": {"valor": true, ...proveniência...}}`. Usado só pelo gate
-    `requires_fact` (INV-CORTE-EFETIVO) — para `state_linked`
-    (INV-GRATUIDADE-LINKED), ver `_estado_fato_processual` abaixo, que
+    `requires_fact` (infraestrutura geral, sem uso atual no catálogo) —
+    para `state_linked` (INV-GRATUIDADE-LINKED/INV-CORTE-LINKED), ver
+    `_estado_fato_processual` abaixo, que
     distingue um terceiro estado (`INDETERMINADO`)."""
     valor = (fatos_processuais or {}).get(key)
     if isinstance(valor, bool):
@@ -291,9 +304,9 @@ def validar_e_resolver_decisoes(catalogo: dict, decisoes: dict, fatos_processuai
     `fatos_processuais` (opcional) é o estado processual (ex.:
     {"GRATUIDADE_CONCEDIDA": true, "CORTE_EFETIVO": false}), com dois usos
     distintos:
-      - blocos que declaram `requires_fact` (INV-CORTE-EFETIVO): GATE —
-        INCLUIR só é aceito se o fato for verdadeiro; a decisão
-        INCLUIR/EXCLUIR em si continua exclusivamente da etapa
+      - blocos que declaram `requires_fact` (infraestrutura geral, sem
+        uso atual no catálogo): GATE — INCLUIR só é aceito se o fato for
+        verdadeiro; a decisão INCLUIR/EXCLUIR em si continua exclusivamente da etapa
         estratégica quando o fato é verdadeiro.
       - blocos 'state_linked' (INV-GRATUIDADE-LINKED): VÍNCULO
         determinístico — o estado do bloco *é* o estado processual
@@ -376,6 +389,61 @@ def validar_e_resolver_decisoes(catalogo: dict, decisoes: dict, fatos_processuai
     if faltando:
         raise ComposicaoAbortada("decisao_ausente", f"blocos sem estado resolvido: {sorted(faltando)}")
     return estados
+
+
+# ============================================================== Etapa 5.3 — pedidos × blocos
+# Achado real (Teste Real 01-B §18): PEDIDOS_FINAIS reintroduzindo tese já
+# EXCLUÍDA pelo motor composicional (ex.: pedido de revogação de
+# gratuidade mesmo com PRELIMINAR_REVOGACAO_GRATUIDADE = EXCLUIR). Isso
+# tem que ser determinístico — não um lembrete na Skill. Cada bloco
+# relevante para os pedidos finais declara aqui as palavras-chave que só
+# fazem sentido no texto de PEDIDOS_FINAIS quando o bloco correspondente
+# está INCLUIR; se EXCLUIR, a presença de qualquer uma delas é erro.
+# Backstop lexical (mesma limitação de qualquer backstop deste projeto:
+# ausência de palavra-chave não prova coerência, só a presença prova
+# incoerência) — o controle substantivo continua sendo da Skill.
+PALAVRAS_CHAVE_BLOCO_PEDIDOS = {
+    "PRELIMINAR_CDC_INAPLICAVEL": (
+        "inaplicabilidade do cdc", "cdc não se aplica", "cdc nao se aplica",
+        "afastamento do cdc", "inaplicabilidade do código de defesa",
+    ),
+    "PRELIMINAR_REVOGACAO_GRATUIDADE": (
+        "revogação da gratuidade", "revogacao da gratuidade",
+        "revogação da assistência judiciária", "revogacao da assistencia judiciaria",
+        "revogação da justiça gratuita", "revogacao da justica gratuita",
+    ),
+    "RECONVENCAO": ("reconvenção", "reconvencao"),
+    # INV-CORTE-LINKED: bloco excluído (sem corte efetivo comprovado)
+    # não pode ter sua tese reintroduzida em PEDIDOS_FINAIS por outro
+    # caminho.
+    "LICITUDE_CORTE_SUSPENSAO": (
+        "licitude do corte", "licitude da suspensão", "licitude da suspensao",
+        "corte foi lícito", "corte foi licito", "regularidade do corte",
+        "regularidade da suspensão", "regularidade da suspensao",
+    ),
+}
+
+
+def validar_pedidos_composicionais(pedidos_texto: str, estados: dict) -> list:
+    """Retorna a lista de erros (vazia se PEDIDOS_FINAIS não menciona
+    nenhuma tese de bloco EXCLUÍDO). `estados` é o dict {id: estado}
+    já resolvido por `validar_e_resolver_decisoes`."""
+    v = "".join(
+        c for c in unicodedata.normalize("NFD", str(pedidos_texto).lower())
+        if unicodedata.category(c) != "Mn"
+    )
+    erros = []
+    for bid, palavras in PALAVRAS_CHAVE_BLOCO_PEDIDOS.items():
+        if estados.get(bid) != "EXCLUIR":
+            continue
+        achadas = [p for p in palavras if
+                   "".join(c for c in unicodedata.normalize("NFD", p) if unicodedata.category(c) != "Mn") in v]
+        if achadas:
+            erros.append(
+                f"PEDIDOS_FINAIS menciona {achadas} mas {bid} = EXCLUIR — "
+                f"pedido não pode reintroduzir tese excluída pelo motor "
+                f"composicional (Etapa 5.3 §18)")
+    return erros
 
 
 # ============================================================== Fase H — template x catálogo

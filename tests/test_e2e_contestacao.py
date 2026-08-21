@@ -43,9 +43,37 @@ from pathlib import Path
 BASE = Path(__file__).parent.parent
 FIXTURES = BASE / "tests" / "fixtures" / "contestacao"
 sys.path.insert(0, str(BASE / "scripts"))
-from gerar_contestacao import MARCADOR_FOTOS, gerar  # noqa: E402
+from gerar_contestacao import MARCADOR_FOTOS, gerar as _gerar_real  # noqa: E402
 
 REAL_TEMPLATE = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
+
+
+# INV-JUIZO-DATAJUD: a suíte automatizada nunca depende da disponibilidade
+# real da API DataJud/CNJ (instrução expressa desta correção) — stub
+# reproduz exatamente o valor que a fixture happy_path continha antes
+# (redator-authored), preservando as asserções de conteúdo já existentes
+# ("AO JUÍZO DA VARA"/"FEIRA DE SANTANA" em _validar_conteudo_sintetico).
+def _resolver_juizo_stub(numero_processo, **_kwargs):
+    return {
+        "numero_processo": numero_processo,
+        "tribunal": "TJBA",
+        "orgao_julgador_nome": "VARA DOS FEITOS DE RELAÇÕES DE CONSUMO",
+        "orgao_julgador_codigo": 1,
+        "codigo_municipio_ibge": 2910800,
+        "comarca": "Feira de Santana",
+        "juizo": "AO JUÍZO DA VARA DOS FEITOS DE RELAÇÕES DE CONSUMO DA COMARCA DE FEIRA DE SANTANA",
+        "data_consulta": "2026-01-01T00:00:00+00:00",
+    }
+
+
+def gerar(caso_dir, saida, *args, resolver_juizo_fn=None, **kwargs):
+    """Wrapper local: injeta o stub de JUIZO por padrão em todo o arquivo
+    (shadowing do `gerar` importado) — nenhum teste depende da API real.
+    Testes que precisam simular comportamento específico do DataJud
+    (indisponibilidade, ambiguidade etc.) passam resolver_juizo_fn."""
+    return _gerar_real(caso_dir, saida, *args,
+                        resolver_juizo_fn=resolver_juizo_fn or _resolver_juizo_stub,
+                        **kwargs)
 
 
 def _pular_se_sem_template_real():
@@ -67,7 +95,8 @@ def test_happy_path_pipeline_completo():
         nomes_stage = {s["name"] for s in r["stages"]}
         assert nomes_stage == {"facts", "tempestividade", "strategy",
                                 "block_composition_decisoes", "rag_legal_validation",
-                                "drafting_humanization", "paragrafo_380", "template_engine"}
+                                "juizo_datajud", "drafting_humanization", "paragrafo_380",
+                                "pedidos_composicionais", "template_engine"}
         assert all(s["status"] == "ok" for s in r["stages"]), r["stages"]
 
         assert r["fatos_com_proveniencia"] == 11
@@ -107,15 +136,43 @@ def _validar_conteudo_sintetico(caminho: Path):
         document_xml = z.read("word/document.xml").decode("utf-8")
     esperados = [
         "MARIA JOS", "8000001-11.2026.8.05.0080",
-        "445566-7",  # unidade consumidora, prova que IRREGULARIDADE_ENCONTRADA entrou
+        "445566-7",  # unidade consumidora, citada em SINOPSE_FATOS/REALIDADE_FATICA
         "4.328,17",  # VALOR_FRA
         MARCADOR_FOTOS,
-        "Feira de Santana",
+        "AO JUÍZO DA VARA",  # endereçamento institucional (Etapa 5.3 §1)
+        "FEIRA DE SANTANA",  # comarca do processo, dentro do JUIZO (caixa alta)
+        "Salvador",  # LOCAL_DATA é sempre Salvador (Etapa 5.3 §21), não a comarca do processo
     ]
     for trecho in esperados:
         assert trecho in document_xml, f"trecho esperado não encontrado no DOCX gerado: {trecho!r}"
     assert "{{" not in document_xml, "placeholder residual (chaves duplas) no XML final"
     assert 'w:val="FF0000"' in document_xml, "conteúdo gerado deveria estar em FF0000 (Etapa 3)"
+    # IRREGULARIDADE_ENCONTRADA usa **negrito** no fixture, contrato atômico
+    # (Etapa 5.3-B §15-16): só o tipo, minúsculo/natural, sem repetir o
+    # texto fixo do template ("Na ocasião, foi constatada irregularidade
+    # do tipo, " / ", circunstância que...") — deve renderizar como <w:b/>
+    # real, sem vazar a marcação markdown e sem caixa alta forçada.
+    assert "ligação direta no ramal de entrada" in document_xml
+    assert "LIGAÇÃO DIRETA NO RAMAL DE ENTRADA" not in document_xml
+    assert "<w:b/>" in document_xml
+    assert "**" not in document_xml
+    assert document_xml.count("irregularidade do tipo") == 1, \
+        "expressão introdutória fixa da irregularidade duplicada no XML final"
+    # I. INV-CONTESTACAO-SEM-TRAVESSAO: nenhum <w:t> de conteúdo GERADO
+    # (marcado FF0000, convenção transversal do motor documental desde a
+    # Etapa 3) contém travessão. Checagem escopada ao conteúdo variável,
+    # não ao XML inteiro (§5: texto fixo institucional do template nunca
+    # é tocado por esta regra, mesmo que eventualmente contenha "—").
+    import lxml.etree as _LET
+    _W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    _root = _LET.fromstring(document_xml.encode("utf-8"))
+    for r in _root.iter(f"{{{_W}}}r"):
+        rpr = r.find(f"{{{_W}}}rPr")
+        cor = rpr.find(f"{{{_W}}}color") if rpr is not None else None
+        if cor is not None and cor.get(f"{{{_W}}}val") == "FF0000":
+            for t in r.findall(f"{{{_W}}}t"):
+                assert "—" not in (t.text or ""), \
+                    f"travessão em conteúdo gerado (FF0000): {t.text!r}"
     # RECONVENCAO=INCLUIR neste fixture (happy_path/decisoes_blocos.json) —
     # o inline vinculado (INLINE_COM_RECONVENCAO) deve refletir isso no
     # título (Etapa 5.2 — regressão do achado real de composição em
@@ -283,6 +340,28 @@ def test_tempestividade_informada_pelo_advogado():
         assert saida.exists()
 
 
+def test_J_redator_nao_pode_fornecer_juizo_arbitrariamente():
+    # INV-JUIZO-DATAJUD: se placeholders.json (saída do redator/humanizer)
+    # trouxer um JUIZO próprio, o pipeline rejeita — nunca usa esse valor
+    # nem tenta reconciliar com a resolução automática.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        placeholders = json.loads((caso_tmp / "placeholders.json").read_text(encoding="utf-8"))
+        placeholders["JUIZO"] = "AO JUÍZO DA VARA INVENTADA PELA IA DA COMARCA DE LUGAR NENHUM"
+        (caso_tmp / "placeholders.json").write_text(json.dumps(placeholders), encoding="utf-8")
+
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED"
+        assert r["stage"] == "juizo_datajud"
+        assert "JUIZO" in r["reason"]
+        assert not saida.exists()
+
+
 def test_fail_closed_template_institucional_ausente():
     # Consolidação pós-Fase 8: o template real é asset externo, nunca
     # distribuído — uma instalação pública nunca o terá até ser fornecido
@@ -304,7 +383,8 @@ def test_fail_closed_template_institucional_ausente():
         nomes_ok = {s["name"] for s in r["stages"] if s["status"] == "ok"}
         assert nomes_ok == {"facts", "tempestividade", "strategy",
                              "block_composition_decisoes", "rag_legal_validation",
-                             "drafting_humanization", "paragrafo_380"}
+                             "juizo_datajud", "drafting_humanization", "paragrafo_380",
+                             "pedidos_composicionais"}
         assert not saida.exists()
 
 
@@ -360,6 +440,14 @@ def test_reconvencao_nao_autorizada_pelo_advogado_nao_aparece_no_titulo():
         decisoes = json.loads((caso_tmp / "decisoes_blocos.json").read_text(encoding="utf-8"))
         decisoes["RECONVENCAO"] = {"decisao": "EXCLUIR", "fundamento": "advogado respondeu NÃO à pergunta obrigatória"}
         (caso_tmp / "decisoes_blocos.json").write_text(json.dumps(decisoes), encoding="utf-8")
+        # Etapa 5.3 §18: sem reconvenção, os pedidos não podem mencioná-la
+        # (validar_pedidos_composicionais rejeitaria a incoerência).
+        placeholders = json.loads((caso_tmp / "placeholders.json").read_text(encoding="utf-8"))
+        placeholders["PEDIDOS_FINAIS"] = (
+            "Diante do exposto, requer a Ré sejam julgados improcedentes os "
+            "pedidos da inicial, condenando-se a parte Autora ao pagamento "
+            "das custas processuais e honorários advocatícios.")
+        (caso_tmp / "placeholders.json").write_text(json.dumps(placeholders), encoding="utf-8")
 
         saida = Path(tmp) / "contestacao_sem_reconvencao.docx"
         r = gerar(caso_tmp, saida)
@@ -454,8 +542,10 @@ def test_fail_closed_gratuidade_indeterminada():
         assert not saida.exists()
 
 
-def test_fail_closed_corte_sem_efetivo():
-    # CENÁRIOS 1/2: sem notícia de corte, ou só ameaça -> INCLUIR rejeitado.
+def test_fail_closed_corte_com_decisao_manual_do_estrategista():
+    # INV-CORTE-LINKED (correção arquitetural pós-achado real): o bloco
+    # é state_linked — decisão manual do estrategista é sempre rejeitada,
+    # mesmo tentando refletir corretamente um estado factual real.
     if _pular_se_sem_template_real():
         return
     with tempfile.TemporaryDirectory() as tmp:
@@ -464,9 +554,8 @@ def test_fail_closed_corte_sem_efetivo():
         decisoes = json.loads((caso_tmp / "decisoes_blocos.json").read_text(encoding="utf-8"))
         decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "INCLUIR", "fundamento": "cenário de teste"}
         (caso_tmp / "decisoes_blocos.json").write_text(json.dumps(decisoes), encoding="utf-8")
-        # mera ameaça registrada como fato — mas CORTE_EFETIVO continua falso.
         (caso_tmp / "estado_processual.json").write_text(json.dumps({
-            "CORTE_EFETIVO": False,
+            "CORTE_EFETIVO": True,
         }), encoding="utf-8")
 
         saida = Path(tmp) / "nao_deveria_existir.docx"
@@ -474,20 +563,62 @@ def test_fail_closed_corte_sem_efetivo():
 
         assert r["status"] == "PIPELINE_ABORTED"
         assert r["stage"] == "block_composition"
-        assert "CORTE_EFETIVO" in r["reason"]
+        assert "decisao_invalida" in r["reason"]
         assert not saida.exists()
 
 
-def test_corte_efetivo_permite_inclusao_do_bloco():
-    # CENÁRIO 3: corte efetivo -> bloco elegível (INCLUIR aceito).
+def test_corte_efetivo_false_exclui_automaticamente_sem_decisao():
+    # CENÁRIOS 1/2 (mera ameaça/sem notícia de corte): sem decisão alguma
+    # do estrategista, CORTE_EFETIVO=false resolve automaticamente para
+    # EXCLUIR — pipeline conclui normalmente (não é mais fail-closed
+    # nesse caso: é o comportamento correto e esperado).
     if _pular_se_sem_template_real():
         return
     with tempfile.TemporaryDirectory() as tmp:
         caso_tmp = Path(tmp) / "caso"
         shutil.copytree(FIXTURES / "happy_path", caso_tmp)
-        decisoes = json.loads((caso_tmp / "decisoes_blocos.json").read_text(encoding="utf-8"))
-        decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "INCLUIR", "fundamento": "fornecimento efetivamente suspenso em 20/01/2026, conforme relato da autora e registro da concessionária"}
-        (caso_tmp / "decisoes_blocos.json").write_text(json.dumps(decisoes), encoding="utf-8")
+        # mera ameaça registrada como fato distrator — mas CORTE_EFETIVO
+        # continua falso; decisoes_blocos.json não tem (e não pode ter)
+        # entrada para LICITUDE_CORTE_SUSPENSAO.
+        (caso_tmp / "estado_processual.json").write_text(json.dumps({
+            "AMEACA_DE_CORTE": True,
+            "CORTE_EFETIVO": False,
+        }), encoding="utf-8")
+
+        saida = Path(tmp) / "contestacao_sem_corte.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "OK", r
+        assert "LICITUDE_CORTE_SUSPENSAO" in r["blocos_excluidos"]
+
+
+def test_corte_efetivo_indeterminado_aborta_pipeline():
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
+        (caso_tmp / "estado_processual.json").write_text(json.dumps({
+            "CORTE_EFETIVO": "INDETERMINADO",
+        }), encoding="utf-8")
+
+        saida = Path(tmp) / "nao_deveria_existir_indeterminado.docx"
+        r = gerar(caso_tmp, saida)
+
+        assert r["status"] == "PIPELINE_ABORTED"
+        assert r["stage"] == "block_composition"
+        assert "decisao_indeterminada" in r["reason"]
+        assert not saida.exists()
+
+
+def test_corte_efetivo_true_inclui_automaticamente_sem_decisao():
+    # CENÁRIO 3: corte efetivo -> bloco INCLUÍDO automaticamente (state_
+    # linked, INV-CORTE-LINKED) — nenhuma decisão do estrategista.
+    if _pular_se_sem_template_real():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso_tmp = Path(tmp) / "caso"
+        shutil.copytree(FIXTURES / "happy_path", caso_tmp)
         (caso_tmp / "estado_processual.json").write_text(json.dumps({
             "CORTE_EFETIVO": True,
         }), encoding="utf-8")

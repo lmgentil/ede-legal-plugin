@@ -28,6 +28,8 @@ Uso:
 import sys
 from pathlib import Path
 
+import lxml.etree as LET
+
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
 from docx_template_engine import (  # noqa: E402
@@ -48,8 +50,14 @@ SCHEMA_REAL = BASE / "templates" / "contestacao" / "schema.json"
 # XML sintético mínimo, mas com a mesma forma real observada na auditoria:
 # placeholder sozinho no <w:t> (JUIZO) e placeholder embutido numa frase
 # com prefixo/sufixo fixos (LOCAL_DATA), igual ao "Salvador, {{LOCAL_DATA}}."
+# Etapa 5.3-B: _explodir_paragrafos_multilinha() usa lxml e casa <w:p>/
+# <w:r>/<w:t>/<w:br>/<w:rPr> pelo namespace REAL do wordprocessingml (não
+# um placeholder arbitrário como "urn:w") — precisa estar declarado aqui
+# para os testes de conteúdo multiline exercitarem o código de verdade.
+NS_W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
 XML_SINTETICO = (
-    '<w:document><w:body>'
+    f'<w:document xmlns:w="{NS_W}"><w:body>'
     '<w:p><w:r><w:t>{{JUIZO}}</w:t></w:r></w:p>'
     '<w:p><w:r><w:t xml:space="preserve">Salvador, {{LOCAL_DATA}}.</w:t></w:r></w:p>'
     '<w:p><w:r><w:t>{{SINOPSE_FATOS}}</w:t></w:r></w:p>'
@@ -65,7 +73,7 @@ SCHEMA_SINTETICO = {"editable_placeholders": ["JUIZO", "LOCAL_DATA", "SINOPSE_FA
 # linha DENTRO do próprio <w:rPr> que o toolkit unpack.py produz — achado
 # real desta implementação (regex "." não casava \n sem re.DOTALL).
 XML_SINTETICO_COR = (
-    '<w:document><w:body>'
+    f'<w:document xmlns:w="{NS_W}"><w:body>'
     '<w:p><w:r><w:t>{{JUIZO}}</w:t></w:r></w:p>'
     '<w:p><w:r><w:rPr><w:b/><w:color w:val="000000"/><w:sz w:val="24"/></w:rPr>'
     '<w:t>{{AUTOR}}</w:t></w:r></w:p>'
@@ -93,12 +101,17 @@ def test_substituicao_inline_preserva_prefixo_sufixo():
     assert "{{LOCAL_DATA}}" not in xml
 
 
-def test_substituicao_multilinha_usa_br_sem_tocar_paragrafo():
+def test_substituicao_multilinha_gera_paragrafos_reais(monkeypatch=None):
+    # Etapa 5.3-B / INV-PARAGRAFO-HERDA-TEMPLATE: cada linha lógica vira um
+    # <w:p> irmão real (clone do w:pPr do parágrafo-placeholder) — não uma
+    # quebra <w:br/> dentro de um único <w:p> (comportamento pré-5.3-B).
     xml, _ = substituir_placeholders(XML_SINTETICO, {"SINOPSE_FATOS": "Primeira linha.\nSegunda linha."})
-    assert "<w:br/>" in xml
+    assert "<w:br/>" not in xml, "quebra deveria ter virado <w:p> novo, não <w:br/> literal"
     assert "Primeira linha." in xml and "Segunda linha." in xml
-    # continua um único <w:p> (não vira dois parágrafos) — só o run se abre em runs/br
-    assert xml.count("<w:p>") == XML_SINTETICO.count("<w:p>")
+    assert "urn:ede" not in xml, "marcador interno não pode sobreviver ao XML final"
+    # 1 linha lógica a mais -> 1 <w:p> a mais que o XML_SINTETICO original
+    import re
+    assert len(re.findall(r"<w:p[ >]", xml)) == len(re.findall(r"<w:p[ >]", XML_SINTETICO)) + 1
 
 
 def test_escapa_caracteres_xml_no_valor():
@@ -132,13 +145,14 @@ def test_cor_placeholder_ja_ee0000_vira_ff0000():
 
 
 def test_cor_multiline_todas_linhas_ff0000():
-    # D: multilinha -> uma única <w:rPr> vermelha governa todas as linhas
-    # (mesma run, <w:br/> intercalado, mecanismo de newline intocado)
+    # D: multilinha -> cada <w:p> gerado (Etapa 5.3-B: linha lógica vira
+    # parágrafo real, não <w:br/>) recebe sua própria <w:rPr> vermelha,
+    # clonada do rPr original do parágrafo-placeholder.
     xml, _ = substituir_placeholders(
         XML_SINTETICO_COR, {"SINOPSE_FATOS": "Primeira linha.\nSegunda linha."})
-    assert xml.count("<w:br/>") == 1
-    assert xml.count('<w:color w:val="FF0000"/>') == 1
-    assert "<w:i/>" in xml  # propriedade original preservada
+    assert "<w:br/>" not in xml
+    assert xml.count('<w:color w:val="FF0000"/>') == 2  # uma por parágrafo/linha
+    assert xml.count("<w:i/>") == 2  # propriedade original preservada em cada parágrafo
     assert "Primeira linha." in xml and "Segunda linha." in xml
 
 
@@ -164,6 +178,66 @@ def test_cor_adulterada_em_texto_fixo_reprovada_pelo_lock():
                   "SINOPSE_FATOS": "texto"}
         esperado_xml, _ = substituir_placeholders(XML_SINTETICO_COR, dados)
 
+        (gerado_dir / "word" / "document.xml").write_text(esperado_xml, encoding="utf-8")
+        ok = verificar_template_lock(template_dir, gerado_dir, dados)
+        assert ok["ok"], ok["divergencias"]
+
+
+# --------------------------------------------------------------- negrito em placeholder (Etapa 5.3 §9)
+def test_negrito_sem_marcacao_nao_muda_comportamento():
+    # caminho rápido preservado: sem "**" no valor, saída idêntica à
+    # anterior à Etapa 5.3 (nenhum <w:b/> extra, nenhum run a mais).
+    xml, _ = substituir_placeholders(XML_SINTETICO, {"SINOPSE_FATOS": "Texto simples sem negrito."})
+    assert "<w:b/>" not in xml
+    assert xml.count("<w:r>") == XML_SINTETICO.count("<w:r>")
+
+
+def test_negrito_segmento_isolado_em_run_proprio():
+    xml, _ = substituir_placeholders(
+        XML_SINTETICO_COR, {"SINOPSE_FATOS": "Irregularidade do tipo **DESVIO DE ENERGIA**, apurada em campo."})
+    import xml.etree.ElementTree as ET
+    ET.fromstring(  # bem formado — precisa do xmlns:w (XML_SINTETICO_COR não declara)
+        xml.replace("<w:document>", '<w:document xmlns:w="urn:w">', 1))
+    assert "<w:b/>" in xml and "<w:bCs/>" in xml
+    assert "**" not in xml  # marcação markdown removida, não vaza pro documento
+    assert "DESVIO DE ENERGIA" in xml
+    # b/bCs vêm antes de color na sequência CT_RPr
+    idx_b = xml.index("<w:b/>")
+    idx_color = xml.index("<w:color", idx_b)
+    assert idx_b < idx_color
+
+
+def test_negrito_preserva_texto_antes_e_depois_do_segmento():
+    xml, _ = substituir_placeholders(
+        XML_SINTETICO, {"SINOPSE_FATOS": "Antes **NEGRITO** depois."})
+    assert "Antes " in xml and " depois." in xml
+    assert "NEGRITO" in xml
+
+
+def test_negrito_multilinha_apenas_uma_linha_com_marcacao():
+    xml, _ = substituir_placeholders(
+        XML_SINTETICO, {"SINOPSE_FATOS": "**TIPO DA IRREGULARIDADE**\nExplicação técnica em linha separada, sem negrito."})
+    import xml.etree.ElementTree as ET
+    ET.fromstring(xml)  # já declara xmlns:w — bem formado
+    assert xml.count("<w:b/>") == 1  # só a primeira linha tem negrito
+    assert "<w:br/>" not in xml  # linha 2 virou <w:p> novo (Etapa 5.3-B), não <w:br/>
+    assert "Explicação técnica" in xml
+
+
+def test_negrito_lock_recomputa_igual_com_transformar_padrao():
+    # Template Lock recomputa "esperado" via a MESMA função — precisa
+    # continuar batendo byte a byte mesmo com runs extras do negrito.
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        template_dir, gerado_dir = tmp / "template", tmp / "gerado"
+        (template_dir / "word").mkdir(parents=True)
+        (gerado_dir / "word").mkdir(parents=True)
+        (template_dir / "word" / "document.xml").write_text(XML_SINTETICO_COR, encoding="utf-8")
+
+        dados = {"JUIZO": "1ª Vara", "AUTOR": "Fulano", "VALOR_FRA": "R$ 10,00",
+                  "SINOPSE_FATOS": "Tipo **X** encontrado."}
+        esperado_xml, _ = substituir_placeholders(XML_SINTETICO_COR, dados)
         (gerado_dir / "word" / "document.xml").write_text(esperado_xml, encoding="utf-8")
         ok = verificar_template_lock(template_dir, gerado_dir, dados)
         assert ok["ok"], ok["divergencias"]
@@ -279,8 +353,7 @@ def test_pipeline_completo_contra_template_real():
         "REALIDADE_FATICA": "Linha um da realidade fática fictícia.\nLinha dois.",
         "IRREGULARIDADE_ENCONTRADA": "ligação direta (dado fictício de teste)",
         "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": "Desenvolvimento técnico fictício de teste.",
-        "FOTOS_DA_IRREGULARIADE": "(nenhuma foto anexada — dado fictício de teste)",
-        "ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA": "Argumento fictício de teste.",
+        "FOTOS_DA_IRREGULARIADE": "(nenhuma foto anexada, dado fictício de teste)",
         "VALOR_FRA": "R$ 0,00 (dado fictício de teste)",
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
         "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
@@ -331,6 +404,223 @@ def test_pipeline_completo_contra_template_real():
 
     print("Pipeline completo contra o template real: OK (Template Lock + "
           "sem resíduo + schema.json bate com o DOCX + reprova adulteração).")
+
+
+# --------------------------------------------------------------- fonte do PROCESSO Nº (Etapa 5.3 §2)
+def test_processo_no_fonte_12_no_template_real():
+    if not TEMPLATE_REAL.exists():
+        print(f"SKIP: {TEMPLATE_REAL} não existe localmente (esperado — "
+              "template institucional fora do git, ADR-0006).")
+        return
+    import zipfile as _zf
+    import lxml.etree as LET
+
+    W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    NS = {"w": W}
+    with _zf.ZipFile(TEMPLATE_REAL) as z:
+        xml = z.read("word/document.xml").decode("utf-8")
+    root = LET.fromstring(xml.encode("utf-8"))
+
+    alvos = [t for t in root.findall(".//w:t", NS)
+             if t.text in ("PROCESSO Nº ", "{{NUMERO_PROCESSO}}")]
+    assert alvos, "runs 'PROCESSO Nº ' / '{{NUMERO_PROCESSO}}' não encontrados no template real"
+    for t in alvos:
+        rpr = t.getparent().find("w:rPr", NS)
+        assert rpr is not None, f"run {t.text!r} sem w:rPr"
+        sz = rpr.find("w:sz", NS)
+        assert sz is not None, f"run {t.text!r} sem w:sz"
+        val = sz.get("{%s}val" % W)
+        assert val == "24", (
+            f"run {t.text!r}: w:sz={val!r}, esperado '24' (12pt em meio-pontos) "
+            f"— achado real do Teste Real 01-B (estava em '28' = 14pt)")
+    print(f"PROCESSO Nº em 12pt confirmado no template real ({len(alvos)} runs).")
+
+
+# --------------------------------------------------------------- Etapa 5.3-B: normalização visual de parágrafos
+# XML sintético com w:pPr real (jc/spacing/ind/keepNext/keepLines/
+# widowControl/contextualSpacing/tabs) no parágrafo-placeholder — para
+# testar herança estrutural de verdade, não só rPr de run.
+_PPR_COMPLETO = (
+    '<w:pPr><w:pStyle w:val="Corpo"/><w:tabs><w:tab w:val="left" w:pos="2040"/></w:tabs>'
+    '<w:spacing w:before="120" w:after="240" w:line="360" w:lineRule="auto"/>'
+    '<w:ind w:left="0" w:right="46"/><w:contextualSpacing/><w:jc w:val="both"/>'
+    '<w:keepNext/><w:keepLines/><w:widowControl/></w:pPr>'
+)
+XML_MULTIPARAGRAFO = (
+    f'<w:document xmlns:w="{NS_W}"><w:body>'
+    f'<w:p>{_PPR_COMPLETO}<w:r><w:rPr><w:sz w:val="24"/></w:rPr>'
+    '<w:t>{{SINOPSE_FATOS}}</w:t></w:r></w:p>'
+    '</w:body></w:document>'
+)
+# Reproduz a estrutura real de IRREGULARIDADE_ENCONTRADA: prefixo fixo +
+# placeholder + sufixo fixo, todos runs distintos na MESMA <w:p> (Etapa
+# 5.3-B §14 — causa raiz real da duplicação diagnosticada).
+XML_IRREGULARIDADE_COM_SUFIXO_FIXO = (
+    f'<w:document xmlns:w="{NS_W}"><w:body>'
+    f'<w:p>{_PPR_COMPLETO}'
+    '<w:r><w:rPr/><w:t xml:space="preserve">Na ocasião, foi constatada irregularidade do tipo, </w:t></w:r>'
+    '<w:r><w:rPr><w:b/><w:color w:val="EE0000"/></w:rPr><w:t>{{IRREGULARIDADE_ENCONTRADA}}</w:t></w:r>'
+    '<w:r><w:rPr/><w:t>, circunstância que impedia o registro integral.</w:t></w:r>'
+    '</w:p>'
+    '<w:p><w:r><w:t>parágrafo seguinte com quebra legítima<w:br/>segunda linha legítima</w:t></w:r></w:p>'
+    '</w:body></w:document>'
+)
+SCHEMA_IRREGULARIDADE = {"editable_placeholders": ["IRREGULARIDADE_ENCONTRADA"]}
+
+
+def _pprs_de_todos_paragrafos(xml: str) -> list:
+    """[w:pPr XML de cada <w:p>, na ordem] — string vazia se o parágrafo
+    não tem w:pPr."""
+    root = LET.fromstring(xml.encode("utf-8"))
+    saida = []
+    for p in root.findall(".//w:p", {"w": NS_W}):
+        ppr = p.find("w:pPr", {"w": NS_W})
+        saida.append(LET.tostring(ppr, encoding="unicode") if ppr is not None else "")
+    return saida
+
+
+# A. Parágrafo simples inserido preserva w:pPr do modelo.
+def test_A_paragrafo_simples_preserva_ppr_do_modelo():
+    xml, _ = substituir_placeholders(XML_MULTIPARAGRAFO, {"SINOPSE_FATOS": "Uma linha só."})
+    pprs = _pprs_de_todos_paragrafos(xml)
+    assert len(pprs) == 1
+    for tag in ("w:pStyle", "w:spacing", "w:ind", "w:contextualSpacing",
+                "w:jc", "w:keepNext", "w:keepLines", "w:widowControl", "w:tabs"):
+        assert tag in pprs[0], f"{tag} ausente do w:pPr do parágrafo único"
+
+
+# B. Múltiplos parágrafos gerados preservam o padrão estrutural do parágrafo-base.
+def test_B_multiplos_paragrafos_preservam_padrao_estrutural():
+    xml, _ = substituir_placeholders(
+        XML_MULTIPARAGRAFO,
+        {"SINOPSE_FATOS": "Primeiro fato.\nSegundo fato.\nTerceiro fato."})
+    pprs = _pprs_de_todos_paragrafos(xml)
+    assert len(pprs) == 3
+    assert pprs[0] == pprs[1] == pprs[2], "os 3 w:pPr deveriam ser idênticos (clone do original)"
+    for tag in ("w:pStyle", "w:spacing", "w:ind", "w:contextualSpacing",
+                "w:jc", "w:keepNext", "w:keepLines", "w:widowControl", "w:tabs"):
+        assert tag in pprs[0]
+
+
+# C. Runs normais preservam propriedades tipográficas.
+def test_C_runs_normais_preservam_propriedades_tipograficas():
+    xml, _ = substituir_placeholders(
+        XML_MULTIPARAGRAFO, {"SINOPSE_FATOS": "Primeira.\nSegunda."})
+    # w:sz do run original preservado em cada parágrafo gerado
+    assert xml.count('<w:sz w:val="24"/>') == 2
+
+
+# D. Run em negrito altera somente o necessário para o destaque.
+def test_D_negrito_altera_somente_o_necessario():
+    xml, _ = substituir_placeholders(
+        XML_MULTIPARAGRAFO, {"SINOPSE_FATOS": "Texto **destacado** aqui."})
+    idx_b = xml.index("<w:b/>")
+    rpr_negrito = xml[xml.rindex("<w:rPr>", 0, idx_b):xml.index("</w:rPr>", idx_b) + len("</w:rPr>")]
+    # mesma base do rPr original (w:sz) + apenas w:b/w:bCs/w:color a mais
+    assert '<w:sz w:val="24"/>' in rpr_negrito
+    assert "<w:i" not in rpr_negrito and "w:strike" not in rpr_negrito
+
+
+# E. Nenhum parágrafo gerado ultrapassa 380 caracteres — INV-PARAGRAFO-380 preservada.
+def test_E_paragrafo_380_preservado_pela_normalizacao():
+    sys.path.insert(0, str(BASE / "scripts"))
+    from validate_paragrafos import validar_paragrafo_380
+    linha_curta = "Parágrafo dentro do limite de 380 caracteres, sem excesso algum."
+    assert validar_paragrafo_380(linha_curta) == []
+    linha_longa = "x" * 381
+    erros = validar_paragrafo_380(linha_longa)
+    assert len(erros) == 1 and "381" in erros[0]
+    # a normalização de parágrafos (Etapa 5.3-B) não altera contagem de
+    # caracteres — cada linha lógica continua validável isoladamente ANTES
+    # do template engine rodar (INV-PARAGRAFO-380 valida sobre os dados de
+    # entrada, nunca sobre o XML resultante); a explosão em <w:p> reais só
+    # muda a REPRESENTAÇÃO OOXML, nunca o conteúdo/tamanho de cada linha.
+    multi = "Primeira linha curta.\nSegunda linha também curta."
+    xml, _ = substituir_placeholders(XML_MULTIPARAGRAFO, {"SINOPSE_FATOS": multi})
+    for linha in multi.split("\n"):
+        assert linha in xml
+        assert len(linha) <= 380
+
+
+# F. Não ocorre duplicação da expressão introdutória da irregularidade.
+def test_F_sem_duplicacao_da_expressao_introdutoria():
+    dados = {"IRREGULARIDADE_ENCONTRADA": "**desvio de energia antes do sistema de medição**"}
+    xml, _ = substituir_placeholders(XML_IRREGULARIDADE_COM_SUFIXO_FIXO, dados)
+    assert xml.count("irregularidade do tipo") == 1
+    assert xml.count("Na ocasião") == 1
+    assert xml.count("circunstância que impedia") == 1
+
+
+# G. Tipo da irregularidade aparece em negrito real (<w:b/>).
+def test_G_tipo_irregularidade_em_negrito_real():
+    dados = {"IRREGULARIDADE_ENCONTRADA": "**desvio de energia antes do sistema de medição**"}
+    xml, _ = substituir_placeholders(XML_IRREGULARIDADE_COM_SUFIXO_FIXO, dados)
+    assert "<w:b/>" in xml
+    assert "desvio de energia antes do sistema de medição" in xml
+    assert "**" not in xml
+
+
+# H. Tipo da irregularidade não é convertido integralmente para caixa alta.
+def test_H_tipo_irregularidade_nao_vira_caixa_alta():
+    dados = {"IRREGULARIDADE_ENCONTRADA": "**desvio de energia antes do sistema de medição**"}
+    xml, _ = substituir_placeholders(XML_IRREGULARIDADE_COM_SUFIXO_FIXO, dados)
+    assert "desvio de energia antes do sistema de medição" in xml  # minúsculas preservadas
+    assert "DESVIO DE ENERGIA ANTES DO SISTEMA DE MEDIÇÃO" not in xml
+
+
+# I. Template oficial permanece estruturalmente preservado fora das regiões dinâmicas
+# — já coberto por test_pipeline_completo_contra_template_real (Template Lock
+# recomputa e compara byte a byte o documento inteiro) e
+# test_cor_adulterada_em_texto_fixo_reprovada_pelo_lock (reprova alteração
+# fora de placeholder). Não duplicado aqui.
+
+
+# Sufixo fixo (", circunstância que impedia o registro integral.") não pode
+# ser arrastado para o parágrafo novo — fica com a primeira linha lógica,
+# igual à frase real do modelo (Etapa 5.3-B §14, causa raiz confirmada).
+def test_sufixo_fixo_permanece_com_primeira_linha_ao_explodir():
+    dados = {"IRREGULARIDADE_ENCONTRADA": "**desvio de energia**\nTecnicamente, caracteriza-se por by-pass."}
+    xml, _ = substituir_placeholders(XML_IRREGULARIDADE_COM_SUFIXO_FIXO, dados)
+    pprs_e_paragrafos = xml.split("</w:p>")
+    assert "circunstância que impedia" in pprs_e_paragrafos[0]
+    assert "circunstância que impedia" not in pprs_e_paragrafos[1]
+    assert "Tecnicamente" in pprs_e_paragrafos[1]
+
+
+# 3 parágrafos lógicos -> 3 <w:p> reais, zero <w:br/> entre eles.
+def test_multilinha_3_paragrafos_gera_3_wp_reais_sem_br():
+    xml, _ = substituir_placeholders(
+        XML_MULTIPARAGRAFO,
+        {"SINOPSE_FATOS": "Fato um.\nFato dois.\nFato três."})
+    assert "<w:br/>" not in xml
+    assert xml.count('w:val="FF0000"') == 3
+    assert "Fato um." in xml and "Fato dois." in xml and "Fato três." in xml
+    assert xml.index("Fato um.") < xml.index("Fato dois.") < xml.index("Fato três.")
+    pprs = _pprs_de_todos_paragrafos(xml)
+    assert len(pprs) == 3
+    assert "urn:ede" not in xml
+
+
+# Idempotência: reexecutar sobre a própria saída não altera nada.
+def test_idempotencia_reexecucao_nao_altera_saida():
+    xml1, _ = substituir_placeholders(
+        XML_MULTIPARAGRAFO, {"SINOPSE_FATOS": "Um.\nDois.\nTrês."})
+    xml2, subst2 = substituir_placeholders(xml1, {})
+    assert xml2 == xml1
+    assert subst2 == set()
+    pprs1, pprs2 = _pprs_de_todos_paragrafos(xml1), _pprs_de_todos_paragrafos(xml2)
+    assert pprs1 == pprs2
+
+
+# Quebra legítima pré-existente no template nunca é convertida em <w:p>.
+def test_quebra_legitima_preexistente_nao_e_convertida():
+    xml, _ = substituir_placeholders(
+        XML_IRREGULARIDADE_COM_SUFIXO_FIXO,
+        {"IRREGULARIDADE_ENCONTRADA": "**tipo x**\nsegunda linha gerada."})
+    assert "quebra legítima aqui" in xml or "quebra legítima" in xml
+    assert "<w:br/>" in xml, "a quebra legítima pré-existente deveria continuar intacta"
+    # só 1 <w:br/> sobrevive (a legítima) — nenhum marcador nosso escapou
+    assert xml.count("<w:br/>") == 1
 
 
 def main():

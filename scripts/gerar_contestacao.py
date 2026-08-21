@@ -51,11 +51,19 @@ sys.path.insert(0, str(BASE / "rag"))
 sys.path.insert(0, str(BASE / "skills" / "calendario-forense-tjba-2026" / "scripts"))
 
 from calcular_tempestividade import PENDENTE, calcular_tempestividade  # noqa: E402
-from docx_block_engine import ComposicaoAbortada, carregar_catalogo, gerar_peca_com_blocos, validar_catalogo  # noqa: E402
+import datajud_client  # noqa: E402
+from docx_block_engine import (  # noqa: E402
+    ComposicaoAbortada,
+    carregar_catalogo,
+    gerar_peca_com_blocos,
+    validar_catalogo,
+    validar_e_resolver_decisoes,
+    validar_pedidos_composicionais,
+)
 from docx_template_engine import carregar_schema, garantir_utf8  # noqa: E402
 from legal_validation import validar_citacao  # noqa: E402
 from validate_fatos import validar_fatos  # noqa: E402
-from validate_paragrafos import validar_paragrafos_placeholders  # noqa: E402
+from validate_paragrafos import validar_densidade_blocos, validar_paragrafos_placeholders  # noqa: E402
 from validate_placeholder_semantics import validar_semantica  # noqa: E402
 
 garantir_utf8()
@@ -91,8 +99,7 @@ SENTINELA_AUSENCIA = "NÃO INFORMADO"
 PLACEHOLDERS_OBRIGATORIOS_NAO_VAZIOS = [
     "JUIZO", "NUMERO_PROCESSO", "AUTOR", "SINOPSE_FATOS", "REALIDADE_FATICA",
     "IRREGULARIDADE_ENCONTRADA", "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE",
-    "ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA", "VALOR_FRA", "PEDIDOS_FINAIS",
-    "LOCAL_DATA",
+    "VALOR_FRA", "PEDIDOS_FINAIS", "LOCAL_DATA",
 ]
 
 
@@ -179,7 +186,10 @@ def _etapa_tempestividade(caso: Path, stages: list):
     stages.append({"name": "tempestividade", "status": "ok",
                     "marco_origem": marco_origem,
                     "memoria_calculo": r.memoria_calculo()})
-    return (f"{r.status} — termo inicial {r.termo_inicial}, prazo de "
+    # INV-CONTESTACAO-SEM-TRAVESSAO: este texto vira o valor de
+    # TEMPESTIVIDADE_CASO quando o redator não fornece um próprio — sem
+    # travessão, mesma regra que vale para conteúdo gerado pela IA.
+    return (f"{r.status}: termo inicial {r.termo_inicial}, prazo de "
             f"{r.prazo_legal_dias} dias {r.tipo_prazo} ({r.fundamento_normativo}), "
             f"termo final {r.termo_final}.")
 
@@ -213,10 +223,11 @@ def _etapa_blocos(caso: Path, stages: list, catalogo_path: Path = CATALOGO_BLOCO
     inconsistente aborta antes de qualquer redação/geração.
 
     `estado_processual.json` (Etapa 5.2, opcional — ausente conta como
-    "{}") carrega os estados processuais fatos-gate de INV-GRATUIDADE-LINKED
-    /INV-CORTE-EFETIVO (ex.: {"GRATUIDADE_CONCEDIDA": true}); a validação
-    do gate em si é feita por docx_block_engine.validar_e_resolver_decisoes,
-    não duplicada aqui — este script só carrega o arquivo se existir."""
+    "{}") carrega os estados processuais vinculados a blocos state_linked
+    de INV-GRATUIDADE-LINKED/INV-CORTE-LINKED (ex.:
+    {"GRATUIDADE_CONCEDIDA": true, "CORTE_EFETIVO": true}); a resolução
+    em si é feita por docx_block_engine.validar_e_resolver_decisoes, não
+    duplicada aqui — este script só carrega o arquivo se existir."""
     caminho = caso / "decisoes_blocos.json"
     if not caminho.exists():
         return _abortar(stages, "block_composition",
@@ -263,7 +274,41 @@ def _etapa_rag_validacao(caso: Path, stages: list):
     return validadas, nao_validadas
 
 
-def _etapa_placeholders(caso: Path, stages: list, tempestividade_valor: str):
+def _etapa_juizo(dados: dict, stages: list, resolver_juizo_fn=None):
+    """INV-JUIZO-DATAJUD: {{JUIZO}} deixa de ser conteúdo gerativo do
+    redator — é resolvido deterministicamente via DataJud/CNJ (+ IBGE
+    para a comarca) a partir de NUMERO_PROCESSO. Fail-closed em qualquer
+    cenário de indisponibilidade/ambiguidade (datajud_client.py) — nunca
+    presume a vara. `resolver_juizo_fn` é injetável (testabilidade — a
+    suíte automatizada nunca depende da API real, CLAUDE.md/instrução
+    desta correção); por padrão usa datajud_client.resolver_juizo."""
+    if str(dados.get("JUIZO", "")).strip():
+        return _abortar(stages, "juizo_datajud",
+                         "JUIZO não deve ser fornecido em placeholders.json "
+                         "(saída do redator/humanizer) — é resolvido "
+                         "automaticamente via DataJud/CNJ (INV-JUIZO-DATAJUD); "
+                         "remova o campo da saída do redator.")
+    numero_processo = str(dados.get("NUMERO_PROCESSO", "")).strip()
+    if not numero_processo:
+        return _abortar(stages, "juizo_datajud",
+                         "NUMERO_PROCESSO ausente/vazio — necessário para "
+                         "resolver {{JUIZO}} via DataJud/CNJ antes de "
+                         "prosseguir.")
+    resolver = resolver_juizo_fn or datajud_client.resolver_juizo
+    try:
+        resolucao = resolver(numero_processo)
+    except datajud_client.JuizoResolutionError as e:
+        return _abortar(stages, "juizo_datajud", e.motivo)
+
+    dados["JUIZO"] = resolucao["juizo"]
+    stages.append({"name": "juizo_datajud", "status": "ok",
+                    "tribunal": resolucao.get("tribunal"),
+                    "orgao_julgador": resolucao.get("orgao_julgador_nome"),
+                    "comarca": resolucao.get("comarca")})
+    return True
+
+
+def _etapa_placeholders(caso: Path, stages: list, tempestividade_valor: str, resolver_juizo_fn=None):
     caminho = caso / "placeholders.json"
     if not caminho.exists():
         return _abortar(stages, "drafting_humanization",
@@ -273,6 +318,10 @@ def _etapa_placeholders(caso: Path, stages: list, tempestividade_valor: str):
     dados["FOTOS_DA_IRREGULARIADE"] = MARCADOR_FOTOS
     if not str(dados.get("TEMPESTIVIDADE_CASO", "")).strip():
         dados["TEMPESTIVIDADE_CASO"] = tempestividade_valor
+
+    juizo_ok = _etapa_juizo(dados, stages, resolver_juizo_fn)
+    if isinstance(juizo_ok, dict) and juizo_ok.get("status") == "PIPELINE_ABORTED":
+        return juizo_ok
 
     faltando = [p for p in PLACEHOLDERS_OBRIGATORIOS_NAO_VAZIOS
                 if not str(dados.get(p, "")).strip()]
@@ -307,13 +356,44 @@ def _etapa_placeholders(caso: Path, stages: list, tempestividade_valor: str):
 def _etapa_paragrafo_380(dados: dict, schema_path: Path, stages: list):
     """INV-PARAGRAFO-380 (Etapa 5.2): parágrafo de conteúdo variável acima
     de 380 caracteres aborta antes da geração do DOCX final — nunca gera
-    sabendo que a invariante foi violada (CLAUDE.md §17)."""
+    sabendo que a invariante foi violada (CLAUDE.md §17). Etapa 5.3
+    acrescenta a densidade por bloco (LIMITES_DENSIDADE_BLOCO) — 380 é
+    teto por parágrafo, não meta; um bloco pode respeitar o teto em todo
+    parágrafo e ainda ser prolixo por acumulação."""
     schema = carregar_schema(schema_path)
     ok, erros = validar_paragrafos_placeholders(dados, schema)
     if not ok:
         return _abortar(stages, "paragrafo_380",
                          f"parágrafo(s) acima de 380 caracteres (INV-PARAGRAFO-380): {erros}")
+    ok_densidade, erros_densidade = validar_densidade_blocos(dados)
+    if not ok_densidade:
+        return _abortar(stages, "densidade_bloco",
+                         f"bloco(s) com densidade excessiva (Etapa 5.3): {erros_densidade}")
     stages.append({"name": "paragrafo_380", "status": "ok"})
+    return True
+
+
+def _etapa_pedidos_composicionais(dados: dict, decisoes_blocos: dict, catalogo_path: Path,
+                                   fatos_processuais: dict, stages: list):
+    """Etapa 5.3 §18: PEDIDOS_FINAIS não pode reintroduzir tese excluída
+    pelo motor composicional (ex.: pedido de revogação de gratuidade com
+    PRELIMINAR_REVOGACAO_GRATUIDADE=EXCLUIR). Resolve os estados dos
+    blocos (mesma função usada por gerar_peca_com_blocos — chamada de novo
+    aqui é redundante, mas barata e determinística) só para essa checagem
+    de conteúdo, antes de compor o DOCX."""
+    try:
+        catalogo = carregar_catalogo(catalogo_path)
+        validar_catalogo(catalogo)
+        estados = validar_e_resolver_decisoes(catalogo, decisoes_blocos, fatos_processuais)
+    except ComposicaoAbortada as e:
+        # mesmo erro que _etapa_template encontraria mais adiante — reporta
+        # aqui primeiro, mesmo stage/motivo, sem duplicar mensagens diferentes.
+        return _abortar(stages, "block_composition", f"{e.stage}: {e.motivo}")
+    erros = validar_pedidos_composicionais(dados.get("PEDIDOS_FINAIS", ""), estados)
+    if erros:
+        return _abortar(stages, "pedidos_composicionais",
+                         f"PEDIDOS_FINAIS incoerente com blocos excluídos (Etapa 5.3 §18): {erros}")
+    stages.append({"name": "pedidos_composicionais", "status": "ok"})
     return True
 
 
@@ -338,7 +418,9 @@ def _etapa_template(dados: dict, decisoes_blocos: dict, template: Path, schema: 
 
 
 def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO,
-          catalogo_blocos=CATALOGO_BLOCOS_PADRAO) -> dict:
+          catalogo_blocos=CATALOGO_BLOCOS_PADRAO, resolver_juizo_fn=None) -> dict:
+    """`resolver_juizo_fn`: injetável para testes (INV-JUIZO-DATAJUD) —
+    padrão None usa datajud_client.resolver_juizo (API real)."""
     caso = Path(caso_dir)
     stages = []
 
@@ -361,13 +443,18 @@ def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO,
 
     validadas, nao_validadas = _etapa_rag_validacao(caso, stages)
 
-    dados = _etapa_placeholders(caso, stages, tempestividade_valor)
+    dados = _etapa_placeholders(caso, stages, tempestividade_valor, resolver_juizo_fn)
     if isinstance(dados, dict) and dados.get("status") == "PIPELINE_ABORTED":
         return dados
 
     paragrafo_ok = _etapa_paragrafo_380(dados, Path(schema), stages)
     if isinstance(paragrafo_ok, dict) and paragrafo_ok.get("status") == "PIPELINE_ABORTED":
         return paragrafo_ok
+
+    pedidos_ok = _etapa_pedidos_composicionais(dados, decisoes_blocos, Path(catalogo_blocos),
+                                                fatos_processuais, stages)
+    if isinstance(pedidos_ok, dict) and pedidos_ok.get("status") == "PIPELINE_ABORTED":
+        return pedidos_ok
 
     relatorio_engine = _etapa_template(dados, decisoes_blocos, Path(template), Path(schema),
                                         Path(catalogo_blocos), Path(output_path), stages,

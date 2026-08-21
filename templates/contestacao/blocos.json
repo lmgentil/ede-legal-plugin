@@ -87,19 +87,13 @@
     {
       "id": "EVOLUCAO_CONSUMO",
       "tag": "BLOCO:EVOLUCAO_CONSUMO",
-      "tipo": "CONDICIONAL_HIBRIDO",
+      "tipo": "CONDICIONAL_PADRAO",
       "parent": null,
       "children": [],
       "decision_mode": "estrategista",
-      "placeholders": ["ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA"],
-      "dependencies": [
-        {
-          "placeholder": "ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA",
-          "quando": "INCLUIR",
-          "regra": "obrigatorio_preenchido",
-          "_nota": "EXCLUIR remove o bloco inteiro e NÃO substitui o placeholder por sentinela — não há '{{ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA}}' remanescente no DOCX final quando excluído."
-        }
-      ],
+      "placeholders": [],
+      "dependencies": [],
+      "_nota": "Bloco inteiramente de texto fixo institucional — não possui mais placeholder próprio (ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA removido em correção pontual; o modelo oficial já traz a argumentação de evolução de consumo pronta). INCLUIR/EXCLUIR continua decisão da etapa estratégica, agora só sobre a pertinência do bloco inteiro, sem preenchimento algum.",
       "cardinality": "ONE"
     },
     {
@@ -108,13 +102,11 @@
       "tipo": "CONDICIONAL_PADRAO",
       "parent": null,
       "children": [],
-      "decision_mode": "estrategista",
+      "decision_mode": "state_linked",
+      "linked_fact": "CORTE_EFETIVO",
+      "_nota_decision_mode": "INV-CORTE-LINKED (correção arquitetural pós-achado real: bloco entrou sem corte efetivo comprovado, só com decisão do estrategista sob um gate 'requires_fact' que ele ainda podia contornar informalmente). Vínculo DETERMINÍSTICO ao estado processual CORTE_EFETIVO — mesma família de PRELIMINAR_REVOGACAO_GRATUIDADE/INV-GRATUIDADE-LINKED (state_linked puro, estado processual -> bloco, nunca bloco -> bloco). CORTE_EFETIVO=true -> INCLUIR automaticamente; false (inclusive ausência, mera ameaça, aviso, pedido de restabelecimento isolado, inadimplência/débito) -> EXCLUIR automaticamente; 'INDETERMINADO' (documentos contraditórios/insuficientes) -> aborta para interação com o advogado. O estrategista NÃO decide a existência deste bloco em decisoes_blocos.json (decisão manual é rejeitada explicitamente) — pode só desenvolver o conteúdo/argumentação quando o bloco já estiver presente. CORTE_EFETIVO é resolvido pela Skill `contestacao` a partir de evidência que a Ré não contradiga (nunca da alegação isolada e não corroborada da autora, nunca por busca lexical).",
       "placeholders": [],
       "dependencies": [],
-      "requires_fact": {
-        "key": "CORTE_EFETIVO",
-        "descricao": "INV-CORTE-EFETIVO (Etapa 5.2): só é elegível a INCLUIR se o fornecimento tiver sido efetivamente cortado/suspenso/interrompido — mera ameaça, aviso de possível suspensão ou pedido preventivo NÃO satisfazem este gate. Corte efetivo torna o bloco elegível; a decisão de INCLUIR vs. EXCLUIR continua da etapa estratégica. Resolvido pela Skill `contestacao` em estado_processual.json, nunca por busca lexical (ex.: 'não houve corte' não vira CORTE_EFETIVO=true)."
-      },
       "cardinality": "ONE"
     },
     {

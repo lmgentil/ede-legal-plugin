@@ -288,17 +288,17 @@ def test_pipeline_completo_com_blocos_contra_template_real():
         "REALIDADE_FATICA": "Linha fictícia da realidade fática.",
         "IRREGULARIDADE_ENCONTRADA": "ligação direta (dado fictício de teste)",
         "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": "Desenvolvimento técnico fictício de teste.",
-        "FOTOS_DA_IRREGULARIADE": "(nenhuma foto anexada — dado fictício de teste)",
-        "ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA": "Argumento fictício de teste.",
+        "FOTOS_DA_IRREGULARIADE": "(nenhuma foto anexada, dado fictício de teste)",
         "VALOR_FRA": "R$ 0,00 (dado fictício de teste)",
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
         "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
     }
     decisoes_tudo_incluido = {b["id"]: {"decisao": "INCLUIR"}
                                for b in catalogo["blocks"] if b["decision_mode"] in ("estrategista", "humano")}
-    # Etapa 5.2 — gates fáticos (INV-GRATUIDADE-LINKED/INV-CORTE-EFETIVO):
-    # para o cenário "tudo incluído" ser um cenário válido, os estados
-    # processuais que os gates exigem precisam estar confirmados.
+    # INV-GRATUIDADE-LINKED / INV-CORTE-LINKED: para o cenário "tudo
+    # incluído" ser um cenário válido, os estados processuais vinculados
+    # precisam estar confirmados (nenhum dos dois é decisão do
+    # estrategista — nem entram em decisoes_tudo_incluido).
     fatos_processuais_tudo = {"GRATUIDADE_CONCEDIDA": True, "CORTE_EFETIVO": True}
 
     with __import__("tempfile").TemporaryDirectory() as tmp:
@@ -316,17 +316,20 @@ def test_pipeline_completo_com_blocos_contra_template_real():
         assert "PRELIMINAR_REVOGACAO_GRATUIDADE" in r["blocos_incluidos"]
         assert "PRELIMINAR_REVOGACAO_GRATUIDADE" not in decisoes_tudo_incluido
         assert r["containers_derivados"]["PRELIMINARES"] == "INCLUIR"
+        # CORTE_EFETIVO=true (fatos_processuais_tudo) inclui o bloco
+        # automaticamente (state_linked, INV-CORTE-LINKED) — sem decisão
+        # manual do estrategista.
+        assert "LICITUDE_CORTE_SUSPENSAO" in r["blocos_incluidos"]
+        assert "LICITUDE_CORTE_SUSPENSAO" not in decisoes_tudo_incluido
 
-        # cenário "nenhuma preliminar / evolução excluída / reconvenção excluída
-        # / sem corte efetivo" — LICITUDE_CORTE_SUSPENSAO também excluído aqui
-        # (Etapa 5.2: sem fatos_processuais informado, só EXCLUIR é aceito).
-        # PRELIMINAR_REVOGACAO_GRATUIDADE NÃO entra neste loop — é
-        # 'state_linked' (correção pontual pós-Etapa 5.2), nunca aceita
-        # decisão manual; sem fatos_processuais nesta chamada, resolve
-        # automaticamente para EXCLUIR (GRATUIDADE_CONCEDIDA ausente).
+        # cenário "nenhuma preliminar / evolução excluída / reconvenção
+        # excluída / sem corte efetivo". PRELIMINAR_REVOGACAO_GRATUIDADE e
+        # LICITUDE_CORTE_SUSPENSAO NÃO entram neste loop — ambos
+        # 'state_linked' (INV-GRATUIDADE-LINKED/INV-CORTE-LINKED), nunca
+        # aceitam decisão manual; sem fatos_processuais nesta chamada,
+        # resolvem automaticamente para EXCLUIR (fato ausente).
         decisoes_minimo = dict(decisoes_tudo_incluido)
-        for bid in ("PRELIMINAR_CDC_INAPLICAVEL",
-                    "EVOLUCAO_CONSUMO", "RECONVENCAO", "LICITUDE_CORTE_SUSPENSAO"):
+        for bid in ("PRELIMINAR_CDC_INAPLICAVEL", "EVOLUCAO_CONSUMO", "RECONVENCAO"):
             decisoes_minimo[bid] = {"decisao": "EXCLUIR"}
         dados_sem_evolucao = dict(dados)
         saida2 = Path(tmp) / "contestacao-blocos-minimo.docx"
@@ -336,15 +339,34 @@ def test_pipeline_completo_com_blocos_contra_template_real():
         assert r2["containers_derivados"]["PRELIMINARES"] == "EXCLUIR"
         assert "RECONVENCAO" in r2["blocos_excluidos"]
         assert "EVOLUCAO_CONSUMO" in r2["blocos_excluidos"]
-        # sem fatos_processuais nesta chamada -> GRATUIDADE_CONCEDIDA ausente
-        # -> EXCLUIR automático (state_linked), sem decisão manual alguma.
+        # sem fatos_processuais nesta chamada -> ambos os fatos vinculados
+        # ausentes -> EXCLUIR automático (state_linked), sem decisão manual.
         assert "PRELIMINAR_REVOGACAO_GRATUIDADE" in r2["blocos_excluidos"]
+        assert "LICITUDE_CORTE_SUSPENSAO" in r2["blocos_excluidos"]
 
         import zipfile as _zf
         with _zf.ZipFile(saida2) as z:
             gerado_xml = z.read("word/document.xml").decode("utf-8")
-        assert "{{ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA}}" not in gerado_xml
-        assert "NÃO INFORMADO" not in gerado_xml.upper() or "ARGUMENTACAO_EVOLUCAO" not in gerado_xml
+        assert "{{" not in gerado_xml, "nenhum placeholder residual no DOCX final"
+        # EVOLUCAO_CONSUMO=EXCLUIR: seu texto fixo institucional (o bloco não
+        # tem mais placeholder próprio — removido em correção pontual) some
+        # do documento junto com o bloco inteiro.
+        assert "levantamento de carga instalada" not in gerado_xml
+        # Teste I (INV-CORTE-LINKED): LICITUDE_CORTE_SUSPENSAO=EXCLUIR (sem
+        # CORTE_EFETIVO confirmado, resolvido automaticamente) -> zero
+        # conteúdo residual do bloco (título, texto-base institucional).
+        assert "LICITUDE DA COBRANÇA E CORTE" not in gerado_xml
+        assert "TEMA 699" not in gerado_xml
+
+        with _zf.ZipFile(saida) as z:  # o primeiro DOCX (tudo incluído)
+            gerado_xml_incluido = z.read("word/document.xml").decode("utf-8")
+        # Teste J: bloco incluído (CORTE_EFETIVO=true) -> título/texto-base
+        # presentes (duas ocorrências no XML — mc:Choice + mc:Fallback do
+        # próprio template, mesmo padrão estrutural já usado para outros
+        # títulos deste modelo, ex. "COM RECONVENÇÃO"; não é duplicação
+        # introduzida por este pipeline).
+        assert "LICITUDE DA COBRANÇA E CORTE" in gerado_xml_incluido
+        assert gerado_xml_incluido.count("LICITUDE DA COBRANÇA E CORTE") == 2
 
         # INDETERMINADO em qualquer folha aborta e não produz DOCX
         decisoes_indeterminada = dict(decisoes_tudo_incluido)
@@ -355,10 +377,11 @@ def test_pipeline_completo_com_blocos_contra_template_real():
         assert r3["status"] == "FALHOU"
         assert not saida3.exists()
 
-        # Etapa 5.2 (correção pontual) — INV-GRATUIDADE-LINKED contra o
-        # template real: decisão manual do estrategista para o bloco
-        # state_linked é sempre rejeitada, mesmo quando o fato coincide
-        # com a decisão fornecida — a decisão simplesmente não existe.
+        # Etapa 5.2 / correção pontual — INV-GRATUIDADE-LINKED e
+        # INV-CORTE-LINKED contra o template real: decisão manual do
+        # estrategista para bloco state_linked é sempre rejeitada, mesmo
+        # quando o fato coincide com a decisão fornecida — a decisão
+        # simplesmente não existe para nenhum dos dois blocos.
         decisoes_com_decisao_indevida = dict(decisoes_tudo_incluido)
         decisoes_com_decisao_indevida["PRELIMINAR_REVOGACAO_GRATUIDADE"] = {"decisao": "INCLUIR"}
         saida4 = Path(tmp) / "nao_deve_existir_gratuidade.docx"
@@ -368,8 +391,17 @@ def test_pipeline_completo_com_blocos_contra_template_real():
         assert r4["status"] == "FALHOU" and r4["etapa"] == "decisao_invalida"
         assert not saida4.exists()
 
-        # GRATUIDADE_CONCEDIDA indeterminada -> aborta para interação com o
-        # advogado, nunca decisão silenciosa.
+        decisoes_com_decisao_indevida_corte = dict(decisoes_tudo_incluido)
+        decisoes_com_decisao_indevida_corte["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "INCLUIR"}
+        saida4c = Path(tmp) / "nao_deve_existir_corte_decisao_manual.docx"
+        r4c = gerar_peca_com_blocos(TEMPLATE_REAL, SCHEMA_REAL, CATALOGO_REAL,
+                                     dados, decisoes_com_decisao_indevida_corte, saida4c,
+                                     fatos_processuais={"GRATUIDADE_CONCEDIDA": True, "CORTE_EFETIVO": True})
+        assert r4c["status"] == "FALHOU" and r4c["etapa"] == "decisao_invalida"
+        assert not saida4c.exists()
+
+        # GRATUIDADE_CONCEDIDA/CORTE_EFETIVO indeterminados -> aborta para
+        # interação com o advogado, nunca decisão silenciosa.
         saida4b = Path(tmp) / "nao_deve_existir_gratuidade_indeterminada.docx"
         r4b = gerar_peca_com_blocos(TEMPLATE_REAL, SCHEMA_REAL, CATALOGO_REAL,
                                      dados, decisoes_tudo_incluido, saida4b,
@@ -377,20 +409,32 @@ def test_pipeline_completo_com_blocos_contra_template_real():
         assert r4b["status"] == "FALHOU" and r4b["etapa"] == "decisao_indeterminada"
         assert not saida4b.exists()
 
-        saida5 = Path(tmp) / "nao_deve_existir_corte.docx"
+        saida5 = Path(tmp) / "nao_deve_existir_corte_indeterminado.docx"
         r5 = gerar_peca_com_blocos(TEMPLATE_REAL, SCHEMA_REAL, CATALOGO_REAL,
                                     dados, decisoes_tudo_incluido, saida5,
-                                    fatos_processuais={"GRATUIDADE_CONCEDIDA": True, "CORTE_EFETIVO": False})
-        assert r5["status"] == "FALHOU" and r5["etapa"] == "gate_fatico_nao_satisfeito"
+                                    fatos_processuais={"GRATUIDADE_CONCEDIDA": True, "CORTE_EFETIVO": "INDETERMINADO"})
+        assert r5["status"] == "FALHOU" and r5["etapa"] == "decisao_indeterminada"
         assert not saida5.exists()
 
-        # gate ausente (fatos_processuais=None) tem o mesmo efeito que falso
-        # — fail closed por omissão, nunca por presunção de verdadeiro.
-        saida6 = Path(tmp) / "nao_deve_existir_sem_estado.docx"
+        # CORTE_EFETIVO=false (ou ausente) NÃO é falha — resolve
+        # automaticamente para EXCLUIR (state_linked, INV-CORTE-LINKED),
+        # igual à gratuidade não concedida.
+        saida6 = Path(tmp) / "contestacao-blocos-sem-corte.docx"
         r6 = gerar_peca_com_blocos(TEMPLATE_REAL, SCHEMA_REAL, CATALOGO_REAL,
-                                    dados, decisoes_tudo_incluido, saida6)
-        assert r6["status"] == "FALHOU" and r6["etapa"] == "gate_fatico_nao_satisfeito"
-        assert not saida6.exists()
+                                    dados, decisoes_tudo_incluido, saida6,
+                                    fatos_processuais={"GRATUIDADE_CONCEDIDA": True, "CORTE_EFETIVO": False})
+        assert r6["status"] == "OK", r6
+        assert "LICITUDE_CORTE_SUSPENSAO" in r6["blocos_excluidos"]
+
+        # fato ausente (fatos_processuais=None) tem o mesmo efeito que
+        # falso — fail closed por omissão, nunca por presunção de
+        # verdadeiro, mas continua sendo EXCLUIR automático, não FALHOU.
+        saida7 = Path(tmp) / "contestacao-blocos-sem-estado.docx"
+        r7 = gerar_peca_com_blocos(TEMPLATE_REAL, SCHEMA_REAL, CATALOGO_REAL,
+                                    dados, decisoes_tudo_incluido, saida7)
+        assert r7["status"] == "OK", r7
+        assert "LICITUDE_CORTE_SUSPENSAO" in r7["blocos_excluidos"]
+        assert "PRELIMINAR_REVOGACAO_GRATUIDADE" in r7["blocos_excluidos"]
 
     print("Pipeline completo com blocos contra o template real: OK "
           "(tudo incluído, mínimo, INDETERMINADO aborta sem DOCX).")

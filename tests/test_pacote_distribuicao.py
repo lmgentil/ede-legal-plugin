@@ -56,8 +56,49 @@ def test_pacote_nao_contem_padroes_proibidos():
 
 def test_gitignore_cobre_os_ativos_sensiveis_conhecidos():
     gitignore = (BASE / ".gitignore").read_text(encoding="utf-8")
-    for trecho in (".env", "rag/jurisprudencia/", "modelo-oficial.docx"):
+    for trecho in (".env", "rag/jurisprudencia/", "modelo-oficial.docx", ".cache/"):
         assert trecho in gitignore, f".gitignore não cobre {trecho!r}"
+
+
+# Teste L (INV-JUIZO-DATAJUD): nenhuma API key literal em arquivo
+# rastreado. Não compara contra o valor real da chave (isso a colocaria
+# no repositório) — varre pelo FORMATO do header de autenticação da API
+# Pública DataJud ("Authorization: APIKey <valor>") seguido de um valor
+# literal (não uma interpolação de variável, que nunca casa aqui —
+# f"APIKey {api_key}" tem '{' logo depois, fora da classe de caracteres).
+_PADRAO_APIKEY_LITERAL = re.compile(r"APIKey [A-Za-z0-9+/]{15,}={0,2}")
+
+
+def test_L_nenhuma_apikey_datajud_literal_em_arquivo_rastreado():
+    arquivos = arquivos_rastreados()
+    achados = []
+    for caminho in arquivos:
+        completo = BASE / caminho
+        if not completo.is_file():
+            continue
+        try:
+            texto = completo.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if _PADRAO_APIKEY_LITERAL.search(texto):
+            achados.append(caminho)
+    assert not achados, f"possível API key literal (padrão DataJud) em arquivo rastreado: {achados}"
+
+
+def test_L_datajud_api_key_nunca_hardcoded_no_client():
+    codigo = (BASE / "scripts" / "datajud_client.py").read_text(encoding="utf-8")
+    # a única leitura de valor deve vir de os.environ/parâmetro — nunca de
+    # uma string literal atribuída à variável.
+    assert 'os.environ.get("DATAJUD_API_KEY")' in codigo
+    assert not re.search(r'DATAJUD_API_KEY"?\s*[:=]\s*["\'][^"\']{10,}', codigo)
+
+
+def test_L_env_example_datajud_api_key_sem_valor():
+    conteudo = (BASE / ".env.example").read_text(encoding="utf-8")
+    assert "DATAJUD_API_KEY" in conteudo
+    for linha in conteudo.splitlines():
+        if linha.startswith("DATAJUD_API_KEY="):
+            assert linha.strip() == "DATAJUD_API_KEY=", f"valor não vazio em .env.example: {linha!r}"
 
 
 def test_nenhum_docx_solto_rastreado():

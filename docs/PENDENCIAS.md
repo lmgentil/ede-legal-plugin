@@ -274,8 +274,19 @@ Em aberto, sem prazo.
 
 ## PEND-006 — Fronteira do bloco `EVOLUCAO_CONSUMO` definida por julgamento humano, não por marcador estrutural único
 
-**Status:** ABERTA
+**Status:** RESOLVIDA (por eliminação da causa)
 **Aberta em:** Etapa 5 (Motor Composicional de Blocos Condicionais)
+**Resolvida em:** correção pontual de remoção definitiva de
+`ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA` — ver `docs/specs/SPEC-0001.md`
+§49. O placeholder que aparecia duas vezes na região candidata (causa
+raiz desta pendência) foi removido de toda a arquitetura; o modelo
+oficial passou a trazer a argumentação de evolução de consumo
+inteiramente fixa, sem marcador algum. Sem placeholder, a ambiguidade de
+fronteira que motivava a releitura humana não pode mais ocorrer — a
+fronteira `[87, 93]` continua validada estruturalmente (LOCAL_ONLY),
+mas o risco descrito abaixo (reauditoria manual necessária se o texto
+institucional for editado) deixa de depender de contar ocorrências de um
+placeholder que não existe mais.
 **Bloqueia:** nenhuma fase — a fronteira usada (índices de corpo do
 documento 87 a 93) foi validada em 3 camadas (lxml + XSD do toolkit +
 Word/PDF real) e o teste `LOCAL_ONLY` de ponta a ponta confirma que

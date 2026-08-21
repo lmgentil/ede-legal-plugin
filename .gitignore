@@ -2,6 +2,11 @@
 .env
 *.env.local
 
+# --- Cache local do DataJud (INV-JUIZO-DATAJUD) ---
+# Números de processo real + órgão julgador resolvido — mesmo tratamento
+# de dado sensível de caso dado a rag/jurisprudencia/ (CLAUDE.md §18-19).
+.cache/
+
 # --- Ambiente Python ---
 __pycache__/
 *.py[cod]

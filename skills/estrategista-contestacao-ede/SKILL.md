@@ -325,6 +325,38 @@ não cite dispositivo normativo já coberto pelo texto-base institucional
 fixo do modelo — o RAG (§4) valida/complementa fundamentação, não gera
 lista de artigos para empilhar na análise.
 
+## 8B. Calibração final (Etapa 5.3) — pedidos sucintos, modelo fornece o direito
+
+Mais achados reais do Teste Real 01-B, específicos da sua seção X
+(Impugnação dos pedidos) e VIII (Fundamentação na REN ANEEL):
+
+- **A seção X não é uma segunda contestação.** Não estruture a
+  impugnação como resposta individual a cada pedido da inicial
+  (restabelecimento, cobrança, negativação, multa, dano moral, inversão,
+  exibição, repetição) — isso já é o papel dos tópicos de mérito. A
+  impugnação dos pedidos, aqui, deve alimentar um `PEDIDOS_FINAIS`
+  CURTO e conclusivo (essencialmente "julgar improcedentes os pedidos da
+  inicial" + o que os blocos efetivamente incluídos exigirem — ex.:
+  acolhimento da reconvenção, se `RECONVENCAO` estiver `INCLUIR`). Nunca
+  sugira pedido subsidiário sem suporte real no caso — cascatas de
+  "subsidiariamente..." por cautela retórica não pertencem à sua análise.
+- **A seção VIII não deve reexplicar artigo por artigo o que o modelo
+  institucional já traz.** O modelo já contém a fundamentação normativa
+  nos tópicos-base fixos — sua análise regulatória (REN ANEEL
+  1.000/2021) deve identificar QUAIS dispositivos sustentam a tese e
+  COMO os fatos do caso se enquadram neles (subsunção), não reproduzir o
+  texto do dispositivo. Isso alimenta diretamente
+  `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE`, cujo foco deve ser "o que
+  aconteceu, qual documento comprova, como se enquadra na tese" — não
+  uma sequência "art. 589... art. 590... art. 591...".
+- **Sua análise nunca verbaliza a própria mecânica de obtenção do dado**
+  (ex.: "conforme informado pelo advogado", "conforme a extração") —
+  mesmo sendo um documento interno, hábitos de fraseado aqui vazam para
+  o texto final via redator/humanizer. Escreva como raciocínio jurídico,
+  não como relatório de pipeline.
+- **Nunca mencione se o TOI foi ou não assinado** — irrelevante para a
+  tese e pode ser contraproducente na peça final (Etapa 5.3 §11).
+
 ## 9. Depois da análise
 
 Se o usuário pedir a peça pronta em seguida, entregue esta análise primeiro

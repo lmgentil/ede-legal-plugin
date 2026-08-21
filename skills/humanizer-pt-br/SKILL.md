@@ -254,6 +254,18 @@ Evitar padrões de IA é só metade do trabalho. Escrita asséptica, sem voz, é
 **Depois:**
 > O termo foi popularizado principalmente pelas instituições, não pelo próprio povo. Você não colocaria "Brasil, América do Sul" no endereço, mas essa rotulagem incorreta persiste em documentos oficiais.
 
+**No fluxo do EDE Legal Plugin especificamente** (Skill `contestacao`,
+INV-CONTESTACAO-SEM-TRAVESSAO, achado real de teste): a regra acima deixa
+de ser "reduza a frequência" e vira proibição absoluta — o texto que você
+humanizar para os placeholders da Contestação NUNCA pode conter o
+travessão (—, U+2014), nem em quantidade reduzida. Você também não pode
+introduzir um travessão que não existia (ex.: ao reescrever uma vírgula
+ou dois-pontos "para dar ritmo") nem substituir automaticamente outra
+pontuação por travessão. Há um backstop determinístico em
+`scripts/validate_placeholder_semantics.py` que rejeita o pipeline se
+algum travessão sobreviver — mas a regra é sobre o que você escreve, não
+sobre confiar nesse backstop para corrigir depois.
+
 ---
 
 ### 14. Uso excessivo de negrito

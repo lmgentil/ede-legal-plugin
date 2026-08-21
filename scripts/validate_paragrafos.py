@@ -75,6 +75,66 @@ def validar_paragrafos_placeholders(dados: dict, schema: dict) -> tuple:
     return (len(erros) == 0), erros
 
 
+# ============================================================== Etapa 5.3 — densidade por bloco
+# Diagnóstico (Teste Real 01-B, §6/§30): a peça permanecia visualmente
+# prolixa mesmo com todo parágrafo individual ≤380 — o problema é
+# ACUMULAÇÃO (vários parágrafos curtos formando um bloco longo), não o
+# tamanho unitário. Medido empiricamente sobre a fixture sintética
+# tests/fixtures/contestacao/happy_path/placeholders.json (nenhum
+# parágrafo isolado passava de 301 caracteres, mas
+# DESENVOLVIMENTO_TECNICO_IRREGULARIDADE somava 874 caracteres em 6
+# parágrafos e PEDIDOS_FINAIS somava 715 em 5 — exatamente o padrão
+# "acumulação" que o Teste Real 01-B relatou como prolixo).
+#
+# Os limites abaixo são calibrados a partir dessa medição + da função de
+# cada campo (Sinopse é resumo, Pedidos é curto/institucional — §8/§16),
+# não escolhidos arbitrariamente (§30) — mas também não são derivados de
+# uma amostra real do Teste Real 01-B (não disponível neste ambiente); é
+# uma primeira hipótese documentada, a recalibrar com dados do próximo
+# teste real, não um número definitivo.
+LIMITES_DENSIDADE_BLOCO = {
+    "SINOPSE_FATOS": {"max_paragrafos": 3, "max_total_chars": 600},
+    "REALIDADE_FATICA": {"max_paragrafos": 3, "max_total_chars": 600},
+    "IRREGULARIDADE_ENCONTRADA": {"max_paragrafos": 2, "max_total_chars": 600},
+    "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": {"max_paragrafos": 5, "max_total_chars": 700},
+    "PEDIDOS_FINAIS": {"max_paragrafos": 2, "max_total_chars": 400},
+}
+
+
+def validar_densidade_bloco(texto: str, limite: dict) -> list:
+    """380 é TETO por parágrafo, não meta — não basta cada parágrafo
+    respeitar o limite individual se o bloco inteiro (soma dos
+    parágrafos) ainda for prolixo. Retorna erros de excesso de parágrafos
+    e/ou de caracteres totais do bloco."""
+    paras = paragrafos(texto)
+    erros = []
+    if len(paras) > limite["max_paragrafos"]:
+        erros.append(
+            f"{len(paras)} parágrafos no bloco (máximo {limite['max_paragrafos']}) "
+            f"— densidade excessiva por acumulação, mesmo com cada parágrafo "
+            f"individualmente dentro de {PARAGRAFO_MAXIMO} caracteres")
+    total = sum(len(p) for p in paras)
+    if total > limite["max_total_chars"]:
+        erros.append(
+            f"bloco com {total} caracteres no total (máximo "
+            f"{limite['max_total_chars']}) — 380 é teto por parágrafo, não meta; "
+            f"o bloco deve ser mais compacto, não apenas fragmentado")
+    return erros
+
+
+def validar_densidade_blocos(dados: dict) -> tuple:
+    """Valida LIMITES_DENSIDADE_BLOCO nos placeholders que declaram
+    limite. Retorna (ok, erros) — cada erro já identifica o placeholder."""
+    erros = []
+    for nome, limite in LIMITES_DENSIDADE_BLOCO.items():
+        valor = dados.get(nome)
+        if valor is None:
+            continue
+        for e in validar_densidade_bloco(valor, limite):
+            erros.append(f"{nome}: {e}")
+    return (len(erros) == 0), erros
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dados", required=True, help="JSON com {PLACEHOLDER: valor}")

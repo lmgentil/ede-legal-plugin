@@ -15,7 +15,10 @@ from pathlib import Path
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
 from validate_paragrafos import (  # noqa: E402
+    LIMITES_DENSIDADE_BLOCO,
     PARAGRAFO_MAXIMO,
+    validar_densidade_bloco,
+    validar_densidade_blocos,
     validar_paragrafo_380,
     validar_paragrafos_placeholders,
 )
@@ -89,6 +92,53 @@ def test_multiplos_placeholders_multiline_validados_independentemente():
     assert len(erros) == 1
     assert "REALIDADE_FATICA" in erros[0]
     assert not any("SINOPSE_FATOS" in e for e in erros)
+
+
+# --------------------------------------------------------------- densidade por bloco (Etapa 5.3)
+def test_densidade_bloco_dentro_do_limite_passa():
+    limite = {"max_paragrafos": 3, "max_total_chars": 600}
+    texto = "\n".join(["a" * 100, "b" * 100, "c" * 100])
+    assert validar_densidade_bloco(texto, limite) == []
+
+
+def test_densidade_bloco_excesso_de_paragrafos_detectado():
+    limite = {"max_paragrafos": 2, "max_total_chars": 10000}
+    texto = "\n".join(["a" * 10, "b" * 10, "c" * 10])
+    erros = validar_densidade_bloco(texto, limite)
+    assert len(erros) == 1 and "parágrafos" in erros[0]
+
+
+def test_densidade_bloco_excesso_de_caracteres_totais_detectado():
+    # cada parágrafo individualmente ≤380, mas a soma estoura o bloco —
+    # exatamente o achado do Teste Real 01-B (acumulação, não tamanho unitário).
+    limite = {"max_paragrafos": 10, "max_total_chars": 200}
+    texto = "\n".join(["a" * 100, "b" * 100, "c" * 100])
+    erros = validar_densidade_bloco(texto, limite)
+    assert len(erros) == 1 and "caracteres no total" in erros[0]
+
+
+def test_densidade_blocos_placeholder_sem_limite_declarado_nao_e_checado():
+    ok, erros = validar_densidade_blocos({"AUTOR": "x" * 10000})
+    assert ok, erros
+
+
+def test_densidade_blocos_pedidos_finais_prolixo_e_rejeitado():
+    # Regressão direta do padrão observado no Teste Real 01-B: pedidos
+    # respondendo individualmente a cada questão da inicial.
+    limite = LIMITES_DENSIDADE_BLOCO["PEDIDOS_FINAIS"]
+    texto = "\n".join(["Requer item %d da lista de pedidos." % i * 5 for i in range(6)])
+    ok, erros = validar_densidade_blocos({"PEDIDOS_FINAIS": texto})
+    assert not ok
+    assert any("PEDIDOS_FINAIS" in e for e in erros)
+
+
+def test_densidade_blocos_sinopse_compacta_aceita():
+    texto = "\n".join([
+        "A autora narra ter recebido fatura de recuperação de consumo após TOI.",
+        "Requer a declaração de inexigibilidade e indenização por danos morais.",
+    ])
+    ok, erros = validar_densidade_blocos({"SINOPSE_FATOS": texto})
+    assert ok, erros
 
 
 def main():

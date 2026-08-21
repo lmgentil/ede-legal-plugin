@@ -23,22 +23,33 @@ encurtar só o AUTOR eliminou a quebra, nada mais precisou mudar).
 Só valida os campos com regra objetivamente segura (CLAUDE.md: preferir
 falhar explicitamente só quando o padrão é confiável, nunca bloquear
 texto jurídico legítimo por heurística agressiva de comprimento). Os
-campos de texto longo/técnico (REALIDADE_FATICA, IRREGULARIDADE_ENCONTRADA
-etc.) não recebem validação semântica de conteúdo aqui.
+campos de texto longo/técnico não recebem validação de CONTEÚDO
+substantivo aqui (isso é COMPORTAMENTAL, imposto pelas Skills) — mas
+alguns recebem backstops LEXICAIS pontuais, sempre não-exaustivos:
 
-SINOPSE_FATOS (Etapa 5.2, INV-SINOPSE-ESTRITAMENTE-AUTORAL) é exceção
-parcial: recebe um backstop LEXICAL — uma lista fechada de marcadores
-defensivos que não têm lugar numa síntese puramente narrativa da inicial
-("não comprovou", "não merece prosperar", "os documentos demonstram"...).
-Isto é deliberadamente um backstop, não o controle real: ocorrência
-lexical prova contaminação defensiva o bastante para reprovar
-(CLAUDE.md §17, fail closed), mas AUSÊNCIA de qualquer marcador aqui NÃO
-prova que a Sinopse está correta — texto defensivo bem escrito, sem essas
-palavras específicas, passa por este validador sem ser pego. O controle
-real (a Sinopse é estritamente a narrativa da inicial, nunca a versão da
-Ré) é COMPORTAMENTAL — reforçado nas instruções de
-skills/contestacao/SKILL.md e skills/redator-peca-processual-elite/
-SKILL.md, não algo que uma lista de palavras-proibidas resolve sozinha.
+- SINOPSE_FATOS (Etapa 5.2, INV-SINOPSE-ESTRITAMENTE-AUTORAL): marcadores
+  defensivos ("não comprovou", "os documentos demonstram"...) — não tem
+  lugar numa síntese puramente narrativa da inicial.
+- TEMPESTIVIDADE_CASO, REALIDADE_FATICA, IRREGULARIDADE_ENCONTRADA,
+  DESENVOLVIMENTO_TECNICO_IRREGULARIDADE, PEDIDOS_FINAIS (Etapa 5.3,
+  achado grave do Teste Real 01-B): marcadores de META-PROVENIÊNCIA ("conforme informado pelo
+  advogado", "segundo o RAG"...) — o documento final nunca pode revelar a
+  mecânica interna de obtenção/validação de um dado; proveniência existe
+  só para auditoria interna (fatos.json, tempestividade.json etc.), nunca
+  verbalizada na peça.
+- IRREGULARIDADE_ENCONTRADA, DESENVOLVIMENTO_TECNICO_IRREGULARIDADE
+  (Etapa 5.3): marcadores sobre ASSINATURA do TOI — a peça não deve
+  mencionar se o TOI foi ou não assinado (§11 do achado real).
+- TODOS os placeholders (INV-CONTESTACAO-SEM-TRAVESSAO, correção pontual
+  pós-teste real): travessão (—, U+2014) é proibido em qualquer conteúdo
+  gerado/reescrito/humanizado — única checagem desta camada que não é um
+  backstop lexical pontual por campo, roda sobre `dados` inteiro.
+
+Todo backstop lexical desta camada é deliberadamente um backstop, não o
+controle real: ocorrência lexical prova contaminação o bastante para
+reprovar (CLAUDE.md §17, fail closed), mas AUSÊNCIA de qualquer marcador
+aqui NÃO prova que o campo está correto — o controle substantivo é
+COMPORTAMENTAL, reforçado nas instruções das Skills.
 
 Uso:
   python validate_placeholder_semantics.py --dados dados.json
@@ -79,6 +90,20 @@ def _sem_acento(s: str) -> str:
                    if unicodedata.category(c) != "Mn")
 
 
+# Indicadores ordinais portugueses ("2ª", "3º") são alfabéticos para
+# str.isalpha() mas nunca têm distinção maiúscula/minúscula real — achado
+# real (INV-JUIZO-DATAJUD): órgão julgador retornado pelo DataJud como
+# "2ª VARA..." disparava falso positivo de "não está em caixa alta".
+_INDICADORES_ORDINAIS = ("ª", "º")
+
+
+def _apenas_alfabetico_esta_em_caixa_alta(texto: str) -> bool:
+    """True se todo caractere alfabético de `texto` já está em maiúscula
+    (ignora dígitos/pontuação/espaço/indicador ordinal — não exige que o
+    texto INTEIRO só tenha letras, só que nenhuma letra minúscula sobre)."""
+    return all(c in _INDICADORES_ORDINAIS or not c.isalpha() or c.isupper() for c in texto)
+
+
 def _validar_autor(valor) -> list:
     texto = str(valor)
     v = _sem_acento(texto).upper()
@@ -94,6 +119,41 @@ def _validar_autor(valor) -> list:
             f"AUTOR contém marcador(es) de cláusula de qualificação "
             f"{achados} — o template já formula essa cláusula na sequência "
             f"do placeholder; AUTOR deve conter apenas o nome da parte")
+    # Etapa 5.3 — achado real: nome deve ser produzido em caixa alta.
+    if not _apenas_alfabetico_esta_em_caixa_alta(texto):
+        erros.append(
+            f"AUTOR deve ser produzido em CAIXA ALTA (padrão institucional, "
+            f"Etapa 5.3): {valor!r}")
+    return erros
+
+
+# Etapa 5.3 — achado real: endereçamento frágil/genérico ("Vara Cível da
+# Comarca de..."). Padrão institucional obrigatório: "AO JUÍZO DA [...]
+# DA COMARCA DE [...]", inteiro em caixa alta. Não valida a parte central
+# (a unidade judiciária real — "VARA", "JUIZADO ESPECIAL", "TURMA
+# RECURSAL" etc. — vem do DataJud, INV-JUIZO-DATAJUD; exigir a palavra
+# "VARA" especificamente já causou falso positivo real com nome de vara
+# numerada retornado pelo DataJud, "2ª VARA...", além de nem toda unidade
+# julgadora real se chamar "Vara"); só a moldura obrigatória.
+_JUIZO_PREFIXO = "AO JUÍZO DA"
+_JUIZO_INFIXO = "DA COMARCA DE"
+
+
+def _validar_juizo(valor) -> list:
+    texto = str(valor).strip()
+    erros = []
+    if not texto.startswith(_JUIZO_PREFIXO):
+        erros.append(
+            f"JUIZO deve seguir o padrão institucional, começando com "
+            f"{_JUIZO_PREFIXO!r} (Etapa 5.3 — não usar 'Vara Cível da "
+            f"Comarca...', 'Excelentíssimo Senhor...' ou construções "
+            f"improvisadas): {valor!r}")
+    if _JUIZO_INFIXO not in texto:
+        erros.append(
+            f"JUIZO deve conter {_JUIZO_INFIXO!r} seguido do nome da "
+            f"comarca (Etapa 5.3): {valor!r}")
+    if not _apenas_alfabetico_esta_em_caixa_alta(texto):
+        erros.append(f"JUIZO deve ser produzido em CAIXA ALTA (Etapa 5.3): {valor!r}")
     return erros
 
 
@@ -129,15 +189,138 @@ _MARCADORES_DEFENSIVOS_SINOPSE = (
 
 def _validar_sinopse_fatos(valor) -> list:
     v = _sem_acento(str(valor)).upper()
+    erros = []
     achados = [m for m in _MARCADORES_DEFENSIVOS_SINOPSE if m in v]
     if achados:
-        return [
+        erros.append(
             f"SINOPSE_FATOS contém marcador(es) de linguagem defensiva "
             f"{achados} — INV-SINOPSE-ESTRITAMENTE-AUTORAL: a Sinopse é "
             f"exclusivamente a narrativa da inicial (fatos alegados + "
             f"pedidos), nunca a versão ou impugnação da Ré; a defesa "
-            f"pertence a REALIDADE_FATICA e aos tópicos de mérito"]
+            f"pertence a REALIDADE_FATICA e aos tópicos de mérito")
+    erros.extend(_checar_meta_proveniencia(valor, "SINOPSE_FATOS"))
+    return erros
+
+
+# Etapa 5.3 — achado grave do Teste Real 01-B: a peça revelou sua própria
+# mecânica interna ("conforme informação fornecida pelo advogado"). A
+# proveniência existe só para auditoria interna (fatos.json,
+# tempestividade.json, decisoes_blocos.json...) — nunca verbalizada no
+# documento final. Lista deliberadamente ampla (cobre variações de
+# fraseado) — backstop lexical, não o controle real (esse é
+# comportamental, nas Skills).
+_MARCADORES_META_PROVENIENCIA = (
+    "conforme informação fornecida pelo advogado",
+    "conforme informado pelo advogado",
+    "segundo informação do advogado",
+    "conforme dados fornecidos",
+    "segundo os documentos enviados",
+    "conforme arquivo analisado",
+    "de acordo com a análise realizada",
+    "conforme contexto fornecido",
+    "segundo o material disponibilizado",
+    "conforme input",
+    "segundo o json",
+    "segundo a extração",
+    "conforme rag",
+    "segundo o sistema",
+    "conforme prompt",
+    "esta ia", "esta skill", "este pipeline",
+    "conforme informação processual fornecida",
+)
+
+
+def _checar_meta_proveniencia(valor, nome_campo: str) -> list:
+    v = _sem_acento(str(valor)).lower()
+    achados = [m for m in _MARCADORES_META_PROVENIENCIA if _sem_acento(m).lower() in v]
+    if achados:
+        return [
+            f"{nome_campo} contém meta-proveniência proibida {achados} — a "
+            f"peça não pode revelar a mecânica interna de obtenção/"
+            f"validação de um dado (Etapa 5.3); proveniência é interna, "
+            f"nunca verbalizada no documento final"]
     return []
+
+
+# Etapa 5.3 — achado real (§11): a peça não deve mencionar se o TOI foi ou
+# não assinado — informação irrelevante para a defesa e potencialmente
+# contraproducente; pode existir na camada de extração/proveniência
+# interna, nunca projetada para a redação.
+_MARCADORES_ASSINATURA_TOI = (
+    "assinou o toi", "toi foi assinado", "toi assinado",
+    "mediante assinatura", "declaração por ela assinada",
+    "recibo assinado", "assinatura da autora no toi",
+    "assinatura no toi",
+)
+
+
+def _checar_assinatura_toi(valor, nome_campo: str) -> list:
+    v = _sem_acento(str(valor)).lower()
+    achados = [m for m in _MARCADORES_ASSINATURA_TOI if _sem_acento(m).lower() in v]
+    if achados:
+        return [
+            f"{nome_campo} menciona assinatura do TOI {achados} — proibido "
+            f"na redação defensiva (Etapa 5.3 §11), mesmo que a informação "
+            f"exista nos documentos; não deve ser projetada para a peça"]
+    return []
+
+
+def _validar_realidade_fatica(valor) -> list:
+    return _checar_meta_proveniencia(valor, "REALIDADE_FATICA")
+
+
+# Etapa 5.3-B — §15/§18: IRREGULARIDADE_ENCONTRADA deve conter
+# EXCLUSIVAMENTE o nome/tipo da irregularidade — o texto fixo do template
+# já formula "Na ocasião, foi constatada irregularidade do tipo, " antes
+# do placeholder e ", circunstância que impedia o registro integral..."
+# depois. Backstop lexical ESPECÍFICO a esse texto fixo (não blacklist
+# genérica — §18: não pode rejeitar tipos de irregularidade válidos),
+# criado para a regressão real do Teste 5.3 (o valor repetiu o texto fixo
+# por engano, produzindo duplicação visível no DOCX final).
+_MARCADORES_DUPLICACAO_IRREGULARIDADE = (
+    "na ocasiao", "foi constatada", "irregularidade do tipo",
+    "circunstancia que", "impedia o registro",
+)
+
+
+def _validar_irregularidade_encontrada(valor) -> list:
+    texto = str(valor)
+    erros = _checar_meta_proveniencia(valor, "IRREGULARIDADE_ENCONTRADA")
+    erros.extend(_checar_assinatura_toi(valor, "IRREGULARIDADE_ENCONTRADA"))
+    v = _sem_acento(texto).lower()
+    achados = [m for m in _MARCADORES_DUPLICACAO_IRREGULARIDADE if m in v]
+    if achados:
+        erros.append(
+            f"IRREGULARIDADE_ENCONTRADA repete texto fixo do template "
+            f"{achados} — contrato atômico (Etapa 5.3-B §15): o campo "
+            f"deve conter EXCLUSIVAMENTE o nome/tipo da irregularidade; o "
+            f"template já formula 'Na ocasião, foi constatada "
+            f"irregularidade do tipo, ' antes e ', circunstância que "
+            f"impedia o registro integral...' depois: {valor!r}")
+    # Etapa 5.3-B §16 — reversão da Etapa 5.3 §9 para este campo
+    # especificamente: redação natural em minúsculas, ressalvados nomes
+    # próprios/siglas — nunca caixa alta forçada no tipo inteiro.
+    letras = [c for c in texto if c.isalpha()]
+    if letras and all(c.isupper() for c in letras):
+        erros.append(
+            f"IRREGULARIDADE_ENCONTRADA não deve ficar integralmente em "
+            f"CAIXA ALTA (Etapa 5.3-B §16 — minúsculas/natural, ressalvados "
+            f"nomes próprios/siglas): {valor!r}")
+    return erros
+
+
+def _validar_desenvolvimento_tecnico(valor) -> list:
+    erros = _checar_meta_proveniencia(valor, "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE")
+    erros.extend(_checar_assinatura_toi(valor, "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE"))
+    return erros
+
+
+def _validar_pedidos_finais(valor) -> list:
+    return _checar_meta_proveniencia(valor, "PEDIDOS_FINAIS")
+
+
+def _validar_tempestividade_caso(valor) -> list:
+    return _checar_meta_proveniencia(valor, "TEMPESTIVIDADE_CASO")
 
 
 def _validar_local_data(valor) -> list:
@@ -151,26 +334,65 @@ def _validar_local_data(valor) -> list:
         erros.append("LOCAL_DATA contém múltiplas frases (mais de um "
                       "ponto final) — parece conter narrativa jurídica "
                       "indevida")
+    # Etapa 5.3 — regra institucional: local da peça é sempre Salvador,
+    # independentemente da comarca do processo.
+    if not texto.strip().startswith("Salvador"):
+        erros.append(
+            f"LOCAL_DATA deve começar com 'Salvador' — regra institucional "
+            f"(Etapa 5.3): local da peça é sempre Salvador, "
+            f"independentemente da comarca do processo: {valor!r}")
     return erros
 
 
-# Só campos com regra objetivamente segura entram aqui — texto
-# narrativo/técnico livre (SINOPSE_FATOS, REALIDADE_FATICA,
-# IRREGULARIDADE_ENCONTRADA, DESENVOLVIMENTO_TECNICO_IRREGULARIDADE,
-# ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA, PEDIDOS_FINAIS,
-# TEMPESTIVIDADE_CASO) fica de fora deliberadamente.
+# INV-CONTESTACAO-SEM-TRAVESSAO — correção pontual pós-teste real: as
+# Skills redator-peca-processual-elite e humanizer-pt-br estavam inserindo
+# travessão (—, U+2014) no texto gerado. Backstop determinístico,
+# independente do comportamento probabilístico das Skills — roda sobre
+# TODO placeholder textual (não só os campos com validador dedicado
+# abaixo), universalmente, em vez de depender de instrução. NÃO
+# substitui automaticamente por vírgula/hífen: a pontuação correta
+# depende da estrutura sintática da frase (tarefa do Redator/Humanizer,
+# não deste validador) — só rejeita, fail closed. Escopo: só o conteúdo
+# VARIÁVEL (dict `dados`, o que o Template Engine substitui) — nunca o
+# texto fixo institucional do template, que este módulo nem lê.
+_TRAVESSAO = "—"  # — (EM DASH); hífen comum (U+002D, "-") não é afetado
+
+
+def _checar_travessao(valor, nome_campo: str) -> list:
+    texto = str(valor)
+    if _TRAVESSAO in texto:
+        return [
+            f"{nome_campo} contém travessão (—, U+2014), proibido em "
+            f"conteúdo gerado/reescrito/humanizado pela IA "
+            f"(INV-CONTESTACAO-SEM-TRAVESSAO) — use vírgula, ponto, "
+            f"ponto e vírgula, dois-pontos ou parênteses; corrija a "
+            f"pontuação no Redator/Humanizer antes de prosseguir: {valor!r}"]
+    return []
+
+
 VALIDADORES_ESPECIFICOS = {
+    "JUIZO": _validar_juizo,
     "AUTOR": _validar_autor,
     "NUMERO_PROCESSO": _validar_numero_processo,
-    "VALOR_FRA": _validar_valor_fra,
-    "LOCAL_DATA": _validar_local_data,
+    "TEMPESTIVIDADE_CASO": _validar_tempestividade_caso,
     "SINOPSE_FATOS": _validar_sinopse_fatos,
+    "REALIDADE_FATICA": _validar_realidade_fatica,
+    "IRREGULARIDADE_ENCONTRADA": _validar_irregularidade_encontrada,
+    "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": _validar_desenvolvimento_tecnico,
+    "VALOR_FRA": _validar_valor_fra,
+    "PEDIDOS_FINAIS": _validar_pedidos_finais,
+    "LOCAL_DATA": _validar_local_data,
 }
 
 
 def validar_semantica(dados: dict) -> tuple:
     """Retorna (ok: bool, erros: list[str])."""
     erros = []
+    # INV-CONTESTACAO-SEM-TRAVESSAO — universal, roda sobre TODO
+    # placeholder fornecido, não só os com validador específico abaixo.
+    for nome, valor in dados.items():
+        if valor is not None:
+            erros.extend(_checar_travessao(valor, nome))
     for nome, validador in VALIDADORES_ESPECIFICOS.items():
         if nome in dados and dados[nome] is not None:
             erros.extend(validador(dados[nome]))

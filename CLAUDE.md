@@ -271,18 +271,32 @@ Etapa 5.2") — resumo operacional aqui:
   do bloco *é* o estado processual (`true`→`INCLUIR`, `false`/
   ausente→`EXCLUIR`, `"INDETERMINADO"`→aborta). Decisão manual para este
   bloco em `decisoes_blocos.json` é rejeitada explicitamente. Distinto de
-  `requires_fact` (abaixo) — este é vínculo, não gate.
-- **INV-CORTE-EFETIVO** — `LICITUDE_CORTE_SUSPENSAO` só é elegível a
-  `INCLUIR` se o fornecimento tiver sido efetivamente cortado/suspenso
-  (não mera ameaça ou pedido preventivo) — GATE `requires_fact:
-  CORTE_EFETIVO` no catálogo (`decision_mode` continua `"estrategista"`,
-  a decisão INCLUIR/EXCLUIR quando o fato é verdadeiro continua sendo da
-  etapa estratégica), validado por `scripts/docx_block_engine.py` a
-  partir de `estado_processual.json`. Nem este gate nem o vínculo de
-  gratuidade aceitam ocorrência lexical ("não houve corte" no texto de um
-  documento nunca vira `CORTE_EFETIVO: true`) como prova — o estado é
-  resolvido pela Skill `contestacao` a partir dos documentos, com
-  proveniência, nunca por busca textual.
+  `requires_fact` (mecanismo de gate + decisão estratégica, ainda
+  disponível como infraestrutura geral do motor, mas sem uso atual no
+  catálogo) — este é vínculo, não gate.
+- **INV-CORTE-LINKED** — `LICITUDE_CORTE_SUSPENSAO` **não é decisão do
+  estrategista** (correção arquitetural: modelagem anterior como gate +
+  decisão estratégica permitiu, em teste real, inclusão baseada em mera
+  alegação da autora — corrigida para a mesma arquitetura de
+  `INV-GRATUIDADE-LINKED`): vinculada deterministicamente ao estado
+  processual `CORTE_EFETIVO` (`decision_mode: "state_linked"`,
+  `linked_fact: "CORTE_EFETIVO"`) — `true`→`INCLUIR` automático, `false`/
+  ausente→`EXCLUIR` automático, `"INDETERMINADO"`→aborta. Decisão manual
+  em `decisoes_blocos.json` é rejeitada explicitamente, mesmo coincidindo
+  com o fato real. **Alegação da autora não é prova de corte efetivo**:
+  mera ameaça, aviso de possível suspensão, pedido preventivo, pedido de
+  restabelecimento isolado, inadimplência/débito não configuram
+  `CORTE_EFETIVO: true` — exige evidência que a Ré não contradiga (ex.:
+  registro operacional da concessionária) ou confirmação expressa do
+  advogado (`AskUserQuestion`) quando os documentos não bastarem para
+  confirmar de forma independente da narrativa da própria autora; esta é
+  exceção expressa ao princípio geral de `INV-BLOCO-SUPORTE-FATICO`
+  (abaixo), que aceita alegação da autora como suporte suficiente para a
+  maioria dos blocos. Nem `CORTE_EFETIVO` nem `GRATUIDADE_CONCEDIDA`
+  aceitam ocorrência lexical ("não houve corte" no texto de um documento
+  nunca vira `CORTE_EFETIVO: true`) como prova — o estado é resolvido
+  pela Skill `contestacao` a partir dos documentos, com proveniência,
+  nunca por busca textual.
 - **INV-NAO-REDUNDANCIA-NORMATIVA** — a redação variável não repete
   dispositivo normativo já presente no tópico-base institucional fixo do
   modelo; o RAG valida/complementa fundamentação, não é gerador de lista
@@ -489,7 +503,6 @@ Lista real, auditada diretamente em `templates/contestacao/modelo-oficial.docx`
 {{IRREGULARIDADE_ENCONTRADA}}
 {{DESENVOLVIMENTO_TECNICO_IRREGULARIDADE}}
 {{FOTOS_DA_IRREGULARIADE}}
-{{ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA}}
 {{VALOR_FRA}}
 {{PEDIDOS_FINAIS}}
 {{LOCAL_DATA}}
@@ -498,6 +511,131 @@ Lista real, auditada diretamente em `templates/contestacao/modelo-oficial.docx`
 Não crie novos placeholders silenciosamente.
 
 Alteração do contrato de placeholders exige atualização do schema e, quando aplicável, da SPEC.
+
+### Remoção definitiva de `ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA`
+
+Decisão definitiva, não uma pausa temporária: o placeholder
+`{{ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA}}` foi removido de toda a
+arquitetura da Contestação (schema, catálogo de blocos, validadores,
+fixtures, testes, documentação) — não renomeado, não substituído por
+equivalente. O texto institucional sobre evolução de consumo pertence
+exclusivamente ao modelo oficial (bloco `EVOLUCAO_CONSUMO`, hoje
+`CONDICIONAL_PADRAO` — inteiramente fixo, sem placeholder próprio); a
+IA nunca mais gera nem parafraseia essa argumentação. Quando o bloco
+está `INCLUIR`, só o texto fixo aparece; se faltar dado concreto do
+caso para eventual complementação casuística em outro campo já
+existente, nenhuma argumentação genérica é criada para preencher
+espaço — o texto fixo do modelo basta. Não crie um novo placeholder
+equivalente sob outro nome sem autorização expressa.
+
+### INV-CONTESTACAO-SEM-TRAVESSAO — correção pontual pós-teste real
+
+Achado real: `redator-peca-processual-elite` e `humanizer-pt-br`
+estavam inserindo o travessão ("—", U+2014) no texto da Contestação.
+Proibido: nenhum conteúdo textual gerado, reescrito, humanizado ou
+complementado pela IA para os placeholders da Contestação pode conter
+esse caractere — use pontuação convencional (vírgula, ponto, ponto e
+vírgula, dois-pontos, parênteses), nunca como recurso estilístico. A
+regra é independente do comportamento probabilístico das Skills:
+`scripts/validate_placeholder_semantics.py` (`_checar_travessao`) roda
+um backstop determinístico sobre todo placeholder fornecido, antes do
+Template Engine — travessão encontrado aborta o pipeline
+(`PIPELINE_ABORTED`, stage `placeholders`), nunca é substituído
+automaticamente por vírgula/hífen (a pontuação correta depende da
+estrutura sintática da frase, decisão do Redator/Humanizer, não deste
+validador). Escopo: só o conteúdo variável produzido pela IA — texto
+institucional fixo do modelo oficial nunca é alterado por esta regra,
+mesmo que eventualmente contenha travessão.
+
+### INV-JUIZO-DATAJUD — {{JUIZO}} deixa de ser conteúdo gerativo
+
+`{{JUIZO}}` não é mais redigido/inferido pela IA. É resolvido
+deterministicamente por `scripts/datajud_client.py`, a partir de
+`NUMERO_PROCESSO`: identifica o tribunal pelo número CNJ, consulta a API
+Pública DataJud/CNJ para o órgão julgador real do processo, resolve a
+comarca via API do IBGE (`codigoMunicipioIBGE`) e monta o padrão
+institucional `AO JUÍZO DA [unidade judiciária real] DA COMARCA DE
+[comarca real]`, em caixa alta — nunca um exemplo ilustrativo. Escopo
+suportado (segmento do número CNJ): 8 (Justiça Estadual, 27 UFs), 4
+(Justiça Federal, TRF1-TRF6), 3 (STJ) — demais segmentos falham
+explicitamente (fail closed), nunca "chutam" um alias. Fail-closed
+(`PIPELINE_ABORTED`, `stage=juizo_datajud`) se: DataJud indisponível,
+processo não encontrado, múltiplos resultados incompatíveis, órgão
+julgador ausente na resposta, alias não determinável, ou
+`placeholders.json` trouxer um `JUIZO` próprio (rejeitado, nunca
+usado/reconciliado). API key tratada como configuração externa
+(`DATAJUD_API_KEY`, variável de ambiente) — nunca gravada em código,
+Skill, fixture, teste, `plugin.json` ou `marketplace.json`, mesmo sendo
+uma chave publicamente documentada pelo DPJ/CNJ. Cache local
+(`.cache/datajud/`, gitignored) evita nova consulta para o mesmo
+processo em elaboração em massa.
+
+O campo `orgaoJulgador.nome` retornado pelo DataJud constitui a fonte de
+verdade da denominação da unidade judiciária. O plugin não deve expandir,
+corrigir, reinterpretar ou substituir automaticamente abreviações ou a
+nomenclatura oficial retornada pela fonte.
+
+### Calibração final de conteúdo (Etapa 5.3, achados do Teste Real 01-B)
+
+Sete achados reais e suas correções — detalhe completo em
+`docs/specs/SPEC-0001.md` §47 e `skills/contestacao/SKILL.md` §9:
+
+- **Endereçamento** (`JUIZO`): caixa alta, padrão institucional `AO
+  JUÍZO DA VARA [...] DA COMARCA DE [...]`, nunca construção improvisada.
+- **Meta-informação proibida**: o documento final nunca revela sua
+  própria mecânica de obtenção/validação de dado ("conforme informado
+  pelo advogado", "conforme o RAG", etc.) — proveniência é interna.
+- **Densidade por bloco**: 380 caracteres é teto por parágrafo, não meta;
+  cada campo multiline tem também um limite de bloco (soma dos
+  parágrafos) contra acumulação — `scripts/validate_paragrafos.py`.
+- **Irregularidade em destaque**: nome do tipo em `**negrito**` (revisado
+  na Etapa 5.3-B — ver abaixo, substitui "caixa alta" por contrato
+  atômico + minúsculas/natural); TOI nunca menciona assinatura.
+- **Modelo fornece o direito**: a redação variável faz subsunção ao caso
+  concreto, não reexplica artigo por artigo o que o modelo já traz
+  (reforça INV-NAO-REDUNDANCIA-NORMATIVA, §7); RAG valida/complementa,
+  nunca gera exposição normativa nova.
+- **`PEDIDOS_FINAIS` curto e composicional**: núcleo é "julgar
+  improcedentes os pedidos da inicial"; nunca menciona tese/bloco
+  excluído pelo motor composicional (`validar_pedidos_composicionais`,
+  determinístico).
+- **`LOCAL_DATA` sempre Salvador**, independentemente da comarca do
+  processo.
+
+### Normalização visual de parágrafos e contrato atômico da irregularidade (Etapa 5.3-B)
+
+Correção decorrente de achado real do Teste 5.3: parágrafos gerados pela
+IA para placeholders multiline (`SINOPSE_FATOS`, `REALIDADE_FATICA`
+etc.) apareciam visualmente diferentes dos parágrafos nativos do modelo
+— causa raiz confirmada (não heurística): cada linha lógica virava
+`<w:br/>` dentro de um único `<w:p>`, então `w:spacing`/`w:before`/
+`w:after`/`contextualSpacing` do parágrafo (aplicados por unidade `<w:p>`
+no OOXML) só se aplicavam UMA vez ao bloco inteiro, não entre as linhas.
+
+- **INV-PARAGRAFO-HERDA-TEMPLATE**: todo `<w:p>` novo criado a partir de
+  conteúdo multiline de um placeholder deve herdar estruturalmente
+  (clonagem/deep copy do `w:pPr`, nunca reconstrução propriedade a
+  propriedade) as propriedades do parágrafo-placeholder que lhe deu
+  origem — nunca um estilo visual próprio do pipeline. TEMPLATE define
+  aparência; PIPELINE só fornece conteúdo. Implementado em
+  `scripts/docx_template_engine.py`
+  (`_explodir_paragrafos_multilinha`): cada linha lógica de um valor
+  multiline vira um `<w:p>` irmão real, não uma quebra de linha. A
+  detecção de qual `<w:br/>`/`<w:t>` pertence à expansão é feita por
+  marcador explícito em namespace próprio (nunca por inferência
+  vermelho+quebra, frágil) — removido do XML antes de alcançar o schema
+  OOXML; quebras legítimas pré-existentes do template nunca são tocadas.
+  Idempotente por construção (só consome marcadores, nunca cria novos).
+- **Contrato atômico de `IRREGULARIDADE_ENCONTRADA`**: o campo contém
+  EXCLUSIVAMENTE o nome/tipo da irregularidade, em `**negrito**`,
+  minúsculas/redação natural (ressalvados nomes próprios/siglas) — nunca
+  repete o texto fixo do template que já envolve o placeholder ("Na
+  ocasião, foi constatada irregularidade do tipo, " / ", circunstância
+  que impedia o registro integral..."). A explicação técnica do tipo vai
+  em `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE`, nunca dentro deste campo.
+  Backstop lexical específico (não genérico) em
+  `scripts/validate_placeholder_semantics.py`
+  (`_validar_irregularidade_encontrada`).
 
 ---
 

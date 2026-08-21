@@ -32,6 +32,7 @@ from docx_block_engine import (  # noqa: E402
     carregar_catalogo,
     validar_catalogo,
     validar_e_resolver_decisoes,
+    validar_pedidos_composicionais,
 )
 
 CATALOGO_REAL = BASE / "templates" / "contestacao" / "blocos.json"
@@ -78,11 +79,16 @@ def test_catalogo_real_preliminares_e_container_derived():
         "PRELIMINAR_CDC_INAPLICAVEL", "PRELIMINAR_REVOGACAO_GRATUIDADE"}
 
 
-def test_catalogo_real_evolucao_consumo_e_hibrido_com_placeholder():
+def test_catalogo_real_evolucao_consumo_e_puramente_fixo_sem_placeholder():
+    # ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA removido em correção pontual
+    # (decisão definitiva: a argumentação de evolução de consumo é
+    # inteiramente fixa no modelo oficial, sem marcador algum) — o bloco
+    # deixou de ser CONDICIONAL_HIBRIDO e não referencia placeholder nenhum.
     catalogo = carregar_catalogo(CATALOGO_REAL)
     por_id = {b["id"]: b for b in catalogo["blocks"]}
-    assert por_id["EVOLUCAO_CONSUMO"]["tipo"] == "CONDICIONAL_HIBRIDO"
-    assert "ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA" in por_id["EVOLUCAO_CONSUMO"]["placeholders"]
+    assert por_id["EVOLUCAO_CONSUMO"]["tipo"] == "CONDICIONAL_PADRAO"
+    assert por_id["EVOLUCAO_CONSUMO"]["placeholders"] == []
+    assert por_id["EVOLUCAO_CONSUMO"]["dependencies"] == []
 
 
 def test_catalogo_real_reconvencao_e_inline_vinculados():
@@ -114,13 +120,18 @@ def test_catalogo_real_gratuidade_e_state_linked():
     assert "requires_fact" not in por_id["PRELIMINAR_REVOGACAO_GRATUIDADE"]
 
 
-def test_catalogo_real_corte_tem_requires_fact():
-    # INV-CORTE-EFETIVO: continua GATE + decisão estratégica (preservado
-    # intocado pela correção pontual — só a gratuidade mudou de mecanismo).
+def test_catalogo_real_corte_e_state_linked():
+    # INV-CORTE-LINKED (correção arquitetural pós-achado real: bloco
+    # entrou sem corte efetivo comprovado, só com decisão do estrategista
+    # sob um gate 'requires_fact' que ele ainda podia contornar
+    # informalmente). Vínculo determinístico estado processual -> bloco,
+    # mesma família de PRELIMINAR_REVOGACAO_GRATUIDADE — NÃO mais gate +
+    # decisão estratégica.
     catalogo = carregar_catalogo(CATALOGO_REAL)
     por_id = {b["id"]: b for b in catalogo["blocks"]}
-    assert por_id["LICITUDE_CORTE_SUSPENSAO"]["decision_mode"] == "estrategista"
-    assert por_id["LICITUDE_CORTE_SUSPENSAO"]["requires_fact"]["key"] == "CORTE_EFETIVO"
+    assert por_id["LICITUDE_CORTE_SUSPENSAO"]["decision_mode"] == "state_linked"
+    assert por_id["LICITUDE_CORTE_SUSPENSAO"]["linked_fact"] == "CORTE_EFETIVO"
+    assert "requires_fact" not in por_id["LICITUDE_CORTE_SUSPENSAO"]
     # os demais blocos condicionais não ganharam gate/vínculo algum por acidente
     sem_gate = {"PRELIMINAR_CDC_INAPLICAVEL", "DEVER_LEGAL_FISCALIZACAO",
                 "DESNECESSIDADE_AVISO_PREVIO", "CALCULOS_RECUPERACAO_CONSUMO",
@@ -292,6 +303,91 @@ def test_state_linked_como_filho_de_container_derived_resolve_antes():
     assert estados["PAI"] == "INCLUIR"  # ANY_CHILD_INCLUDED via GRAT
 
 
+# ------------------------------------------ INV-CORTE-LINKED (correção arquitetural, A-H)
+# Testes contra o CATÁLOGO REAL (não um sintético) — regressão específica
+# do achado real (LICITUDE_CORTE_SUSPENSAO incluído sem corte efetivo
+# comprovado, só com alegação da autora). O mecanismo em si (state_linked)
+# já tem cobertura genérica acima via GRATUIDADE_CONCEDIDA — aqui a
+# cobertura é do CONTRATO do bloco real, não do mecanismo genérico.
+def _decisoes_minimas_reais(catalogo):
+    """{id: EXCLUIR} para todo bloco decision_mode estrategista/humano do
+    catálogo real — baseline segura para isolar o comportamento de
+    LICITUDE_CORTE_SUSPENSAO (que nunca aparece aqui: é state_linked)."""
+    return {b["id"]: {"decisao": "EXCLUIR"}
+            for b in catalogo["blocks"] if b["decision_mode"] in ("estrategista", "humano")}
+
+
+def test_A_corte_efetivo_true_inclui_automaticamente():
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    estados = validar_e_resolver_decisoes(catalogo, _decisoes_minimas_reais(catalogo),
+                                           {"CORTE_EFETIVO": True})
+    assert estados["LICITUDE_CORTE_SUSPENSAO"] == "INCLUIR"
+
+
+def test_B_corte_efetivo_false_exclui_automaticamente():
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    estados = validar_e_resolver_decisoes(catalogo, _decisoes_minimas_reais(catalogo),
+                                           {"CORTE_EFETIVO": False})
+    assert estados["LICITUDE_CORTE_SUSPENSAO"] == "EXCLUIR"
+
+
+def test_C_corte_efetivo_ausente_exclui():
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    estados = validar_e_resolver_decisoes(catalogo, _decisoes_minimas_reais(catalogo), {})
+    assert estados["LICITUDE_CORTE_SUSPENSAO"] == "EXCLUIR"
+
+
+def test_D_corte_efetivo_indeterminado_aborta():
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    e = _abortou(validar_e_resolver_decisoes, catalogo, _decisoes_minimas_reais(catalogo),
+                  {"CORTE_EFETIVO": "INDETERMINADO"})
+    assert e and e.stage == "decisao_indeterminada"
+
+
+def test_E_ameaca_de_corte_registrada_mas_corte_efetivo_false_exclui():
+    # AMEACA_DE_CORTE não é uma chave que o motor sequer olha — só
+    # CORTE_EFETIVO decide. Presença de qualquer outro fato "distrator"
+    # no dict não muda o resultado.
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    estados = validar_e_resolver_decisoes(catalogo, _decisoes_minimas_reais(catalogo),
+                                           {"AMEACA_DE_CORTE": True, "CORTE_EFETIVO": False})
+    assert estados["LICITUDE_CORTE_SUSPENSAO"] == "EXCLUIR"
+
+
+def test_F_pedido_de_restabelecimento_com_corte_efetivo_false_exclui():
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    estados = validar_e_resolver_decisoes(catalogo, _decisoes_minimas_reais(catalogo),
+                                           {"PEDIDO_DE_RESTABELECIMENTO": True, "CORTE_EFETIVO": False})
+    assert estados["LICITUDE_CORTE_SUSPENSAO"] == "EXCLUIR"
+
+
+def test_G_estrategista_tenta_incluir_com_fato_falso_e_rejeitado():
+    # state_linked: NENHUMA decisão manual é aceita, nem tentando INCLUIR
+    # incompatível com o fato — o estrategista não decide mais este bloco.
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    decisoes = _decisoes_minimas_reais(catalogo)
+    decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "INCLUIR"}
+    e = _abortou(validar_e_resolver_decisoes, catalogo, decisoes, {"CORTE_EFETIVO": False})
+    assert e and e.stage == "decisao_invalida" and "não aceita decisão manual" in e.motivo
+
+
+def test_H_estrategista_tenta_excluir_com_fato_verdadeiro_e_rejeitado():
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    decisoes = _decisoes_minimas_reais(catalogo)
+    decisoes["LICITUDE_CORTE_SUSPENSAO"] = {"decisao": "EXCLUIR"}
+    e = _abortou(validar_e_resolver_decisoes, catalogo, decisoes, {"CORTE_EFETIVO": True})
+    assert e and e.stage == "decisao_invalida" and "não aceita decisão manual" in e.motivo
+
+
+def test_inadimplencia_debito_com_corte_efetivo_false_exclui():
+    # extra além da lista A-H: outro "distrator" comum (§4 do prompt).
+    catalogo = carregar_catalogo(CATALOGO_REAL)
+    estados = validar_e_resolver_decisoes(catalogo, _decisoes_minimas_reais(catalogo),
+                                           {"INADIMPLENCIA": True, "DEBITO_EXISTENTE": True,
+                                            "CORTE_EFETIVO": False})
+    assert estados["LICITUDE_CORTE_SUSPENSAO"] == "EXCLUIR"
+
+
 # --------------------------------------------------------------- validação estrutural (A-H)
 def test_A_parent_inexistente():
     catalogo = {"blocks": [_base_bloco(id="A", parent="NAO_EXISTE")]}
@@ -421,6 +517,57 @@ def test_container_derived_any_child_included_4_combinacoes():
         estados = validar_e_resolver_decisoes(CATALOGO_SIMPLES, {
             "FOLHA_A": {"decisao": a}, "FOLHA_B": {"decisao": b}})
         assert estados["CONTAINER"] == esperado_container, (a, b, estados)
+
+
+# ------------------------------------------ Etapa 5.3 — pedidos × blocos (§18)
+def test_pedidos_composicionais_excluido_sem_mencao_passa():
+    estados = {"PRELIMINAR_REVOGACAO_GRATUIDADE": "EXCLUIR", "RECONVENCAO": "INCLUIR"}
+    erros = validar_pedidos_composicionais(
+        "Requer a improcedência dos pedidos.", estados)
+    assert erros == []
+
+
+def test_pedidos_composicionais_gratuidade_excluida_mas_mencionada_e_erro():
+    estados = {"PRELIMINAR_REVOGACAO_GRATUIDADE": "EXCLUIR"}
+    erros = validar_pedidos_composicionais(
+        "Requer a revogação da gratuidade de justiça.", estados)
+    assert len(erros) == 1 and "PRELIMINAR_REVOGACAO_GRATUIDADE" in erros[0]
+
+
+def test_pedidos_composicionais_cdc_excluido_mas_mencionado_e_erro():
+    estados = {"PRELIMINAR_CDC_INAPLICAVEL": "EXCLUIR"}
+    erros = validar_pedidos_composicionais(
+        "Requer o reconhecimento da inaplicabilidade do CDC ao caso.", estados)
+    assert len(erros) == 1
+
+
+def test_pedidos_composicionais_reconvencao_excluida_mas_mencionada_e_erro():
+    estados = {"RECONVENCAO": "EXCLUIR"}
+    erros = validar_pedidos_composicionais(
+        "Requer o acolhimento da reconvenção.", estados)
+    assert len(erros) == 1
+
+
+def test_pedidos_composicionais_corte_excluido_mas_mencionado_e_erro():
+    # Teste J (INV-CORTE-LINKED): bloco excluído não pode ter a tese
+    # reintroduzida em PEDIDOS_FINAIS por outro caminho.
+    estados = {"LICITUDE_CORTE_SUSPENSAO": "EXCLUIR"}
+    erros = validar_pedidos_composicionais(
+        "Requer o reconhecimento da regularidade do corte efetuado.", estados)
+    assert len(erros) == 1 and "LICITUDE_CORTE_SUSPENSAO" in erros[0]
+
+
+def test_pedidos_composicionais_bloco_incluido_permite_mencao():
+    estados = {"PRELIMINAR_REVOGACAO_GRATUIDADE": "INCLUIR"}
+    erros = validar_pedidos_composicionais(
+        "Requer a revogação da gratuidade de justiça deferida à autora.", estados)
+    assert erros == []
+
+
+def test_pedidos_composicionais_bloco_ausente_do_dict_nao_e_checado():
+    # bloco não mapeado (ou não presente no estados) não gera falso positivo.
+    erros = validar_pedidos_composicionais("Requer a improcedência.", {})
+    assert erros == []
 
 
 def main():

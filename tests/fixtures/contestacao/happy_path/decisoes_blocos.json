@@ -4,7 +4,6 @@
   "DESNECESSIDADE_AVISO_PREVIO": {"decisao": "INCLUIR", "fundamento": "cenário sintético — inspeção de rotina, sem exigência normativa de aviso prévio."},
   "CALCULOS_RECUPERACAO_CONSUMO": {"decisao": "INCLUIR", "fundamento": "cenário sintético — memorial de cálculo apresentado, metodologia do art. 595 aplicável."},
   "EVOLUCAO_CONSUMO": {"decisao": "INCLUIR", "fundamento": "cenário sintético — histórico de consumo disponível e coerente com a irregularidade apontada."},
-  "LICITUDE_CORTE_SUSPENSAO": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — não houve corte/suspensão de fornecimento neste caso."},
   "NEXO_CAUSAL_INDEMONSTRADO": {"decisao": "INCLUIR", "fundamento": "cenário sintético — autora não comprova nexo causal para o pedido de dano moral."},
   "DESCABIMENTO_DANO_MORAL": {"decisao": "INCLUIR", "fundamento": "cenário sintético — mero aborrecimento, sem prova de abalo à personalidade."},
   "RECONVENCAO": {"decisao": "INCLUIR", "fundamento": "cenário sintético — débito de recuperação de consumo (VALOR_FRA) apurado e não adimplido."}

@@ -37,6 +37,7 @@ Uso programático:
         output_path="saida/contestacao-caso-x.docx",
     )
 """
+import copy
 import importlib
 import json
 import os
@@ -45,6 +46,15 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+
+import lxml.etree as LET
+
+_W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+_NS = {"w": _W}
+
+
+def _qn(tag):
+    return f"{{{_W}}}{tag}"
 
 # Casa opcionalmente o <w:rPr> anterior ao <w:t> (sempre o primeiro filho
 # de <w:r> quando presente, por schema OOXML — nunca some nada semântico
@@ -170,25 +180,36 @@ def _rpr_inner(rpr_full):
 # pode ser simplesmente prependido: se o rPr já tiver w:rFonts/w:b/w:i/...
 # (que precedem color no schema), inserir color antes deles invalida o
 # documento ("Element rPr: This element is not expected", confirmado nesta
-# implementação). Lista dos elementos que devem vir DEPOIS de w:color —
-# a cor entra imediatamente antes do primeiro que existir; se nenhum
-# existir, vai ao final do rPr.
-_RPR_APOS_COR = (
-    "w:spacing", "w:w", "w:kern", "w:position", "w:sz", "w:szCs",
-    "w:highlight", "w:u", "w:effect", "w:bdr", "w:shd", "w:fitText",
-    "w:vertAlign", "w:rtl", "w:cs", "w:em", "w:lang", "w:eastAsianLayout",
-    "w:specVanish", "w:oMath",
+# implementação). Sequência oficial completa (CT_RPr) — usada para inserir
+# qualquer propriedade nova (cor, negrito) na posição correta, dado o que
+# já existe no rPr original.
+_RPR_SEQUENCIA = (
+    "w:rStyle", "w:rFonts", "w:b", "w:bCs", "w:i", "w:iCs", "w:caps",
+    "w:smallCaps", "w:strike", "w:dstrike", "w:outline", "w:shadow",
+    "w:emboss", "w:imprint", "w:noProof", "w:snapToGrid", "w:vanish",
+    "w:webHidden", "w:color", "w:spacing", "w:w", "w:kern", "w:position",
+    "w:sz", "w:szCs", "w:highlight", "w:u", "w:effect", "w:bdr", "w:shd",
+    "w:fitText", "w:vertAlign", "w:rtl", "w:cs", "w:em", "w:lang",
+    "w:eastAsianLayout", "w:specVanish", "w:oMath",
 )
 
 
-def _inserir_cor_na_posicao_certa(rpr_sem_cor: str) -> str:
-    cor = f'<w:color w:val="{COR_CONTEUDO_GERADO}"/>'
-    pos_insercao = len(rpr_sem_cor)
-    for tag in _RPR_APOS_COR:
-        m = re.search(r"<" + re.escape(tag) + r"\b", rpr_sem_cor)
+def _inserir_na_posicao_certa(rpr_sem_tag: str, elemento_xml: str, nome_tag: str) -> str:
+    """Insere `elemento_xml` (ex.: '<w:b/>') em `rpr_sem_tag` na posição
+    exigida pela sequência CT_RPr — imediatamente antes do primeiro
+    elemento existente que deva vir depois de `nome_tag`; ao final do rPr
+    se nenhum existir."""
+    idx_alvo = _RPR_SEQUENCIA.index(nome_tag)
+    pos_insercao = len(rpr_sem_tag)
+    for tag in _RPR_SEQUENCIA[idx_alvo + 1:]:
+        m = re.search(r"<" + re.escape(tag) + r"\b", rpr_sem_tag)
         if m and m.start() < pos_insercao:
             pos_insercao = m.start()
-    return rpr_sem_cor[:pos_insercao] + cor + rpr_sem_cor[pos_insercao:]
+    return rpr_sem_tag[:pos_insercao] + elemento_xml + rpr_sem_tag[pos_insercao:]
+
+
+def _inserir_cor_na_posicao_certa(rpr_sem_cor: str) -> str:
+    return _inserir_na_posicao_certa(rpr_sem_cor, f'<w:color w:val="{COR_CONTEUDO_GERADO}"/>', "w:color")
 
 
 def _rpr_com_cor_forcada(rpr_full) -> str:
@@ -201,6 +222,206 @@ def _rpr_com_cor_forcada(rpr_full) -> str:
     como estavam, na mesma ordem relativa entre si."""
     sem_cor = _COLOR_RE.sub("", _rpr_inner(rpr_full))
     return f"<w:rPr>{_inserir_cor_na_posicao_certa(sem_cor)}</w:rPr>"
+
+
+# Etapa 5.3 — §9: nome do tipo de irregularidade em negrito dentro do
+# placeholder (marcação `**texto**` no valor, convenção já usada nos
+# exemplos do achado real). Diferente de w:color (que tinha uma variante
+# legada EE0000 a limpar), w:b/w:bCs é só ausência-ou-presença — só
+# adiciona se ainda não existir, nunca remove negrito já presente no run
+# original.
+def _rpr_vermelho_negrito(rpr_full) -> str:
+    """Mesma base de `_rpr_com_cor_forcada`, com <w:b/><w:bCs/> adicionados
+    (se ainda não presentes) na posição correta do CT_RPr."""
+    vermelho_inner = _rpr_inner(_rpr_com_cor_forcada(rpr_full))
+    if "<w:b/>" not in vermelho_inner and "<w:b " not in vermelho_inner:
+        vermelho_inner = _inserir_na_posicao_certa(vermelho_inner, "<w:b/>", "w:b")
+    if "<w:bCs/>" not in vermelho_inner and "<w:bCs " not in vermelho_inner:
+        vermelho_inner = _inserir_na_posicao_certa(vermelho_inner, "<w:bCs/>", "w:bCs")
+    return f"<w:rPr>{vermelho_inner}</w:rPr>"
+
+
+# Etapa 5.3 — §9: nome do tipo de irregularidade "**em negrito**" dentro
+# do valor de um placeholder. Convenção markdown minimalista, escopo
+# deliberadamente estreito (só negrito, só dentro de uma linha — nunca
+# atravessa `<w:br/>`).
+_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+
+
+def _segmentar_negrito(texto: str) -> list:
+    """[(texto_segmento, negrito: bool), ...] a partir de marcações
+    **negrito** em `texto` (já escapado para XML — '*' não é caractere
+    especial em XML, então a ordem escapar-depois-segmentar é segura)."""
+    segmentos = []
+    pos = 0
+    for m in _BOLD_RE.finditer(texto):
+        if m.start() > pos:
+            segmentos.append((texto[pos:m.start()], False))
+        segmentos.append((m.group(1), True))
+        pos = m.end()
+    if pos < len(texto) or not segmentos:
+        segmentos.append((texto[pos:], False))
+    return segmentos
+
+
+# Etapa 5.3-B — INV-PARAGRAFO-HERDA-TEMPLATE: marca explícita e inequívoca
+# de "este <w:br/> nasceu da expansão de um placeholder multiline", para
+# _explodir_paragrafos_multilinha() converter cada linha lógica num <w:p>
+# irmão real (clone do w:pPr do parágrafo-placeholder), em vez de deixar
+# tudo dentro de um único <w:p>. Deliberadamente NÃO usa a cor FF0000 como
+# sinal (frágil/inferido — um <w:br/> vermelho poderia existir por outro
+# motivo no futuro); usa um atributo em namespace próprio, autocontido no
+# elemento (não precisa ser declarado em lugar nenhum do documento) e
+# removido junto com o marcador antes do XML final ser gravado — nunca
+# alcança o schema OOXML/validate.py.
+_NS_MARCADOR = "urn:ede:motor:marcador-quebra-multilinha"
+_MARCADOR_BR = f'<w:br xmlns:ede="{_NS_MARCADOR}" ede:quebra="1"/>'
+# Além do <w:br> marcado (fronteira entre linhas), cada <w:t> de conteúdo
+# GERADO por esta expansão também carrega o mesmo sinal — necessário para
+# _explodir_paragrafos_multilinha() distinguir "run nosso, pode mover para
+# o novo parágrafo" de texto fixo do template que porventura exista na
+# MESMA <w:p> logo após o placeholder (ex.: IRREGULARIDADE_ENCONTRADA tem
+# um sufixo fixo — ", circunstância que..." — na própria run seguinte;
+# sem este sinal, a expansão arrastaria esse sufixo para o parágrafo
+# errado). Não é suficiente confiar apenas no marcador de quebra (§8: essa
+# fronteira sozinha não diz até onde vai o conteúdo nosso quando há texto
+# fixo interpolado).
+_MARCADOR_LINHA_ATTR = f' xmlns:ede="{_NS_MARCADOR}" ede:linha="1"'
+
+
+def _corpo_com_negrito(rpr_normal: str, rpr_negrito: str, attrs_ps: str, linhas: list) -> str:
+    """Constrói a sequência de <w:rPr><w:t marcado>/<w:br marcado> para
+    `linhas` (cada uma podendo ter **negrito**), agrupando <w:t>
+    consecutivos de mesmo estado (negrito ou não) num único <w:r> real —
+    só fecha/reabre run (`</w:r><w:r>`) quando o estado muda. Cada quebra
+    entre linhas lógicas vira um <w:br/> marcado (ver _MARCADOR_BR),
+    sempre isolado no seu próprio <w:r> — nunca agrupado com texto — para
+    _explodir_paragrafos_multilinha() poder cortar exatamente ali."""
+    itens = []  # ('t', texto, negrito) | ('br', None, None)
+    for i, linha in enumerate(linhas):
+        segmentos = _segmentar_negrito(linha)
+        for texto_seg, negrito in segmentos:
+            itens.append(("t", texto_seg, negrito))
+        if i < len(linhas) - 1:
+            itens.append(("br", None, None))
+
+    grupos = []  # [(negrito, [filhos_xml], eh_marcador_isolado)]
+    for kind, texto_seg, negrito in itens:
+        if kind == "br":
+            grupos.append((False, [_MARCADOR_BR], True))
+            continue
+        filho = f"<w:t{attrs_ps}{_MARCADOR_LINHA_ATTR}>{texto_seg}</w:t>"
+        if grupos and grupos[-1][0] == negrito and not grupos[-1][2]:
+            grupos[-1][1].append(filho)
+        else:
+            grupos.append((negrito, [filho], False))
+
+    return "</w:r><w:r>".join(
+        f"{rpr_negrito if negrito else rpr_normal}{''.join(filhos)}"
+        for negrito, filhos, _ in grupos
+    )
+
+
+def _explodir_paragrafos_multilinha(document_xml: str) -> str:
+    """Etapa 5.3-B / INV-PARAGRAFO-HERDA-TEMPLATE: converte cada marcador
+    _MARCADOR_BR em um <w:p> irmão real, clonando (deep copy) o <w:pPr>
+    do parágrafo que originou a quebra — em vez de manter as linhas
+    lógicas como <w:br/> dentro de um único <w:p>. Isso faz cada linha de
+    um valor multiline herdar exatamente jc/spacing/ind/keepNext/
+    keepLines/widowControl/contextualSpacing/tabs/rPr-base do modelo, sem
+    listar propriedade por propriedade (clonagem estrutural, não
+    reconstrução manual) e sem exigir mudança se o modelo alterar seu
+    w:pPr no futuro.
+
+    Só age sobre marcadores explícitos (nunca sobre <w:br/> legítimo já
+    existente no template — não tem o atributo do namespace próprio) e é
+    idempotente por construção: só consome marcadores, nunca cria novos;
+    chamar de novo sobre a própria saída é um no-op (fast path abaixo)."""
+    if _NS_MARCADOR not in document_xml:
+        return document_xml  # nenhum conteúdo gerado por _corpo_com_negrito
+
+    parser = LET.XMLParser(remove_blank_text=False, strip_cdata=False)
+    root = LET.fromstring(document_xml.encode("utf-8"), parser)
+
+    p_tag, r_tag, t_tag, br_tag, rpr_tag = _qn("p"), _qn("r"), _qn("t"), _qn("br"), _qn("rPr")
+    marcador_quebra_attr = f"{{{_NS_MARCADOR}}}quebra"
+    marcador_linha_attr = f"{{{_NS_MARCADOR}}}linha"
+
+    def eh_marcador(elemento):
+        if elemento.tag != r_tag:
+            return False
+        conteudo = [f for f in elemento if f.tag != rpr_tag]  # ignora o <w:rPr> do run
+        return len(conteudo) == 1 and conteudo[0].tag == br_tag and conteudo[0].get(marcador_quebra_attr) == "1"
+
+    def eh_conteudo_gerado(elemento):
+        """<w:r> cujo conteúdo (fora rPr) é só <w:t> marcados por nós —
+        distingue de texto FIXO do template que porventura seja run-irmão
+        na mesma <w:p> logo após o placeholder (ex.: sufixo fixo depois de
+        IRREGULARIDADE_ENCONTRADA) — esse texto fixo não deve ser
+        arrastado para o novo parágrafo."""
+        if elemento.tag != r_tag:
+            return False
+        conteudo = [f for f in elemento if f.tag != rpr_tag]
+        return bool(conteudo) and all(
+            f.tag == t_tag and f.get(marcador_linha_attr) == "1" for f in conteudo
+        )
+
+    for p in list(root.iter(p_tag)):
+        pai = p.getparent()
+        if pai is None:
+            continue
+        atual = p
+        while True:
+            marcador = next((f for f in atual if eh_marcador(f)), None)
+            if marcador is None:
+                break
+            pos = list(pai).index(atual)
+            novo_p = LET.Element(p_tag)
+            pprs = atual.find("w:pPr", _NS)
+            if pprs is not None:
+                novo_p.append(copy.deepcopy(pprs))
+            pai.insert(pos + 1, novo_p)
+            mover = False
+            for irmao in list(atual):
+                if irmao is marcador:
+                    mover = True
+                    atual.remove(irmao)
+                    continue
+                if not mover:
+                    continue
+                # só arrasta para o novo parágrafo o que é comprovadamente
+                # nosso (outro marcador de quebra ou conteúdo marcado); ao
+                # primeiro elemento não-marcado (texto fixo do template,
+                # ex.: sufixo depois de IRREGULARIDADE_ENCONTRADA), para —
+                # ele permanece no parágrafo atual, na posição em que já
+                # estava (§8/§9: nunca inferir por heurística de cor).
+                if eh_marcador(irmao) or eh_conteudo_gerado(irmao):
+                    atual.remove(irmao)
+                    novo_p.append(irmao)
+                else:
+                    break
+            atual = novo_p
+
+    # Marcador de linha (<w:t ede:linha="1">) já cumpriu seu papel — nunca
+    # deve sobreviver ao XML final (schema OOXML não o conhece); some
+    # também no caminho sem <w:br/> nenhum (valor multiline com uma única
+    # linha lógica + **negrito**, onde nada precisa ser explodido).
+    for t in root.iter(t_tag):
+        if marcador_linha_attr in t.attrib:
+            del t.attrib[marcador_linha_attr]
+
+    saida = LET.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True).decode("utf-8")
+    # Remoção do atributo acima não apaga a declaração xmlns:ede residual do
+    # elemento (lxml não faz GC de namespace por atributo removido) — NÃO
+    # usar lxml.etree.cleanup_namespaces() aqui: ele varre a árvore inteira
+    # e (confirmado empiricamente contra o template real) remove também as
+    # declarações w14/w15/w16.../mc que o próprio documento usa em
+    # mc:Ignorable no elemento raiz
+    # (usadas só textualmente ali, não via elemento/atributo namespaced —
+    # lxml não enxerga esse uso e as trata como "não usadas", quebrando
+    # `pack.py --validate`). Troca segura e equivalente: remoção textual da
+    # única string literal que este módulo é capaz de emitir.
+    return saida.replace(f' xmlns:ede="{_NS_MARCADOR}"', "")
 
 
 def _substituir_um_no(rpr_full, entre: str, attrs: str, texto: str, dados: dict, substituidos: set) -> str:
@@ -223,28 +444,36 @@ def _substituir_um_no(rpr_full, entre: str, attrs: str, texto: str, dados: dict,
 
     substituidos.add(nome)
     token = "{{" + nome + "}}"
-    linhas = [_xml_escape(l) for l in str(dados[nome]).split("\n")]
+    valor_bruto = str(dados[nome])
+    linhas = [_xml_escape(l) for l in valor_bruto.split("\n")]
     attrs_ps = attrs if "xml:space" in attrs else attrs + ' xml:space="preserve"'
     rpr_vermelho = _rpr_com_cor_forcada(rpr_full)
 
-    if len(linhas) == 1:
+    if len(linhas) == 1 and "**" not in valor_bruto:
+        # caminho rápido, comportamento idêntico ao anterior à Etapa 5.3
+        # (placeholder de uma linha, sem negrito — nenhum <w:p> extra).
         return f"{rpr_vermelho}{entre}<w:t{attrs_ps}>{texto.replace(token, linhas[0])}</w:t>"
 
-    prefixo, sufixo = texto.split(token, 1)
-    n = len(linhas)
-    partes = []
-    for i, linha in enumerate(linhas):
-        p = linha
-        if i == 0:
-            p = prefixo + p
-        if i == n - 1:
-            p = p + sufixo
-        partes.append(p)
-    # múltiplas linhas dentro do MESMO <w:r>: <w:t> + <w:br/> intercalados,
-    # sem tocar em limites de parágrafo (INV-008) — todas herdam a MESMA
-    # <w:rPr> vermelha injetada uma única vez, à frente da sequência.
-    corpo = "<w:br/>".join(f"<w:t{attrs_ps}>{p}</w:t>" for p in partes)
-    return f"{rpr_vermelho}{entre}{corpo}"
+    if len(linhas) == 1:
+        partes = [texto.replace(token, linhas[0])]
+    else:
+        prefixo, sufixo = texto.split(token, 1)
+        n = len(linhas)
+        partes = []
+        for i, linha in enumerate(linhas):
+            p = linha
+            if i == 0:
+                p = prefixo + p
+            if i == n - 1:
+                p = p + sufixo
+            partes.append(p)
+
+    # Etapa 5.3 §9: **negrito** por segmento. Etapa 5.3-B: quando há mais
+    # de uma linha lógica, cada quebra entra marcada (_MARCADOR_BR) para
+    # _explodir_paragrafos_multilinha() convertê-la em <w:p> irmão real.
+    rpr_vermelho_negrito = _rpr_vermelho_negrito(rpr_full)
+    corpo = _corpo_com_negrito(rpr_vermelho, rpr_vermelho_negrito, attrs_ps, partes)
+    return f"{entre}{corpo}"
 
 
 def substituir_placeholders(document_xml: str, dados: dict):
@@ -257,6 +486,10 @@ def substituir_placeholders(document_xml: str, dados: dict):
                                   dados, substituidos)
 
     novo = _RUN_RE.sub(_cb, document_xml)
+    # Etapa 5.3-B / INV-PARAGRAFO-HERDA-TEMPLATE: expande linhas lógicas
+    # marcadas em <w:p> irmãos reais, herdando o w:pPr do parágrafo-
+    # placeholder (ver _explodir_paragrafos_multilinha).
+    novo = _explodir_paragrafos_multilinha(novo)
     return novo, substituidos
 
 

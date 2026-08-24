@@ -119,9 +119,10 @@ documentos do processo
    parágrafo >380 aborta antes do motor documental (stage=paragrafo_380)
   ↓
 9. (Fase 7) motor documental (scripts/gerar_contestacao.py: block_composition
-   via scripts/docx_block_engine.py, com os gates fáticos de 4A -> Template
-   Engine, scripts/docx_template_engine.py) -> Template Lock composicional
-   -> Contestação
+   via scripts/docx_block_engine.py, com os gates fáticos de 4A -> renumeração
+   dinâmica dos títulos, scripts/docx_numeracao_engine.py, INV-NUMERACAO-
+   DINAMICA-CONTESTACAO -> Template Engine, scripts/docx_template_engine.py)
+   -> Template Lock composicional -> Contestação
   ↓
 10. entrega ao advogado — DOCX final, resposta mínima (§11,
     INV-CONTESTACAO-ENTREGA-DOCX)

@@ -513,7 +513,8 @@ def _etapa_template(dados: dict, decisoes_blocos: dict, template: Path, schema: 
                     "template_lock": relatorio["template_lock"],
                     "blocos_incluidos": relatorio["blocos_incluidos"],
                     "blocos_excluidos": relatorio["blocos_excluidos"],
-                    "containers_derivados": relatorio["containers_derivados"]})
+                    "containers_derivados": relatorio["containers_derivados"],
+                    "numeracao": relatorio.get("numeracao", {})})
     return relatorio
 
 

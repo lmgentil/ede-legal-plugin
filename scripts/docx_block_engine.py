@@ -83,6 +83,11 @@ from docx_template_engine import (  # noqa: E402
     validar_placeholders,
     verificar_template_lock,
 )
+from docx_numeracao_engine import (  # noqa: E402
+    NumeracaoAbortada,
+    renumerar_titulos,
+    validar_numeracao_final,
+)
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 NS = {"w": W}
@@ -598,14 +603,18 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
                            decisoes_blocos: dict, output_path, fatos_processuais: dict = None) -> dict:
     """Pipeline completo com composição de blocos: valida catálogo ->
     valida/resolve decisões -> abre template -> valida SDTs contra
-    catálogo -> compõe (unwrap/remove) -> substitui placeholders (já
-    aplica FF0000, docx_template_engine.py) -> Template Lock composicional
-    -> reempacota. Reaproveita toda a mecânica de placeholder/Template
-    Lock/pack já existente em docx_template_engine.py — não duplica nada
-    disso, só insere a composição de blocos ANTES da substituição.
+    catálogo -> compõe (unwrap/remove) -> RENUMERA títulos/subtítulos
+    (docx_numeracao_engine, INV-NUMERACAO-DINAMICA-CONTESTACAO — só depois
+    da árvore final, nunca antes) -> valida a numeração final -> substitui
+    placeholders (já aplica FF0000, docx_template_engine.py) -> Template
+    Lock composicional -> reempacota. Reaproveita toda a mecânica de
+    placeholder/Template Lock/pack já existente em docx_template_engine.py
+    — não duplica nada disso, só insere composição+renumeração ANTES da
+    substituição.
 
-    Nunca produz DOCX parcial: qualquer ComposicaoAbortada interrompe
-    antes de qualquer escrita em output_path."""
+    Nunca produz DOCX parcial: qualquer ComposicaoAbortada (composição OU
+    renumeração — mesmo tipo de exceção, mesmo tratamento fail-closed)
+    interrompe antes de qualquer escrita em output_path."""
     template_path = Path(template_path)
     if not template_path.exists():
         return {"status": "FALHOU", "etapa": "template", "erros": [f"template não encontrado: {template_path}"]}
@@ -622,7 +631,8 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
 
     def transformar(template_xml):
         composto_xml, _ = compor_xml(template_xml, catalogo, estados)
-        return substituir_placeholders(composto_xml, dados)
+        renumerado_xml, _ = renumerar_titulos(composto_xml)
+        return substituir_placeholders(renumerado_xml, dados)
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -638,14 +648,19 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
 
         try:
             composto_xml, resultado_composicao = compor_xml(template_xml, catalogo, estados)
-        except ComposicaoAbortada as e:
+            renumerado_xml, relatorio_numeracao = renumerar_titulos(composto_xml)
+        except (ComposicaoAbortada, NumeracaoAbortada) as e:
             return {"status": "FALHOU", "etapa": e.stage, "erros": [e.motivo]}
 
-        validacao = validar_placeholders(composto_xml, dados, schema)
+        erros_numeracao = validar_numeracao_final(renumerado_xml)
+        if erros_numeracao:
+            return {"status": "FALHOU", "etapa": "numeracao_final", "erros": erros_numeracao}
+
+        validacao = validar_placeholders(renumerado_xml, dados, schema)
         if not validacao["ok"]:
             return {"status": "FALHOU", "etapa": "validacao_placeholders", "erros": validacao["erros"]}
 
-        gerado_xml, substituidos = substituir_placeholders(composto_xml, dados)
+        gerado_xml, substituidos = substituir_placeholders(renumerado_xml, dados)
         gerado_dir = tmp / "gerado"
         shutil.copytree(unpacked_template, gerado_dir)
         (gerado_dir / "word" / "document.xml").write_text(gerado_xml, encoding="utf-8")
@@ -673,6 +688,7 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
             "blocos_excluidos": sorted(resultado_composicao["excluidos"]),
             "containers_derivados": {cid: estados[cid] for cid in containers_derivados},
             "blocos_indeterminados": [],
+            "numeracao": relatorio_numeracao["numeracao"],
             "template_lock": "OK",
             "mensagem_pack": msg_pack,
         }

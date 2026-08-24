@@ -225,6 +225,41 @@ decididos. Formalizada na SPEC como `INV-COMPOSICAO-BLOCOS`
 (SPEC-0001 §5, REQ-002-B) — detalhes de catálogo/cardinalidade/Template
 Lock composicional ficam lá, não duplicados aqui.
 
+### Renumeração dinâmica dos tópicos — INV-NUMERACAO-DINAMICA-CONTESTACAO
+
+A numeração exibida na Contestação é responsabilidade exclusiva do motor
+documental (`scripts/docx_numeracao_engine.py`). Após a composição
+definitiva dos blocos e a remoção dos blocos `EXCLUIR`, todos os títulos
+sobreviventes devem apresentar numeração sequencial, crescente,
+hierarquicamente coerente e sem lacunas.
+
+* a ordem estrutural dos blocos nunca é alterada pela renumeração —
+  ela só recalcula números, nunca reordena teses;
+* nível 1 (títulos-badge: TEMPESTIVIDADE, PRELIMINARES, MÉRITO, LICITUDE
+  DA COBRANÇA E CORTE, NEXO CAUSAL INDEMONSTRADO, DESCABIMENTO DE DANO
+  MORAL, ÔNUS PROBATÓRIO, RECONVENÇÃO, REQUERIMENTOS) continua sendo
+  resolvido pela lista numerada nativa do Word (`numId=17`) já existente
+  no template — nunca reescrito por este motor;
+* níveis literais subordinados (2 e 3 — subtítulos hardcoded no template,
+  ex.: "3.1", "3.1.1") são recalculados pelo motor;
+* Redator, Humanizer e demais Skills de conteúdo nunca produzem,
+  corrigem ou manipulam numeração — pertence exclusivamente ao motor
+  estrutural;
+* exclusão de bloco provoca renumeração automática dos sobreviventes;
+* containers excluídos (e seus descendentes) não deixam lacuna;
+* título numerado residual, duplicidade, salto ou inconsistência
+  hierárquica entre pai e filho causam fail-closed, nunca correção
+  silenciosa;
+* a renumeração ocorre depois da composição dos blocos e antes da
+  substituição dos placeholders;
+* o Template Lock permanece obrigatório e passa a cobrir também a
+  renumeração.
+
+Formalizada na SPEC como `INV-NUMERACAO-DINAMICA-CONTESTACAO`
+(SPEC-0001 §55) — causa raiz (mistura entre numeração nativa do Word no
+nível 1 e texto literal hardcoded no nível 2/3) e mecanismo completo
+ficam lá, não duplicados aqui.
+
 ### Invariantes de calibração redacional e composição (Etapa 5.2)
 
 Decorrentes dos problemas confirmados no primeiro teste prático real da

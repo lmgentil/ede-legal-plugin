@@ -7,6 +7,26 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Corrigido (Etapa 5.6 — orquestração e entrega da Contestação)
+- `INV-CONTESTACAO-ENTREGA-DOCX` (`docs/specs/SPEC-0001.md` §54,
+  `CLAUDE.md` §7): achado do Teste Real em que a execução encerrava a
+  solicitação de elaboração da Contestação entregando só a análise
+  estratégica, anunciando RAG/Redator/Humanizer como "próximos passos".
+  Causa raiz em `skills/estrategista-contestacao-ede/SKILL.md` §9, que
+  instruía entregar a análise como artefato final e sugerir o próximo
+  passo mesmo quando acionada internamente pela orquestração de
+  `contestacao` — agora distingue acionamento pela orquestração (análise
+  é insumo interno, sem "próximo passo") de acionamento direto pelo
+  usuário (comportamento anterior preservado). `skills/contestacao/
+  SKILL.md` ganha nova §11 com os modos de operação
+  (PRODUÇÃO/ANÁLISE/CONSULTIVO/TESTE), execução contínua sem checkpoint
+  por etapa interna em modo produção, e as duas únicas hipóteses normais
+  de interrupção (decisão humana obrigatória pendente; fail-closed
+  técnico/fático real). Novo teste de governança
+  `tests/test_orquestracao_entrega_contestacao.py`. Correção exclusiva de
+  orquestração/entrega — redação, template, placeholders, blocos, RAG,
+  tempestividade, DataJud e demais regras de conteúdo não foram alteradas.
+
 ## [0.9.1] - 2026-08-21 — Etapa 5.3–5.5, DataJud, vedação de pesquisa jurisprudencial e dano moral documental
 
 ### Adicionado (INV-VALOR-DANO-MORAL-DOCUMENTAL — 13º placeholder)

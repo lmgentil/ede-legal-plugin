@@ -339,6 +339,44 @@ Etapa 5.2") — resumo operacional aqui:
   modelo; o RAG valida/complementa fundamentação, não é gerador de lista
   de artigos.
 
+### Invariante de orquestração e entrega (Etapa 5.6)
+
+Achado do Teste Real (Etapa 5.6): a análise estratégica concluiu
+corretamente e a execução encerrou entregando-a ao advogado como resposta
+final, anunciando RAG/Redator/Humanizer como "próximos passos". Incorreto
+— o plugin existe para produzir a peça, não para o advogado conduzir
+manualmente as etapas internas do pipeline.
+
+- **INV-CONTESTACAO-ENTREGA-DOCX** — quando a intenção do pedido for
+  elaborar, gerar, preparar ou produzir a Contestação (`MODO PRODUÇÃO`),
+  a resposta esperada é a **Contestação final em DOCX**, não um artefato
+  intermediário. Análise estratégica, extração factual, RAG, decisões
+  automáticas de blocos, redator, humanizer, validações e composição são
+  etapas internas do mesmo fluxo — nenhuma delas é resposta final, e a
+  conclusão de qualquer uma delas não encerra a execução nem gera pedido
+  de autorização para prosseguir ("próximo passo recomendado...", "posso
+  gerar a Contestação...", "se quiser, prossigo para o DOCX..."). A
+  execução só pode interromper antes do DOCX por: (a) decisão humana
+  obrigatória ainda não respondida — Reconvenção
+  (INV-RECONVENCAO-AUTORIZACAO-EXPRESSA) ou licitude de corte/suspensão
+  com `CORTE_EFETIVO: true` (INV-CORTE-GATE-HUMANO), perguntando SOMENTE
+  a decisão pendente, nunca as duas por hábito, e nunca de novo se o
+  advogado já respondeu no pedido inicial; ou (b) fail-closed
+  técnico/fático real já previsto neste documento (bloco `INDETERMINADO`,
+  tempestividade sem marco, `JUIZO` não resolvível via DataJud, valor
+  contraditório não resolvível documentalmente, documento indispensável
+  ilegível) — respondida a pergunta, o fluxo retoma automaticamente até
+  o DOCX, sem voltar a entregar análise estratégica ou qualquer artefato
+  interno como se fosse a entrega final. Pedidos que não solicitam a peça
+  ("analise este processo", "quais teses cabem?") permanecem em `MODO
+  ANÁLISE`/`MODO CONSULTIVO` — nesses, a análise/resposta pontual é a
+  entrega correta, e esta invariante não se aplica. Detalhe operacional
+  em `skills/contestacao/SKILL.md` §11 e `skills/estrategista-
+  contestacao-ede/SKILL.md` §9 (que passa a distinguir se foi acionada
+  pela orquestração — não entrega a análise ao usuário — ou diretamente
+  pelo advogado — aí sim entrega e sugere próximo passo); auditoria e
+  origem do achado em `docs/specs/SPEC-0001.md` §54.
+
 ---
 
 ## 8. Tempestividade

@@ -53,16 +53,15 @@ certa, passar o insumo certo, consumir a saída dele, e recusar-se a
 avançar quando um insumo obrigatório estiver faltando (Fail Closed —
 CLAUDE.md §17).
 
-**Escopo desta fase (Fase 6, SPEC-0001):** esta skill define e integra
-todo o pipeline abaixo — extração factual, proveniência, tempestividade,
-análise estratégica, RAG, validação jurídica, redator, humanizer e geração
-dos 13 valores de placeholder. **Ela não executa aqui, contra um caso
-real, o fluxo fim-a-fim até o DOCX final** — isso é objeto da Fase 7
-(End-to-End). `PEND-001` (suporte a imagem no placeholder
-`FOTOS_DA_IRREGULARIADE` — ver `docs/PENDENCIAS.md`) foi reclassificada
-como `DEFERRED` (correção v0.6.1): a V1 não automatiza inserção de
-imagem, então não bloqueia mais o início da Fase 7. Quando a Fase 7 for
-autorizada, esta skill já está pronta para ser exercida ponta a ponta.
+**Escopo (Fase 7, SPEC-0001, gate de entrada sem pendência — `PEND-001`
+reclassificada `DEFERRED` na v0.6.1):** esta skill define, integra E
+EXECUTA o pipeline abaixo — extração factual, proveniência,
+tempestividade, análise estratégica, RAG, validação jurídica, redator,
+humanizer e geração dos 13 valores de placeholder — **até o DOCX final,
+contra o caso real**, numa única execução contínua
+(INV-CONTESTACAO-ENTREGA-DOCX, §11). Os "Testes Reais" documentados nas
+Etapas 5.2 a 5.5 deste arquivo e em `docs/specs/SPEC-0001.md` §§46-53 já
+são execuções ponta a ponta desta fase — não é mais um estado futuro.
 
 ## 2. Componentes acionados (quem faz o quê)
 
@@ -123,12 +122,18 @@ documentos do processo
    via scripts/docx_block_engine.py, com os gates fáticos de 4A -> Template
    Engine, scripts/docx_template_engine.py) -> Template Lock composicional
    -> Contestação
+  ↓
+10. entrega ao advogado — DOCX final, resposta mínima (§11,
+    INV-CONTESTACAO-ENTREGA-DOCX)
 ```
 
 Não pule etapas para "adiantar" a peça — um pedido da inicial sem resposta,
 uma tempestividade sem memória de cálculo, ou uma citação sem validação são
 exatamente os buracos que o `estrategista-contestacao-ede` (checklist de
-dialeticidade) e o Fail Closed deste projeto existem para prevenir.
+dialeticidade) e o Fail Closed deste projeto existem para prevenir. Em modo
+produção (§11), também não pare entre as etapas 4-9 para relatar progresso
+ou pedir autorização — elas são internas; a execução só interrompe diante
+de decisão humana obrigatória pendente ou fail-closed real (§11).
 
 ## 4. Análise estratégica — `estrategista-contestacao-ede` (OBRIGATÓRIA)
 
@@ -158,6 +163,11 @@ prosseguir para o RAG nem para a redação** — a etapa estratégica não foi
 concluída, e isso deve ser reportado explicitamente ao advogado, nunca
 contornado silenciosamente com uma análise resumida feita ad-hoc por esta
 skill orquestradora ou pelo redator.
+
+**A ANÁLISE ESTRATÉGICA não é a resposta ao advogado** (quando esta Skill
+`contestacao` foi acionada para produzir a peça, §11) — é insumo interno,
+consumido por você para as etapas seguintes. Não a repasse como se fosse
+a entrega solicitada, e não pare a execução aqui.
 
 ## 4A. Decisões de blocos condicionais (INV-COMPOSICAO-BLOCOS)
 
@@ -1014,3 +1024,100 @@ mecânica interna de obtenção/validação de um dado** (meta-proveniência —
 deixa `PEDIDOS_FINAIS` reintroduzir tese/bloco excluído pelo motor
 composicional** nem produz endereçamento fora do padrão institucional ou
 `LOCAL_DATA` fora de Salvador (Etapa 5.3 §9).
+
+## 11. Modo de operação e entrega final da resposta — INV-CONTESTACAO-ENTREGA-DOCX (Etapa 5.6)
+
+Achado real (Teste Real, Etapa 5.6): a execução concluiu corretamente a
+análise estratégica (§4) e encerrou a resposta entregando-a ao advogado,
+informando que os próximos passos seriam RAG, Redator e Humanizer. Isso é
+incorreto — o objetivo operacional do plugin é produção da peça, não
+condução manual das etapas internas pelo advogado. Causa raiz: a Skill
+`estrategista-contestacao-ede` (`SKILL.md` §9, antes da correção) instruía
+entregar a análise como artefato final e sugerir o próximo passo sempre
+que concluída, sem distinguir se havia sido acionada por esta orquestradora
+ou diretamente pelo usuário — corrigido lá (mesma Etapa 5.6): agora ela só
+entrega a análise como resposta final quando acionada diretamente. Esta
+seção formaliza o lado da orquestração.
+
+### Modos de operação — não confunda
+
+Antes de iniciar o pipeline, identifique a intenção do pedido:
+
+| Pedido do advogado (exemplos) | Modo | Saída obrigatória |
+|---|---|---|
+| "elabore/gere/faça/produza a contestação", "preencha o modelo oficial", "monte a contestação deste caso" | **PRODUÇÃO** | DOCX final (este §11) |
+| "analise este processo", "faça só a estratégia", "não gere a contestação ainda" | **ANÁLISE** | análise estratégica é a entrega final (`estrategista-contestacao-ede` acionada diretamente, fora desta orquestração) |
+| "quais teses cabem nesse caso?", "recuperação de consumo é sustentável aqui?" | **CONSULTIVO** | resposta pontual, sem acionar o pipeline completo |
+| instrução explícita de teste do pipeline | **TESTE** | conforme a instrução específica do teste |
+
+Esta seção (§11) rege apenas o **MODO PRODUÇÃO**. Nos modos ANÁLISE e
+CONSULTIVO, a entrega intermediária É a resposta correta — não force o
+pipeline completo nem gere DOCX quando o advogado não pediu a peça.
+
+### Em modo produção: execução contínua, sem checkpoint por etapa interna
+
+Análise estratégica (§4), decisões de blocos (§4A), RAG (§7), redator e
+humanizer (§8), validações e composição (§9) são **etapas internas do
+mesmo fluxo** — nenhuma delas é resposta final ao advogado, e nenhuma
+delas encerra a execução. Ao concluir cada etapa interna, continue
+automaticamente para a próxima, sem perguntar se deve prosseguir e sem
+frases do tipo "próximo passo recomendado...", "agora devemos seguir
+para...", "posso gerar a Contestação...", "se quiser, prossigo para o
+DOCX...". O pedido inicial do advogado ("elabore a Contestação") já é a
+autorização para o pipeline inteiro — pedir essa autorização de novo, a
+cada etapa, é o próprio defeito que esta seção corrige.
+
+Isso vale igualmente para o RAG (§7): acionar `rag/search_hybrid.py` e a
+validação de citações é automático quando previsto, nunca um checkpoint
+("deseja que eu prossiga para o RAG?") nem uma entrega intermediária
+("resultado do RAG: ..."). Preserva-se integralmente
+INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL (§7) — execução contínua não
+é licença para pesquisar jurisprudência.
+
+### Única hipótese normal de interrupção: decisão humana obrigatória pendente
+
+O pipeline só pode parar antes do DOCX quando existir uma decisão humana
+que este `SKILL.md` já exige (§4A) e que ainda não foi respondida:
+
+- Reconvenção elegível, sem resposta ainda — pergunte SOMENTE
+  Reconvenção (`AskUserQuestion`, INV-RECONVENCAO-AUTORIZACAO-EXPRESSA).
+- `CORTE_EFETIVO: true` sem decisão registrada — pergunte SOMENTE sobre
+  incluir o tópico de corte/suspensão (INV-CORTE-GATE-HUMANO).
+
+Se o advogado já respondeu a uma dessas perguntas no pedido inicial (ex.:
+"elabore a contestação, sem reconvenção"), registre a decisão a partir
+dessa resposta e **não pergunte de novo**. Pergunte apenas a(s) decisão(ões)
+efetivamente pendente(s) — nunca as duas por hábito quando só uma está em
+aberto.
+
+Interrupção também é legítima diante de fail-closed técnico/fático real já
+previsto em outras seções deste documento — fato essencial `INDETERMINADO`
+(§4A), tempestividade sem marco (§6, INV-TEMPESTIVIDADE-MARCO), DataJud
+incapaz de resolver `JUIZO` (§9), valor contraditório não resolvível
+documentalmente (§9), ou documento indispensável ilegível. Nesses casos,
+pergunte somente o dado necessário para destravar o pipeline; recebida a
+resposta, **retome automaticamente e siga até o DOCX** — não volte a
+entregar a análise estratégica nem qualquer outro artefato interno como se
+fosse a resposta final.
+
+Fora dessas hipóteses (decisão humana obrigatória pendente, ou fail-closed
+técnico/fático real), nenhuma etapa interna concluída — estratégia, RAG,
+decisões automáticas de blocos, redator, humanizer, validações — encerra a
+execução nem gera pergunta ao advogado.
+
+### Resposta final ao advogado (sucesso)
+
+Em modo produção, a resposta final é mínima: o DOCX gerado, mais,
+opcionalmente, uma nota breve (blocos que exigiram decisão humana e a
+decisão registrada; alerta relevante, se houver). Não despeje análise
+estratégica, saída do RAG, rascunho do redator, relatório de validação ou
+memória de cálculo de tempestividade junto com a peça — esses artefatos
+existem para auditoria interna do pipeline (§5, §6, §9), não para compor a
+resposta ao advogado.
+
+### Escopo desta correção
+
+Esta seção corrige exclusivamente orquestração e entrega — não recalibra
+redação, template, placeholders, blocos, RAG, tempestividade, DataJud,
+limite de 380 caracteres, dano moral, corte ou Reconvenção (essas regras
+permanecem como já definidas nas seções anteriores deste documento).

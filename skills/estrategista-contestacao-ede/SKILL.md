@@ -364,13 +364,28 @@ Mais achados reais do Teste Real 01-B, específicos da sua seção X
 - **Nunca mencione se o TOI foi ou não assinado** — irrelevante para a
   tese e pode ser contraproducente na peça final (Etapa 5.3 §11).
 
-## 9. Depois da análise
+## 9. Depois da análise — depende de quem acionou esta Skill
 
-Se o usuário pedir a peça pronta em seguida, entregue esta análise primeiro
-como artefato próprio e então sugira o próximo passo explicitamente: passar
-o resultado para quem redige (`redator-peca-processual-elite` para lapidar
+**Se você foi acionada pela Skill orquestradora `contestacao`** (fluxo de
+produção da peça — INV-CONTESTACAO-ENTREGA-DOCX, `skills/contestacao/
+SKILL.md` §11), esta análise é **insumo interno da próxima etapa do
+pipeline, nunca a resposta final ao advogado**. Entregue a estrutura da
+seção 7 para a orquestradora consumir e pare aí — não escreva "próximo
+passo recomendado", não pergunte se deve prosseguir para o redator, não
+sugira que a orquestradora "pode gerar a peça agora": ela já vai fazer
+isso automaticamente, sem essa sugestão seguindo o que já foi solicitado
+pelo advogado ao pedir a Contestação. A resposta final ao advogado (o
+DOCX) é responsabilidade de `contestacao`, não sua.
+
+**Se você foi acionada diretamente pelo usuário**, sem passar por
+`contestacao` — pedido explícito de "analise o processo", "quais teses
+você recomenda", "faça só a estratégia", "não gere a Contestação ainda"
+— esta análise **é** a resposta final. Entregue-a como artefato próprio e
+só então, opcionalmente, sugira o próximo passo explicitamente: passar o
+resultado para quem redige (`redator-peca-processual-elite` para lapidar
 o texto livre, ou a skill `contestacao` do plugin `contestacao-ede` se o
-caso for tramitar pelo Modelo Oficial Template v1 da EDE/Coelba). Não tente
-redigir a peça você mesmo dentro deste fluxo — isso quebra a separação de
-responsabilidades que torna a análise reaproveitável por qualquer um dos
-dois caminhos de redação.
+caso for tramitar pelo Modelo Oficial Template v1 da EDE/Coelba).
+
+Em ambos os casos, não tente redigir a peça você mesmo dentro deste fluxo
+— isso quebra a separação de responsabilidades que torna a análise
+reaproveitável por qualquer um dos dois caminhos de redação.

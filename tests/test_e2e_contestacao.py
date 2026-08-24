@@ -95,10 +95,13 @@ def test_happy_path_pipeline_completo():
 
         assert r["status"] == "OK", r
         nomes_stage = {s["name"] for s in r["stages"]}
-        assert nomes_stage == {"facts", "tempestividade", "strategy",
+        # "contexto_institucional" (Etapa 5.7-C, INV-MODELO-INSTITUCIONAL-
+        # FONTE-PRIMARIA) é sempre a PRIMEIRA etapa do pipeline.
+        assert nomes_stage == {"contexto_institucional", "facts", "tempestividade", "strategy",
                                 "block_composition_decisoes", "rag_legal_validation",
                                 "juizo_datajud", "drafting_humanization", "paragrafo_380",
                                 "pedidos_composicionais", "template_engine"}
+        assert r["stages"][0]["name"] == "contexto_institucional"
         assert all(s["status"] == "ok" for s in r["stages"]), r["stages"]
 
         assert r["fatos_com_proveniencia"] == 11
@@ -466,12 +469,19 @@ def test_J_redator_nao_pode_fornecer_juizo_arbitrariamente():
 
 
 def test_fail_closed_template_institucional_ausente():
-    # Consolidação pós-Fase 8: o template real é asset externo, nunca
-    # distribuído — uma instalação pública nunca o terá até ser fornecido
-    # separadamente. Isso NÃO é "instalação corrompida" (fatos, estratégia,
-    # RAG e validação jurídica seguem funcionando normalmente até aqui);
-    # só a geração do DOCX final para nesse ponto específico, sem
-    # inventar/baixar/reconstruir template algum. Roda sempre — não
+    # Consolidação pós-Fase 8, REVISADA na Etapa 5.7-C
+    # (INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA, SPEC-0001 §57): o template
+    # real é asset externo, nunca distribuído — uma instalação pública
+    # nunca o terá até ser fornecido separadamente. Isso NÃO é "instalação
+    # corrompida". Desde a Etapa 5.7-C, a extração de contexto
+    # institucional (`_etapa_contexto_institucional`) é a PRIMEIRA etapa
+    # do pipeline, incondicional — "REDATOR NÃO PODE SER ACIONADO SEM
+    # CONTEXTO INSTITUCIONAL EXTRAÍDO" também significa que nenhuma outra
+    # etapa roda antes dela. Antes desta correção, o pipeline avançava até
+    # o fim (fatos/tempestividade/estratégia/RAG/redação já completos) e
+    # só falhava na etapa final do motor documental; agora falha
+    # imediatamente, na primeira etapa, sem tocar nenhum documento do
+    # caso — fail closed mais cedo, nunca mais tarde. Roda sempre — não
     # depende do template real existir localmente (é o inverso do caso).
     with tempfile.TemporaryDirectory() as tmp:
         saida = Path(tmp) / "nao_deveria_existir.docx"
@@ -479,15 +489,13 @@ def test_fail_closed_template_institucional_ausente():
         r = gerar(FIXTURES / "happy_path", saida, template=template_inexistente)
 
         assert r["status"] == "PIPELINE_ABORTED"
-        assert r["stage"] == "template_engine"
-        # todas as etapas anteriores (fatos, tempestividade, estratégia,
-        # RAG/validação, redação+humanização) completaram normalmente —
-        # só a etapa que depende do asset externo falhou.
-        nomes_ok = {s["name"] for s in r["stages"] if s["status"] == "ok"}
-        assert nomes_ok == {"facts", "tempestividade", "strategy",
-                             "block_composition_decisoes", "rag_legal_validation",
-                             "juizo_datajud", "drafting_humanization", "paragrafo_380",
-                             "pedidos_composicionais"}
+        assert r["stage"] == "contexto_institucional"
+        assert "template_ausente" in r["reason"]
+        # nenhuma outra etapa chega a rodar — nem fatos, nem estratégia,
+        # nem redação/humanização são sequer consultados sem contexto
+        # institucional extraído primeiro.
+        assert r["stages"] == [{"name": "contexto_institucional", "status": "abortado",
+                                 "motivo": r["reason"]}]
         assert not saida.exists()
 
 

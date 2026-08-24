@@ -266,6 +266,17 @@ pontuação por travessão. Há um backstop determinístico em
 algum travessão sobreviver — mas a regra é sobre o que você escreve, não
 sobre confiar nesse backstop para corrigir depois.
 
+**No fluxo do EDE Legal Plugin especificamente** (INV-MODELO-
+INSTITUCIONAL-FONTE-PRIMARIA, `docs/specs/SPEC-0001.md` §56): você recebe
+para humanizar exclusivamente o conteúdo já produzido pelo redator para
+os placeholders da Contestação — nunca o texto institucional fixo do
+`modelo-oficial.docx`. Se algum contexto institucional (título, texto
+fixo ao redor, bloco condicional) chegar até você em algum fluxo futuro,
+ele vem marcado como **CONTEXTO NÃO EDITÁVEL**: serve só para você
+entender o que já está dito ao redor e evitar reforçar redundância, nunca
+como texto para reescrever, resumir ou "melhorar". Texto-base institucional
+está fora do seu escopo em qualquer circunstância.
+
 ---
 
 ### 14. Uso excessivo de negrito

@@ -412,6 +412,56 @@ manualmente as etapas internas do pipeline.
   pelo advogado — aí sim entrega e sugere próximo passo); auditoria e
   origem do achado em `docs/specs/SPEC-0001.md` §54.
 
+### Invariante — Modelo institucional como fonte primária da redação (INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA)
+
+Achado da auditoria somente-leitura da Etapa 5.7-A: o modelo oficial
+contém, ao redor de cada placeholder, texto institucional fixo que já
+formula parte do que a peça precisa dizer — mas nada garantia que o
+Redator conhecesse esse texto antes de redigir, além de remendos manuais
+pontuais em `SKILL.md`. Regra permanente, ordem de princípio: **PRESERVAR
+> COMPLEMENTAR > CRIAR** — o texto institucional fixo nunca é reescrito,
+parafraseado, resumido, humanizado, modernizado, complementado
+diretamente ou substituído pela IA; "ADAPTAR" aplica-se exclusivamente ao
+conteúdo produzido dentro dos placeholders autorizados.
+
+`SEM PLACEHOLDER → SEM ESCRITA GERATIVA`: os 13 placeholders
+(`templates/contestacao/schema.json`) continuam as únicas zonas de
+intervenção textual da IA — já garantido mecanicamente pelo Template
+Lock (§15); esta invariante formaliza a garantia, não a cria. Nenhuma
+zona de complementação nova, nenhuma edição cirúrgica de texto fixo,
+nenhum novo placeholder. **Exceção expressa e inalterada:** a renumeração
+determinística de títulos de nível 2/3
+(`scripts/docx_numeracao_engine.py`) não é escrita gerativa — aritmética
+sobre dígitos, sem conteúdo jurídico, regulada por
+`INV-NUMERACAO-DINAMICA-CONTESTACAO` acima. Nenhuma outra exceção existe.
+
+`scripts/docx_context_engine.py` extrai, SOMENTE LEITURA e derivado
+diretamente do `modelo-oficial.docx` real (nunca de transcrição manual
+como mecanismo principal), o contexto institucional de cada placeholder
+(título/subtítulo mais próximo, texto fixo imediatamente anterior/
+posterior, bloco condicional ancestral quando existente) — nunca abre o
+template mestre em modo escrita, nunca serializa/reescreve o XML. Antes
+de redigir cada placeholder, o Redator aplica o raciocínio: (A) o texto
+fixo ao redor já afirma isto? Não repetir. (B) só falta o dado do caso?
+Inserir só o dado. (C) falta contraposição/complementação factual?
+Redigir só o necessário. (D) o argumento jurídico já está no texto fixo?
+Não reescrever a fundamentação, fazer subsunção. (E) o conteúdo pertence
+a outro placeholder? Não inserir ali. Humanizer nunca recebe texto
+institucional como conteúdo a reescrever — só o texto já produzido pelo
+Redator para os placeholders; se algum fluxo futuro lhe entregar contexto
+institucional, deve vir marcado como CONTEXTO NÃO EDITÁVEL. Placeholders
+de origem determinística (`JUIZO` via DataJud, `FOTOS_DA_IRREGULARIADE`
+hardcoded pelo script) permanecem determinísticos — o contexto
+institucional é relevante só aos placeholders efetivamente gerativos.
+Formalizada na SPEC como `INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA`
+(SPEC-0001 §56) — mecanismo completo e diagnóstico da Etapa 5.7-A ficam
+lá, não duplicados aqui. **Etapa 5.7-C (SPEC-0001 §57):** a extração deixou
+de ser só função disponível para uso manual — `scripts/gerar_
+contestacao.py` a chama automaticamente como PRIMEIRA etapa, incondicional,
+de todo o pipeline (Fase 7); falha nela (`stage=contexto_institucional`)
+aborta antes de qualquer outra etapa, inclusive antes de ler documentos
+do caso.
+
 ---
 
 ## 8. Tempestividade

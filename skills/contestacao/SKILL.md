@@ -676,6 +676,79 @@ institucional do modelo nunca é tocado por esta regra.
 
 ## 9. Geração dos 12 placeholders
 
+### Contexto institucional do modelo — INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA (Etapa 5.7-B)
+
+**Antes** de acionar `redator-peca-processual-elite`, extraia o contexto
+institucional real do template para cada placeholder gerativo:
+
+```bash
+python -c "
+import sys; sys.path.insert(0, 'scripts')
+from docx_context_engine import extrair_contexto_do_template
+import json
+contexto = extrair_contexto_do_template(
+    'templates/contestacao/modelo-oficial.docx',
+    'templates/contestacao/blocos.json',
+)
+print(json.dumps(contexto, ensure_ascii=False, indent=2))
+"
+```
+
+`scripts/docx_context_engine.py` lê o `modelo-oficial.docx` real (nunca o
+altera — extração é SOMENTE LEITURA, mesma disciplina INV-012 do Template
+Engine) e devolve, para cada ocorrência física de cada placeholder,
+`{"titulo": ..., "antes": ..., "depois": ..., "bloco": ...}` — o
+título/subtítulo mais próximo, o texto fixo imediatamente ao redor, e o
+bloco condicional ancestral (quando existir). Repasse esse contexto ao
+`redator-peca-processual-elite` junto com fatos, estratégia e limites de
+redação já existentes — **modelo institucional é a fonte primária da
+redação**: PRESERVAR (texto fixo nunca muda) > COMPLEMENTAR (o
+placeholder acrescenta o que falta) > CRIAR (só dentro do placeholder).
+
+Isto substitui, como mecanismo PRINCIPAL, a transcrição manual pontual do
+texto fixo que hoje só existe para 2-3 placeholders (ex.:
+`IRREGULARIDADE_ENCONTRADA`, abaixo) — as citações literais que
+permanecem nesta seção continuam válidas como referência histórica/
+exemplo, mas o contexto real e completo (13 placeholders) vem da
+extração, nunca de memorizar este `SKILL.md`.
+
+Com o contexto em mãos, o Redator segue este raciocínio antes de redigir
+cada placeholder:
+
+- **(A)** O texto institucional ao redor já contém esta afirmação? →
+  **não repetir**.
+- **(B)** O placeholder precisa apenas inserir o dado específico do
+  caso? → **inserir somente o dado**.
+- **(C)** É necessária contraposição/complementação factual? → **redigir
+  somente o conteúdo novo necessário**.
+- **(D)** O argumento jurídico já está desenvolvido no texto fixo? →
+  **não reescrever a fundamentação** (subsunção, não reexposição —
+  reforça `INV-NAO-REDUNDANCIA-NORMATIVA` abaixo).
+- **(E)** O conteúdo pretendido pertence semanticamente a outro
+  placeholder? → **não inserir** (reforça `INV-NAO-REPETICAO-FATICA`
+  abaixo).
+
+`SEM PLACEHOLDER OU ZONA EXPRESSAMENTE AUTORIZADA → SEM ESCRITA
+GERATIVA` — os 13 placeholders continuam as únicas zonas de intervenção
+textual (nenhuma nova foi criada por esta correção); a única exceção
+permanece a renumeração determinística de títulos
+(`INV-NUMERACAO-DINAMICA-CONTESTACAO`, §3), que não é escrita gerativa.
+`humanizer-pt-br` **nunca** recebe o contexto institucional como conteúdo
+a reescrever — só o texto já produzido pelo redator para os placeholders,
+exatamente como hoje (§8 acima). Detalhe completo, mecanismo e
+diagnóstico em `docs/specs/SPEC-0001.md` §56 (CLAUDE.md §7).
+
+**Etapa 5.7-C — backstop automático (SPEC-0001 §57):** além de você
+extrair e repassar o contexto manualmente antes de acionar o redator
+(acima), `scripts/gerar_contestacao.py` (Fase 7, §9 mais abaixo) chama
+`extrair_contexto_do_template()` automaticamente como PRIMEIRA etapa,
+incondicional, de toda geração — nenhum DOCX sai sem essa etapa ter
+sucedido primeiro, na mesma execução, contra o template vigente. Isso não
+dispensa você de repassar o contexto ao redator durante a conversa (a
+etapa automática é um backstop code-level, não substitui o raciocínio
+A-E) — mas garante que, mesmo que essa instrução seja esquecida, o
+pipeline não produz a peça final sem o contexto ter sido extraído.
+
 Monte um único JSON `{PLACEHOLDER: valor}` (ver
 `templates/contestacao/schema.json`) para consumo por
 `scripts/render_docx.py` na Fase 7. O template tem 13

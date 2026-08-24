@@ -41,6 +41,7 @@ Uso:
       --output /tmp/saida.docx --relatorio /tmp/relatorio.json
 """
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -60,6 +61,7 @@ from docx_block_engine import (  # noqa: E402
     validar_e_resolver_decisoes,
     validar_pedidos_composicionais,
 )
+from docx_context_engine import ContextoAbortada, extrair_contexto_do_template  # noqa: E402
 from docx_template_engine import carregar_schema, garantir_utf8  # noqa: E402
 from legal_validation import validar_citacao  # noqa: E402
 from validate_fatos import validar_fatos  # noqa: E402
@@ -73,6 +75,18 @@ SCHEMA_PADRAO = BASE / "templates" / "contestacao" / "schema.json"
 CATALOGO_BLOCOS_PADRAO = BASE / "templates" / "contestacao" / "blocos.json"
 
 MARCADOR_FOTOS = "[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]"
+
+# Etapa 5.7-C (INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA, SPEC-0001 §57):
+# "gerativo" = campo onde o Redator/Humanizer compõem prosa argumentativa
+# nova (schema.json, placeholder_contracts.tipo). Reaproveita a
+# classificação já existente em schema.json em vez de duplicar uma lista
+# própria — IDENTIFICADOR/VALOR/MARCADOR_MANUAL são dado documental/
+# determinístico (extração, DataJud, script), nunca redação da IA; só
+# TEXTO_TECNICO/TEXTO_LONGO recebem contexto institucional, porque só
+# esses são efetivamente redigidos pela IA (item 4 do pedido — "apenas o
+# contexto necessário aos placeholders gerativos que ele efetivamente
+# produzirá").
+TIPOS_GERATIVOS = ("TEXTO_TECNICO", "TEXTO_LONGO")
 
 # Contrato de 15 seções de estrategista-contestacao-ede (SKILL.md §7) — a
 # saída não é "estruturalmente válida" se faltar qualquer uma.
@@ -121,6 +135,52 @@ def _abortar(stages: list, etapa: str, motivo: str) -> dict:
     stages.append({"name": etapa, "status": "abortado", "motivo": motivo})
     return {"status": "PIPELINE_ABORTED", "stage": etapa, "reason": motivo,
             "stages": stages}
+
+
+def _etapa_contexto_institucional(template: Path, schema_path: Path, catalogo_blocos: Path,
+                                   stages: list):
+    """Etapa 5.7-C — INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA (SPEC-0001
+    §56/§57): PRIMEIRA etapa do pipeline, incondicional. Extrai — SOMENTE
+    LEITURA, sempre do `modelo-oficial.docx` REAL desta execução, nunca de
+    arquivo intermediário/cache que pudesse ficar desatualizado ou ser
+    transcrito à mão — o contexto institucional de cada placeholder
+    GERATIVO (TIPOS_GERATIVOS acima; placeholders determinísticos/
+    documentais como JUIZO/FOTOS_DA_IRREGULARIADE/NUMERO_PROCESSO/AUTOR/
+    valores nunca recebem contexto aqui — item 5 do pedido, não introduz
+    IA onde hoje existe resolução determinística).
+
+    REGRA: `REDATOR NÃO PODE SER ACIONADO SEM CONTEXTO INSTITUCIONAL
+    EXTRAÍDO` — como Skills não são chamáveis por este script (mesma
+    limitação de sempre, ver docstring do módulo, "LIMITAÇÃO CONHECIDA"),
+    o que é code-level e fail-closed aqui é o inverso, equivalente e
+    verificável: nenhuma execução deste pipeline chega a
+    `_etapa_placeholders` (que consome a SAÍDA do redator/humanizer) sem
+    que esta etapa tenha rodado com sucesso PRIMEIRO, na mesma execução,
+    contra o template vigente. Falha aqui (template ausente, corrompido,
+    ou XML sem <w:body>) aborta o pipeline ANTES de qualquer leitura de
+    `placeholders.json` — `PIPELINE_ABORTED`, `stage=contexto_
+    institucional`; nunca gera DOCX silenciosamente sem essa etapa ter
+    ocorrido (item 6 do pedido)."""
+    try:
+        contexto = extrair_contexto_do_template(template, catalogo_blocos)
+    except ContextoAbortada as e:
+        return _abortar(stages, "contexto_institucional", f"{e.stage}: {e.motivo}")
+
+    schema = carregar_schema(schema_path)
+    gerativos = {p for p, c in schema["placeholder_contracts"].items()
+                 if c["tipo"] in TIPOS_GERATIVOS}
+    contexto_gerativo = {p: v for p, v in contexto.items() if p in gerativos}
+
+    # item 10 do pedido: prova de que o contexto vem do template CORRENTE
+    # desta execução (não de transcrição manual em SKILL.md nem de cache
+    # velho) — hash do arquivo efetivamente lido acima, nesta mesma
+    # chamada, nunca de um valor gravado antes.
+    hash_template = hashlib.sha256(Path(template).read_bytes()).hexdigest()
+
+    stages.append({"name": "contexto_institucional", "status": "ok",
+                    "template_hash_sha256": hash_template,
+                    "placeholders_com_contexto": sorted(contexto_gerativo)})
+    return contexto_gerativo
 
 
 def _etapa_fatos(caso: Path, stages: list):
@@ -525,6 +585,14 @@ def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO,
     caso = Path(caso_dir)
     stages = []
 
+    # Etapa 5.7-C — PRIMEIRA etapa, incondicional: sem contexto
+    # institucional extraído do modelo real, o pipeline nem chega a olhar
+    # os documentos do caso (INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA).
+    contexto_institucional = _etapa_contexto_institucional(
+        Path(template), Path(schema), Path(catalogo_blocos), stages)
+    if isinstance(contexto_institucional, dict) and contexto_institucional.get("status") == "PIPELINE_ABORTED":
+        return contexto_institucional
+
     fatos = _etapa_fatos(caso, stages)
     if isinstance(fatos, dict) and fatos.get("status") == "PIPELINE_ABORTED":
         return fatos
@@ -575,6 +643,7 @@ def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO,
         "citacoes_validadas": len(validadas),
         "citacoes_nao_validadas": len(nao_validadas),
         "fatos_com_proveniencia": len(fatos),
+        "contexto_institucional": "OK",
         "template_lock": "OK",
         "placeholders": "OK",
         "fotos": "INSERÇÃO MANUAL",

@@ -87,25 +87,53 @@ _COLOR_RE = re.compile(r"<w:color\b[^/]*/>")
 COR_CONTEUDO_GERADO = "FF0000"
 
 
-def garantir_utf8():
-    """No Windows, o encoding padrão de arquivo/console costuma ser cp1252,
-    não UTF-8 — e o validador do skill 'docx' (dependência externa) não
-    força encoding explícito em todas as leituras/prints, o que já causou
-    UnicodeDecodeError/UnicodeEncodeError reais nesta auditoria ao validar
-    o template oficial (acentuação em português). Em vez de deixar esse erro
-    de terceiro vazar de forma confusa, os CLIs deste módulo relançam a si
-    mesmos como subprocesso em modo UTF-8 (PEP 540) antes de tocar no
-    toolkit. Chamar no início de main(), antes de qualquer outro trabalho.
+def _precisa_reexec_utf8():
+    """(biblioteca, sem efeito colateral) True se o processo atual precisa
+    ser relançado em modo UTF-8 (Windows, PEP 540 ainda não ativo)."""
+    return os.name == "nt" and not sys.flags.utf8_mode
+
+
+def reexecutar_utf8():
+    """(biblioteca) No Windows, o encoding padrão de arquivo/console costuma
+    ser cp1252, não UTF-8 — e o validador do skill 'docx' (dependência
+    externa) não força encoding explícito em todas as leituras/prints, o
+    que já causou UnicodeDecodeError/UnicodeEncodeError reais nesta
+    auditoria ao validar o template oficial (acentuação em português).
+
+    Se for necessário, relança o processo atual como subprocesso em modo
+    UTF-8 (PEP 540) e retorna o returncode do filho (int). Se não for
+    necessário, retorna None. NUNCA chama sys.exit() — decidir encerrar o
+    processo é responsabilidade exclusiva do chamador (entrypoint de
+    CLI), nunca desta função nem de importar o módulo que a usa (achado
+    real, correção pontual da infraestrutura de testes: chamar a antiga
+    variante — que fazia sys.exit() diretamente — no nível de módulo de
+    um arquivo importável fazia o próprio `import` (inclusive durante
+    pytest collection) encerrar o processo do importador com
+    INTERNALERROR; ver garantir_utf8() abaixo para o uso como CLI).
 
     Usa subprocess (não os.execvpe): execvpe truncou o processo com
     segmentation fault quando testado via Git Bash/MSYS neste ambiente —
     a emulação de exec() no Windows é frágil o bastante para não valer o
     ganho de não ter um processo filho."""
-    if os.name == "nt" and not sys.flags.utf8_mode:
-        import subprocess
-        env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
-        r = subprocess.run([sys.executable, "-X", "utf8", *sys.argv], env=env)
-        sys.exit(r.returncode)
+    if not _precisa_reexec_utf8():
+        return None
+    import subprocess
+    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    r = subprocess.run([sys.executable, "-X", "utf8", *sys.argv], env=env)
+    return r.returncode
+
+
+def garantir_utf8():
+    """(entrypoint de CLI) Comportamento histórico desta função: relança o
+    processo em UTF-8 quando necessário e sys.exit() com o código de
+    saída do filho. Chamar SOMENTE dentro de main()/`if __name__ ==
+    "__main__":` de um script real — nunca no nível de módulo de um
+    arquivo importável (script ou teste). Para uso a partir de código
+    importável (bibliotecas, testes), use reexecutar_utf8() diretamente
+    — nunca encerra o processo."""
+    codigo = reexecutar_utf8()
+    if codigo is not None:
+        sys.exit(codigo)
 
 
 # --------------------------------------------------------------- toolkit OOXML

@@ -42,8 +42,6 @@ from docx_template_engine import (  # noqa: E402
     verificar_template_lock,
 )
 
-garantir_utf8()  # ver docx_template_engine.py — corrige cp1252 padrão do Windows
-
 TEMPLATE_REAL = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
 SCHEMA_REAL = BASE / "templates" / "contestacao" / "schema.json"
 
@@ -633,4 +631,5 @@ def main():
 
 
 if __name__ == "__main__":
+    garantir_utf8()  # ver docx_template_engine.py — corrige cp1252 padrão do Windows
     main()

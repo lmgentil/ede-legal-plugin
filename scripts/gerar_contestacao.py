@@ -68,8 +68,6 @@ from validate_fatos import validar_fatos  # noqa: E402
 from validate_paragrafos import validar_densidade_blocos, validar_paragrafos_placeholders  # noqa: E402
 from validate_placeholder_semantics import validar_semantica  # noqa: E402
 
-garantir_utf8()
-
 TEMPLATE_PADRAO = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
 SCHEMA_PADRAO = BASE / "templates" / "contestacao" / "schema.json"
 CATALOGO_BLOCOS_PADRAO = BASE / "templates" / "contestacao" / "blocos.json"
@@ -656,6 +654,7 @@ def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO,
 
 
 def main():
+    garantir_utf8()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--caso", required=True, help="diretório com o caso (fatos.json, "
                     "estrategia.md, citacoes.json, tempestividade.json, placeholders.json)")

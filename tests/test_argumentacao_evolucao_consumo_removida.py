@@ -25,8 +25,6 @@ sys.path.insert(0, str(BASE / "scripts"))
 from docx_block_engine import carregar_catalogo, gerar_peca_com_blocos  # noqa: E402
 from docx_template_engine import garantir_utf8  # noqa: E402
 
-garantir_utf8()
-
 TERMO = "ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA"
 TEMPLATE_REAL = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
 SCHEMA_REAL = BASE / "templates" / "contestacao" / "schema.json"
@@ -154,4 +152,5 @@ def main():
 
 
 if __name__ == "__main__":
+    garantir_utf8()
     main()

@@ -63,6 +63,20 @@ contra o caso real**, numa única execução contínua
 Etapas 5.2 a 5.5 deste arquivo e em `docs/specs/SPEC-0001.md` §§46-53 já
 são execuções ponta a ponta desta fase — não é mais um estado futuro.
 
+**Portabilidade de caminhos (Etapa 5.9-B).** Todo recurso PERTENCENTE AO
+PLUGIN citado nesta Skill (scripts em `scripts/`, `templates/contestacao/
+blocos.json`, o `modelo-oficial.docx` instalado nesta árvore, módulos em
+`rag/`) é resolvido a partir de `$CLAUDE_PLUGIN_ROOT` — nunca do `cwd`
+corrente, que é a pasta de trabalho do caso, não a instalação do plugin
+(mesmo princípio já aplicado em `skills/atualizar-ede/SKILL.md`). Arquivos
+do próprio caso (`fatos.json`, `placeholders.json`,
+`decisoes_blocos.json`, documentos do processo, o DOCX de saída)
+continuam resolvidos a partir do workspace do advogado — nunca
+redirecionados para `$CLAUDE_PLUGIN_ROOT`. Se `$CLAUDE_PLUGIN_ROOT` não
+estiver disponível quando uma etapa depender de recurso do plugin,
+FAIL-CLOSED: não presuma `./scripts`, `../scripts`, `cwd` ou qualquer
+diretório alternativo — informe a inconsistência e pare.
+
 ## 2. Componentes acionados (quem faz o quê)
 
 | Etapa | Componente | Obrigatório? |
@@ -429,8 +443,12 @@ qual documento ele veio. Antes de usar a lista de fatos extraídos (e antes
 de acionar o estrategista, §4), valide-a estruturalmente:
 
 ```bash
-python scripts/validate_fatos.py --dados fatos.json
+python "$CLAUDE_PLUGIN_ROOT/scripts/validate_fatos.py" --dados fatos.json
 ```
+
+`validate_fatos.py` é recurso do plugin (`$CLAUDE_PLUGIN_ROOT`);
+`fatos.json` é recurso do caso, resolvido a partir do workspace do
+advogado — nunca inverta os dois.
 
 Um fato que falhar nessa validação (sem `source_document`, ou com
 `confidence`/`page` mal formados) não é utilizável até ser corrigido.
@@ -571,8 +589,11 @@ Depois que `estrategista-contestacao-ede` (§4) tiver identificado as teses
 e teses subsidiárias, para cada fundamento normativo que a análise ou a
 redação precisarem citar:
 
-1. Recupere candidatos com `rag/search_hybrid.py`:
+1. Recupere candidatos com `rag/search_hybrid.py` — recurso do plugin,
+   resolvido a partir de `$CLAUDE_PLUGIN_ROOT`, nunca do `cwd`:
    ```python
+   import os, sys
+   sys.path.insert(0, os.path.join(os.environ["CLAUDE_PLUGIN_ROOT"], "rag"))
    from search_hybrid import HybridSearcher
    s = HybridSearcher()
    resultados = s.query("recuperação de consumo por irregularidade no medidor", k=5)
@@ -581,8 +602,11 @@ redação precisarem citar:
    CDC, L8987, L9427, REN 1000/2021) — nunca jurisprudência (ver
    INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL abaixo).
 2. **Nunca cite um resultado de recuperação diretamente.** Antes de
-   qualquer citação entrar na peça, valide-a:
+   qualquer citação entrar na peça, valide-a (mesma resolução via
+   `$CLAUDE_PLUGIN_ROOT`, recurso do plugin):
    ```python
+   import os, sys
+   sys.path.insert(0, os.path.join(os.environ["CLAUDE_PLUGIN_ROOT"], "rag"))
    from legal_validation import validar_citacao
    r = validar_citacao("art. 129 da REN ANEEL 1.000/2021")
    ```
@@ -683,16 +707,23 @@ institucional real do template para cada placeholder gerativo:
 
 ```bash
 python -c "
-import sys; sys.path.insert(0, 'scripts')
+import os, sys
+root = os.environ['CLAUDE_PLUGIN_ROOT']
+sys.path.insert(0, os.path.join(root, 'scripts'))
 from docx_context_engine import extrair_contexto_do_template
 import json
 contexto = extrair_contexto_do_template(
-    'templates/contestacao/modelo-oficial.docx',
-    'templates/contestacao/blocos.json',
+    os.path.join(root, 'templates/contestacao/modelo-oficial.docx'),
+    os.path.join(root, 'templates/contestacao/blocos.json'),
 )
 print(json.dumps(contexto, ensure_ascii=False, indent=2))
 "
 ```
+
+Os três caminhos (`scripts`, `modelo-oficial.docx`, `blocos.json`) são
+recursos do plugin — resolvidos via `$CLAUDE_PLUGIN_ROOT`
+(`os.environ["CLAUDE_PLUGIN_ROOT"]`, que falha explicitamente com
+`KeyError` se a variável não existir — nenhum fallback para `cwd`).
 
 `scripts/docx_context_engine.py` lê o `modelo-oficial.docx` real (nunca o
 altera — extração é SOMENTE LEITURA, mesma disciplina INV-012 do Template

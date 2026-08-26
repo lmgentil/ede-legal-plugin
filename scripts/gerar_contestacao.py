@@ -74,7 +74,8 @@ from validate_paragrafos import (  # noqa: E402
     validar_densidade_zonas,
     validar_paragrafos_placeholders,
 )
-from validate_placeholder_semantics import validar_semantica, validar_semantica_zonas  # noqa: E402
+from validate_placeholder_semantics import (validar_semantica, validar_semantica_zonas,  # noqa: E402
+                                             validar_continuidade_zonas)
 
 TEMPLATE_PADRAO = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
 SCHEMA_PADRAO = BASE / "templates" / "contestacao" / "schema.json"
@@ -549,14 +550,22 @@ def _etapa_paragrafo_380(dados: dict, schema_path: Path, stages: list):
     return True
 
 
-def _etapa_zonas(caso: Path, stages: list, catalogo_path: Path, fatos: list = None):
+def _etapa_zonas(caso: Path, stages: list, catalogo_path: Path, fatos: list = None,
+                  contexto_institucional: dict = None):
     """Etapa 5.8-B — INV-ZONA-COMPLEMENTACAO (SPEC-0001 §58, ADR-0010).
 
     Lê `zonas.json` (opcional — ausente significa TODAS as zonas vazias,
     que é o estado normal da peça) e valida o conteúdo produzido pelo
     Redator/Humanizer ANTES de qualquer composição: tamanho (limites do
     catálogo, nunca hardcode), prefixo de título numerado, sentinela
-    textual e travessão.
+    textual, travessão e, desde a Etapa 5.8-D.1, continuidade com o texto
+    institucional adjacente (INV-CONTINUIDADE-ZONA).
+
+    `contexto_institucional` é o MESMO dicionário que
+    `_etapa_contexto_institucional` já produz para alimentar o Redator
+    (`contexto_institucional[zona_id]` -> lista de ocorrências com
+    `antes`/`depois`) — nenhuma extração nova, nenhum I/O novo; só um
+    parâmetro a mais repassando dado já computado nesta mesma execução.
 
     O que este estágio NÃO faz, deliberadamente:
       - não decide a inclusão da zona (isso é resolver_estados_zonas, a
@@ -564,7 +573,9 @@ def _etapa_zonas(caso: Path, stages: list, catalogo_path: Path, fatos: list = No
       - não pergunta nada ao advogado (§21 — zona não tem decisão humana);
       - não redige nem apara texto (fail-closed, nunca corrige em silêncio);
       - não aplica o teste de necessidade (§8) — esse é comportamental, do
-        Redator, e roda antes de qualquer conteúdo chegar aqui."""
+        Redator, e roda antes de qualquer conteúdo chegar aqui;
+      - não altera o texto institucional em hipótese alguma — `antes`/
+        `depois` são lidos só para comparação (INV-CONTINUIDADE-ZONA)."""
     caminho = caso / "zonas.json"
     if not caminho.exists():
         stages.append({"name": "zonas", "status": "ok", "conteudo": {},
@@ -616,6 +627,21 @@ def _etapa_zonas(caso: Path, stages: list, catalogo_path: Path, fatos: list = No
     if not ok_semantica:
         return _abortar(stages, "zonas",
                          f"conteúdo de zona semanticamente inválido: {erros_semantica}")
+
+    # Etapa 5.8-D.1 — INV-CONTINUIDADE-ZONA: a zona precisa ser
+    # continuação natural do texto institucional adjacente (TEXTO
+    # INSTITUCIONAL ANTERIOR -> ZONA -> TEXTO INSTITUCIONAL POSTERIOR).
+    # Fail-closed: nunca exclui a zona nem toca o texto institucional —
+    # devolve o motivo para a Skill `contestacao` reformular só o
+    # conteúdo da zona (não há mecanismo de retry automático no código:
+    # Skills não são chamáveis por este script, mesma limitação de
+    # sempre; "nova tentativa" é a orquestração, não um loop em Python).
+    ok_continuidade, erros_continuidade = validar_continuidade_zonas(
+        texto_por_zona, contexto_institucional or {})
+    if not ok_continuidade:
+        return _abortar(stages, "zonas",
+                         f"zona repete abertura do texto institucional adjacente "
+                         f"(INV-CONTINUIDADE-ZONA): {erros_continuidade}")
 
     preenchidas = sorted(k for k, v in texto_por_zona.items() if v.strip())
     stages.append({"name": "zonas", "status": "ok", "fonte": str(caminho),
@@ -729,7 +755,8 @@ def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO,
     if isinstance(pedidos_ok, dict) and pedidos_ok.get("status") == "PIPELINE_ABORTED":
         return pedidos_ok
 
-    conteudo_zonas = _etapa_zonas(caso, stages, Path(catalogo_blocos), fatos)
+    conteudo_zonas = _etapa_zonas(caso, stages, Path(catalogo_blocos), fatos,
+                                   contexto_institucional=contexto_institucional)
     if isinstance(conteudo_zonas, dict) and conteudo_zonas.get("status") == "PIPELINE_ABORTED":
         return conteudo_zonas
 

@@ -595,9 +595,12 @@ Dado `documental` precisa ainda ter seus números respaldados por fato do
 caso oriundo **daquele** documento (`fatos.json`): atribuir a tarifa ao
 TOI quando ela consta do memorial é fail-closed. A lógica de redação da
 zona é `DOCUMENTAÇÃO ADMINISTRATIVA → CRITÉRIO REGULAMENTAR →
-METODOLOGIA EFETIVAMENTE APLICADA → RESULTADO DOCUMENTADO → LEGITIMIDADE
-DA COBRANÇA`, nunca `DADOS EXTRAÍDOS → RECÁLCULO AUTÔNOMO DA IA → NOVO
-VALOR`. Nada disso é validador de linguagem natural: prova-se ancoragem,
+METODOLOGIA EFETIVAMENTE APLICADA → RESULTADO DOCUMENTADO`, nunca
+`DADOS EXTRAÍDOS → RECÁLCULO AUTÔNOMO DA IA → NOVO VALOR`. A zona para
+em RESULTADO DOCUMENTADO — a legitimidade da cobrança é conclusão do
+texto institucional adjacente, não da zona (**Etapa 5.8-E**: a zona
+demonstra, o texto institucional conclui; ver adiante). Nada disso é
+validador de linguagem natural: prova-se ancoragem,
 atribuição de fonte, unidade e aritmética declarada, só sobre relações
 estruturadas.
 
@@ -609,6 +612,39 @@ autorização expressa do usuário, com auditoria própria. **Não existe
 `ZONA_COMPLEMENTACAO_GENERICA`** e não deve passar a existir. Definição
 completa em `docs/adr/ADR-0010-zonas-complementacao.md` e
 `docs/specs/SPEC-0001.md` §58 — não duplicadas aqui.
+
+**A zona demonstra; o texto institucional conclui (Etapa 5.8-E,
+achado do Teste Real 5.8-D).** A zona não deve ocupar o espaço
+argumentativo do texto institucional adjacente: parágrafo de zona
+terminando numa conclusão jurídica ("evidenciando que...", "o que
+demonstra...") quando o texto fixo seguinte já formula essa mesma
+conclusão é redundância a remover — a sequência de redação para em
+RESULTADO DOCUMENTADO, devolvendo a condução argumentativa ao modelo.
+Achado no mesmo teste: o primeiro parágrafo da zona repetia a abertura
+do parágrafo institucional imediatamente anterior ("No caso concreto,
+..." nos dois). Regra geral (não uma blacklist dessa frase): antes de
+redigir, leia o parágrafo institucional imediatamente anterior e
+posterior à zona e evite repetir abertura, conectores, conclusão ou
+construção distintiva muito próxima — a zona é continuação natural do
+texto institucional, nunca reescrito para acomodar a zona.
+`validate_placeholder_semantics.paragrafos_compartilham_abertura(a, b)`
+— compara as primeiras palavras normalizadas de dois parágrafos
+quaisquer, genérico por construção, sem blacklist.
+
+**Wired ao pipeline fail-closed desde a Etapa 5.8-D.1
+(INV-CONTINUIDADE-ZONA)** — revisão da decisão acima. `_etapa_zonas`
+(`gerar_contestacao.py`) passou a receber `contexto_institucional`, o
+MESMO dicionário que `_etapa_contexto_institucional` já calcula para
+alimentar o Redator (nenhuma extração nova, nenhum I/O novo — só um
+parâmetro repassando dado já computado na mesma execução), e chama
+`validar_continuidade_zonas` depois das demais validações da zona.
+Colisão de abertura (primeiro parágrafo × institucional anterior, ou
+último parágrafo × institucional posterior) aborta o pipeline
+(`stage=zonas`, `PIPELINE_ABORTED`) — nunca exclui a zona nem toca o
+texto institucional. Sem retry automático em código (Skills não são
+chamáveis por este script, mesma limitação de sempre): "nova tentativa"
+é sempre a orquestração (Skill `contestacao` reformula só o conteúdo da
+zona e roda o pipeline de novo).
 
 ---
 

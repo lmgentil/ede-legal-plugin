@@ -1215,12 +1215,14 @@ DOCUMENTAÇÃO ADMINISTRATIVA
   → CRITÉRIO REGULAMENTAR
   → METODOLOGIA EFETIVAMENTE APLICADA
   → RESULTADO DOCUMENTADO
-  → LEGITIMIDADE DA COBRANÇA
 ```
 
 Nunca `DADOS EXTRAÍDOS → RECÁLCULO AUTÔNOMO DA IA → NOVO VALOR`. Atribua
 cada número ao documento que o registra ("a memória de cálculo registra /
-consigna / aplicou"), jamais como resultado de conta feita pela peça.
+consigna / aplicou"), jamais como resultado de conta feita pela peça. A
+sequência para em RESULTADO DOCUMENTADO — a legitimidade da cobrança é
+conclusão do texto institucional adjacente, nunca da zona (Etapa 5.8-E,
+"A zona demonstra; o texto institucional conclui" em CLAUDE.md).
 
 Arquivo ausente, chave ausente ou string vazia = zona vazia, e o SDT é
 removido sem deixar parágrafo em branco. Texto simples (string não

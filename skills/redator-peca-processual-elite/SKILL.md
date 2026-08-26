@@ -169,14 +169,70 @@ transcreve, sem reencenar a irregularidade (isso pertence a
 `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE`) e sem repetir
 `REALIDADE_FATICA`.
 
+### A zona demonstra; o texto institucional conclui (Etapa 5.8-E)
+
+Achado do Teste Real 5.8-D: o parágrafo final da zona fechava com
+"evidenciando que a recuperação decorre de critério técnico documentado,
+não de imposição arbitrária" — conclusão argumentativa que o texto fixo
+imediatamente seguinte já formula ("Trata-se, portanto, de mecanismo de
+recomposição econômica, e não de penalidade..."). A zona não deve ocupar
+o espaço argumentativo do texto institucional adjacente.
+
+Sequência preferencial: `DOCUMENTO → DADO → METODOLOGIA → RESULTADO
+DOCUMENTADO`, devolvendo a condução argumentativa ao texto institucional.
+Isso não transforma a zona em relatório telegráfico — prosa jurídica
+natural continua bem-vinda para conectar os dados; a restrição é só
+contra conclusões que o texto institucional adjacente já formula.
+
+Antes de finalizar cada parágrafo da zona (depois de já ter passado no
+teste de necessidade acima), pergunte:
+
+1. Esta frase acrescenta dado, metodologia ou relação documental nova?
+2. Ou apenas conclui juridicamente aquilo que o texto institucional
+   adjacente (anterior ou posterior) já conclui?
+
+Se a resposta for só a segunda: remova a frase.
+
+**Leia também o parágrafo institucional imediatamente anterior e
+posterior à zona** (contexto institucional extraído por
+`docx_context_engine.py`, INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA) antes
+de redigir. A zona precisa funcionar como continuação natural desse
+texto — não repita, no primeiro parágrafo da zona, a mesma fórmula de
+abertura do parágrafo institucional imediatamente anterior (mesmo
+achado do Teste 5.8-D: o parágrafo institucional anterior abria com "No
+caso concreto, a concessionária observou..." e a zona repetia "No caso
+concreto, a recuperação de consumo observou..." — corrigido abrindo
+direto no dado documental: "O Memorial de Faturamento identifica...").
+Verifique de igual modo: conectores repetidos, a mesma conclusão, termos
+ou construções distintivas repetidos muito próximos, e retomada
+desnecessária de premissa que o parágrafo institucional anterior acabou
+de estabelecer. **A regra é geral, não uma lista de frases proibidas** —
+nenhum exemplo aqui é para copiar literalmente; produza sempre a
+formulação correspondente aos documentos do caso concreto.
+
+**O texto institucional nunca é tocado para eliminar a repetição** — a
+adequação é sempre no conteúdo da zona, nunca no texto fixo do modelo.
+
+**Wired ao pipeline fail-closed desde a Etapa 5.8-D.1**
+(INV-CONTINUIDADE-ZONA): a etapa de zonas confere automaticamente se o
+primeiro/último parágrafo da zona colide com a abertura do parágrafo
+institucional anterior/posterior e aborta a geração se colidir — não
+espere só a revisão manual. `validate_placeholder_semantics.
+paragrafos_compartilham_abertura` (genérico, sem blacklist de frases) é
+o comparador por trás do gate. Não há retry automático: se o pipeline
+abortar por isso, reformule só o parágrafo da zona e gere de novo.
+
 ### A cobrança já está constituída: defender, nunca recalcular
 
 O **Memorial de Cálculo** e o **Memorial de Faturamento** são a fonte de
 verdade dos valores da apuração: consumo recuperado, período, ciclos,
 critério aplicado, tarifa, diferenças e valor final. Redija a partir da
 lógica `DOCUMENTAÇÃO ADMINISTRATIVA → CRITÉRIO REGULAMENTAR →
-METODOLOGIA EFETIVAMENTE APLICADA → RESULTADO DOCUMENTADO → LEGITIMIDADE
-DA COBRANÇA`, nunca `DADOS EXTRAÍDOS → RECÁLCULO AUTÔNOMO → NOVO VALOR`.
+METODOLOGIA EFETIVAMENTE APLICADA → RESULTADO DOCUMENTADO`, nunca
+`DADOS EXTRAÍDOS → RECÁLCULO AUTÔNOMO → NOVO VALOR`. Pare em RESULTADO
+DOCUMENTADO — a legitimidade da cobrança é conclusão do texto
+institucional adjacente, não da zona (ver "A zona demonstra; o texto
+institucional conclui", abaixo).
 
 Atribua cada número ao documento que o registra ("a memória de cálculo
 registra 612 kWh por ciclo", "consigna 2.412 kWh não registrados"), e

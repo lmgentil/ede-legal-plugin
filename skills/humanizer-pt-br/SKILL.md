@@ -527,6 +527,18 @@ defesa da cobrança constituída em recálculo próprio, e é justamente o que
 a zona não pode fazer. Preserve os verbos de atribuição ("registra",
 "consigna", "aplicou") e a menção ao documento.
 
+**Não reintroduza conclusão argumentativa que o Redator removeu (Etapa
+5.8-E).** A zona demonstra (documento → dado → metodologia → resultado
+documentado); quem conclui é o texto institucional adjacente. Se o
+parágrafo final da zona já termina em um dado ou resultado documentado,
+não "arredonde" a frase com uma conclusão jurídica ("evidenciando que...",
+"o que demonstra...", "não se tratando de...") — isso empurra a zona para
+o espaço argumentativo que pertence ao texto fixo seguinte. Do mesmo
+modo, não reintroduza no primeiro parágrafo uma abertura que repita a do
+parágrafo institucional imediatamente anterior (CONTEXTO NÃO EDITÁVEL,
+disponível para conferência, nunca para reescrever) — humanizar não pode
+desfazer esse ajuste do Redator.
+
 Se o Redator devolveu a zona vazia, não há nada a humanizar — vazio é o
 resultado esperado na maioria dos casos, não uma lacuna a preencher.
 

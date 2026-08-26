@@ -52,7 +52,8 @@ from docx_block_engine import (  # noqa: E402
     validar_catalogo,
 )
 from validate_paragrafos import validar_densidade_zonas  # noqa: E402
-from validate_placeholder_semantics import validar_semantica_zonas  # noqa: E402
+from validate_placeholder_semantics import (validar_semantica_zonas,  # noqa: E402
+                                             validar_continuidade_zonas)
 from test_e2e_contestacao import _resolver_juizo_stub  # noqa: E402
 
 TEMPLATE_REAL = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
@@ -98,11 +99,19 @@ FONTE_TOI = "toi_sintetico.txt"
 #
 # Lógica de redação fixada no ajuste da 5.8-C.1: DOCUMENTAÇÃO
 # ADMINISTRATIVA -> CRITÉRIO REGULAMENTAR -> METODOLOGIA EFETIVAMENTE
-# APLICADA -> RESULTADO DOCUMENTADO -> LEGITIMIDADE DA COBRANÇA. Cada
-# número é atribuído ao documento que o registra ("a memória de cálculo
-# registra/consigna/aplicou"), nunca apresentado como recálculo próprio.
+# APLICADA -> RESULTADO DOCUMENTADO. Cada número é atribuído ao documento
+# que o registra ("a memória de cálculo registra/consigna/aplicou"),
+# nunca apresentado como recálculo próprio.
+#
+# Abertura corrigida na Etapa 5.8-D.1 (INV-CONTINUIDADE-ZONA): a versão
+# anterior abria com "No caso concreto, a apuração observou...", que
+# colide com a abertura do parágrafo institucional real imediatamente
+# anterior a este bloco no modelo oficial ("No caso concreto, a
+# concessionária observou..."). Corrigido removendo só o prefixo
+# colidente — mesmos fatos, mesma proveniência, mesmos números, mesma
+# finalidade.
 CONTEUDO_VALIDO = (
-    "No caso concreto, a apuração observou o critério do art. 595, III, da Resolução "
+    "A apuração observou o critério do art. 595, III, da Resolução "
     "ANEEL nº 1.000/2021, tal como registrado na memória de cálculo do procedimento "
     "administrativo: média dos três maiores consumos verificados nos 12 ciclos de "
     "medição regular anteriores, cujo levantamento se deu no ato da inspeção.\n"
@@ -924,8 +933,11 @@ def test_5C_K_humanizer_nao_introduz_fatos_novos():
     """K: qualquer número acrescentado depois da redação (o que uma
     humanização indevida faria) é barrado pela mesma checagem de
     ancoragem, que roda sobre o texto FINAL entregue ao pipeline."""
-    humanizado_ok = CONTEUDO_VALIDO.replace("No caso concreto, a recuperação foi apurada",
-                                             "A recuperação, no caso concreto, foi apurada")
+    assert "A apuração observou o critério" in CONTEUDO_VALIDO, \
+        "substring da reescrita abaixo desatualizada — CONTEUDO_VALIDO mudou de redação"
+    humanizado_ok = CONTEUDO_VALIDO.replace("A apuração observou o critério",
+                                             "O critério foi observado pela apuração")
+    assert humanizado_ok != CONTEUDO_VALIDO, "reescrita não teve efeito — teste não exercitou nada"
     assert not _prov(humanizado_ok, fontes=FONTES_DO_CASO), "reescrita sem novo fato deve passar"
     humanizado_ruim = humanizado_ok.replace("R$ 4.328,17", "R$ 5.000,00")
     assert any("sem lastro documental" in e for e in _prov(humanizado_ruim, fontes=FONTES_DO_CASO))
@@ -1436,6 +1448,192 @@ def test_5C1_ajuste_H_redacao_defende_a_cobranca_constituida():
         "valor_total_apurado não deve afirmar fórmula que o memorial não sustenta"
     assert total["valor"].replace(".", "").replace(",", "") in \
         MEMORIAL.read_text(encoding="utf-8").replace(".", "").replace(",", "")
+
+
+# =============================================================== Etapa 5.8-E: continuidade com o texto institucional adjacente
+# Achado do Teste Real 5.8-D: o parágrafo institucional imediatamente
+# anterior à zona abria com "No caso concreto, a concessionária
+# observou..."; o primeiro parágrafo da zona repetia a mesma abertura
+# ("No caso concreto, a recuperação de consumo observou..."). Corrigido
+# redigindo a zona para abrir direto no dado documental ("O Memorial de
+# Faturamento identifica..."). A regra testada é GENÉRICA — o
+# comparador (`paragrafos_compartilham_abertura`) não conhece a frase
+# "No caso concreto"; ele só compara as N primeiras palavras normalizadas
+# de dois parágrafos quaisquer.
+INSTITUCIONAL_ANTERIOR_REAL = (
+    "No caso concreto, a concessionária observou rigorosamente essa lógica "
+    "normativa, adotando metodologia compatível com os elementos técnicos "
+    "disponíveis, em total aderência à disciplina do art. 595")
+ZONA_ABERTURA_ANTIGA_BUGADA = (
+    "No caso concreto, a recuperação de consumo observou o critério da "
+    "queda de consumo (art. 595, III, da Resolução ANEEL nº 1.000/2021)")
+ZONA_ABERTURA_CORRIGIDA = (
+    "O Memorial de Faturamento identifica o critério aplicado como a queda "
+    "de consumo (art. 595, III, da Resolução ANEEL nº 1.000/2021)")
+
+
+def test_5E_paragrafos_compartilham_abertura_e_generico():
+    """A função compara as N primeiras palavras normalizadas — funciona
+    para qualquer par de parágrafos, não é uma blacklist para 'No caso
+    concreto'."""
+    from validate_placeholder_semantics import paragrafos_compartilham_abertura as compartilham
+    assert compartilham("Conforme o memorial, o critério aplicado foi X",
+                         "Conforme o memorial, outro dado qualquer aqui", n_palavras=3)
+    assert not compartilham("Conforme o memorial, o critério aplicado foi X",
+                             "Conforme o memorial, outro dado qualquer aqui")  # 4ª palavra diverge
+    assert not compartilham("Conforme o memorial, o critério aplicado foi X",
+                             "O laudo técnico confirma outro dado qualquer")
+    # variação de acentuação/caixa/pontuação não escapa a checagem
+    assert compartilham("NO CASO CONCRETO, a apuração seguiu X",
+                         "no caso concreto: a apuração seguiu Y completamente diferente")
+
+
+def test_5E_achado_real_e_detectado_pelo_comparador_generico():
+    """Regressão do achado real da Etapa 5.8-D: a abertura antiga da zona
+    ('No caso concreto, a recuperação...') colide com a abertura do
+    parágrafo institucional anterior; a corrigida ('O Memorial de
+    Faturamento identifica...') não colide."""
+    from validate_placeholder_semantics import paragrafos_compartilham_abertura as compartilham
+    assert compartilham(INSTITUCIONAL_ANTERIOR_REAL, ZONA_ABERTURA_ANTIGA_BUGADA), \
+        "o comparador deveria ter sinalizado a repetição real do Teste 5.8-D"
+    assert not compartilham(INSTITUCIONAL_ANTERIOR_REAL, ZONA_ABERTURA_CORRIGIDA), \
+        "a redação corrigida não deveria mais colidir com o parágrafo institucional"
+
+
+def test_5E_teste_de_necessidade_nao_reduz_densidade_factual():
+    """O ajuste da Etapa 5.8-E é sobre CONCLUSÃO redundante, nunca sobre
+    densidade de dados: CONTEUDO_VALIDO continua com os mesmos elementos
+    fáticos concretos exigidos desde a 5.8-C (não houve regressão para a
+    redação pobre da 5.8-B)."""
+    for dado in ("612", "210", "402", "2.412", "1,7947", "4.328,17", "595"):
+        assert dado in CONTEUDO_VALIDO, f"densidade factual reduzida: falta {dado}"
+
+
+# =============================================================== Etapa 5.8-D.1: gate automático de continuidade textual
+# `paragrafos_compartilham_abertura` deixou de ser só utilitária de
+# conferência manual: `validar_continuidade_zonas` (validate_placeholder_
+# semantics.py) é chamada por `_etapa_zonas` (gerar_contestacao.py),
+# alimentada por `contexto_institucional` — o MESMO dicionário que
+# `_etapa_contexto_institucional` já calcula para o Redator, agora também
+# repassado à etapa de zonas (a única mudança de fluxo desta etapa).
+def _contexto_zona(antes="", depois=""):
+    return {ZONA_ID: [{"antes": antes, "depois": depois}]}
+
+
+def test_5D1_A_colisao_com_institucional_anterior_rejeita():
+    """§6.A: abertura literal repetida entre parágrafo institucional
+    anterior e primeiro parágrafo da zona."""
+    ctx = _contexto_zona(antes=INSTITUCIONAL_ANTERIOR_REAL)
+    ok, erros = validar_continuidade_zonas({ZONA_ID: ZONA_ABERTURA_ANTIGA_BUGADA}, ctx)
+    assert not ok
+    assert any("abertura do parágrafo institucional imediatamente anterior" in e
+               for e in erros), erros
+
+
+def test_5D1_B_abertura_diferente_passa():
+    """§6.B: mesma situação, abertura da zona diferente."""
+    ctx = _contexto_zona(antes=INSTITUCIONAL_ANTERIOR_REAL)
+    ok, erros = validar_continuidade_zonas({ZONA_ID: ZONA_ABERTURA_CORRIGIDA}, ctx)
+    assert ok, erros
+
+
+def test_5D1_C_variacao_de_caixa_rejeita():
+    """§6.C: maiúsculas/minúsculas não escapam a checagem."""
+    ctx = _contexto_zona(antes=INSTITUCIONAL_ANTERIOR_REAL.upper())
+    ok, erros = validar_continuidade_zonas({ZONA_ID: ZONA_ABERTURA_ANTIGA_BUGADA.lower()}, ctx)
+    assert not ok, erros
+
+
+def test_5D1_D_variacao_de_pontuacao_rejeita():
+    """§6.D: pontuação diferente na mesma sequência de palavras."""
+    ctx = _contexto_zona(antes="No... caso, concreto - a concessionária observou X")
+    ok, erros = validar_continuidade_zonas(
+        {ZONA_ID: "No caso: concreto, a concessionária observou Y completamente diferente"}, ctx)
+    assert not ok, erros
+
+
+def test_5D1_E_abertura_efetivamente_distinta_passa():
+    """§6.E: zona e institucional adjacentes sem qualquer colisão de
+    abertura, nos dois lados (anterior e posterior)."""
+    ctx = _contexto_zona(antes=INSTITUCIONAL_ANTERIOR_REAL,
+                          depois="Trata-se, portanto, de mecanismo de recomposição econômica")
+    ok, erros = validar_continuidade_zonas({ZONA_ID: CONTEUDO_VALIDO}, ctx)
+    assert ok, erros
+
+
+def test_5D1_zona_vazia_ou_sem_contexto_nao_e_afetada():
+    """Zona vazia não tem abertura a conferir; zona sem entrada em
+    `contexto_zonas` (defensivo) também não é bloqueada por esta função —
+    ambos os casos são tratados alhures."""
+    ctx = _contexto_zona(antes=INSTITUCIONAL_ANTERIOR_REAL)
+    assert validar_continuidade_zonas({ZONA_ID: ""}, ctx) == (True, [])
+    assert validar_continuidade_zonas({ZONA_ID: ZONA_ABERTURA_ANTIGA_BUGADA}, {}) == (True, [])
+
+
+def test_5D1_F_G_pipeline_aborta_e_nunca_toca_texto_institucional():
+    """§6.F/G, ponta a ponta: zona que repete a abertura do parágrafo
+    institucional imediatamente anterior aborta o pipeline ANTES do DOCX
+    (fail-closed real, não simulado) — o texto institucional nunca é
+    tocado; a correção necessária é sempre no conteúdo da zona."""
+    if _pular_sem_template():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        colidente = CONTEUDO_VALIDO.replace(
+            "A apuração observou o critério",
+            "No caso concreto, a apuração observou o critério")
+        caso = _caso_com_zona(tmp, {"conteudo": colidente, "fatos": FATOS_ZONA})
+        saida = Path(tmp) / "nao_deveria_existir.docx"
+        r = gerar_contestacao.gerar(caso, saida, resolver_juizo_fn=_resolver_juizo_stub)
+        assert r["status"] == "PIPELINE_ABORTED", r
+        assert r["stage"] == "zonas", r
+        assert "INV-CONTINUIDADE-ZONA" in r["reason"], r["reason"]
+        assert not saida.exists(), "G: nenhum DOCX parcial — nada é gravado, muito menos com "\
+                                    "o texto institucional alterado"
+
+
+def test_5D1_H_excluir_funciona_sem_o_gate():
+    """§6.H: caminho EXCLUIR (zona vazia) continua funcionando — o gate de
+    continuidade não se aplica a zona sem parágrafo algum."""
+    if _pular_sem_template():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        caso = _caso_com_zona(tmp, conteudo=None)
+        saida = Path(tmp) / "sem-zona.docx"
+        r = gerar_contestacao.gerar(caso, saida, resolver_juizo_fn=_resolver_juizo_stub)
+        assert r["status"] == "OK", r
+        assert r["zonas_excluidas"] == [ZONA_ID], r
+
+
+def test_5D1_I_fixture_corrigida_nao_colide_mais_com_template_real():
+    """§6.I: CONTEUDO_VALIDO, corrigido nesta etapa, não colide mais com o
+    parágrafo institucional real imediatamente anterior."""
+    from validate_placeholder_semantics import paragrafos_compartilham_abertura as compartilham
+    primeiro_paragrafo = CONTEUDO_VALIDO.split("\n")[0]
+    assert not compartilham(INSTITUCIONAL_ANTERIOR_REAL, primeiro_paragrafo), \
+        "CONTEUDO_VALIDO ainda colide com o parágrafo institucional real"
+
+
+def test_5D1_J_K_L_geracao_valida_passa_pelo_gate_sem_regressao():
+    """§6.J/K/L: com conteúdo de zona que NÃO colide (o caminho normal,
+    após a correção da 5.8-D/5.8-E), o gate de continuidade não impede a
+    geração — Template Lock OK, 13 placeholders, composição de blocos e
+    numeração íntegras. Não duplica geração: reaproveita a mesma chamada
+    que `test_AA_AC_AD_AF_e2e_zona_incluida_contra_template_real` já faz
+    (ZONA_RICA, agora com CONTEUDO_VALIDO corrigido) — só acrescenta as
+    asserções específicas deste gate que aquele teste não fazia."""
+    if _pular_sem_template():
+        return
+    schema = json.loads((BASE / "templates" / "contestacao" / "schema.json").read_text(encoding="utf-8"))
+    assert len(schema["editable_placeholders"]) == 13, "L: 13 placeholders oficiais preservados"
+    with tempfile.TemporaryDirectory() as tmp:
+        caso = _caso_com_zona(tmp, ZONA_RICA)
+        saida = Path(tmp) / "com-zona.docx"
+        r = gerar_contestacao.gerar(caso, saida, resolver_juizo_fn=_resolver_juizo_stub)
+        assert r["status"] == "OK", r
+        assert r["template_lock"] == "OK"  # J
+        assert "CALCULOS_RECUPERACAO_CONSUMO" in r["blocos_incluidos"]  # L
+        assert r["blocos_indeterminados"] == []  # L
+        assert r["zonas_incluidas"] == [ZONA_ID]  # K
 
 
 if __name__ == "__main__":

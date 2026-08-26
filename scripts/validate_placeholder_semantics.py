@@ -538,6 +538,92 @@ def validar_conteudo_zona(valor, zona_id: str) -> list:
     return erros
 
 
+# §21 (Etapa 5.8-E, achado do Teste Real 5.8-D): a zona deve funcionar como
+# CONTINUAÇÃO NATURAL do texto institucional em que está inserida — ela
+# DEMONSTRA (documento -> dado -> metodologia -> resultado documentado); o
+# texto institucional CONCLUI. No teste real, o parágrafo institucional
+# imediatamente anterior à zona abria com "No caso concreto, a
+# concessionária observou..." e o primeiro parágrafo da zona repetia a
+# mesma abertura ("No caso concreto, a recuperação de consumo
+# observou..."). A regra é GENÉRICA — não uma blacklist para essa frase:
+# compara só a ABERTURA (primeiras N palavras, normalizadas) de dois
+# parágrafos adjacentes, nunca o parágrafo inteiro nem similaridade
+# semântica ampla (vedado por CLAUDE.md/INV-NAO-REPETICAO-FATICA: um
+# comparador de similaridade textual genérico geraria falsos positivos).
+#
+# WIRED AO PIPELINE FAIL-CLOSED desde a Etapa 5.8-D.1 (INV-CONTINUIDADE-
+# ZONA) — ver `validar_continuidade_zonas` abaixo. Até ali, a função era
+# só utilitária/comportamental; a decisão foi revista porque a repetição
+# de abertura é uma condição OBJETIVA e determinável (colisão literal das
+# N primeiras palavras), não uma avaliação de estilo — mesmo padrão de
+# rigor já aplicado a `_checar_travessao`/`_PREFIXO_TITULO_NUMERADO_RE`
+# acima. LIMITE CONHECIDO E DELIBERADO, inalterado: não é comparador de
+# similaridade semântica ampla (vedado por CLAUDE.md/INV-NAO-REPETICAO-
+# FATICA — geraria falsos positivos); só a abertura, não similaridade em
+# qualquer posição do texto.
+def paragrafos_compartilham_abertura(a: str, b: str, n_palavras: int = 4) -> bool:
+    """True se os dois parágrafos abrem com a mesma sequência de
+    `n_palavras`, normalizada (sem acento, minúsculo, sem pontuação).
+    Compara só a abertura — dois parágrafos que só coincidem numa palavra
+    qualquer no meio do texto não são pegos por este comparador, de
+    propósito (evita falso positivo)."""
+    def abertura(t):
+        limpo = re.sub(r"[^a-zA-Z0-9\s]", " ", _sem_acento(str(t))).lower()
+        return limpo.split()[:n_palavras]
+    pa, pb = abertura(a), abertura(b)
+    return bool(pa) and len(pa) == n_palavras and pa == pb
+
+
+def validar_continuidade_zonas(conteudo_zonas: dict, contexto_zonas: dict) -> tuple:
+    """INV-CONTINUIDADE-ZONA (Etapa 5.8-D.1): a zona deve ser continuação
+    natural do texto institucional em que está inserida — TEXTO
+    INSTITUCIONAL ANTERIOR -> ZONA -> TEXTO INSTITUCIONAL POSTERIOR.
+    Rejeita quando o primeiro parágrafo da zona repete a abertura do
+    parágrafo institucional imediatamente anterior, ou quando o último
+    parágrafo repete a abertura do parágrafo imediatamente posterior.
+
+    `contexto_zonas` é o contexto institucional já extraído por
+    `docx_context_engine.extrair_contexto_do_template` (a MESMA fonte que
+    alimenta o Redator, `contexto_institucional[zona_id]` — lista de
+    ocorrências com `antes`/`depois`) — SOMENTE LEITURA, nunca alterado
+    aqui nem em lugar algum desta função: o texto institucional é lido
+    para comparação, nunca reescrito. Zona sem entrada em `contexto_zonas`
+    (ex.: catálogo sem template correspondente, caminho já coberto por
+    outra validação) não é erro desta função — nada a comparar.
+
+    Detecta só COLISÃO LITERAL DE ABERTURA (`paragrafos_compartilham_
+    abertura`, genérico — nunca hardcoded a uma frase específica). Não é
+    avaliador de qualidade de redação: não julga elegância, sofisticação,
+    persuasão nem similaridade semântica ampla — só a condição objetiva e
+    determinável de repetir a mesma sequência de palavras iniciais."""
+    erros = []
+    for zid, texto in sorted((conteudo_zonas or {}).items()):
+        if texto is None or not str(texto).strip():
+            continue  # zona vazia não tem abertura a conferir
+        paragrafos = [p for p in str(texto).split("\n") if p.strip()]
+        if not paragrafos:
+            continue
+        ocorrencias = contexto_zonas.get(zid) or []
+        if not ocorrencias:
+            continue
+        antes = str(ocorrencias[0].get("antes") or "")
+        depois = str(ocorrencias[0].get("depois") or "")
+        primeiro, ultimo = paragrafos[0], paragrafos[-1]
+        if antes and paragrafos_compartilham_abertura(antes, primeiro):
+            erros.append(
+                f"{zid}: primeiro parágrafo repete a abertura do parágrafo institucional "
+                f"imediatamente anterior — a zona deve ser continuação natural do texto "
+                f"institucional (INV-CONTINUIDADE-ZONA), nunca repetir a mesma abertura; "
+                f"reformule apenas o parágrafo da zona, o texto institucional nunca é "
+                f"alterado (parágrafo anterior: {antes[:120]!r})")
+        if depois and paragrafos_compartilham_abertura(ultimo, depois):
+            erros.append(
+                f"{zid}: último parágrafo repete a abertura do parágrafo institucional "
+                f"imediatamente posterior — mesma regra (INV-CONTINUIDADE-ZONA); "
+                f"reformule apenas o parágrafo da zona (parágrafo posterior: {depois[:120]!r})")
+    return (len(erros) == 0), erros
+
+
 def validar_semantica_zonas(conteudo_zonas: dict) -> tuple:
     """Retorna (ok, erros) para todas as zonas com conteúdo não vazio."""
     erros = []

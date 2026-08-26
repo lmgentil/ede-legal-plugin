@@ -23,37 +23,103 @@ allowed-tools:
 Você **orienta e valida** a atualização — você não a executa por conta
 própria. Não existe, hoje, API do Claude Code para um plugin instalado
 disparar sua própria atualização de dentro de uma Skill (confirmado na
-documentação oficial vigente, Fase 8). Fingir automação aqui seria pior
-que não ter o comando: o advogado sairia achando que atualizou quando não
-atualizou. Prefira sempre o comportamento correto — orientar — a uma
-automação falsa (SPEC-0001 Fase 8 §29).
+documentação oficial vigente, Fase 8, ADR-0008). Fingir automação aqui
+seria pior que não ter o comando: o advogado sairia achando que atualizou
+quando não atualizou. Prefira sempre o comportamento correto — orientar —
+a uma automação falsa (SPEC-0001 Fase 8 §29). Esta decisão está encerrada
+(ADR-0008) — não reabra a discussão nem tente disparar `/plugin
+marketplace update`/`/plugin update` programaticamente (não são binários
+de shell, são comandos nativos do Claude Code; nenhuma ferramenta desta
+Skill os invoca por conta própria).
 
-## 2. Passo 1 — identificar a versão atual
+Todo caminho de arquivo usado por esta Skill é resolvido a partir de
+`$CLAUDE_PLUGIN_ROOT` — a variável de ambiente que o Claude Code expõe
+para um plugin localizar a própria instalação (mesmo padrão já usado em
+`scripts/docx_template_engine.py`). Nunca use caminho relativo
+(`scripts/validar_instalacao.py`, `VERSION`) nem o `cwd` corrente: o
+diretório de trabalho do advogado é a pasta do caso, não a instalação do
+plugin — um caminho relativo resolve contra o `cwd` e falha
+("arquivo não encontrado") fora do checkout do próprio plugin.
+
+## 2. Passo 0 — gate de ambiente (obrigatório, antes de qualquer outra ação)
+
+Antes de identificar versão, comparar, ou orientar qualquer comando,
+verifique se `CLAUDE_PLUGIN_ROOT` está disponível, por exemplo:
 
 ```bash
-python scripts/validar_instalacao.py
+echo "$CLAUDE_PLUGIN_ROOT"
 ```
 
-Ou leia diretamente `VERSION` (ou `.claude-plugin/plugin.json`, campo
-`version` — os dois devem estar sincronizados; se não estiverem, avise o
-usuário disso já nesta etapa, é sinal de instalação inconsistente).
+- **Ausente ou vazia** (Claude.ai, web, ou qualquer ambiente sem esta
+  instalação local do plugin) → responda **somente**:
 
-## 3. Passo 2 — explicar e conduzir a atualização oficial
+  > A atualização do EDE deve ser executada no Claude Code onde o plugin
+  > está instalado.
+
+  E **PARE**. Não tente localizar `VERSION`, `plugin.json` ou
+  `validar_instalacao.py` por caminho alternativo, não use o `cwd`
+  corrente como substituto, não tente rodar em sandbox/web como fallback
+  — nenhum destes é equivalente válido (fail-closed, CLAUDE.md §17).
+- **Presente** → prossiga para o Passo 1, sempre com `$CLAUDE_PLUGIN_ROOT`
+  como raiz de qualquer caminho usado por esta Skill a partir daqui.
+
+## 3. Passo 1 — identificar a versão atual
+
+```bash
+python "$CLAUDE_PLUGIN_ROOT/scripts/validar_instalacao.py"
+```
+
+Ou leia diretamente `$CLAUDE_PLUGIN_ROOT/VERSION` e
+`$CLAUDE_PLUGIN_ROOT/.claude-plugin/plugin.json` (campo `version`) — os
+dois devem estar sincronizados. **Guarde este valor** (versão anterior):
+ele é necessário no Passo 4 para informar se algo mudou.
+
+**Se `VERSION` e `plugin.json` divergirem** → FAIL-CLOSED: informe ao
+advogado que a instalação está inconsistente (cite os dois valores lidos)
+e **não** avance para orientar nenhuma atualização até isso ser resolvido
+— sinal de instalação corrompida, não algo que a atualização normal
+corrige.
+
+## 4. Passo 2 — escopo (a partir de `/plugin list`, nunca "user" por hábito)
+
+`/plugin list` não pode ser executado programaticamente por esta Skill —
+é um comando nativo do Claude Code, não um binário de shell. Peça ao
+advogado para rodá-lo e colar a saída aqui.
+
+A partir do texto colado, identifique **você mesmo**, sem pedir ao
+advogado para interpretar a coluna:
+
+- a linha correspondente a `ede-legal-plugin`;
+- a versão instalada reportada ali (cheque contra o Passo 1);
+- o marketplace associado — espera-se `@ede` (ADR-0008); se vier
+  diferente, sinalize e não prossiga, é sinal de instalação fora do
+  padrão desta Skill;
+- o escopo (`user`, `project` ou `local`) reportado na mesma linha.
+
+**Nunca assuma `scope=user` por padrão.** Se a saída colada não deixar o
+escopo inequívoco, pergunte objetivamente ao advogado qual escopo foi
+usado na instalação — nunca escolha um sozinho, e nunca prossiga sem essa
+confirmação.
+
+## 5. Passo 3 — explicar e conduzir a atualização oficial
 
 O mecanismo oficial de atualização de plugins no Claude Code é:
 
 ```bash
-/plugin marketplace update ede      # atualiza os METADADOS do marketplace
-/plugin update ede-legal-plugin@ede # atualiza o PLUGIN instalado
+/plugin marketplace update ede
+/plugin update ede-legal-plugin@ede --scope <SCOPE_DETECTADO>
 ```
 
-**Achado confirmado em teste real (Fase 8):** `/plugin update` usa escopo
-`user` por padrão. Se o plugin foi instalado com `--scope local` (ou
-`project`), o update **falha silenciosamente com "not installed at scope
-user"** a menos que o mesmo escopo seja passado explicitamente:
-`/plugin update ede-legal-plugin@ede --scope local`. Se o usuário não
-souber o escopo usado na instalação, rode `/plugin list` primeiro — o
-escopo aparece ao lado da versão.
+Substitua `<SCOPE_DETECTADO>` pelo escopo identificado no Passo 2 — nunca
+"user" por padrão, nunca um escopo diferente do detectado. **Achado
+confirmado em teste real (Fase 8):** `/plugin update` usa escopo `user`
+por padrão quando `--scope` é omitido; se o plugin foi instalado com
+`--scope local` ou `--scope project`, omitir `--scope` faz o update
+**falhar silenciosamente com "not installed at scope user"**.
+
+Se o escopo detectado não puder ser confirmado, não crie uma segunda
+instalação "para simplificar" nem sugira desinstalar/reinstalar como
+atalho — pare e peça a confirmação do Passo 2.
 
 Diferença importante a explicar ao usuário, se perguntado: atualizar o
 *marketplace* só atualiza o que o Claude Code sabe sobre versões
@@ -71,25 +137,43 @@ sessão do Claude Code para a nova versão ser efetivamente carregada** —
 diga isso explicitamente; não deixe o usuário achar que terminou sem
 reiniciar.
 
-## 4. Passo 3 — validar após a atualização
+## 6. Passo 4 — validar após a atualização
 
 Depois que o usuário confirmar que reiniciou/recarregou:
 
 ```bash
-python scripts/validar_instalacao.py --json
+python "$CLAUDE_PLUGIN_ROOT/scripts/validar_instalacao.py" --json
 ```
 
-Leia o campo `status`:
+Compare o campo `versao` deste resultado com a versão guardada no Passo 1
+e responda exatamente num dos três formatos abaixo:
 
-- **`"OK"`** — informe a nova versão (`versao`) e aponte a seção
-  correspondente do `CHANGELOG.md` (procure o cabeçalho `## [<versao>]`).
-- **`"UPDATE_FAILED"`** — **nunca afirme que a atualização terminou
-  corretamente** (SPEC-0001 Fase 8 §35, Fail Closed). Liste os itens em
-  `obrigatorias_falhando` para o usuário e sugira reinstalar
-  (`/plugin uninstall ede-legal-plugin@ede` seguido de
+- **`status == "OK"` e a versão mudou:**
+
+  > EDE Legal Plugin atualizado com sucesso.
+  > Versão anterior: X
+  > Versão atual: Y
+  > Instalação: OK
+
+  Aponte também a seção correspondente do `CHANGELOG.md` (cabeçalho
+  `## [<versao>]`).
+
+- **`status == "OK"` e a versão é a mesma do Passo 1:**
+
+  > EDE Legal Plugin já estava atualizado.
+  > Versão atual: X
+  > Instalação: OK
+
+- **`status == "UPDATE_FAILED"`** — **nunca afirme que a atualização
+  terminou corretamente** (SPEC-0001 Fase 8 §35, Fail Closed):
+
+  > Atualização não concluída.
+  > Motivo: <causa objetiva, a partir de `obrigatorias_falhando`>
+
+  Sugira reinstalar (`/plugin uninstall ede-legal-plugin@ede` seguido de
   `/plugin install ede-legal-plugin@ede`) se o problema persistir.
 
-## 5. Limitações a comunicar quando perguntado
+## 7. Limitações a comunicar quando perguntado
 
 - **Rollback:** não há comando oficial confirmado de "instalar versão
   anterior" de um plugin — se o usuário precisar reverter, a via é

@@ -30,6 +30,7 @@ Uso:
 """
 import hashlib
 import inspect
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -58,6 +59,14 @@ PLACEHOLDERS_GERATIVOS_ESPERADOS = {
 PLACEHOLDERS_DETERMINISTICOS = {
     "JUIZO", "FOTOS_DA_IRREGULARIADE", "NUMERO_PROCESSO", "AUTOR",
     "VALOR_FRA", "VALOR_DANO_MORAL_PRETENDIDO", "LOCAL_DATA",
+}
+# Etapa 5.8-B: zona é ponto gerativo (o Redator precisa do contexto
+# institucional para aplicar o teste de necessidade), mas NÃO é
+# placeholder — vem do catálogo, não do schema. Lida do catálogo real em
+# vez de hardcoded aqui, para que este teste continue exato quando uma
+# zona futura for autorizada.
+ZONAS_ESPERADAS = {
+    z["id"] for z in json.loads(CATALOGO_REAL.read_text(encoding="utf-8")).get("zones", [])
 }
 
 
@@ -107,8 +116,12 @@ def test_contexto_disponibilizado_e_apenas_o_gerativo():
     stages = []
     contexto = gerar_contestacao._etapa_contexto_institucional(
         TEMPLATE_REAL, SCHEMA_REAL, CATALOGO_REAL, stages)
-    assert set(contexto.keys()) == PLACEHOLDERS_GERATIVOS_ESPERADOS
+    assert set(contexto.keys()) == PLACEHOLDERS_GERATIVOS_ESPERADOS | ZONAS_ESPERADAS
     assert not (set(contexto.keys()) & PLACEHOLDERS_DETERMINISTICOS)
+    # a zona nunca é confundida com placeholder no contexto entregue ao Redator
+    for zid in ZONAS_ESPERADAS:
+        assert contexto[zid][0]["tipo"] == "zona"
+        assert contexto[zid][0]["normalmente_vazia"] is True
 
 
 # --------------------------------------------------------------- 2: caminho inverso

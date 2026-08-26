@@ -35,3 +35,11 @@ rag/jurisprudencia/
 templates/**/modelo-oficial.docx
 /*.docx
 ~$*.docx
+# Achado da Etapa 5.8-B: ao alterar manualmente o modelo para inserir o
+# SDT da Zona de Complementação, um backup foi salvo em
+# templates/contestacao/backup/modelo-oficial-BACKUP-pre-zonas-*.docx —
+# nome que NÃO casa com o padrão acima e, portanto, ficava elegível a
+# `git add -A`. Cobre qualquer .docx sob templates/, não só o nome
+# canônico (CLAUDE.md §13/§18: o asset é externo e nunca versionado, em
+# qualquer nome ou subpasta).
+templates/**/*.docx

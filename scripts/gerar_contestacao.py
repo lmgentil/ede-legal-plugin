@@ -64,9 +64,17 @@ from docx_block_engine import (  # noqa: E402
 from docx_context_engine import ContextoAbortada, extrair_contexto_do_template  # noqa: E402
 from docx_template_engine import carregar_schema, garantir_utf8  # noqa: E402
 from legal_validation import validar_citacao  # noqa: E402
-from validate_fatos import validar_fatos  # noqa: E402
-from validate_paragrafos import validar_densidade_blocos, validar_paragrafos_placeholders  # noqa: E402
-from validate_placeholder_semantics import validar_semantica  # noqa: E402
+from validate_fatos import (  # noqa: E402
+    normalizar_conteudo_zona,
+    validar_fatos,
+    validar_proveniencia_zona,
+)
+from validate_paragrafos import (  # noqa: E402
+    validar_densidade_blocos,
+    validar_densidade_zonas,
+    validar_paragrafos_placeholders,
+)
+from validate_placeholder_semantics import validar_semantica, validar_semantica_zonas  # noqa: E402
 
 TEMPLATE_PADRAO = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
 SCHEMA_PADRAO = BASE / "templates" / "contestacao" / "schema.json"
@@ -167,6 +175,16 @@ def _etapa_contexto_institucional(template: Path, schema_path: Path, catalogo_bl
     schema = carregar_schema(schema_path)
     gerativos = {p for p, c in schema["placeholder_contracts"].items()
                  if c["tipo"] in TIPOS_GERATIVOS}
+    # Etapa 5.8-B (§18): zona é, por definição, ponto gerativo — o Redator
+    # não pode aplicar o teste de necessidade sem conhecer o texto
+    # institucional que a cerca. Entra pela mesma porta dos placeholders
+    # gerativos, sem virar placeholder (não está no schema, e é daí que
+    # vem a necessidade desta união explícita).
+    try:
+        zonas_catalogo = carregar_catalogo(catalogo_blocos).get("zones", [])
+    except ComposicaoAbortada as e:
+        return _abortar(stages, "contexto_institucional", f"{e.stage}: {e.motivo}")
+    gerativos |= {z["id"] for z in zonas_catalogo}
     contexto_gerativo = {p: v for p, v in contexto.items() if p in gerativos}
 
     # item 10 do pedido: prova de que o contexto vem do template CORRENTE
@@ -513,7 +531,7 @@ def _etapa_placeholders(caso: Path, stages: list, tempestividade_valor: str, res
 
 def _etapa_paragrafo_380(dados: dict, schema_path: Path, stages: list):
     """INV-PARAGRAFO-380 (Etapa 5.2): parágrafo de conteúdo variável acima
-    de 380 caracteres aborta antes da geração do DOCX final — nunca gera
+    de 380 caracteres SEM ESPAÇOS aborta antes da geração do DOCX final — nunca gera
     sabendo que a invariante foi violada (CLAUDE.md §17). Etapa 5.3
     acrescenta a densidade por bloco (LIMITES_DENSIDADE_BLOCO) — 380 é
     teto por parágrafo, não meta; um bloco pode respeitar o teto em todo
@@ -522,13 +540,88 @@ def _etapa_paragrafo_380(dados: dict, schema_path: Path, stages: list):
     ok, erros = validar_paragrafos_placeholders(dados, schema)
     if not ok:
         return _abortar(stages, "paragrafo_380",
-                         f"parágrafo(s) acima de 380 caracteres (INV-PARAGRAFO-380): {erros}")
+                         f"parágrafo(s) acima de 380 caracteres sem espaços (INV-PARAGRAFO-380): {erros}")
     ok_densidade, erros_densidade = validar_densidade_blocos(dados)
     if not ok_densidade:
         return _abortar(stages, "densidade_bloco",
                          f"bloco(s) com densidade excessiva (Etapa 5.3): {erros_densidade}")
     stages.append({"name": "paragrafo_380", "status": "ok"})
     return True
+
+
+def _etapa_zonas(caso: Path, stages: list, catalogo_path: Path, fatos: list = None):
+    """Etapa 5.8-B — INV-ZONA-COMPLEMENTACAO (SPEC-0001 §58, ADR-0010).
+
+    Lê `zonas.json` (opcional — ausente significa TODAS as zonas vazias,
+    que é o estado normal da peça) e valida o conteúdo produzido pelo
+    Redator/Humanizer ANTES de qualquer composição: tamanho (limites do
+    catálogo, nunca hardcode), prefixo de título numerado, sentinela
+    textual e travessão.
+
+    O que este estágio NÃO faz, deliberadamente:
+      - não decide a inclusão da zona (isso é resolver_estados_zonas, a
+        partir do bloco-pai + gate fático + presença de conteúdo);
+      - não pergunta nada ao advogado (§21 — zona não tem decisão humana);
+      - não redige nem apara texto (fail-closed, nunca corrige em silêncio);
+      - não aplica o teste de necessidade (§8) — esse é comportamental, do
+        Redator, e roda antes de qualquer conteúdo chegar aqui."""
+    caminho = caso / "zonas.json"
+    if not caminho.exists():
+        stages.append({"name": "zonas", "status": "ok", "conteudo": {},
+                        "nota": "zonas.json ausente — todas as zonas vazias (estado normal)"})
+        return {}
+
+    try:
+        conteudo = json.loads(caminho.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        return _abortar(stages, "zonas", f"zonas.json malformado: {e}")
+    if not isinstance(conteudo, dict):
+        return _abortar(stages, "zonas", "zonas.json deve ser um objeto {ZONA_ID: conteúdo}")
+
+    try:
+        catalogo = carregar_catalogo(catalogo_path)
+        validar_catalogo(catalogo)
+    except ComposicaoAbortada as e:
+        return _abortar(stages, e.stage, e.motivo)
+
+    # Etapa 5.8-C — proveniência: normaliza o contrato estruturado
+    # ({"conteudo": ..., "fatos": [...]}) e confere que nenhum dado
+    # numérico do texto existe sem lastro documental declarado. As fontes
+    # aceitas são as MESMAS que já sustentam a peça (`fatos.json`) — a
+    # zona não abre uma base probatória própria. Etapa 5.8-C.1: `fatos`
+    # inteiro (não só os nomes dos documentos), porque a checagem passou a
+    # exigir que o dado documental esteja NAQUELE documento.
+    zonas_catalogo = {z["id"]: z for z in catalogo.get("zones", [])}
+    texto_por_zona, proveniencia, erros_proveniencia = {}, {}, []
+    for zid, bruto in sorted(conteudo.items()):
+        texto, fatos_zona, erros_forma = normalizar_conteudo_zona(bruto)
+        erros_proveniencia.extend(f"{zid}: {e}" for e in erros_forma)
+        texto_por_zona[zid] = texto
+        if not texto:
+            continue
+        proveniencia[zid] = fatos_zona
+        if zonas_catalogo.get(zid, {}).get("exige_proveniencia", True):
+            erros_proveniencia.extend(
+                validar_proveniencia_zona(texto, fatos_zona, zid, fatos))
+    if erros_proveniencia:
+        return _abortar(stages, "zonas",
+                         f"proveniência do conteúdo de zona inválida: {erros_proveniencia}")
+
+    ok_densidade, erros_densidade = validar_densidade_zonas(texto_por_zona, catalogo.get("zones", []))
+    if not ok_densidade:
+        return _abortar(stages, "zonas",
+                         f"conteúdo de zona fora dos limites do catálogo: {erros_densidade}")
+
+    ok_semantica, erros_semantica = validar_semantica_zonas(texto_por_zona)
+    if not ok_semantica:
+        return _abortar(stages, "zonas",
+                         f"conteúdo de zona semanticamente inválido: {erros_semantica}")
+
+    preenchidas = sorted(k for k, v in texto_por_zona.items() if v.strip())
+    stages.append({"name": "zonas", "status": "ok", "fonte": str(caminho),
+                    "zonas_com_conteudo": preenchidas,
+                    "fatos_por_zona": {z: len(proveniencia.get(z, [])) for z in preenchidas}})
+    return texto_por_zona
 
 
 def _etapa_pedidos_composicionais(dados: dict, decisoes_blocos: dict, catalogo_path: Path,
@@ -556,12 +649,24 @@ def _etapa_pedidos_composicionais(dados: dict, decisoes_blocos: dict, catalogo_p
 
 
 def _etapa_template(dados: dict, decisoes_blocos: dict, template: Path, schema: Path,
-                     catalogo: Path, output: Path, stages: list, fatos_processuais: dict = None):
+                     catalogo: Path, output: Path, stages: list, fatos_processuais: dict = None,
+                     conteudo_zonas: dict = None):
     relatorio = gerar_peca_com_blocos(str(template), str(schema), str(catalogo),
                                        dados, decisoes_blocos, str(output),
-                                       fatos_processuais=fatos_processuais)
+                                       fatos_processuais=fatos_processuais,
+                                       conteudo_zonas=conteudo_zonas)
     if relatorio["status"] != "OK":
         etapa_engine = relatorio.get("etapa", "")
+        # Etapa 5.8-B: falhas de zona são reportadas no stage `zonas`
+        # (mesmo nome do estágio que produziu o conteúdo), exceto
+        # modelo_institucional_desatualizado, que é condição operacional da
+        # INSTALAÇÃO e merece stage próprio para a Skill orientar o
+        # advogado a atualizar o modelo (§15).
+        if etapa_engine == "modelo_institucional_desatualizado":
+            return _abortar(stages, "modelo_institucional_desatualizado",
+                             f"{relatorio.get('erros')}")
+        if etapa_engine.startswith("zona"):
+            return _abortar(stages, "zonas", f"{etapa_engine}: {relatorio.get('erros')}")
         eh_block_composition = etapa_engine.startswith(
             ("catalogo", "decisao", "sdt_", "tag_", "cardinalidade", "estado")
         ) or etapa_engine == "gate_fatico_nao_satisfeito"
@@ -572,6 +677,7 @@ def _etapa_template(dados: dict, decisoes_blocos: dict, template: Path, schema: 
                     "blocos_incluidos": relatorio["blocos_incluidos"],
                     "blocos_excluidos": relatorio["blocos_excluidos"],
                     "containers_derivados": relatorio["containers_derivados"],
+                    "zonas": relatorio.get("zonas", {}),
                     "numeracao": relatorio.get("numeracao", {})})
     return relatorio
 
@@ -623,9 +729,14 @@ def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO,
     if isinstance(pedidos_ok, dict) and pedidos_ok.get("status") == "PIPELINE_ABORTED":
         return pedidos_ok
 
+    conteudo_zonas = _etapa_zonas(caso, stages, Path(catalogo_blocos), fatos)
+    if isinstance(conteudo_zonas, dict) and conteudo_zonas.get("status") == "PIPELINE_ABORTED":
+        return conteudo_zonas
+
     relatorio_engine = _etapa_template(dados, decisoes_blocos, Path(template), Path(schema),
                                         Path(catalogo_blocos), Path(output_path), stages,
-                                        fatos_processuais=fatos_processuais)
+                                        fatos_processuais=fatos_processuais,
+                                        conteudo_zonas=conteudo_zonas)
     if isinstance(relatorio_engine, dict) and relatorio_engine.get("status") == "PIPELINE_ABORTED":
         return relatorio_engine
 
@@ -649,6 +760,8 @@ def gerar(caso_dir, output_path, template=TEMPLATE_PADRAO, schema=SCHEMA_PADRAO,
         "blocos_excluidos": relatorio_engine["blocos_excluidos"],
         "containers_derivados": relatorio_engine["containers_derivados"],
         "blocos_indeterminados": relatorio_engine["blocos_indeterminados"],
+        "zonas_incluidas": relatorio_engine.get("zonas_incluidas", []),
+        "zonas_excluidas": relatorio_engine.get("zonas_excluidas", []),
         "documento_final": relatorio_engine["documento_final"],
     }
 

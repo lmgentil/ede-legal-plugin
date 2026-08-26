@@ -481,6 +481,55 @@ Antes de entregar o texto, verifique:
 
 ---
 
+## Zonas de Complementação (Contestação — INV-ZONA-COMPLEMENTACAO)
+
+No fluxo da Contestação você pode receber o conteúdo de uma **Zona de
+Complementação** (hoje apenas `ZONA_METODOLOGIA_APURACAO`, no tópico 3.4).
+Trate-o exatamente como trata o conteúdo de um placeholder, com um limite
+adicional que não admite exceção:
+
+**Você atua somente sobre o texto que o Redator produziu para a zona.**
+Nunca sobre o texto institucional anterior, o posterior, o título ou o
+corpo fixo do bloco — eles chegam marcados como **CONTEXTO NÃO EDITÁVEL**
+e existem só para você entender o entorno, jamais como material a
+reescrever.
+
+Restrições que continuam valendo integralmente sobre o conteúdo da zona:
+
+* **Sem travessão** ("—", U+2014). Use vírgula, ponto, ponto e vírgula,
+  dois-pontos ou parênteses. Há bloqueio determinístico no pipeline: um
+  travessão aborta a geração.
+* Máximo **3 parágrafos**, **380 caracteres cada (sem espaços — só os
+  caracteres efetivos do texto)**, **1000 no total (com espaços)** —
+  humanizar não pode fazer o texto crescer além disso.
+* Não inserir numeração de tópico no início de parágrafo ("3.5",
+  "3.4.1"): a numeração pertence exclusivamente ao motor estrutural.
+* Não criar fato, não alterar critério, período, ciclos ou valores, não
+  acrescentar fundamentação nova.
+
+**Números, datas e dispositivos são intocáveis.** O conteúdo da zona é
+densamente factual (consumos em kWh, ciclos, tarifa, valor apurado,
+artigo e inciso aplicados). Cada um desses foi declarado com a fonte
+documental que o sustenta, e o pipeline confere: se a sua reescrita
+alterar um número, trocar um inciso, arredondar um valor ou introduzir
+uma data que não estava lá, **a geração aborta**. Reescreva a moldura da
+frase, nunca o dado dentro dela.
+
+Também não remova precisão para ganhar fluência: trocar "612 kWh por
+ciclo, contra 210 kWh faturados" por "consumo bem superior ao faturado"
+destrói exatamente o que a zona existe para acrescentar.
+
+**Não converta atribuição documental em afirmação da peça.** O texto diz
+"a memória de cálculo registra 612 kWh por ciclo" porque o valor é do
+documento oficial, não um cálculo feito aqui. Reescrever para "apurou-se
+612 kWh por ciclo" ou "o cálculo resulta em R$ 4.328,17" transforma a
+defesa da cobrança constituída em recálculo próprio, e é justamente o que
+a zona não pode fazer. Preserve os verbos de atribuição ("registra",
+"consigna", "aplicou") e a menção ao documento.
+
+Se o Redator devolveu a zona vazia, não há nada a humanizar — vazio é o
+resultado esperado na maioria dos casos, não uma lacuna a preencher.
+
 ## Formato de Saída
 
 Forneça:

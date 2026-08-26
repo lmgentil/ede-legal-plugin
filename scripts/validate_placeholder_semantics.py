@@ -495,6 +495,58 @@ def _checar_travessao(valor, nome_campo: str) -> list:
     return []
 
 
+# ============================================================== Etapa 5.8-B — zonas de complementação
+# §17: o conteúdo da zona é inserido pela substituição de placeholder, que
+# ocorre DEPOIS de validar_numeracao_final() — a varredura de "título
+# numerado residual" do docx_numeracao_engine, portanto, nunca enxerga o
+# texto da zona. Backstop lexical determinístico: parágrafo de zona
+# começando com prefixo de título numerado é rejeitado. A zona complementa
+# um tópico existente; nunca cria tópico.
+_PREFIXO_TITULO_NUMERADO_RE = re.compile(r"^\s*\d+(?:\s*[.\-–)]|\.\d)")
+# §20: sentinela textual nunca pode alcançar o DOCX — zona sem conteúdo é
+# zona removida, não zona com aviso impresso.
+_SENTINELAS_ZONA = (
+    "NÃO APLICÁVEL", "NAO APLICAVEL", "NÃO INFORMADO", "NAO INFORMADO",
+    "NÃO ESPECIFICADO", "NAO ESPECIFICADO", "SEM DADOS", "VAZIO",
+    "N/A", "[VAZIO]", "PENDENTE",
+)
+
+
+def validar_conteudo_zona(valor, zona_id: str) -> list:
+    """Guardas determinísticas do conteúdo de uma Zona de Complementação.
+    Limites de tamanho ficam em validate_paragrafos.validar_densidade_zonas
+    (vêm do catálogo, não daqui); travessão fica em _checar_travessao,
+    aplicado abaixo — nenhuma regra duplicada."""
+    erros = []
+    texto = str(valor)
+    for i, p in enumerate(l for l in texto.split("\n") if l.strip()):
+        if _PREFIXO_TITULO_NUMERADO_RE.match(p):
+            erros.append(
+                f"{zona_id}: parágrafo {i + 1} começa com prefixo de título numerado "
+                f"({p[:20]!r}) — zona de complementação não cria tópico, subtópico nem "
+                f"numeração (a numeração pertence exclusivamente ao motor estrutural, "
+                f"INV-NUMERACAO-DINAMICA-CONTESTACAO)")
+    maiusculo = _sem_acento(texto).upper()
+    for sentinela in _SENTINELAS_ZONA:
+        if _sem_acento(sentinela).upper() in maiusculo:
+            erros.append(
+                f"{zona_id}: contém sentinela textual {sentinela!r} — zona sem conteúdo é "
+                f"removida do documento (comportamento_vazia=remover_sdt), nunca impressa "
+                f"com aviso de ausência")
+            break
+    erros.extend(_checar_travessao(texto, zona_id))
+    return erros
+
+
+def validar_semantica_zonas(conteudo_zonas: dict) -> tuple:
+    """Retorna (ok, erros) para todas as zonas com conteúdo não vazio."""
+    erros = []
+    for zid, valor in sorted((conteudo_zonas or {}).items()):
+        if valor is not None and str(valor).strip():
+            erros.extend(validar_conteudo_zona(valor, zid))
+    return (len(erros) == 0), erros
+
+
 VALIDADORES_ESPECIFICOS = {
     "JUIZO": _validar_juizo,
     "AUTOR": _validar_autor,

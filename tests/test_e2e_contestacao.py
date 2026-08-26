@@ -100,11 +100,20 @@ def test_happy_path_pipeline_completo():
         assert nomes_stage == {"contexto_institucional", "facts", "tempestividade", "strategy",
                                 "block_composition_decisoes", "rag_legal_validation",
                                 "juizo_datajud", "drafting_humanization", "paragrafo_380",
-                                "pedidos_composicionais", "template_engine"}
+                                "pedidos_composicionais", "zonas", "template_engine"}
         assert r["stages"][0]["name"] == "contexto_institucional"
         assert all(s["status"] == "ok" for s in r["stages"]), r["stages"]
 
-        assert r["fatos_com_proveniencia"] == 11
+        # Etapa 5.8-C: fatos.json da fixture passou a expor cada elemento do
+        # memorial de cálculo como fato próprio (11 -> 17), para que o
+        # Redator os veja individualmente em vez de um fato agregado único.
+        assert r["fatos_com_proveniencia"] == 17
+        # zonas.json ausente na fixture happy_path = zona vazia (estado
+        # normal, INV-ZONA-COMPLEMENTACAO) — sem METODOLOGIA_APURACAO_
+        # DOCUMENTADA declarada em estado_processual.json, a cascata
+        # resolve EXCLUIR sem perguntar (nunca INDETERMINADO por omissão).
+        assert r["zonas_incluidas"] == []
+        assert r["zonas_excluidas"] == ["ZONA_METODOLOGIA_APURACAO"]
         assert r["citacoes_validadas"] == 7   # 7 citações reais do corpus
         assert r["citacoes_nao_validadas"] == 1  # art. 999999 — inexistente, rejeitado
         assert r["template_lock"] == "OK"

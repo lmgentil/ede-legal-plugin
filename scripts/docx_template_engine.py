@@ -522,11 +522,19 @@ def substituir_placeholders(document_xml: str, dados: dict):
 
 
 # --------------------------------------------------------------- validação
-def validar_placeholders(template_xml: str, dados: dict, schema: dict) -> dict:
+def validar_placeholders(template_xml: str, dados: dict, schema: dict, tokens_zona=()) -> dict:
     """REQ-034. TEST-003: placeholder fora do schema falha. Também falha se
     faltar dado para algum placeholder presente no template — gerar com
-    placeholder residual (TEST-004) nunca é aceitável."""
-    autorizados = set(schema["editable_placeholders"])
+    placeholder residual (TEST-004) nunca é aceitável.
+
+    `tokens_zona` (Etapa 5.8-B): nomes de tokens de Zona de Complementação
+    resolvidos como INCLUIR nesta geração. Ficam autorizados aqui SEM
+    entrar em `schema['editable_placeholders']` — placeholder e zona são
+    contratos distintos, e os 13 placeholders oficiais continuam sendo
+    exatamente 13 (INV-ZONA-COMPLEMENTACAO). Zona EXCLUIR nunca chega
+    aqui: seu SDT (e o parágrafo do token) já foi removido por
+    compor_zonas, então o token nem existe no XML validado."""
+    autorizados = set(schema["editable_placeholders"]) | set(tokens_zona)
     no_template = extrair_placeholders(template_xml)
     fornecidos = set(dados.keys())
 
@@ -595,10 +603,18 @@ def verificar_template_lock(template_dir: Path, gerado_dir: Path, dados: dict, t
 
 
 # --------------------------------------------------------------- orquestração
-def gerar_peca(template_path, schema_path, dados: dict, output_path) -> dict:
+def gerar_peca(template_path, schema_path, dados: dict, output_path, tokens_zona=()) -> dict:
     """Pipeline completo: valida -> substitui sobre cópia -> reempacota ->
     Template Lock. O template mestre é aberto só para leitura; toda escrita
-    ocorre em diretório temporário e no output_path informado."""
+    ocorre em diretório temporário e no output_path informado.
+
+    `tokens_zona` (Etapa 5.8-B): repassado a validar_placeholders. Este
+    motor de baixo nível NÃO conhece o catálogo de zonas e nunca decide
+    sozinho o que é zona — quem resolve estados e remove SDT de zona vazia
+    é docx_block_engine.compor_zonas, no caminho de produção
+    (gerar_peca_com_blocos). Aqui o parâmetro serve só para quem chama
+    este motor diretamente (validate_template.py, testes de unidade sobre
+    o template real) poder declarar tokens de zona já autorizados."""
     template_path = Path(template_path)
     if not template_path.exists():
         return {"status": "FALHOU", "etapa": "template", "erros": [f"template não encontrado: {template_path}"]}
@@ -618,7 +634,7 @@ def gerar_peca(template_path, schema_path, dados: dict, output_path) -> dict:
 
         template_xml = (unpacked_template / "word" / "document.xml").read_text(encoding="utf-8")
 
-        validacao = validar_placeholders(template_xml, dados, schema)
+        validacao = validar_placeholders(template_xml, dados, schema, tokens_zona=tokens_zona)
         if not validacao["ok"]:
             return {"status": "FALHOU", "etapa": "validacao_placeholders", "erros": validacao["erros"]}
 

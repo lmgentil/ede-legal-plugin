@@ -5,6 +5,8 @@
   "_nota_auditoria_etapa5": "Blocos/container/inline auditados diretamente no corpo (w:body) do modelo-oficial.docx (Etapas 4-A a 4-D, migração/validação Etapa 5). Índices de w:body auditados não fazem parte deste arquivo (são posição física do XML, não contrato) — apenas os w:tag dos SDTs resultantes, que é o que o motor lê em runtime.",
   "estados_validos": ["INCLUIR", "EXCLUIR", "INDETERMINADO"],
   "tipos_validos": ["FIXO", "CONDICIONAL_PADRAO", "CONDICIONAL_HIBRIDO", "CONTAINER_DERIVED"],
+  "_nota_zones": "Etapa 5.8-B (INV-ZONA-COMPLEMENTACAO, ADR-0010, SPEC-0001 §58). Zona de Complementação é a TERCEIRA categoria de zona de intervenção textual, ao lado de bloco e placeholder — e não é nenhuma das duas. Não tem decision_mode, não entra em derived_rule, não provoca inclusão de container nem do bloco-pai, e NUNCA é perguntada ao advogado; também nunca entra em editable_placeholders (os 13 continuam exatamente 13). É NORMALMENTE VAZIA: só existe na peça quando há suporte fático documentado (requires_facts) E o Redator, aplicando o teste de necessidade, produziu conteúdo. Declarar decision_mode, children, derived_rule, linked_to, linked_fact, parent ou cardinality numa zona é erro de catálogo. Não existe ZONA_COMPLEMENTACAO_GENERICA e não deve passar a existir; toda zona futura exige autorização expressa do usuário.",
+  "tipos_conteudo_zona_validos": ["dado_documental"],
   "fixed_components": [
     { "id": "TIMBRADO", "descricao": "Cabeçalho/rodapé institucional EDE — nunca removível, sem tag SDT (fora do corpo editável)." },
     { "id": "ENDERECAMENTO", "descricao": "Juízo/qualificação inicial da peça — placeholders {{JUIZO}}/{{NUMERO_PROCESSO}}/{{AUTOR}}, sem SDT." },
@@ -166,6 +168,27 @@
       "placeholders": [],
       "dependencies": [],
       "cardinality": "MC_PAIR"
+    }
+  ],
+  "zones": [
+    {
+      "id": "ZONA_METODOLOGIA_APURACAO",
+      "tag": "ZONA:METODOLOGIA_APURACAO",
+      "bloco_pai": "CALCULOS_RECUPERACAO_CONSUMO",
+      "finalidade": "Conectar a fundamentação normativa fixa do tópico 3.4 (arts. 326, 595 e 596 da REN ANEEL 1.000/2021, já integralmente transcritos no modelo) aos dados concretos da apuração DESTE processo: critério/inciso do art. 595 efetivamente aplicado, período de irregularidade considerado, ciclos de faturamento, base documental da apuração (memória de cálculo/memorial de faturamento) e, quando necessário à compreensão do cálculo, a quantidade de energia recuperada. NÃO cria tese jurídica nova, NÃO repete a lista dos incisos, NÃO reproduz os arts. 595/596, NÃO reencena a irregularidade (isso é DESENVOLVIMENTO_TECNICO_IRREGULARIDADE) nem a contraposição fática (REALIDADE_FATICA).",
+      "tipo_conteudo": "dado_documental",
+      "requires_facts": [
+        "METODOLOGIA_APURACAO_DOCUMENTADA"
+      ],
+      "max_paragrafos": 3,
+      "max_caracteres_paragrafo": 380,
+      "max_caracteres_total": 1000,
+      "exige_proveniencia": true,
+      "comportamento_vazia": "remover_sdt",
+      "_nota_limites": "Recalibração da Etapa 5.8-C. Os limites originais (2 parágrafos / 400 caracteres totais) tornavam MECANICAMENTE IMPOSSÍVEL a complementação materialmente útil que a zona existe para produzir: demonstrar a aplicação concreta do critério do art. 595 exige nomear inciso, ciclos, consumos, período, diferença apurada e valor — o exemplo-alvo da própria Etapa 5.8-C soma 896 caracteres e reprovava em dois pontos. `max_caracteres_paragrafo` permanece 380 (INV-PARAGRAFO-380 é invariante do projeto, nascida de achado real da Etapa 5.2 — parágrafos excessivamente extensos; não é relaxada aqui). O que foi ampliado é só o teto AGREGADO, e a ampliação é paga por `exige_proveniencia`: a zona pode ser mais longa porque cada dado factual passou a ser rastreável a documento, não porque a IA ganhou liberdade de redação. O risco nº 1 mapeado na Etapa 5.8-A (zona virar válvula de escape para argumentação que não coube em outro campo) continua contido: argumentação não tem número, e conteúdo sem nenhum dado ancorado é rejeitado. Etapa 5.8-C.1: os NÚMEROS não mudaram (3 parágrafos, 380 por parágrafo, 1000 no total), mas o teto por parágrafo passou a ser contado SEM ESPAÇOS (caracteres efetivos: letras, números e pontuação; espaço, tabulação e quebra interna ficam de fora) — o limite material não foi relaxado, passou a medir texto em vez de espaçamento. `max_caracteres_total` continua contado em caracteres BRUTOS; as duas contagens estão explicitadas nas mensagens de erro de validate_paragrafos.py.",
+      "_nota_requires_facts": "Auditoria da Etapa 5.8-B (§4 do pedido): o pipeline produz DOIS contratos factuais distintos — (a) `fatos.json`, lista de fatos em prosa com proveniência (validate_fatos.py), sem chaves consultáveis; (b) `estado_processual.json`, o ÚNICO contrato de fato COM CHAVE, resolvido por docx_block_engine._estado_fato_processual em TRUE/FALSE/INDETERMINADO, hoje com duas chaves (GRATUIDADE_CONCEDIDA, CORTE_EFETIVO). Como a regra de ativação exige a tri-estabilidade (INDETERMINADO -> aborta, §7.3), o gate desta zona reutiliza integralmente o mecanismo (b) — nenhum contrato novo, nenhum validador novo, nenhum arquivo novo de fato. Nenhuma das duas chaves existentes trata de metodologia de apuração, então UMA chave nova é introduzida: METODOLOGIA_APURACAO_DOCUMENTADA — true quando os autos contêm memória de cálculo/memorial de faturamento que identifica o critério e o período da apuração; false/ausente quando não contêm (zona EXCLUIR automático, sem perguntar); 'INDETERMINADO' quando os documentos são contraditórios (aborta). Resolvida pela Skill `contestacao` a partir dos documentos, com proveniência em `fatos.json`, NUNCA por busca lexical.",
+      "_nota_conteudo": "tipo_conteudo restrito a 'dado_documental' neste piloto — 'complemento_factual' NÃO está liberado (§4 do pedido da Etapa 5.8-B).",
+      "_nota_proveniencia": "Etapa 5.8-C.1: cada dado de `zonas.json` declara tipo/valor/unidade/fonte/natureza (documental|derivado), com `operacao` (soma/subtracao/multiplicacao/media sobre outros `tipo`s declarados) quando mantém relação matemática com outros dados, e `metodologia` {descricao,fonte} quando o documento oficial explica uma diferença que a conta simples não reproduz. A verificação aritmética (Decimal, nunca float para dinheiro) é CONTROLE DE COERÊNCIA, nunca recálculo da cobrança: Memorial de Cálculo e Memorial de Faturamento são a fonte de verdade dos valores da apuração, e estimativa regulamentar não é arbitrariedade. Ver SPEC-0001 §59."
     }
   ]
 }

@@ -25,6 +25,7 @@ Dois níveis:
 Uso:
   python tests/test_template_engine.py
 """
+import json
 import sys
 from pathlib import Path
 
@@ -336,10 +337,22 @@ def test_pipeline_completo_contra_template_real():
         unpack_mod.unpack(str(cópia), str(unpacked))
         template_xml = (unpacked / "word" / "document.xml").read_text(encoding="utf-8")
 
+    # Etapa 5.8-B: além dos 13 placeholders oficiais, o template real passa
+    # a conter os tokens das Zonas de Complementação catalogadas. A
+    # asserção continua exata (nenhum token pode existir fora dessas duas
+    # listas — INV-ZONA-COMPLEMENTACAO) e os 13 continuam 13; zona nunca
+    # entra em editable_placeholders.
+    catalogo_real = json.loads(
+        (BASE / "templates" / "contestacao" / "blocos.json").read_text(encoding="utf-8"))
+    tokens_zona = {z["id"] for z in catalogo_real.get("zones", [])}
+    assert not (tokens_zona & set(schema["editable_placeholders"]))
+    assert len(schema["editable_placeholders"]) == 13
+
     placeholders_reais = _ep(template_xml)
-    assert placeholders_reais == set(schema["editable_placeholders"]), (
-        f"schema.json desatualizado em relação ao DOCX real: "
-        f"template={sorted(placeholders_reais)} schema={sorted(schema['editable_placeholders'])}"
+    assert placeholders_reais == set(schema["editable_placeholders"]) | tokens_zona, (
+        f"schema.json/blocos.json desatualizados em relação ao DOCX real: "
+        f"template={sorted(placeholders_reais)} "
+        f"schema={sorted(schema['editable_placeholders'])} zonas={sorted(tokens_zona)}"
     )
 
     dados_ficticios = {
@@ -357,10 +370,18 @@ def test_pipeline_completo_contra_template_real():
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
         "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
     }
+    # Este teste exercita o motor de baixo nível (gerar_peca, SEM composição
+    # de blocos/zonas) contra o arquivo real; por isso os tokens de zona
+    # precisam ser declarados autorizados aqui. No caminho de PRODUÇÃO
+    # (gerar_peca_com_blocos) a zona vazia tem seu SDT removido antes desta
+    # validação, e nada precisa ser declarado — ver tests/test_zonas_
+    # complementacao.py.
+    dados_ficticios.update({z: f"{z} fictício de teste." for z in sorted(tokens_zona)})
 
     with __import__("tempfile").TemporaryDirectory() as tmp:
         saida = Path(tmp) / "contestacao-teste.docx"
-        relatorio = gerar_peca(TEMPLATE_REAL, SCHEMA_REAL, dados_ficticios, saida)
+        relatorio = gerar_peca(TEMPLATE_REAL, SCHEMA_REAL, dados_ficticios, saida,
+                                tokens_zona=sorted(tokens_zona))
         assert relatorio["status"] == "OK", relatorio
         assert relatorio["template_lock"] == "OK"
         assert saida.exists() and saida.stat().st_size > 0

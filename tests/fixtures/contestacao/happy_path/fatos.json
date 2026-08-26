@@ -75,5 +75,47 @@
     "page": 1,
     "confidence": 0.85,
     "tipo": "INFERENCIA"
+  },
+  {
+    "fact": "O período de apuração da recuperação de consumo compreendeu 6 (seis) ciclos de medição anteriores à constatação da irregularidade, nos termos do art. 596, §1º, da REN ANEEL nº 1.000/2021.",
+    "source_document": "memorial_calculo_sintetico.txt",
+    "page": 1,
+    "confidence": 0.95,
+    "tipo": "FATO_DOCUMENTADO"
+  },
+  {
+    "fact": "O consumo médio apurado pela metodologia do art. 595, III, foi de 612 kWh por ciclo.",
+    "source_document": "memorial_calculo_sintetico.txt",
+    "page": 1,
+    "confidence": 0.95,
+    "tipo": "FATO_DOCUMENTADO"
+  },
+  {
+    "fact": "O consumo efetivamente faturado no mesmo período foi de 210 kWh por ciclo.",
+    "source_document": "memorial_calculo_sintetico.txt",
+    "page": 1,
+    "confidence": 0.95,
+    "tipo": "FATO_DOCUMENTADO"
+  },
+  {
+    "fact": "A diferença apurada foi de 402 kWh por ciclo, totalizando 2.412 kWh em 6 ciclos.",
+    "source_document": "memorial_calculo_sintetico.txt",
+    "page": 1,
+    "confidence": 0.95,
+    "tipo": "FATO_DOCUMENTADO"
+  },
+  {
+    "fact": "A tarifa aplicada foi a vigente à época, de R$ 1,7947/kWh.",
+    "source_document": "memorial_calculo_sintetico.txt",
+    "page": 1,
+    "confidence": 0.95,
+    "tipo": "FATO_DOCUMENTADO"
+  },
+  {
+    "fact": "O levantamento do histórico de consumo abrangeu os 12 (doze) ciclos de medição regular anteriores à inspeção.",
+    "source_document": "toi_sintetico.txt",
+    "page": 1,
+    "confidence": 0.95,
+    "tipo": "FATO_DOCUMENTADO"
   }
 ]

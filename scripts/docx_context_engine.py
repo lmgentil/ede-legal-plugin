@@ -165,6 +165,14 @@ def extrair_contexto(document_xml: str, catalogo: dict) -> dict:
             j += passo
         return None
 
+    # Etapa 5.8-B: o token de uma Zona de Complementação casa com a MESMA
+    # regex de placeholder, então título/antes/depois/bloco ancestral saem
+    # do mesmo percurso, sem código novo. O que se acrescenta é a
+    # etiquetagem (`tipo`) e os metadados do catálogo (finalidade, limites),
+    # para o Redator saber que está diante de uma zona — normalmente vazia,
+    # sujeita ao teste de necessidade — e não de um placeholder obrigatório.
+    zonas_por_id = {z["id"]: z for z in catalogo.get("zones", [])}
+
     contexto = {}
     for idx, p in enumerate(paragrafos):
         texto = textos[idx]
@@ -172,12 +180,31 @@ def extrair_contexto(document_xml: str, catalogo: dict) -> dict:
             nome = m.group(1)
             antes = texto[:m.start()].strip() or _paragrafo_nao_vazio_mais_proximo(idx, -1) or ""
             depois = texto[m.end():].strip() or _paragrafo_nao_vazio_mais_proximo(idx, +1) or ""
+            zona = zonas_por_id.get(nome)
             ocorrencia = {
                 "titulo": _titulo_anterior(idx),
                 "antes": antes,
                 "depois": depois,
                 "bloco": _bloco_ancestral(p, tags_para_id),
+                "tipo": "zona" if zona else "placeholder",
+                # CONTEXTO NÃO EDITÁVEL (§18/§19): 'antes'/'depois'/'titulo'
+                # são texto institucional do modelo — insumo de leitura para
+                # o Redator e para o Humanizer, nunca material a reescrever.
+                "contexto_editavel": False,
             }
+            if zona:
+                ocorrencia.update({
+                    "bloco_pai": zona["bloco_pai"],
+                    "finalidade": zona["finalidade"],
+                    "tipo_conteudo": zona["tipo_conteudo"],
+                    "requires_facts": list(zona["requires_facts"]),
+                    "limites": {
+                        "max_paragrafos": zona["max_paragrafos"],
+                        "max_caracteres_paragrafo": zona["max_caracteres_paragrafo"],
+                        "max_caracteres_total": zona["max_caracteres_total"],
+                    },
+                    "normalmente_vazia": True,
+                })
             contexto.setdefault(nome, []).append(ocorrencia)
 
     return contexto

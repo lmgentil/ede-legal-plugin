@@ -273,9 +273,17 @@ def test_O_treze_placeholders_batem_exatamente_com_schema_no_template_real():
         print(f"SKIP: {TEMPLATE_REAL} não existe localmente.")
         return
     schema = json.loads(SCHEMA_REAL.read_text(encoding="utf-8"))
+    catalogo = json.loads(CATALOGO_REAL.read_text(encoding="utf-8"))
     ctx = extrair_contexto_do_template(TEMPLATE_REAL, CATALOGO_REAL)
-    assert set(ctx.keys()) == set(schema["editable_placeholders"])
+    # Etapa 5.8-B: o template passa a conter também os tokens das Zonas de
+    # Complementação catalogadas. A asserção continua EXATA — nenhum token
+    # no template pode existir fora dessas duas listas (INV-ZONA-
+    # COMPLEMENTACAO: sem placeholder ou zona catalogada, sem escrita
+    # gerativa) — e os 13 placeholders oficiais continuam sendo 13.
+    zonas = {z["id"] for z in catalogo.get("zones", [])}
+    assert set(ctx.keys()) == set(schema["editable_placeholders"]) | zonas
     assert len(schema["editable_placeholders"]) == 13
+    assert not (zonas & set(schema["editable_placeholders"]))
 
 
 def test_R_e2e_contexto_institucional_completo_contra_template_real():

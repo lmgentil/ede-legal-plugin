@@ -6,8 +6,20 @@ validate_paragrafos.py — validação estrutural de INV-PARAGRAFO-380 (Etapa
 extensos).
 
 Regra: todo parágrafo de conteúdo NOVO (gerado pela IA para os placeholders
-multiline) deve ter no máximo 380 caracteres com espaços. A contagem inclui
-letras, números, espaços e pontuação.
+multiline) deve ter no máximo 380 caracteres SEM ESPAÇOS (ajuste da Etapa
+5.8-C.1). A contagem é a dos caracteres EFETIVOS do texto — letras,
+números e pontuação; espaço, tabulação e qualquer outro caractere de
+espaçamento ficam de fora (`len("".join(texto.split()))`).
+
+O limite material do parágrafo NÃO foi relaxado: passou a medir texto, não
+espaçamento. Um parágrafo de 380 caracteres efetivos ocupa por volta de
+440-450 caracteres brutos em português, e é isso que o teto de 380 sempre
+pretendeu descrever.
+
+Os tetos AGREGADOS (densidade por bloco, `max_caracteres_total` da zona)
+continuam contados em caracteres BRUTOS, como sempre foram — a Etapa
+5.8-C.1 mudou a convenção só do limite por parágrafo, e as duas contagens
+estão explicitadas nas mensagens de erro para não restar ambiguidade.
 
 Escopo deliberadamente restrito: só valida os placeholders marcados
 "multiline": true em templates/contestacao/schema.json
@@ -39,6 +51,13 @@ from pathlib import Path
 PARAGRAFO_MAXIMO = 380
 
 
+def comprimento_efetivo(texto: str) -> int:
+    """Caracteres efetivos de um parágrafo: tudo menos espaçamento (espaço,
+    tab, quebra interna). É a contagem de INV-PARAGRAFO-380 desde a Etapa
+    5.8-C.1 — mede texto, não formatação."""
+    return len("".join(str(texto).split()))
+
+
 def paragrafos(texto: str) -> list:
     """Quebra o valor de um placeholder multiline em parágrafos, ignorando
     linhas em branco (separadores de espaçamento, não conteúdo)."""
@@ -47,14 +66,16 @@ def paragrafos(texto: str) -> list:
 
 def validar_paragrafo_380(texto: str) -> list:
     """Retorna a lista de erros (vazia se todos os parágrafos de `texto`
-    respeitam o limite de 380 caracteres)."""
+    respeitam o limite de 380 caracteres SEM ESPAÇOS)."""
     erros = []
     for i, p in enumerate(paragrafos(texto)):
-        if len(p) > PARAGRAFO_MAXIMO:
+        efetivo = comprimento_efetivo(p)
+        if efetivo > PARAGRAFO_MAXIMO:
             preview = p[:60] + ("…" if len(p) > 60 else "")
             erros.append(
-                f"parágrafo {i + 1} tem {len(p)} caracteres (máximo "
-                f"{PARAGRAFO_MAXIMO}, INV-PARAGRAFO-380): {preview!r}")
+                f"parágrafo {i + 1} tem {efetivo} caracteres sem espaços "
+                f"({len(p)} brutos; máximo {PARAGRAFO_MAXIMO} sem espaços, "
+                f"INV-PARAGRAFO-380): {preview!r}")
     return erros
 
 
@@ -135,6 +156,53 @@ def validar_densidade_blocos(dados: dict) -> tuple:
     return (len(erros) == 0), erros
 
 
+# ============================================================== Etapa 5.8-B — zonas de complementação
+def validar_densidade_zonas(conteudo_zonas: dict, zonas_catalogo: list) -> tuple:
+    """INV-ZONA-COMPLEMENTACAO: os limites de cada zona vêm do CATÁLOGO
+    (max_paragrafos / max_caracteres_paragrafo / max_caracteres_total), não
+    de uma tabela paralela aqui — zona é contrato declarado, não hardcode.
+
+    Duas contagens, deliberadamente distintas e explicitadas nas mensagens
+    de erro (Etapa 5.8-C.1): `max_caracteres_paragrafo` (INV-PARAGRAFO-380)
+    conta caracteres SEM ESPAÇOS; `max_caracteres_total` conta caracteres
+    BRUTOS, como sempre. A zona continua sendo complemento pontual — o
+    risco nº 1 mapeado na Etapa 5.8-A (virar válvula de escape para o
+    conteúdo que não coube no placeholder correto) é contido pelo teto
+    agregado, pelo limite de parágrafos e pela exigência de proveniência,
+    não pela contagem de espaços em branco.
+
+    Conteúdo de zona não declarada no catálogo é erro, nunca ignorado."""
+    conteudo_zonas = conteudo_zonas or {}
+    por_id = {z["id"]: z for z in (zonas_catalogo or [])}
+    erros = []
+
+    for zid in sorted(conteudo_zonas):
+        if zid not in por_id:
+            erros.append(f"{zid}: conteúdo fornecido para zona que não existe no catálogo "
+                         f"(zonas conhecidas: {sorted(por_id) or 'nenhuma'})")
+
+    for zid, zona in sorted(por_id.items()):
+        texto = conteudo_zonas.get(zid)
+        if texto is None or not str(texto).strip():
+            continue  # zona vazia é o estado normal — nada a validar
+        paras = paragrafos(texto)
+        if len(paras) > zona["max_paragrafos"]:
+            erros.append(f"{zid}: {len(paras)} parágrafos (máximo {zona['max_paragrafos']})")
+        for i, p in enumerate(paras):
+            efetivo = comprimento_efetivo(p)
+            if efetivo > zona["max_caracteres_paragrafo"]:
+                erros.append(f"{zid}: parágrafo {i + 1} tem {efetivo} caracteres sem espaços "
+                             f"({len(p)} brutos; máximo {zona['max_caracteres_paragrafo']} sem "
+                             f"espaços, INV-PARAGRAFO-380)")
+        total = sum(len(p) for p in paras)
+        if total > zona["max_caracteres_total"]:
+            erros.append(f"{zid}: {total} caracteres brutos no total (máximo "
+                         f"{zona['max_caracteres_total']} brutos — o teto agregado continua "
+                         f"contado com espaços) — a zona complementa o modelo, não compete "
+                         f"com ele")
+    return (len(erros) == 0), erros
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dados", required=True, help="JSON com {PLACEHOLDER: valor}")
@@ -146,7 +214,8 @@ def main():
 
     ok, erros = validar_paragrafos_placeholders(dados, schema)
     if ok:
-        print("OK — todos os parágrafos respeitam o limite de 380 caracteres (INV-PARAGRAFO-380).")
+        print("OK — todos os parágrafos respeitam o limite de 380 caracteres sem espaços "
+              "(INV-PARAGRAFO-380).")
         sys.exit(0)
     print(f"FALHA — {len(erros)} parágrafo(s) acima do limite:")
     for e in erros:

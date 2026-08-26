@@ -125,6 +125,38 @@ DECISION_MODES_MANUAIS = ("estrategista", "humano")
 CARDINALIDADES_VALIDAS = ("ONE", "MC_PAIR")
 _CARDINALIDADE_ESPERADA = {"ONE": 1, "MC_PAIR": 2}
 
+# ---------------------------------------------------------------- Etapa 5.8-B
+# INV-ZONA-COMPLEMENTACAO (SPEC-0001 §58, ADR-0010). Zona de Complementação
+# é uma terceira categoria, distinta das duas já existentes:
+#   - BLOCO  -> tem decision_mode, entra em derived_rule, é decidido pela
+#               etapa estratégica ou pelo advogado, compõe a estrutura;
+#   - PLACEHOLDER -> campo de finalidade semântica fixa, listado em
+#               schema.json editable_placeholders (13, e continuam 13);
+#   - ZONA   -> pertence a UM bloco-pai, é normalmente VAZIA, nunca é
+#               decidida (nem pelo estrategista nem pelo advogado), nunca
+#               provoca inclusão de nada, e só existe quando há suporte
+#               fático documentado E o Redator produziu conteúdo.
+# A tag do SDT de zona usa prefixo próprio para que a composição de blocos
+# a IGNORE na primeira passada (compor_blocos) e a resolva depois
+# (compor_zonas) — ver docstring de compor_zonas.
+ZONA_TAG_PREFIXO = "ZONA:"
+ZONA_CAMPOS_OBRIGATORIOS = (
+    "id", "tag", "bloco_pai", "finalidade", "tipo_conteudo", "requires_facts",
+    "max_paragrafos", "max_caracteres_paragrafo", "max_caracteres_total",
+    "comportamento_vazia",
+)
+# Piloto (Etapa 5.8-B §4): só 'dado_documental'. 'complemento_factual' NÃO
+# está liberado — ampliar exige autorização expressa, como qualquer zona nova.
+TIPOS_CONTEUDO_ZONA_VALIDOS = ("dado_documental",)
+COMPORTAMENTOS_VAZIA_VALIDOS = ("remover_sdt",)
+
+
+def token_da_zona(zona: dict) -> str:
+    """Token que a zona ocupa no template. Deliberadamente derivado do `id`
+    (nunca um campo próprio no catálogo, que poderia divergir do id em
+    silêncio): id `ZONA_METODOLOGIA_APURACAO` -> `{{ZONA_METODOLOGIA_APURACAO}}`."""
+    return "{{" + zona["id"] + "}}"
+
 
 def _qn(tag):
     return f"{{{W}}}{tag}"
@@ -248,6 +280,76 @@ def validar_catalogo(catalogo: dict) -> None:
 
     if any(cor[bid] == 0 and visita(bid) for bid in por_id):
         raise ComposicaoAbortada("catalogo_invalido", "ciclo detectado na hierarquia parent/children")
+
+    validar_catalogo_zonas(catalogo, ids_blocos=set(por_id), tags_blocos=tags_vistas)
+
+
+def validar_catalogo_zonas(catalogo: dict, ids_blocos: set, tags_blocos: set) -> None:
+    """Etapa 5.8-B — validação estrutural pura da lista `zones` (não olha
+    template nem conteúdo). Chave ausente ou lista vazia é legítimo: um
+    template sem zona alguma continua válido, e essa é a configuração
+    esperada de qualquer instalação anterior à Etapa 5.8-B.
+
+    Nunca valida decision_mode/children/derived_rule — zona não é bloco e
+    não pode ganhar autonomia composicional (§11 da Etapa 5.8-A)."""
+    zonas = catalogo.get("zones", [])
+    if not isinstance(zonas, list):
+        raise ComposicaoAbortada("catalogo_invalido", "'zones' deve ser uma lista")
+
+    ids_vistos, tags_vistas = set(), set()
+    for z in zonas:
+        if not isinstance(z, dict):
+            raise ComposicaoAbortada("catalogo_invalido", f"zona não é um objeto: {z!r}")
+        for campo in ZONA_CAMPOS_OBRIGATORIOS:
+            if campo not in z:
+                raise ComposicaoAbortada("catalogo_invalido",
+                                          f"zona sem campo obrigatório '{campo}': {z.get('id', z)}")
+        zid, tag = z["id"], z["tag"]
+        if zid in ids_vistos:
+            raise ComposicaoAbortada("catalogo_invalido", f"id de zona duplicado no catálogo: {zid}")
+        if zid in ids_blocos:
+            raise ComposicaoAbortada("catalogo_invalido",
+                                      f"{zid}: id de zona colide com id de bloco — zona não é bloco")
+        if tag in tags_vistas or tag in tags_blocos:
+            raise ComposicaoAbortada("catalogo_invalido", f"tag de zona duplicada no catálogo: {tag}")
+        ids_vistos.add(zid)
+        tags_vistas.add(tag)
+
+        if not tag.startswith(ZONA_TAG_PREFIXO):
+            raise ComposicaoAbortada("catalogo_invalido",
+                                      f"{zid}: tag de zona deve começar com '{ZONA_TAG_PREFIXO}', recebeu {tag!r}")
+        if z["bloco_pai"] not in ids_blocos:
+            raise ComposicaoAbortada("catalogo_invalido",
+                                      f"{zid}: bloco_pai inexistente '{z['bloco_pai']}'")
+        if z["tipo_conteudo"] not in TIPOS_CONTEUDO_ZONA_VALIDOS:
+            raise ComposicaoAbortada("catalogo_invalido",
+                                      f"{zid}: tipo_conteudo inválido '{z['tipo_conteudo']}' "
+                                      f"(válidos: {TIPOS_CONTEUDO_ZONA_VALIDOS})")
+        if z["comportamento_vazia"] not in COMPORTAMENTOS_VAZIA_VALIDOS:
+            raise ComposicaoAbortada("catalogo_invalido",
+                                      f"{zid}: comportamento_vazia inválido '{z['comportamento_vazia']}'")
+        # Gate fático obrigatório e não vazio: INV-BLOCO-SUPORTE-FATICO
+        # aplicado à zona — nenhuma zona pode existir só porque está
+        # catalogada (§3/§7 da Etapa 5.8-A).
+        req = z["requires_facts"]
+        if not isinstance(req, list) or not req or not all(
+                isinstance(k, str) and k.strip() for k in req):
+            raise ComposicaoAbortada("catalogo_invalido",
+                                      f"{zid}: requires_facts deve ser lista NÃO VAZIA de chaves de "
+                                      f"estado processual — zona sem suporte fático obrigatório não é "
+                                      f"admitida (INV-ZONA-COMPLEMENTACAO)")
+        for campo in ("max_paragrafos", "max_caracteres_paragrafo", "max_caracteres_total"):
+            valor = z[campo]
+            if isinstance(valor, bool) or not isinstance(valor, int) or valor <= 0:
+                raise ComposicaoAbortada("catalogo_invalido",
+                                          f"{zid}: {campo} deve ser inteiro positivo, recebeu {valor!r}")
+        # zona não pode declarar nada que a faria parecer bloco
+        for proibido in ("decision_mode", "children", "derived_rule", "linked_to",
+                         "linked_fact", "parent", "cardinality"):
+            if proibido in z:
+                raise ComposicaoAbortada("catalogo_invalido",
+                                          f"{zid}: zona não pode declarar '{proibido}' — zona não é "
+                                          f"bloco (INV-ZONA-COMPLEMENTACAO)")
 
 
 def _estado_fato_processual(fatos_processuais: dict, key: str, bid: str) -> str:
@@ -502,11 +604,17 @@ def validar_sdts_contra_catalogo(root, catalogo: dict) -> dict:
     """Cruza os SDTs reais do template contra o catálogo: toda tag no
     documento precisa existir no catálogo com cardinalidade compatível
     (sem duplicata não autorizada para cardinality ONE); todo bloco do
-    catálogo precisa existir no documento. Retorna o mapa tag->elementos."""
+    catálogo precisa existir no documento. Retorna o mapa tag->elementos.
+
+    Etapa 5.8-B: tags com prefixo ZONA: são validadas à parte, por
+    `_validar_zonas_contra_template` (contrato próprio — bloco-pai real,
+    token único e isolado), nunca pela mecânica de bloco."""
     mapa = _sdts_por_tag(root)
     tags_catalogo = {b["tag"]: b for b in catalogo["blocks"]}
 
     for tag_val, elementos in mapa.items():
+        if tag_val.startswith(ZONA_TAG_PREFIXO):
+            continue  # validado em _validar_zonas_contra_template, abaixo
         if tag_val not in tags_catalogo:
             raise ComposicaoAbortada("tag_desconhecida", f"tag no template sem entrada no catálogo: {tag_val}")
         esperado = _CARDINALIDADE_ESPERADA[tags_catalogo[tag_val]["cardinality"]]
@@ -520,7 +628,98 @@ def validar_sdts_contra_catalogo(root, catalogo: dict) -> dict:
         if b["tag"] not in mapa:
             raise ComposicaoAbortada("tag_ausente", f"bloco do catálogo sem SDT correspondente no template: {b['tag']}")
 
+    _validar_zonas_contra_template(root, catalogo, mapa, tags_catalogo)
     return mapa
+
+
+def _texto_do(elemento) -> str:
+    return "".join(t.text or "" for t in elemento.iter(_qn("t")))
+
+
+def _validar_zonas_contra_template(root, catalogo: dict, mapa: dict, tags_catalogo: dict) -> None:
+    """Etapa 5.8-B §14 — checagem BIDIRECIONAL zona × template, fail-closed
+    em todos os casos:
+
+      - SDT ZONA:* no template sem entrada em `zones` -> zona_nao_catalogada;
+      - zona em `zones` sem SDT no template -> MODELO_INSTITUCIONAL_
+        DESATUALIZADO (§15: erro operacional que diz o que o advogado precisa
+        fazer, não um `tag_ausente` cru — o plugin NUNCA busca, baixa ou
+        edita o modelo automaticamente);
+      - mais de um SDT com a mesma tag de zona -> zona_cardinalidade_invalida;
+      - bloco_pai declarado no catálogo diferente do SDT ancestral REAL na
+        árvore -> zona_bloco_pai_divergente (o catálogo declara, a árvore
+        manda);
+      - token ausente dentro do SDT -> zona_token_ausente;
+      - token em mais de um lugar do documento -> zona_token_duplicado;
+      - token acompanhado de outro texto no mesmo parágrafo ->
+        zona_token_nao_isolado (o parágrafo hospedeiro precisa ser só do
+        token: é o w:pPr dele que os parágrafos gerados clonam, e texto fixo
+        na mesma <w:p> seria arrastado pela expansão multilinha).
+    """
+    zonas = catalogo.get("zones", [])
+    tags_zonas = {z["tag"] for z in zonas}
+
+    for tag_val in mapa:
+        if tag_val.startswith(ZONA_TAG_PREFIXO) and tag_val not in tags_zonas:
+            raise ComposicaoAbortada(
+                "zona_nao_catalogada",
+                f"SDT de zona no template sem entrada em 'zones' do catálogo: {tag_val} — "
+                f"nenhuma escrita gerativa é autorizada fora de placeholder ou zona "
+                f"expressamente catalogada (INV-ZONA-COMPLEMENTACAO)")
+
+    texto_documento = _texto_do(root)
+    for z in zonas:
+        elementos = mapa.get(z["tag"], [])
+        if not elementos:
+            raise ComposicaoAbortada(
+                "modelo_institucional_desatualizado",
+                f"MODELO_INSTITUCIONAL_DESATUALIZADO: o catálogo declara a zona de "
+                f"complementação {z['id']} (tag {z['tag']}), mas o "
+                f"modelo-oficial.docx em uso não a contém. Este modelo é anterior à "
+                f"arquitetura de Zonas de Complementação e precisa ser substituído pela "
+                f"versão compatível, fornecida separadamente (o plugin nunca baixa, "
+                f"reconstrói nem edita o modelo automaticamente). Nenhuma peça é gerada "
+                f"até que o modelo seja atualizado.")
+        if len(elementos) != 1:
+            raise ComposicaoAbortada(
+                "zona_cardinalidade_invalida",
+                f"{z['id']}: {len(elementos)} SDT(s) com a tag {z['tag']} no template, esperado exatamente 1")
+
+        sdt = elementos[0]
+        ancestral = None
+        for a in sdt.iterancestors(_qn("sdt")):
+            tag_el = a.find("w:sdtPr/w:tag", NS)
+            tag_ancestral = tag_el.get(_qn("val")) if tag_el is not None else None
+            if tag_ancestral in tags_catalogo:
+                ancestral = tags_catalogo[tag_ancestral]["id"]
+                break
+        if ancestral != z["bloco_pai"]:
+            raise ComposicaoAbortada(
+                "zona_bloco_pai_divergente",
+                f"{z['id']}: catálogo declara bloco_pai '{z['bloco_pai']}', mas o SDT "
+                f"ancestral real no template é {ancestral!r}")
+
+        token = token_da_zona(z)
+        ocorrencias_documento = texto_documento.count(token)
+        if ocorrencias_documento == 0:
+            raise ComposicaoAbortada(
+                "zona_token_ausente",
+                f"{z['id']}: SDT presente no template, mas o token {token} não foi encontrado")
+        if ocorrencias_documento > 1:
+            raise ComposicaoAbortada(
+                "zona_token_duplicado",
+                f"{z['id']}: token {token} aparece {ocorrencias_documento} vezes no template, esperado 1")
+
+        paragrafos_com_token = [p for p in sdt.iter(_qn("p")) if token in _texto_do(p)]
+        if not paragrafos_com_token:
+            raise ComposicaoAbortada(
+                "zona_token_ausente",
+                f"{z['id']}: o token {token} existe no documento, mas fora do SDT {z['tag']}")
+        if _texto_do(paragrafos_com_token[0]).strip() != token:
+            raise ComposicaoAbortada(
+                "zona_token_nao_isolado",
+                f"{z['id']}: o token {token} deve estar sozinho em seu parágrafo; "
+                f"parágrafo hospedeiro contém {_texto_do(paragrafos_com_token[0])!r}")
 
 
 # ============================================================== Fase I — composição estrutural
@@ -544,7 +743,42 @@ def compor_blocos(root, catalogo: dict, estados: dict) -> dict:
     A cirurgia (remove/insert) continua sempre relativa ao pai imediato do
     próprio <w:sdt>, então descer por qualquer nível é seguro."""
     tags_catalogo = {b["tag"]: b for b in catalogo["blocks"]}
-    resultado = {"incluidos": [], "excluidos": []}
+
+    def resolver(tag_val):
+        # Etapa 5.8-B: SDT de zona não pertence a esta passada — permanece
+        # intocado aqui e é resolvido por compor_zonas(), DEPOIS. Quando o
+        # bloco-pai é EXCLUIR, o SDT da zona desaparece junto com ele, sem
+        # nenhum tratamento especial (é descendente do w:sdt removido) —
+        # é assim que "bloco_pai EXCLUIR => zona EXCLUIR" (§6) se cumpre
+        # estruturalmente, não por regra duplicada.
+        if tag_val.startswith(ZONA_TAG_PREFIXO):
+            return None, None
+        bloco = tags_catalogo.get(tag_val)
+        if bloco is None:
+            raise ComposicaoAbortada("tag_desconhecida", f"tag sem entrada no catálogo durante composição: {tag_val}")
+        estado = estados.get(bloco["id"])
+        if estado not in ("INCLUIR", "EXCLUIR"):
+            raise ComposicaoAbortada("estado_invalido", f"{bloco['id']}: estado '{estado}' inválido para composição")
+        return estado, bloco["id"]
+
+    incluidos, excluidos = _compor_sdts_do_corpo(root, resolver)
+    return {"incluidos": incluidos, "excluidos": excluidos}
+
+
+def _compor_sdts_do_corpo(root, resolver) -> tuple:
+    """Percurso genérico de composição, compartilhado por compor_blocos e
+    compor_zonas (Etapa 5.8-B — mesma cirurgia, critérios de decisão
+    diferentes; duplicar este percurso seria duplicar a parte mais
+    delicada do motor).
+
+    `resolver(tag_val) -> (estado, rotulo)`, onde estado é 'INCLUIR',
+    'EXCLUIR', ou None para "este SDT não pertence a esta passada"
+    (permanece intocado, mas seu conteúdo continua sendo percorrido)."""
+    body = root.find("w:body", NS)
+    if body is None:
+        raise ComposicaoAbortada("template_invalido", "documento sem <w:body>")
+
+    incluidos, excluidos = [], []
 
     def processar(pai):
         for filho in list(pai):
@@ -561,27 +795,136 @@ def compor_blocos(root, catalogo: dict, estados: dict) -> dict:
 
             processar(content)  # filhos antes do próprio nó
 
-            bloco = tags_catalogo.get(tag_val)
-            if bloco is None:
-                raise ComposicaoAbortada("tag_desconhecida", f"tag sem entrada no catálogo durante composição: {tag_val}")
-            estado = estados.get(bloco["id"])
-            if estado not in ("INCLUIR", "EXCLUIR"):
-                raise ComposicaoAbortada("estado_invalido", f"{bloco['id']}: estado '{estado}' inválido para composição")
+            estado, rotulo = resolver(tag_val)
+            if estado is None:
+                continue
 
             idx = list(pai).index(filho)
             pai.remove(filho)
             if estado == "INCLUIR":
                 for i, neto in enumerate(list(content)):
                     pai.insert(idx + i, neto)
-                resultado["incluidos"].append(bloco["id"])
+                incluidos.append(rotulo)
             else:
-                resultado["excluidos"].append(bloco["id"])
+                excluidos.append(rotulo)
 
-    body = root.find("w:body", NS)
-    if body is None:
-        raise ComposicaoAbortada("template_invalido", "documento sem <w:body>")
     processar(body)
-    return resultado
+    return incluidos, excluidos
+
+
+# ============================================================== Etapa 5.8-B — zonas de complementação
+def resolver_estados_zonas(catalogo: dict, estados_blocos: dict, conteudo_zonas: dict = None,
+                            fatos_processuais: dict = None) -> dict:
+    """Regra de ativação de INV-ZONA-COMPLEMENTACAO, em cascata (§7 da
+    Etapa 5.8-B). A zona é NORMALMENTE VAZIA — 'INCLUIR' é a exceção, não
+    o padrão. Retorna {zona_id: 'INCLUIR'|'EXCLUIR'}.
+
+      1. bloco-pai EXCLUIR                      -> EXCLUIR
+      2. algum requires_facts 'INDETERMINADO'   -> aborta (zona_indeterminada)
+      3. algum requires_facts falso/ausente     -> EXCLUIR, SEM perguntar
+      4. fatos presentes, conteúdo não vazio    -> INCLUIR
+      5. fatos presentes, conteúdo vazio        -> EXCLUIR
+
+    A ordem 2 antes de 3 é deliberada: ambiguidade documental nunca pode
+    ser silenciosamente resolvida como "sem suporte fático" (mesmo
+    princípio de INV-CORTE-GATE-HUMANO, onde 'INDETERMINADO' aborta com ou
+    sem decisão registrada).
+
+    Nenhuma pergunta ao advogado em nenhum ramo: zona não tem decisão
+    humana (§6/§21 — zona não é bloco).
+
+    Conteúdo fornecido para zona que a cascata resolve como EXCLUIR por
+    falta de bloco-pai ou de suporte fático é INCOERÊNCIA de pipeline, não
+    sobra inofensiva: aborta (zona_incoerente) em vez de descartar em
+    silêncio (CLAUDE.md §17)."""
+    conteudo_zonas = conteudo_zonas or {}
+    estados = {}
+
+    for z in catalogo.get("zones", []):
+        zid = z["id"]
+        conteudo = str(conteudo_zonas.get(zid) or "").strip()
+
+        estado_pai = estados_blocos.get(z["bloco_pai"])
+        if estado_pai is None:
+            raise ComposicaoAbortada(
+                "zona_bloco_pai_desconhecido",
+                f"{zid}: bloco_pai '{z['bloco_pai']}' sem estado resolvido")
+
+        if estado_pai == "EXCLUIR":
+            if conteudo:
+                raise ComposicaoAbortada(
+                    "zona_incoerente",
+                    f"{zid}: conteúdo fornecido para zona cujo bloco-pai "
+                    f"'{z['bloco_pai']}' foi EXCLUÍDO — a zona não existe na peça; "
+                    f"conteúdo produzido para ela indica decisão incoerente entre a "
+                    f"etapa estratégica e a redação")
+            estados[zid] = "EXCLUIR"
+            continue
+
+        indeterminados = [k for k in z["requires_facts"]
+                          if _estado_fato_processual(fatos_processuais, k, zid) == "INDETERMINADO"]
+        if indeterminados:
+            raise ComposicaoAbortada(
+                "zona_indeterminada",
+                f"{zid}: estado(s) processual(is) {indeterminados} com valor "
+                f"'INDETERMINADO' — suporte fático da zona é ambíguo nos documentos; "
+                f"resolver com o advogado antes de gerar (nunca presumir)")
+
+        ausentes = [k for k in z["requires_facts"]
+                    if _estado_fato_processual(fatos_processuais, k, zid) != "TRUE"]
+        if ausentes:
+            if conteudo:
+                raise ComposicaoAbortada(
+                    "zona_incoerente",
+                    f"{zid}: conteúdo fornecido sem o suporte fático exigido {ausentes} "
+                    f"(ausente ou falso em estado_processual.json) — INV-BLOCO-SUPORTE-FATICO "
+                    f"aplicado à zona; nenhuma complementação sem proveniência")
+            estados[zid] = "EXCLUIR"
+            continue
+
+        estados[zid] = "INCLUIR" if conteudo else "EXCLUIR"
+
+    return estados
+
+
+def compor_zonas(root, catalogo: dict, estados_zonas: dict) -> dict:
+    """Executa as decisões já resolvidas sobre os SDTs de zona da árvore JÁ
+    COMPOSTA (blocos EXCLUIR removidos). INCLUIR = unwrap (o parágrafo do
+    token toma o lugar do w:sdt, para a substituição normal de placeholder
+    colocar o conteúdo ali, em FF0000, com o w:pPr do próprio parágrafo
+    hospedeiro). EXCLUIR = remove o w:sdt inteiro — o parágrafo hospedeiro
+    some junto, sem deixar linha em branco nem token residual.
+
+    Zona cujo bloco-pai foi EXCLUÍDO já não está na árvore (foi removida
+    junto com o bloco); é por isso que este passo roda DEPOIS de
+    compor_blocos e não precisa reimplementar a regra do bloco-pai."""
+    zonas_por_tag = {z["tag"]: z for z in catalogo.get("zones", [])}
+
+    def resolver(tag_val):
+        if not tag_val.startswith(ZONA_TAG_PREFIXO):
+            return None, None  # blocos já foram compostos na passada anterior
+        zona = zonas_por_tag.get(tag_val)
+        if zona is None:
+            raise ComposicaoAbortada("zona_nao_catalogada",
+                                      f"tag de zona sem entrada no catálogo durante composição: {tag_val}")
+        estado = estados_zonas.get(zona["id"])
+        if estado not in ("INCLUIR", "EXCLUIR"):
+            raise ComposicaoAbortada("zona_estado_invalido",
+                                      f"{zona['id']}: estado '{estado}' inválido para composição")
+        return estado, zona["id"]
+
+    incluidas, excluidas = _compor_sdts_do_corpo(root, resolver)
+    return {"incluidas": incluidas, "excluidas": excluidas}
+
+
+def compor_zonas_xml(document_xml: str, catalogo: dict, estados_zonas: dict):
+    """Wrapper string->string de compor_zonas — mesma função usada na
+    geração real e na recomputação do Template Lock."""
+    parser = LET.XMLParser(remove_blank_text=False, strip_cdata=False)
+    root = LET.fromstring(document_xml.encode("utf-8"), parser)
+    resultado = compor_zonas(root, catalogo, estados_zonas)
+    novo_xml = LET.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True).decode("utf-8")
+    return novo_xml, resultado
 
 
 def compor_xml(document_xml: str, catalogo: dict, estados: dict):
@@ -600,7 +943,8 @@ def compor_xml(document_xml: str, catalogo: dict, estados: dict):
 
 # ============================================================== Fase G-M — orquestração
 def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict,
-                           decisoes_blocos: dict, output_path, fatos_processuais: dict = None) -> dict:
+                           decisoes_blocos: dict, output_path, fatos_processuais: dict = None,
+                           conteudo_zonas: dict = None) -> dict:
     """Pipeline completo com composição de blocos: valida catálogo ->
     valida/resolve decisões -> abre template -> valida SDTs contra
     catálogo -> compõe (unwrap/remove) -> RENUMERA títulos/subtítulos
@@ -623,16 +967,28 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
         catalogo = carregar_catalogo(catalogo_path)
         validar_catalogo(catalogo)
         estados = validar_e_resolver_decisoes(catalogo, decisoes_blocos, fatos_processuais)
+        estados_zonas = resolver_estados_zonas(catalogo, estados, conteudo_zonas, fatos_processuais)
     except ComposicaoAbortada as e:
         return {"status": "FALHOU", "etapa": e.stage, "erros": [e.motivo]}
 
     schema = carregar_schema(schema_path)
     unpack_mod, pack_mod = _importar_toolkit()
 
+    # Etapa 5.8-B: o conteúdo das zonas INCLUIR entra no MESMO dicionário de
+    # substituição dos placeholders — reaproveitando integralmente FF0000,
+    # **negrito**, escape XML e a expansão multilinha em <w:p> irmãos com
+    # herança do w:pPr (INV-PARAGRAFO-HERDA-TEMPLATE). Nenhuma lógica
+    # paralela de cor ou de parágrafo (§11/§12 do pedido).
+    tokens_zona = sorted(zid for zid, estado in estados_zonas.items() if estado == "INCLUIR")
+    dados_efetivos = dict(dados)
+    for zid in tokens_zona:
+        dados_efetivos[zid] = conteudo_zonas[zid]
+
     def transformar(template_xml):
         composto_xml, _ = compor_xml(template_xml, catalogo, estados)
-        renumerado_xml, _ = renumerar_titulos(composto_xml)
-        return substituir_placeholders(renumerado_xml, dados)
+        com_zonas_xml, _ = compor_zonas_xml(composto_xml, catalogo, estados_zonas)
+        renumerado_xml, _ = renumerar_titulos(com_zonas_xml)
+        return substituir_placeholders(renumerado_xml, dados_efetivos)
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -648,7 +1004,8 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
 
         try:
             composto_xml, resultado_composicao = compor_xml(template_xml, catalogo, estados)
-            renumerado_xml, relatorio_numeracao = renumerar_titulos(composto_xml)
+            com_zonas_xml, resultado_zonas = compor_zonas_xml(composto_xml, catalogo, estados_zonas)
+            renumerado_xml, relatorio_numeracao = renumerar_titulos(com_zonas_xml)
         except (ComposicaoAbortada, NumeracaoAbortada) as e:
             return {"status": "FALHOU", "etapa": e.stage, "erros": [e.motivo]}
 
@@ -656,16 +1013,16 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
         if erros_numeracao:
             return {"status": "FALHOU", "etapa": "numeracao_final", "erros": erros_numeracao}
 
-        validacao = validar_placeholders(renumerado_xml, dados, schema)
+        validacao = validar_placeholders(renumerado_xml, dados_efetivos, schema, tokens_zona=tokens_zona)
         if not validacao["ok"]:
             return {"status": "FALHOU", "etapa": "validacao_placeholders", "erros": validacao["erros"]}
 
-        gerado_xml, substituidos = substituir_placeholders(renumerado_xml, dados)
+        gerado_xml, substituidos = substituir_placeholders(renumerado_xml, dados_efetivos)
         gerado_dir = tmp / "gerado"
         shutil.copytree(unpacked_template, gerado_dir)
         (gerado_dir / "word" / "document.xml").write_text(gerado_xml, encoding="utf-8")
 
-        lock = verificar_template_lock(unpacked_template, gerado_dir, dados, transformar_xml=transformar)
+        lock = verificar_template_lock(unpacked_template, gerado_dir, dados_efetivos, transformar_xml=transformar)
         if not lock["ok"]:
             return {"status": "FALHOU", "etapa": "template_lock", "erros": lock["divergencias"]}
 
@@ -688,6 +1045,9 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
             "blocos_excluidos": sorted(resultado_composicao["excluidos"]),
             "containers_derivados": {cid: estados[cid] for cid in containers_derivados},
             "blocos_indeterminados": [],
+            "zonas_incluidas": sorted(resultado_zonas["incluidas"]),
+            "zonas_excluidas": sorted(resultado_zonas["excluidas"]),
+            "zonas": dict(estados_zonas),
             "numeracao": relatorio_numeracao["numeracao"],
             "template_lock": "OK",
             "mensagem_pack": msg_pack,

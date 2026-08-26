@@ -107,7 +107,7 @@ documentos do processo
 7. geração dos 11 valores de placeholder que a redação produz (§9) —
    NUNCA inclui JUIZO (INV-JUIZO-DATAJUD, abaixo) — Sinopse estritamente
    autoral (INV-SINOPSE-ESTRITAMENTE-AUTORAL), parágrafos ≤380 caracteres
-   (INV-PARAGRAFO-380)
+   sem espaços (INV-PARAGRAFO-380)
   ↓
 7A. resolução determinística de JUIZO — scripts/datajud_client.py, a
     partir de NUMERO_PROCESSO: DataJud/CNJ (órgão julgador) + IBGE
@@ -873,7 +873,7 @@ Ao consumir o texto produzido por `redator-peca-processual-elite` +
 definitivamente do projeto, ver §9 acima), confira que cada parágrafo
 (separado por `\n` dentro do valor — cada linha lógica vira um `<w:p>`
 real no DOCX final, clonando o parágrafo-placeholder — Etapa 5.3-B) tem
-no máximo **380 caracteres com espaços**. `scripts/validate_paragrafos.py`
+no máximo **380 caracteres sem espaços** (contam-se os caracteres efetivos: letras, números e pontuação; espaço, tabulação e quebra interna ficam de fora — ajuste da Etapa 5.8-C.1). `scripts/validate_paragrafos.py`
 valida isso estruturalmente antes do motor documental
 (`stage=paragrafo_380`, `PIPELINE_ABORTED` se violado) — mas não corta
 texto automaticamente: se um parágrafo estourar o limite, devolva ao
@@ -1043,6 +1043,226 @@ Data é a de elaboração/geração da peça, formato institucional em
 português (ex.: `"Salvador/BA, 20 de agosto de 2026."`), sem metadado
 técnico.
 
+## 9A. Zonas de Complementação (INV-ZONA-COMPLEMENTACAO, Etapa 5.8-B)
+
+Além dos 13 placeholders, o modelo tem **uma** Zona de Complementação
+catalogada — `ZONA_METODOLOGIA_APURACAO`, dentro do bloco
+`CALCULOS_RECUPERACAO_CONSUMO` (tópico 3.4). A zona é **normalmente
+vazia**: o estado normal da peça é não ter conteúdo nela.
+
+Ela existe porque o tópico 3.4 transcreve os cinco incisos do art. 595 e
+afirma aderência a eles "no caso concreto", sem nunca dizer qual inciso
+foi aplicado nem qual período foi apurado. A zona conecta essa
+fundamentação fixa ao dado documental do processo — nada além disso.
+
+**Zona não é bloco:** você nunca pergunta ao advogado se deve incluí-la
+(diferente de Reconvenção e de licitude de corte/suspensão), e ela nunca
+entra em `decisoes_blocos.json`. **Zona não é placeholder:** nunca entra
+em `placeholders.json` nem em `editable_placeholders`.
+
+### Passo 1 — resolver o estado processual
+
+Acrescente a `estado_processual.json`:
+
+```json
+{ "METODOLOGIA_APURACAO_DOCUMENTADA": true }
+```
+
+* `true` — os autos contêm memória de cálculo ou memorial de faturamento
+  que identifica o critério e o período da apuração;
+* `false` ou chave ausente — não contêm. A zona é excluída
+  automaticamente, **sem perguntar nada**;
+* `"INDETERMINADO"` — documentos contraditórios. O pipeline aborta
+  (`stage=zonas`, `zona_indeterminada`) para você resolver com o
+  advogado. Nunca presuma.
+
+Resolva isso **a partir dos documentos, com proveniência em
+`fatos.json`** — nunca por busca textual, nunca por plausibilidade.
+
+### Passo 2 — teste de necessidade (antes de redigir qualquer coisa)
+
+Na ordem. Qualquer resposta que mande para "zona vazia" encerra o teste:
+
+1. **Algum dos 13 placeholders é o endereço semântico correto disto?**
+   Se sim → zona vazia. A zona nunca é atalho para escapar dos limites de
+   `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` ou de qualquer outro campo.
+2. O texto institucional anterior ou posterior já diz isto
+   suficientemente? Se sim → zona vazia.
+3. A informação é concreta e documentalmente comprovada? Se não → zona
+   vazia.
+4. É juridicamente relevante para demonstrar a metodologia do cálculo
+   **naquele** processo? Se não → zona vazia.
+5. Acrescenta informação efetivamente nova? Se não → zona vazia.
+
+Só com todas autorizando é que o Redator escreve.
+
+### Passo 2A — regra de densidade documental (Etapa 5.8-C)
+
+Autorizado o passo 2, **levante todos os elementos comprovados antes de
+redigir**. O primeiro teste real produziu texto pobre porque os dados do
+memorial de cálculo existiam nos documentos mas não tinham sido
+extraídos para `fatos.json` — o Redator nunca os viu.
+
+Antes de acionar o Redator, confira se `fatos.json` já expõe, como fatos
+próprios e com proveniência, o que os documentos trazem:
+
+| Elemento | Onde costuma estar |
+|---|---|
+| critério/inciso do art. 595 aplicado | memória de cálculo |
+| período de apuração e ciclos | memória de cálculo, art. 596 |
+| consumo médio apurado | memória de cálculo |
+| consumo faturado no período | memória de cálculo |
+| diferença por ciclo e total (kWh) | memória de cálculo |
+| tarifa aplicada | memória de cálculo |
+| valor total apurado | memória de cálculo, fatura |
+| histórico de consumo levantado | TOI, histórico |
+
+Um único fato dizendo "foi aplicado o art. 595, III, e apurou-se R$ X"
+**não basta** — ele colapsa sete elementos em um e apaga os números que
+dão concretude à defesa. Extraia cada elemento separadamente.
+
+A extensão da zona é proporcional ao que está comprovado: **mais
+informação comprovada, mais texto; nenhuma informação, zona vazia.**
+Nunca o contrário — jamais alongue o texto para parecer robusto.
+
+### Passo 3 — gravar `zonas.json` com proveniência
+
+No diretório do caso, quando e só quando o teste autorizar. Desde a
+Etapa 5.8-C a forma estruturada é **obrigatória**:
+
+```json
+{
+  "ZONA_METODOLOGIA_APURACAO": {
+    "conteudo": "primeiro parágrafo\nsegundo parágrafo\nterceiro",
+    "fatos": [
+      {"tipo": "consumo_medio_apurado", "valor": "612", "unidade": "kWh/ciclo",
+       "fonte": "memorial_calculo.pdf", "natureza": "documental"},
+      {"tipo": "consumo_faturado", "valor": "210", "unidade": "kWh/ciclo",
+       "fonte": "memorial_calculo.pdf", "natureza": "documental"},
+      {"tipo": "diferenca_por_ciclo", "valor": "402", "unidade": "kWh/ciclo",
+       "fonte": "memorial_calculo.pdf", "natureza": "documental",
+       "operacao": {"op": "subtracao",
+                    "operandos": ["consumo_medio_apurado", "consumo_faturado"]}},
+      {"tipo": "valor_total_apurado", "valor": "4.328,17", "unidade": "R$",
+       "fonte": "memorial_calculo.pdf", "natureza": "documental"}
+    ]
+  }
+}
+```
+
+Cada dado declara (Etapa 5.8-C.1):
+
+| Campo | O que é |
+|---|---|
+| `tipo` | identifica o dado; serve de referência de operando |
+| `valor` | literal como está no documento ("2.412", "1,7947", "R$ 4.328,17") |
+| `unidade` | quando houver: `kWh`, `kWh/ciclo`, `R$`, `R$/kWh`, `ciclo` |
+| `fonte` | documento da base do caso (mesma base de `fatos.json`) |
+| `natureza` | `documental` (consta do documento) ou `derivado` (resultado de conta) |
+| `operacao` | opcional; `{"op": "soma"\|"subtracao"\|"multiplicacao"\|"media", "operandos": [tipo, ...]}` |
+| `metodologia` | opcional; `{"descricao", "fonte"}` — ver abaixo |
+
+**Todo número, data e dispositivo que aparecer em `conteudo` precisa
+estar em algum `valor`**, e toda `fonte` precisa ser um documento que já
+sustenta a peça. Mais: o dado `documental` precisa estar **naquele**
+documento — atribuir a tarifa ao TOI quando ela consta da memória de
+cálculo aborta o pipeline. O pipeline verifica tudo isso
+deterministicamente — é assim que número inventado, ou atribuído à fonte
+errada, nunca chega ao DOCX.
+
+### A aritmética é controle de coerência, nunca recálculo da cobrança
+
+A cobrança **já foi constituída** no procedimento administrativo. O
+**Memorial de Cálculo** e o **Memorial de Faturamento** são a fonte de
+verdade de consumo recuperado, período, ciclos, critério aplicado,
+tarifa, diferenças e valor final. A zona existe para **defender a
+cobrança efetivamente constituída**, não para reconstruí-la.
+
+**Estimativa regulamentar não é arbitrariedade.** A recuperação de
+consumo pode ser apurada por estimativa, desde que segundo os critérios
+da regulamentação aplicável. Nunca tente demonstrar que a cobrança
+corresponde a uma multiplicação simples reconstruída por você.
+
+Quando o texto reproduz uma relação entre dados, o pipeline confere a
+conta em `Decimal` (nunca float para dinheiro) e a unidade por
+cancelamento (kWh/ciclo × ciclo = kWh). Três regras:
+
+1. mesmo dado com valores divergentes em documentos oficiais diferentes
+   (Memorial de Cálculo × Memorial de Faturamento) → **aborta**: é
+   contradição interna real, e a defesa não escolhe um deles;
+2. valor apresentado como `derivado` que não fecha → **aborta**: a peça
+   estaria afirmando uma conta falsa;
+3. valor `documental` que não fecha com a operação reproduzida → o valor
+   é **preservado**. Vá ao Memorial de Cálculo/Faturamento e verifique se
+   há metodologia, proporcionalização, bandeira, tributo ou arredondamento
+   que explique a diferença; se houver, declare
+   `"metodologia": {"descricao": ..., "fonte": ...}` no dado e siga. Sem
+   essa declaração o pipeline aborta — **nunca troque o valor documental
+   por um cálculo seu**.
+
+**Se o documento não apresenta a operação como fórmula, não declare
+`operacao`.** É o caminho mais simples e o mais comum: `valor_total_apurado`
+no exemplo acima não tem `operacao` porque o memorial registra consumo,
+tarifa e valor total em linhas separadas, sem "=" entre eles — a peça não
+afirma que a multiplicação produz aquele total, então não há fórmula para
+"não fechar". Só declare `operacao` quando o documento realmente escreve
+a conta (como faz com "402 kWh/ciclo x 6 ciclos = 2.412 kWh").
+
+### Lógica de redação da zona
+
+```text
+DOCUMENTAÇÃO ADMINISTRATIVA
+  → CRITÉRIO REGULAMENTAR
+  → METODOLOGIA EFETIVAMENTE APLICADA
+  → RESULTADO DOCUMENTADO
+  → LEGITIMIDADE DA COBRANÇA
+```
+
+Nunca `DADOS EXTRAÍDOS → RECÁLCULO AUTÔNOMO DA IA → NOVO VALOR`. Atribua
+cada número ao documento que o registra ("a memória de cálculo registra /
+consigna / aplicou"), jamais como resultado de conta feita pela peça.
+
+Arquivo ausente, chave ausente ou string vazia = zona vazia, e o SDT é
+removido sem deixar parágrafo em branco. Texto simples (string não
+vazia) é **rejeitado**: conteúdo sem proveniência não entra. E **nunca**
+grave sentinela ("NÃO APLICÁVEL", "SEM DADOS", "VAZIO").
+
+Limites do catálogo: **3 parágrafos, 380 caracteres por parágrafo
+(sem espaços), 1000 no total (com espaços).** Duas contagens distintas,
+deliberadamente: o teto por parágrafo mede texto efetivo; o teto agregado
+mede o tamanho bruto da zona.
+
+Conteúdo admissível: critério/inciso do art. 595 aplicado, período de
+irregularidade, ciclos, consumos considerados, média apurada, diferença,
+tarifa, valor recuperado, base documental da apuração. O objetivo é
+**demonstrar como a recuperação foi apurada naquele processo**, não
+anunciar que um critério foi usado.
+
+Vedado: repetir a lista dos incisos, reproduzir os arts. 595/596, criar
+tese jurídica nova, reencenar a irregularidade (isso é
+`DESENVOLVIMENTO_TECNICO_IRREGULARIDADE`), repetir `REALIDADE_FATICA`,
+inserir jurisprudência, criar título ou subtítulo, começar parágrafo com
+numeração ("3.5", "3.4.1"), usar travessão.
+
+**Frases vazias proibidas** — "o procedimento foi regular", "a
+concessionária observou a legislação", "a cobrança é legítima", "os
+valores estão corretos", "não houve arbitrariedade", "conforme
+documentos anexos", "os valores constam do memorial". O texto
+institucional já afirma tudo isso. Só podem aparecer acompanhadas do
+dado concreto que as justifica; parágrafo que seja só a frase genérica,
+sem nenhum número, é rejeitado pelo pipeline.
+
+### Incoerências que abortam
+
+* conteúdo de zona com `CALCULOS_RECUPERACAO_CONSUMO` excluído →
+  `zona_incoerente`;
+* conteúdo de zona sem `METODOLOGIA_APURACAO_DOCUMENTADA: true` →
+  `zona_incoerente`;
+* modelo do advogado sem o SDT da zona →
+  `modelo_institucional_desatualizado`. Oriente-o a substituir o
+  `modelo-oficial.docx` pela versão compatível, fornecida separadamente.
+  **Nunca** baixe, reconstrua ou edite o modelo por conta própria.
+
 ## 10. O que esta skill nunca faz
 
 Não inventa fato, data, número de processo, valor, dispositivo legal,
@@ -1089,7 +1309,8 @@ redator/humanizer** — é resolvido automaticamente via DataJud/CNJ
 presente em `placeholders.json` aborta o pipeline inteiro
 (`stage=juizo_datajud`), não é silenciosamente ignorado nem sobrescrito.
 **Não deixa parágrafo de
-conteúdo variável ultrapassar 380 caracteres** (INV-PARAGRAFO-380, §9)
+conteúdo variável ultrapassar 380 caracteres sem espaços**
+(INV-PARAGRAFO-380, §9)
 nem permite que `SINOPSE_FATOS` contenha valoração/impugnação defensiva
 (INV-SINOPSE-ESTRITAMENTE-AUTORAL, §9). **Não verbaliza na peça a
 mecânica interna de obtenção/validação de um dado** (meta-proveniência —

@@ -43,10 +43,10 @@ Regras próprias deste modo:
 - Na Contestação especificamente (INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL, `skills/contestacao/SKILL.md` §7), nunca escreva frases do tipo "conforme entendimento consolidado do STJ...", "segundo jurisprudência pacífica...", "os tribunais têm entendido...", "é pacífico na jurisprudência..." — salvo quando a afirmação já integrar legitimamente o conteúdo-base institucional preservado do modelo. Não invente autoridade jurisprudencial para reforçar argumentação; a persuasão decorre de fatos + provas + modelo institucional + legislação/regulamentação local validada + subsunção — jurisprudência não é um desses ingredientes nesta peça.
 - A regra de ouro se aplica igualmente: liberdade total de forma, nenhuma liberdade de conteúdo. Não acrescente, suprima ou enfraqueça elemento algum definido pela análise; se um fundamento parecer faltar ou sobrar, devolva a questão à etapa de análise em vez de resolvê-la na redação.
 - As regras estruturais do projeto prevalecem sobre qualquer preferência estilística: títulos numerados (1. 2. 3. 3.1.), estrutura obrigatória da peça, timbrado oficial, fechamento padrão e demais convenções definidas nas instruções do projeto.
-- No fluxo do EDE Legal Plugin especificamente (Skill `contestacao`), o limite de 380 caracteres por parágrafo já referido nesta skill como R7 é validado estruturalmente por `scripts/validate_paragrafos.py` antes da geração do DOCX final (INV-PARAGRAFO-380, CLAUDE.md/SPEC-0001) — parágrafo que ultrapassar o limite aborta o pipeline (`stage=paragrafo_380`); decomponha o raciocínio em parágrafos adicionais, nunca resuma o conteúdo para caber no limite.
+- No fluxo do EDE Legal Plugin especificamente (Skill `contestacao`), o limite de 380 caracteres por parágrafo (contados SEM ESPAÇOS desde a Etapa 5.8-C.1 — caracteres efetivos: letras, números e pontuação) já referido nesta skill como R7 é validado estruturalmente por `scripts/validate_paragrafos.py` antes da geração do DOCX final (INV-PARAGRAFO-380, CLAUDE.md/SPEC-0001) — parágrafo que ultrapassar o limite aborta o pipeline (`stage=paragrafo_380`); decomponha o raciocínio em parágrafos adicionais, nunca resuma o conteúdo para caber no limite.
 - Uma ideia juridicamente relevante por parágrafo. Um argumento já demonstrado não deve ser desenvolvido de novo com outras palavras só para alongar o texto — condense, não repita (INV-NAO-REDUNDANCIA); isso vale tanto para o raciocínio quanto para a fundamentação normativa: se o tópico-base institucional fixo da peça já traz o dispositivo, não o repita na redação variável — acrescente dispositivo novo só quando houver necessidade jurídica concreta que o texto-base não cobre (INV-NAO-REDUNDANCIA-NORMATIVA).
 - Ao redigir uma síntese de fatos puramente autoral (ex.: `SINOPSE_FATOS` da Contestação), mantenha-a estritamente narrativa — o que a parte contrária alega e pede, sem valoração, impugnação ou versão da defesa. A defesa entra nos tópicos próprios da peça, nunca na síntese dos fatos alegados. Mantenha-a um RESUMO de verdade (núcleo da relação jurídica, fato gerador, alegações principais, consequências afirmadas, pedidos relevantes) — não reproduza a inicial quase cronologicamente; uniformize o tempo verbal (presente do indicativo — "alega", "sustenta", "requer" — ou pretérito perfeito para fato concluído), evitando alternância desnecessária.
-- 380 caracteres por parágrafo é TETO, não meta — nunca tente preencher o limite. Um bloco inteiro (soma dos parágrafos de um mesmo campo) também tem limite próprio na Contestação (`scripts/validate_paragrafos.py`, `LIMITES_DENSIDADE_BLOCO`) — parágrafos individualmente curtos ainda podem, em conjunto, formar um bloco prolixo; isso também é rejeitado, não só o teto individual.
+- 380 caracteres (sem espaços) por parágrafo é TETO, não meta — nunca tente preencher o limite. Um bloco inteiro (soma dos parágrafos de um mesmo campo) também tem limite próprio na Contestação (`scripts/validate_paragrafos.py`, `LIMITES_DENSIDADE_BLOCO`) — parágrafos individualmente curtos ainda podem, em conjunto, formar um bloco prolixo; isso também é rejeitado, não só o teto individual.
 - O documento final nunca revela sua própria mecânica de obtenção/validação de um dado — nunca escreva "conforme informado pelo advogado", "conforme os documentos fornecidos", "segundo a extração/análise realizada" ou equivalente. Redija como peça processual normal: o dado validado vira texto jurídico natural, nunca uma explicação de como o sistema o obteve.
 - Ao destacar o nome de uma classificação/tipo dentro de uma frase (ex.: tipo de irregularidade na Contestação), use a marcação `**texto**` — o Template Engine do projeto converte para negrito real (mantendo a cor institucional do conteúdo gerado); não use qualquer outra convenção de ênfase.
 - A entrega final segue o pipeline do projeto (documento no timbrado, pasta correta), não as regras de saída do modo lapidação.
@@ -128,6 +128,104 @@ Edite o próprio arquivo, no lugar. Nunca crie cópia nem arquivo novo "revisado
 Edite o arquivo existente preservando integralmente a formatação. Peças em timbrado oficial têm estrutura XML sensível (cabeçalhos, caixas de título, watermark, tipos de parágrafo validados) que quebra com manipulação ingênua. Antes de editar qualquer .docx, leia `references/edicao-docx-timbrado.md` desta skill, que documenta o procedimento validado de desempacotar, editar apenas o texto dos runs e reempacotar. A regra essencial: alterar somente o conteúdo textual dos elementos `<w:t>`, jamais a estrutura de parágrafos, estilos ou shapes.
 
 Ao final da edição de .docx, valide o reempacotamento e faça conferência visual (PDF de checagem) antes de dar o trabalho por concluído.
+
+## Zonas de Complementação (Contestação — INV-ZONA-COMPLEMENTACAO)
+
+No fluxo da Contestação você pode receber, além dos 13 placeholders, uma
+**Zona de Complementação**: uma área catalogada dentro de um bloco do
+modelo institucional, criada para conectar a fundamentação fixa a um dado
+concreto do processo. Hoje existe exatamente uma,
+`ZONA_METODOLOGIA_APURACAO`, no tópico 3.4 (cálculos de recuperação de
+consumo).
+
+Três diferenças em relação a um placeholder mudam como você trabalha:
+
+* **A zona é normalmente vazia.** Devolver vazio é o resultado correto e
+  esperado na maioria dos casos, não uma falha sua.
+* **A zona complementa, nunca compete.** O texto institucional ao redor
+  dela chega como **CONTEXTO NÃO EDITÁVEL**: você não o reescreve, não o
+  parafraseia, não o resume, não o corrige e não o repete.
+* **A zona nunca cria tese.** A fundamentação normativa já está no
+  modelo; você faz subsunção do dado documental a ela.
+
+Antes de escrever uma única linha, responda nesta ordem. A primeira
+resposta que mandar para "vazio" encerra o teste:
+
+1. **Algum dos 13 placeholders é o endereço correto disto?** Se sim →
+   vazio. A zona não é válvula de escape para o que não coube no limite
+   de outro campo.
+2. O texto fixo anterior ou posterior já diz isto? Se sim → vazio.
+3. A informação é concreta e documentalmente comprovada? Se não → vazio.
+4. É juridicamente relevante para demonstrar a metodologia do cálculo
+   naquele processo? Se não → vazio.
+5. Acrescenta informação efetivamente nova? Se não → vazio.
+
+Se todas autorizarem: no máximo **3 parágrafos**, **380 caracteres cada
+(sem espaços)**, **1000 no total (com espaços)**. Prosa jurídica objetiva e natural, sem travessão, sem
+começar parágrafo com numeração de tópico ("3.5", "3.4.1" — a numeração
+pertence exclusivamente ao motor estrutural), sem citar jurisprudência,
+sem reproduzir os arts. 595/596 nem a lista de incisos que o modelo já
+transcreve, sem reencenar a irregularidade (isso pertence a
+`DESENVOLVIMENTO_TECNICO_IRREGULARIDADE`) e sem repetir
+`REALIDADE_FATICA`.
+
+### A cobrança já está constituída: defender, nunca recalcular
+
+O **Memorial de Cálculo** e o **Memorial de Faturamento** são a fonte de
+verdade dos valores da apuração: consumo recuperado, período, ciclos,
+critério aplicado, tarifa, diferenças e valor final. Redija a partir da
+lógica `DOCUMENTAÇÃO ADMINISTRATIVA → CRITÉRIO REGULAMENTAR →
+METODOLOGIA EFETIVAMENTE APLICADA → RESULTADO DOCUMENTADO → LEGITIMIDADE
+DA COBRANÇA`, nunca `DADOS EXTRAÍDOS → RECÁLCULO AUTÔNOMO → NOVO VALOR`.
+
+Atribua cada número ao documento que o registra ("a memória de cálculo
+registra 612 kWh por ciclo", "consigna 2.412 kWh não registrados"), e
+atribua ao documento CERTO: o critério e os valores estão na memória de
+cálculo; o TOI documenta a constatação e o levantamento do histórico. O
+pipeline confere a atribuição e aborta se o dado não constar da fonte
+declarada.
+
+**Estimativa regulamentar não é arbitrariedade.** A recuperação pode ser
+apurada por estimativa segundo os critérios da regulamentação — isso é
+procedimento regular, não defeito. Não tente demonstrar que a cobrança
+equivale a uma multiplicação simples que você reconstruiu: se o valor
+documental não fechar com a conta que você escreveu, o problema é a
+frase, não o documento. Verifique no próprio memorial a metodologia, a
+proporcionalização, a bandeira, os tributos ou o arredondamento que
+explicam a diferença — e, se não houver como afirmar a operação, não a
+afirme.
+
+### Densidade documental: aproveitar, nunca inflar
+
+**A extensão é proporcional ao que está comprovado.** Antes de redigir,
+liste os elementos documentais disponíveis — critério/inciso aplicado,
+período de apuração, ciclos, consumo apurado, consumo faturado,
+diferença, tarifa, valor recuperado, histórico levantado — e use os que
+forem pertinentes. Não basta anunciar que um critério foi usado; **o
+objetivo é demonstrar como a recuperação foi apurada naquele processo**.
+
+Não confunda isso com escrever mais. Cada frase precisa carregar um dado.
+Se o documento não traz o dado, ele é **omitido** — nunca completado por
+inferência, arredondamento ou plausibilidade. Sem dado nenhum, a zona
+fica vazia; fabricar densidade com linguagem genérica é o pior resultado
+possível, pior que a zona vazia.
+
+**Frases vazias proibidas:** "o procedimento foi regular", "a
+concessionária observou a legislação", "a cobrança é legítima", "os
+valores estão corretos", "não houve arbitrariedade", "conforme documentos
+anexos", "os valores constam do memorial". O texto institucional já
+afirma tudo isso; repeti-lo sem o dado concreto não complementa nada.
+
+**Proveniência.** Todo número, data e dispositivo que você escrever será
+conferido contra a lista de fatos declarada para a zona, e a geração
+aborta se algum não estiver ancorado em documento. Escreva sabendo disso:
+o que você não puder apontar num documento, não escreva.
+
+O que cabe: critério ou inciso do art. 595 efetivamente aplicado, período
+de irregularidade considerado, ciclos de faturamento, consumos
+considerados, média apurada, diferença, tarifa aplicada, valor
+recuperado, base documental da apuração (memória de cálculo, memorial de
+faturamento) e a quantidade de energia recuperada.
 
 ## Regras de saída
 

@@ -272,10 +272,21 @@ Etapa 5.2") — resumo operacional aqui:
 
 - **INV-PARAGRAFO-380** — todo parágrafo de conteúdo variável (novo,
   gerado pela IA para os placeholders multiline) tem no máximo 380
-  caracteres com espaços; validado estruturalmente por
-  `scripts/validate_paragrafos.py` antes do DOCX final
-  (`stage=paragrafo_380`). Não se aplica ao texto-base institucional
-  fixo do template.
+  caracteres **SEM ESPAÇOS** (ajuste da Etapa 5.8-C.1; antes eram 380
+  com espaços). A contagem é a dos caracteres efetivos do texto —
+  letras, números e pontuação; espaço, tabulação e quebra interna ficam
+  de fora (`len("".join(texto.split()))`). O limite material não foi
+  relaxado: passou a medir texto, não espaçamento. Validado
+  estruturalmente por `scripts/validate_paragrafos.py`
+  (`comprimento_efetivo`) antes do DOCX final (`stage=paragrafo_380`).
+  Não se aplica ao texto-base institucional fixo do template. Os tetos
+  AGREGADOS (densidade por bloco, `max_caracteres_total` da zona)
+  continuam contados em caracteres brutos, incluindo espaços — duas
+  contenções deliberadamente diferentes (decisão final, gate de
+  fechamento da 5.8-C.1, não uniformizar): o limite **individual** mede
+  densidade textual **efetiva**; o limite **agregado bruto** funciona
+  como contenção global **conservadora** da zona. Explicitadas nas
+  mensagens de erro do validador.
 - **INV-NAO-REDUNDANCIA** — o limite de 380 caracteres não pode ser
   contornado multiplicando parágrafos artificialmente; cada parágrafo
   novo deve acrescentar um elemento argumentativo útil. Comportamental
@@ -424,12 +435,18 @@ parafraseado, resumido, humanizado, modernizado, complementado
 diretamente ou substituído pela IA; "ADAPTAR" aplica-se exclusivamente ao
 conteúdo produzido dentro dos placeholders autorizados.
 
-`SEM PLACEHOLDER → SEM ESCRITA GERATIVA`: os 13 placeholders
-(`templates/contestacao/schema.json`) continuam as únicas zonas de
-intervenção textual da IA — já garantido mecanicamente pelo Template
-Lock (§15); esta invariante formaliza a garantia, não a cria. Nenhuma
-zona de complementação nova, nenhuma edição cirúrgica de texto fixo,
-nenhum novo placeholder. **Exceção expressa e inalterada:** a renumeração
+`SEM PLACEHOLDER OU ZONA DE COMPLEMENTAÇÃO EXPRESSAMENTE CATALOGADA →
+SEM ESCRITA GERATIVA` (regra atualizada na Etapa 5.8-B — ver
+`INV-ZONA-COMPLEMENTACAO` abaixo; antes desta etapa era apenas `SEM
+PLACEHOLDER → SEM ESCRITA GERATIVA`): as únicas zonas de intervenção
+textual da IA são os 13 placeholders
+(`templates/contestacao/schema.json`) **e** as Zonas de Complementação
+declaradas em `templates/contestacao/blocos.json` (`zones`) — hoje
+exatamente uma. Fora dessas duas listas, nada. Já garantido
+mecanicamente pelo Template Lock (§15); esta invariante formaliza a
+garantia, não a cria. Nenhuma edição cirúrgica de texto fixo, nenhum
+novo placeholder, nenhuma zona nova sem autorização expressa.
+**Exceção expressa e inalterada:** a renumeração
 determinística de títulos de nível 2/3
 (`scripts/docx_numeracao_engine.py`) não é escrita gerativa — aritmética
 sobre dígitos, sem conteúdo jurídico, regulada por
@@ -461,6 +478,137 @@ contestacao.py` a chama automaticamente como PRIMEIRA etapa, incondicional,
 de todo o pipeline (Fase 7); falha nela (`stage=contexto_institucional`)
 aborta antes de qualquer outra etapa, inclusive antes de ler documentos
 do caso.
+
+### Invariante — Zonas de Complementação (INV-ZONA-COMPLEMENTACAO)
+
+Etapa 5.8-B. Terceira categoria de zona de intervenção textual, ao lado
+de bloco e placeholder, criada para uma lacuna estrutural medida na
+auditoria da Etapa 5.8-A: 9 dos 11 blocos condicionais são
+integralmente texto fixo, e o modelo chega a afirmar fatos "do caso
+concreto" (ex.: aderência ao art. 595 da REN 1.000/2021, no tópico 3.4)
+sem nenhum lugar para o dado que os sustenta — o que empurrava esse
+conteúdo para `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE`, campo de outra
+finalidade.
+
+**Zona não é bloco:** não tem `decision_mode`, não entra em
+`derived_rule`, não provoca inclusão de container nem do próprio
+bloco-pai, e **nunca é perguntada ao advogado** (diferente de
+`RECONVENCAO` e `LICITUDE_CORTE_SUSPENSAO`). Declarar `decision_mode`,
+`children`, `derived_rule`, `linked_to`, `linked_fact`, `parent` ou
+`cardinality` numa zona é erro de catálogo.
+
+**Zona não é placeholder:** nunca entra em `editable_placeholders` — os
+13 continuam exatamente 13. Placeholder é obrigatório e de finalidade
+semântica fixa; zona é opcional e **normalmente vazia**.
+
+**Zona é normalmente vazia.** Só existe na peça quando há suporte fático
+documentado (`requires_facts`, obrigatório e não vazio) E o Redator,
+aplicando o teste de necessidade, produziu conteúdo. Ativação em
+cascata: bloco-pai `EXCLUIR` → `EXCLUIR`; fato `"INDETERMINADO"` →
+aborta (`zona_indeterminada`); fato falso/ausente → `EXCLUIR` sem
+perguntar; fatos presentes + conteúdo → `INCLUIR`; fatos presentes sem
+conteúdo → `EXCLUIR`. Conteúdo fornecido para zona que a cascata resolve
+como `EXCLUIR` aborta (`zona_incoerente`) — nunca é descartado em
+silêncio.
+
+**PRESERVAR > COMPLEMENTAR > CRIAR permanece intacto.** A zona nunca
+reescreve, parafraseia, resume ou corrige texto institucional; ela
+conecta a fundamentação fixa do modelo aos dados concretos e documentais
+do processo. Texto-base incompatível continua sendo matéria
+composicional (`EXCLUIR`), nunca remendo por zona.
+
+Mecanismo: `w:sdt` com `w:tag = "ZONA:<ID>"` contendo um único `<w:p>`
+com o token `{{ZONA_<ID>}}` sozinho. `scripts/docx_block_engine.py`
+(`compor_zonas`) executa depois de `compor_blocos` e antes da
+renumeração; zona vazia tem o SDT inteiro removido, sem parágrafo em
+branco nem token residual. Cor, parágrafos reais `<w:p>` com herança de
+`w:pPr` e limite de 380 caracteres reaproveitam a mecânica existente —
+nenhuma lógica paralela. O Template Lock **não é flexibilizado**: a
+composição de zonas entra como mais um estágio determinístico da cadeia
+recomputada byte a byte. Como o conteúdo da zona é inserido depois de
+`validar_numeracao_final`, um backstop lexical rejeita parágrafo de zona
+iniciado por prefixo de título numerado — zona não cria tópico.
+
+Modelo do usuário sem o SDT declarado no catálogo produz
+`MODELO_INSTITUCIONAL_DESATUALIZADO` (erro operacional que orienta a
+atualização), nunca `tag_ausente` cru; o plugin jamais busca, baixa,
+reconstrói ou edita o modelo automaticamente.
+
+**Densidade documental e proveniência (Etapa 5.8-C).** A extensão da
+zona é proporcional ao que os documentos comprovam: mais informação
+comprovada, mais texto; nenhuma informação, zona vazia. Nunca alongar
+para parecer robusto. `zonas.json` exige forma estruturada
+(`{"conteudo": ..., "fatos": [...]}`) — texto simples é rejeitado; todo
+número, data e dispositivo do texto precisa estar ancorado num `valor`
+declarado, e toda `fonte` precisa constar da base documental do caso
+(`fatos.json`). Conteúdo sem nenhum dado concreto, ou parágrafo que seja
+só conclusão genérica já afirmada pelo modelo ("o procedimento foi
+regular", "os valores constam do memorial"), é rejeitado: a zona
+acrescenta particularidade documental, nunca paráfrase do texto
+institucional. A checagem é de **ancoragem**, não de correção
+semântica — correção material segue sendo do Redator e da revisão do
+advogado.
+
+**Coerência semântica e aritmética da proveniência (Etapa 5.8-C.1).**
+Achado do teste da 5.8-C: a redação de teste da zona apresentava "2.412
+kWh × R$ 1,7947/kWh = R$ 4.328,17" como se fosse a fórmula do memorial —
+o produto real é R$ 4.328,82. A ancoragem lexical provava que o número
+existia em algum dado declarado, não que o dado estava na fonte certa,
+que a unidade fazia sentido, nem que as contas fechavam. Auditoria do
+gate de fechamento: o memorial sintético **não** apresenta a
+multiplicação como fórmula integral do total — registra consumo, tarifa
+e valor final em linhas separadas, sem sinal de igual conectando-os.
+Conclusão: R$ 4.328,17 é o valor documental e é **preservado**; o que
+estava incorreto era a redação/proveniência de teste, que tinha inferido
+uma relação matemática que o documento não sustenta — corrigida
+removendo a `operacao` do fato correspondente, nunca recalculando o
+valor. Cada dado da zona passou a declarar `tipo`,
+`valor`, `unidade` (quando houver), `fonte` e `natureza`
+(`documental`/`derivado`), com `operacao` (`soma`/`subtracao`/
+`multiplicacao`/`media` sobre outros `tipo`s declarados) quando mantém
+relação matemática com outros dados. Verificação determinística, em
+`Decimal` (**nunca float para dinheiro**), com álgebra de unidades por
+cancelamento (kWh/ciclo × ciclo = kWh; kWh × R$/kWh = R$).
+
+A validação aritmética é **controle de coerência, nunca recálculo da
+cobrança**. Fonte de verdade dos valores são os documentos oficiais do
+procedimento administrativo — **Memorial de Cálculo e Memorial de
+Faturamento** — para consumo recuperado, período, ciclos, critério
+aplicado, tarifa, diferenças e valor final. A zona existe para **defender
+a cobrança efetivamente constituída**, não para reconstruí-la. Três
+regras, nesta ordem: (1) o mesmo dado registrado com valores divergentes
+em documentos oficiais diferentes é contradição interna real e aborta;
+(2) valor apresentado como resultado de conta (`derivado`) que não fecha
+aborta sempre, porque a peça está afirmando a conta; (3) valor
+`documental` que não fecha com uma operação declarada é **preservado** se
+o fato declarar `metodologia` (`{"descricao", "fonte"}`) apontando onde o
+documento oficial explica a diferença — apuração por estimativa
+regulamentar, proporcionalização, bandeira, tributo, arredondamento. Sem
+essa declaração, aborta com mensagem que manda **consultar a metodologia
+documental**, nunca trocar o número por cálculo próprio. **Estimativa
+regulamentar não é arbitrariedade**: apuração estimada segundo os
+critérios da regulamentação é procedimento regular, e a defesa não tenta
+demonstrar que a cobrança corresponde a uma multiplicação simples
+reconstruída pela IA.
+
+Dado `documental` precisa ainda ter seus números respaldados por fato do
+caso oriundo **daquele** documento (`fatos.json`): atribuir a tarifa ao
+TOI quando ela consta do memorial é fail-closed. A lógica de redação da
+zona é `DOCUMENTAÇÃO ADMINISTRATIVA → CRITÉRIO REGULAMENTAR →
+METODOLOGIA EFETIVAMENTE APLICADA → RESULTADO DOCUMENTADO → LEGITIMIDADE
+DA COBRANÇA`, nunca `DADOS EXTRAÍDOS → RECÁLCULO AUTÔNOMO DA IA → NOVO
+VALOR`. Nada disso é validador de linguagem natural: prova-se ancoragem,
+atribuição de fonte, unidade e aritmética declarada, só sobre relações
+estruturadas.
+
+**Zona autorizada hoje: uma.** `ZONA_METODOLOGIA_APURACAO` (bloco-pai
+`CALCULOS_RECUPERACAO_CONSUMO`) — critério/inciso do art. 595 aplicado,
+período, ciclos, consumos, diferença, tarifa, valor recuperado e base
+documental da apuração. Toda zona futura exige
+autorização expressa do usuário, com auditoria própria. **Não existe
+`ZONA_COMPLEMENTACAO_GENERICA`** e não deve passar a existir. Definição
+completa em `docs/adr/ADR-0010-zonas-complementacao.md` e
+`docs/specs/SPEC-0001.md` §58 — não duplicadas aqui.
 
 ---
 

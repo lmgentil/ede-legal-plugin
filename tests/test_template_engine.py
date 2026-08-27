@@ -30,6 +30,7 @@ import sys
 from pathlib import Path
 
 import lxml.etree as LET
+import pytest
 
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
@@ -311,6 +312,7 @@ def test_template_lock_detecta_arquivo_extra_ou_ausente():
         assert any("ausente no gerado" in d for d in r["divergencias"])
 
 
+@pytest.mark.docx_real
 def test_pipeline_completo_contra_template_real():
     if not TEMPLATE_REAL.exists():
         print(f"SKIP: {TEMPLATE_REAL} não existe localmente (esperado — "
@@ -427,6 +429,7 @@ def test_pipeline_completo_contra_template_real():
 
 
 # --------------------------------------------------------------- fonte do PROCESSO Nº (Etapa 5.3 §2)
+@pytest.mark.docx_real
 def test_processo_no_fonte_12_no_template_real():
     if not TEMPLATE_REAL.exists():
         print(f"SKIP: {TEMPLATE_REAL} não existe localmente (esperado — "

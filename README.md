@@ -94,6 +94,39 @@ git clone https://github.com/lmgentil/ede-legal-plugin.git
 Indicado para estudo do código, desenvolvimento ou adaptação nos limites
 da licença.
 
+## Desenvolvimento e testes
+
+A suíte pytest é segmentada por dependência operacional. Os segmentos
+pesados são mutuamente exclusivos; testes sem marcador pesado compõem o
+grupo rápido.
+
+```text
+# Unitários e estruturais rápidos
+python -m pytest -m "not rag and not docx_real and not pipeline_e2e and not network"
+
+# Integração com o modelo institucional privado disponível localmente
+python -m pytest -m docx_real
+
+# RAG, artefatos persistidos e gold set
+python -m pytest -m rag
+
+# Pipeline Python completo da Contestação
+python -m pytest -m pipeline_e2e
+
+# Smoke tests externos — opt-in; retorna código 5 enquanto o segmento estiver vazio
+python -m pytest -m network
+
+# Gate final: todos os segmentos
+python -m pytest
+```
+
+`pipeline_e2e` comprova o pipeline Python local, não uma execução real do
+Claude Code. Homologação do host Claude Code e do Cowork continua sendo
+uma atividade separada; o Cowork permanece não homologado de ponta a
+ponta. Os marcadores são registrados com `--strict-markers` em
+`pytest.ini`, de modo que erros de digitação ou categorias não declaradas
+interrompam a coleta.
+
 ## Como usar
 
 Depois de instalado, não é necessário conhecer o nome de cada Skill —

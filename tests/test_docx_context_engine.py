@@ -29,6 +29,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
 from docx_context_engine import (  # noqa: E402
@@ -235,6 +237,7 @@ def test_G_extracao_e_idempotente_e_nunca_muta_o_xml_de_entrada():
 
 
 # --------------------------------------------------------------- LOCAL_ONLY (template real)
+@pytest.mark.docx_real
 def test_E_valor_fra_duplicado_dentro_de_reconvencao_no_template_real():
     if not TEMPLATE_REAL.exists():
         print(f"SKIP: {TEMPLATE_REAL} não existe localmente (esperado — "
@@ -246,6 +249,7 @@ def test_E_valor_fra_duplicado_dentro_de_reconvencao_no_template_real():
     assert all(o["bloco"] == "RECONVENCAO" for o in ocorrencias)
 
 
+@pytest.mark.docx_real
 def test_F_mc_choice_fallback_nao_gera_contexto_falso_no_template_real():
     if not TEMPLATE_REAL.exists():
         print(f"SKIP: {TEMPLATE_REAL} não existe localmente.")
@@ -258,6 +262,7 @@ def test_F_mc_choice_fallback_nao_gera_contexto_falso_no_template_real():
     assert len(ctx["AUTOR"]) == 1  # não duplica por causa da caixa de título repetida
 
 
+@pytest.mark.docx_real
 def test_H_hash_do_template_mestre_inalterado_apos_extracao():
     if not TEMPLATE_REAL.exists():
         print(f"SKIP: {TEMPLATE_REAL} não existe localmente.")
@@ -268,6 +273,7 @@ def test_H_hash_do_template_mestre_inalterado_apos_extracao():
     assert antes == depois
 
 
+@pytest.mark.docx_real
 def test_O_treze_placeholders_batem_exatamente_com_schema_no_template_real():
     if not TEMPLATE_REAL.exists():
         print(f"SKIP: {TEMPLATE_REAL} não existe localmente.")
@@ -286,6 +292,7 @@ def test_O_treze_placeholders_batem_exatamente_com_schema_no_template_real():
     assert not (zonas & set(schema["editable_placeholders"]))
 
 
+@pytest.mark.docx_real
 def test_R_e2e_contexto_institucional_completo_contra_template_real():
     if not TEMPLATE_REAL.exists():
         print(f"SKIP: {TEMPLATE_REAL} não existe localmente.")

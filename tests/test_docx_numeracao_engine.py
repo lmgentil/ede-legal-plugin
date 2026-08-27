@@ -25,6 +25,7 @@ import sys
 from pathlib import Path
 
 import lxml.etree as LET
+import pytest
 
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
@@ -306,6 +307,7 @@ def test_validador_detecta_numero_adulterado_apos_renumeracao():
 
 
 # --------------------------------------------------------------- LOCAL_ONLY (template real): M, N, O, P
+@pytest.mark.docx_real
 def test_O_P_pipeline_completo_gera_docx_com_numeracao_e_template_lock_ok():
     if not TEMPLATE_REAL.exists():
         print(f"SKIP: {TEMPLATE_REAL} não existe localmente (esperado — "

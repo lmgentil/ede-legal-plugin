@@ -41,6 +41,8 @@ import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
+import pytest
+
 BASE = Path(__file__).parent.parent
 FIXTURES = BASE / "tests" / "fixtures" / "contestacao"
 _DATA_ISO_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
@@ -48,6 +50,8 @@ sys.path.insert(0, str(BASE / "scripts"))
 from gerar_contestacao import MARCADOR_FOTOS, gerar as _gerar_real  # noqa: E402
 
 REAL_TEMPLATE = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
+
+pytestmark = pytest.mark.pipeline_e2e
 
 
 # INV-JUIZO-DATAJUD: a suíte automatizada nunca depende da disponibilidade

@@ -20,6 +20,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
 from docx_block_engine import carregar_catalogo, gerar_peca_com_blocos  # noqa: E402
@@ -71,6 +73,7 @@ def test_A_zero_ocorrencia_em_contratos_ativos():
 
 
 # B. zero marcador residual no DOCX final; F. bloco composicional continua funcionando; I. Template Lock íntegro.
+@pytest.mark.docx_real
 def test_B_F_I_docx_real_sem_marcador_bloco_funciona_lock_integro():
     if _pular_se_sem_template_real():
         return

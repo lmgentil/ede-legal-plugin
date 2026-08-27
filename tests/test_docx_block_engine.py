@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 
 import lxml.etree as LET
+import pytest
 
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
@@ -268,6 +269,7 @@ def test_compor_xml_via_wrapper_string_to_string():
 
 
 # --------------------------------------------------------------- LOCAL_ONLY (template real)
+@pytest.mark.docx_real
 def test_pipeline_completo_com_blocos_contra_template_real():
     if not TEMPLATE_REAL.exists():
         print(f"SKIP: {TEMPLATE_REAL} não existe localmente (esperado — "

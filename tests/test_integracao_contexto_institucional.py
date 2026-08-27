@@ -35,6 +35,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
 sys.path.insert(0, str(BASE / "rag"))
@@ -50,6 +52,8 @@ TEMPLATE_REAL = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
 SCHEMA_REAL = BASE / "templates" / "contestacao" / "schema.json"
 CATALOGO_REAL = BASE / "templates" / "contestacao" / "blocos.json"
 FIXTURES = BASE / "tests" / "fixtures" / "contestacao"
+
+pytestmark = pytest.mark.docx_real
 
 PLACEHOLDERS_GERATIVOS_ESPERADOS = {
     "TEMPESTIVIDADE_CASO", "SINOPSE_FATOS", "REALIDADE_FATICA",

@@ -22,6 +22,8 @@ sys.path.insert(0, str(BASE / "rag" / "embeddings"))
 import build_embeddings as builder  # noqa: E402
 import search_hybrid as sh  # noqa: E402
 
+pytestmark = pytest.mark.rag
+
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()

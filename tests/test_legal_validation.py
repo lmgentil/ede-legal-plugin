@@ -18,6 +18,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "rag"))
 from legal_validation import (  # noqa: E402
@@ -175,6 +177,7 @@ def test_vigencia_desconhecida_nao_vira_vigente_mesmo_com_artigo_validado():
 
 
 # --------------------------------------------------- §32 — separação de scores
+@pytest.mark.rag
 def test_score_alto_nao_implica_validado():
     sys.path.insert(0, str(BASE / "rag"))
     from search_hybrid import HybridSearcher
@@ -186,6 +189,7 @@ def test_score_alto_nao_implica_validado():
     assert enr[0]["vigencia"] == "NAO_VERIFICADA"
 
 
+@pytest.mark.rag
 def test_indice_artigos_eh_validado_por_correspondencia_exata():
     sys.path.insert(0, str(BASE / "rag"))
     from search_hybrid import HybridSearcher

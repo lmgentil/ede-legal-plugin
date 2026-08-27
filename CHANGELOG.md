@@ -29,6 +29,12 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   placeholders, a condição 404 de `/atualizar-ede` sem afirmação temporal e
   a advertência de que o fluxo Cowork ainda não foi homologado de ponta a
   ponta e que `synced`/`updated` não comprova a versão efetivamente carregada.
+- Suíte pytest segmentada por marcadores estritos e mutuamente exclusivos:
+  grupo rápido unitário/estrutural, `docx_real`, `rag`, `pipeline_e2e` e
+  `network` opt-in. A suíte completa permanece o gate final; o segmento E2E
+  é explicitamente o pipeline Python local, sem simular homologação do host
+  Claude Code ou do Cowork. Novo guarda coleta todos os segmentos e comprova
+  que formam uma partição sem sobreposição.
 
 ## [0.10.1] - 2026-08-27 — `/atualizar-ede` transformado em verificador puro de versão (Etapa 5.9-I)
 

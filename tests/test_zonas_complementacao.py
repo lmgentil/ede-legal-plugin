@@ -34,6 +34,7 @@ import zipfile
 from pathlib import Path
 
 import lxml.etree as LET
+import pytest
 
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
@@ -498,6 +499,7 @@ def test_V_sentinela_textual_rejeita():
 
 
 # =============================================================== W-Z: contexto institucional
+@pytest.mark.docx_real
 def test_W_X_Y_Z_contexto_da_zona_no_template_real():
     if _pular_sem_template():
         return
@@ -581,6 +583,7 @@ def _docx_xml(caminho):
         return z.read("word/document.xml").decode("utf-8")
 
 
+@pytest.mark.docx_real
 def test_AA_AC_AD_AF_e2e_zona_incluida_contra_template_real():
     if _pular_sem_template():
         return
@@ -608,6 +611,7 @@ def test_AA_AC_AD_AF_e2e_zona_incluida_contra_template_real():
         assert "mecanismo de recomposição econômica" in xml
 
 
+@pytest.mark.docx_real
 def test_AB_e2e_zona_vazia_contra_template_real():
     if _pular_sem_template():
         return
@@ -627,6 +631,7 @@ def test_AB_e2e_zona_vazia_contra_template_real():
         assert "mecanismo de recomposição econômica" in xml
 
 
+@pytest.mark.docx_real
 def test_AB2_zona_vazia_produz_documento_identico_a_zona_ausente():
     """Prova estrutural de que a zona vazia não deixa vestígio: o DOCX
     gerado sem `zonas.json` e o gerado com `zonas.json` de conteúdo vazio
@@ -646,6 +651,7 @@ def test_AB2_zona_vazia_produz_documento_identico_a_zona_ausente():
         assert _docx_xml(saida_a) == _docx_xml(saida_b)
 
 
+@pytest.mark.docx_real
 def test_AA2_template_lock_reprova_alteracao_fora_da_zona():
     """Com a zona ativa, o Lock continua reprovando qualquer alteração de
     texto institucional — a cadeia de recomputação não foi afrouxada."""
@@ -699,6 +705,7 @@ def test_AA2_template_lock_reprova_alteracao_fora_da_zona():
         assert not lock_ruim["ok"], "Template Lock deveria reprovar alteração de texto institucional"
 
 
+@pytest.mark.docx_real
 def test_AB3_modelo_desatualizado_no_pipeline_real():
     """Modelo do usuário sem o SDT da zona: o pipeline aborta com o stage
     operacional próprio, não com `tag_ausente`."""
@@ -728,6 +735,7 @@ def test_AB3_modelo_desatualizado_no_pipeline_real():
         assert not saida.exists(), "nenhum DOCX parcial pode ser gravado"
 
 
+@pytest.mark.docx_real
 def test_pipeline_rejeita_conteudo_de_zona_invalido():
     """O estágio `zonas` barra conteúdo fora do contrato antes de qualquer
     composição — nunca gera sabendo que o limite foi violado."""
@@ -753,6 +761,7 @@ def test_pipeline_rejeita_conteudo_de_zona_invalido():
         assert not saida.exists()
 
 
+@pytest.mark.docx_real
 def test_pipeline_aborta_com_fato_indeterminado():
     if _pular_sem_template():
         return
@@ -875,6 +884,7 @@ def test_5C_F2_frase_vazia_sem_concretizacao_e_rejeitada():
     assert any("conclusão genérica" in e for e in erros), erros
 
 
+@pytest.mark.docx_real
 def test_5C_G_H_texto_institucional_adjacente_preservado():
     """G/H: os parágrafos institucionais anterior e posterior chegam ao
     DOCX exatamente como estão no template, com e sem zona."""
@@ -1246,6 +1256,7 @@ def test_5C1_dinheiro_nunca_em_float():
         "nenhum caminho de dinheiro pode passar por float"
 
 
+@pytest.mark.docx_real
 def test_5C1_pipeline_aborta_com_operacao_afirmada_que_nao_fecha():
     """Ponta a ponta, cenário sintético (a fixture real não afirma
     fórmula alguma para o total — ver test_5C1_fixture_...): SE uma zona
@@ -1570,6 +1581,7 @@ def test_5D1_zona_vazia_ou_sem_contexto_nao_e_afetada():
     assert validar_continuidade_zonas({ZONA_ID: ZONA_ABERTURA_ANTIGA_BUGADA}, {}) == (True, [])
 
 
+@pytest.mark.docx_real
 def test_5D1_F_G_pipeline_aborta_e_nunca_toca_texto_institucional():
     """§6.F/G, ponta a ponta: zona que repete a abertura do parágrafo
     institucional imediatamente anterior aborta o pipeline ANTES do DOCX
@@ -1591,6 +1603,7 @@ def test_5D1_F_G_pipeline_aborta_e_nunca_toca_texto_institucional():
                                     "o texto institucional alterado"
 
 
+@pytest.mark.docx_real
 def test_5D1_H_excluir_funciona_sem_o_gate():
     """§6.H: caminho EXCLUIR (zona vazia) continua funcionando — o gate de
     continuidade não se aplica a zona sem parágrafo algum."""
@@ -1613,6 +1626,7 @@ def test_5D1_I_fixture_corrigida_nao_colide_mais_com_template_real():
         "CONTEUDO_VALIDO ainda colide com o parágrafo institucional real"
 
 
+@pytest.mark.docx_real
 def test_5D1_J_K_L_geracao_valida_passa_pelo_gate_sem_regressao():
     """§6.J/K/L: com conteúdo de zona que NÃO colide (o caminho normal,
     após a correção da 5.8-D/5.8-E), o gate de continuidade não impede a

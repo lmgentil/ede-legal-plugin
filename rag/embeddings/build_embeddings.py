@@ -4,11 +4,11 @@
 Gera embeddings (TF-IDF + LSA/TruncatedSVD, 100% local/offline) para os chunks
 jurídicos do projeto RAG JURÍDICO (CPC, CC, CDC, REN 1000/2021 ANEEL).
 
-Saídas (em outputs/embeddings/):
+Saídas (em rag/embeddings/):
   - embeddings_all.parquet      -> todos os chunks das 4 leis, com metadados + vetor
   - embeddings_<CORPUS>.parquet -> um parquet por corpus (CPC, CC, CDC, REN1000)
   - vectorizer.joblib           -> TfidfVectorizer treinado (necessário p/ embutir novas queries)
-  - svd.joblib                  -> TruncatedSVD treinado (reduz TF-IDF -> vetor denso)
+  - svd.joblib                  -> TruncatedSVD float32 + zlib (TF-IDF -> vetor denso)
   - manifest.json                -> metadados da execução (nº chunks, dimensão, etc.)
 """
 import os
@@ -21,7 +21,11 @@ import pandas as pd
 from pathlib import Path
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
-from artifact_contract import hashes_dos_artefatos, runtime_atual
+from artifact_contract import (
+    formato_armazenamento_lsa,
+    hashes_dos_artefatos,
+    runtime_atual,
+)
 
 # Caminhos relativos ao próprio script (rag/embeddings/build_embeddings.py)
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -103,6 +107,12 @@ def build_embeddings(df: pd.DataFrame):
     return vectorizer, svd, dense_norm
 
 
+def compactar_svd(svd: TruncatedSVD) -> TruncatedSVD:
+    """Reduz a matriz dominante do estimador sem alterar sua interface."""
+    svd.components_ = svd.components_.astype(np.float32, copy=False)
+    return svd
+
+
 def main():
     df = load_all_chunks()
     print(f"Total de chunks carregados: {len(df)}")
@@ -130,7 +140,8 @@ def main():
 
     # salva vectorizer e svd para permitir embutir novas queries no futuro
     joblib.dump(vectorizer, OUT_DIR / "vectorizer.joblib")
-    joblib.dump(svd, OUT_DIR / "svd.joblib")
+    svd = compactar_svd(svd)
+    joblib.dump(svd, OUT_DIR / "svd.joblib", compress=("zlib", 3))
 
     manifest = {
         "total_chunks": int(len(df)),
@@ -146,6 +157,7 @@ def main():
         },
     }
     manifest["runtime"] = runtime_atual()
+    manifest["armazenamento"] = formato_armazenamento_lsa()
     manifest["sha256"] = hashes_dos_artefatos(OUT_DIR, manifest["arquivos"])
     with open(OUT_DIR / "manifest.json", "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)

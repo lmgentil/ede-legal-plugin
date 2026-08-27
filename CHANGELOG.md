@@ -8,6 +8,12 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não publicado]
 
 ### Corrigido
+- Peso do fallback RAG TF-IDF+LSA: `svd.joblib` passou de 77,34 MiB para
+  34,19 MiB (redução de 55,8%) com `components_` em `float32` e compactação
+  Joblib zlib nível 3. O manifesto e o loader agora exigem esse contrato de
+  armazenamento, sem nova dependência, download posterior ou perda do modo
+  offline. O gold-set permaneceu em 18/24 top-1 e 21/24 top-3 (ADR-0013;
+  PEND-003 resolvida).
 - Compatibilidade do fallback RAG TF-IDF+LSA: dependências numéricas e de
   serialização fixadas, artefatos regenerados no runtime canônico e novo
   contrato fail-closed no `manifest.json`, com versões de Python/pacotes e

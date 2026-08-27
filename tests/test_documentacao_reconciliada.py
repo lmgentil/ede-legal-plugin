@@ -58,14 +58,18 @@ def test_pend_005_permanece_aberta_so_para_migracao_nativa():
     assert "saltos visíveis" not in secao
 
 
-def test_pend_003_distingue_tamanho_de_compatibilidade_do_rag():
+def test_pend_003_registra_reducao_sem_confundir_com_compatibilidade():
     texto = _texto(PENDENCIAS)
     secao = _secao_pendencia(texto, "PEND-003")
 
-    assert _status_tabela(texto, "PEND-003") == "ABERTA"
-    assert "81 MB" in secao
+    assert _status_tabela(texto, "PEND-003").startswith("RESOLVIDA")
+    assert "77,34 MiB" in secao
+    assert "34,19 MiB" in secao
+    assert "55,8%" in secao
     assert "ADR-0011" in secao
+    assert "ADR-0013" in secao
     assert "runtime" in secao.lower()
+    assert "Em aberto" not in secao
 
 
 def test_contagem_de_placeholders_e_consistente_entre_contratos():

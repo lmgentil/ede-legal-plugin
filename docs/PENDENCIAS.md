@@ -16,7 +16,7 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 |---|---|---|---|---|
 | PEND-001 | DEFERRED | Fase 3 | Nenhuma (deferida por decisão do usuário — correção v0.6.1) | Suporte multimídia ao placeholder `FOTOS_DA_IRREGULARIADE` |
 | PEND-002 | ABERTA | Fase 4 | Nenhuma (adiada por decisão do usuário) | Indexação de jurisprudência (REQ-018) na busca híbrida |
-| PEND-003 | ABERTA | Fase 8 | Nenhuma (não impede uso; afeta tamanho de clone/instalação) | `rag/embeddings/svd.joblib` (~81 MB) domina o tamanho do repositório distribuído; compatibilidade de runtime já resolvida separadamente |
+| PEND-003 | RESOLVIDA (ADR-0013) | Fase 8 | — | `svd.joblib` reduzido de 77,34 MiB para 34,19 MiB com `float32` + zlib, preservando fallback offline e gold-set |
 | PEND-004 | RESOLVIDA (gate PEND-004) | Fase 8 | — | Definir licença proprietária/source-available compatível com repositório público e distribuição do plugin |
 | PEND-005 | ABERTA | Etapa 5 | Nenhuma (dívida estrutural; a renumeração dinâmica atual elimina lacunas) | Subtítulos ainda não migrados para lista multinível nativa do Word |
 | PEND-006 | RESOLVIDA (causa eliminada) | Etapa 5 | — | Ambiguidade da fronteira de `EVOLUCAO_CONSUMO` eliminada com a retirada do placeholder duplicado |
@@ -197,41 +197,36 @@ Em aberto, sem prazo. Ao resolver, mover a linha da tabela para "RESOLVIDA
 
 ## PEND-003 — Tamanho de `rag/embeddings/svd.joblib` no pacote distribuído
 
-**Status:** ABERTA
+**Status:** RESOLVIDA (ADR-0013)
 **Aberta em:** Fase 8 (auditoria de distribuição)
-**Bloqueia:** nenhuma fase — não impede instalação nem uso; só torna o
-clone/instalação mais pesado do que precisaria.
+**Resolvida em:** prioridade 8 da auditoria arquitetural, 2026-08-27.
 
 ### Contexto
 
 `rag/embeddings/svd.joblib` (o modelo TF-IDF+LSA de fallback offline,
-Fase 4) tem ~81 MB — sozinho, ~91% dos ~89 MB rastreados pelo git neste
-repositório. É o único item que se aproxima de tamanhos problemáticos
-para distribuição via marketplace (clone completo do repositório a cada
-instalação/atualização).
+Fase 4) tinha 81.097.447 bytes (77,34 MiB). A matriz
+`TruncatedSVD.components_`, em `float64`, respondia por praticamente todo o
+arquivo.
 
 ### Risco se não resolvido
 
-O risco que permanece nesta pendência é exclusivamente distributivo:
-instalação mais lenta e repositório mais pesado para clonar via
-`/plugin marketplace add`. A incompatibilidade de serialização/runtime
-identificada posteriormente foi resolvida separadamente pelo contrato
-fail-closed do manifesto, dependências fixadas e artefatos regenerados
-no runtime canônico, conforme `docs/adr/ADR-0011-contrato-artefatos-rag.md`.
-Essa correção não reduz os ~81 MB e, portanto, não encerra a PEND-003.
+O risco era exclusivamente distributivo: instalação mais lenta e repositório
+mais pesado para clonar via `/plugin marketplace add`. A incompatibilidade de
+serialização/runtime permanece tratada separadamente por
+`docs/adr/ADR-0011-compatibilidade-artefatos-rag.md`.
 
 ### Critério de resolução
 
-Quando priorizado: avaliar Git LFS, ou reconstrução local sob demanda
-(`rag/embeddings/build_embeddings.py` já existe e é determinístico a
-partir do corpus versionado — reconstruir é possível, só não está
-automatizado como parte da instalação), ou aceitar o tamanho atual como
-suficiente. Não decidido nesta fase (SPEC-0001 Fase 8 §53: não
-redesenhar o RAG sem necessidade).
+Adotado `float32` para `components_` com compactação Joblib zlib nível 3.
+O manifesto declara e o loader valida o formato antes da desserialização.
+Não houve retirada do artefato, dependência nova, download posterior,
+alteração de corpus, dimensão, ranking ou reconstrução na primeira execução.
 
 ### Fechamento
 
-Em aberto, sem prazo.
+**Resolvida em 2026-08-27.** O artefato oficial passou a 35.848.840 bytes
+(34,19 MiB), redução de 55,8%. O gold-set permaneceu em 18/24 top-1 e
+21/24 top-3. Decisão e alternativas medidas: `ADR-0013`.
 
 ---
 

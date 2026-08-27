@@ -22,10 +22,20 @@ PACOTES_RUNTIME = (
     ("pyarrow", "pyarrow"),
 )
 ARTEFATOS_OBRIGATORIOS = ("combinado", "vectorizer", "svd")
+FORMATO_ARMAZENAMENTO_LSA = {
+    "svd_components_dtype": "float32",
+    "joblib_compress": "zlib",
+    "joblib_compress_level": 3,
+}
 
 
 class RagArtifactCompatibilityError(RuntimeError):
     """O índice LSA não pode ser usado com segurança neste runtime."""
+
+
+def formato_armazenamento_lsa() -> dict:
+    """Retorna o formato canônico e compacto dos artefatos LSA."""
+    return FORMATO_ARMAZENAMENTO_LSA.copy()
 
 
 def runtime_atual() -> dict:
@@ -90,6 +100,14 @@ def validar_contrato_lsa(manifesto: dict, diretorio: Path) -> None:
             "runtime incompatível com os artefatos LSA: " + "; ".join(divergencias)
         )
 
+    armazenamento = manifesto.get("armazenamento")
+    esperado_armazenamento = formato_armazenamento_lsa()
+    if armazenamento != esperado_armazenamento:
+        raise RagArtifactCompatibilityError(
+            "contrato de armazenamento LSA ausente ou incompatível: "
+            f"manifesto={armazenamento!r}, esperado={esperado_armazenamento!r}"
+        )
+
     arquivos = manifesto.get("arquivos")
     if not isinstance(arquivos, dict):
         raise RagArtifactCompatibilityError("manifesto LSA sem catálogo de arquivos")
@@ -105,3 +123,16 @@ def validar_contrato_lsa(manifesto: dict, diretorio: Path) -> None:
                 f"hash SHA-256 divergente para {nome}: "
                 f"manifesto={hash_esperado!r}, atual={hash_atual!r}"
             )
+
+
+def validar_svd_lsa(svd: object, manifesto: dict) -> None:
+    """Confirma que o estimador carregado corresponde ao formato declarado."""
+    armazenamento = manifesto["armazenamento"]
+    components = getattr(svd, "components_", None)
+    dtype_atual = str(getattr(components, "dtype", "ausente"))
+    dtype_esperado = armazenamento["svd_components_dtype"]
+    if dtype_atual != dtype_esperado:
+        raise RagArtifactCompatibilityError(
+            "dtype incompatível em svd.components_: "
+            f"manifesto={dtype_esperado!r}, artefato={dtype_atual!r}"
+        )

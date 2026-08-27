@@ -1,0 +1,3777 @@
+{
+  "nodes": [
+    {
+      "id": "avaliar_recuperacao",
+      "label": "avaliar_recuperacao.py",
+      "file_type": "code",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "avaliar_recuperacao_arts_to_files",
+      "label": "arts_to_files()",
+      "file_type": "code",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L30",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "avaliar_recuperacao_main",
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L40",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "avaliar_recuperacao_rationale_31",
+      "label": "Resolve (corpus, artigos) -> conjunto de arquivos-chunk via index_artigos.",
+      "file_type": "rationale",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L31",
+      "_origin": "ast"
+    },
+    {
+      "id": "build_embeddings_semantic",
+      "label": "build_embeddings_semantic.py",
+      "file_type": "code",
+      "source_file": "build_embeddings_semantic.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "build_embeddings_semantic_load_chunks",
+      "label": "load_chunks()",
+      "file_type": "code",
+      "source_file": "build_embeddings_semantic.py",
+      "source_location": "L42",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "build_embeddings_semantic_main",
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "build_embeddings_semantic.py",
+      "source_location": "L55",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "calibrar_confianca",
+      "label": "calibrar_confianca.py",
+      "file_type": "code",
+      "source_file": "calibrar_confianca.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "calibrar_confianca_main",
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "calibrar_confianca.py",
+      "source_location": "L45",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_artifact_contract",
+      "label": "artifact_contract.py",
+      "file_type": "code",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_artifact_contract_ragartifactcompatibilityerror",
+      "label": "RagArtifactCompatibilityError",
+      "file_type": "code",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L27",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "runtimeerror",
+      "label": "RuntimeError",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_artifact_contract_runtime_atual",
+      "label": "runtime_atual()",
+      "file_type": "code",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L31",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_artifact_contract_sha256_arquivo",
+      "label": "sha256_arquivo()",
+      "file_type": "code",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L39",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_artifact_contract_py_path",
+      "label": "Path",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_artifact_contract_hashes_dos_artefatos",
+      "label": "hashes_dos_artefatos()",
+      "file_type": "code",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L47",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_artifact_contract_validar_contrato_lsa",
+      "label": "validar_contrato_lsa()",
+      "file_type": "code",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L66",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_artifact_contract_rationale_1",
+      "label": "Contrato reproduz\u00edvel e fail-closed dos artefatos LSA do RAG. O builder\u2026",
+      "file_type": "rationale",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_artifact_contract_rationale_28",
+      "label": "O \u00edndice LSA n\u00e3o pode ser usado com seguran\u00e7a neste runtime.",
+      "file_type": "rationale",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L28",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_artifact_contract_rationale_32",
+      "label": "Retorna as vers\u00f5es que determinam a compatibilidade do \u00edndice LSA.",
+      "file_type": "rationale",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L32",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_artifact_contract_rationale_67",
+      "label": "Valida runtime e integridade antes de qualquer desserializa\u00e7\u00e3o.",
+      "file_type": "rationale",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L67",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_build_embeddings",
+      "label": "build_embeddings.py",
+      "file_type": "code",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_build_embeddings_parse_chunk",
+      "label": "parse_chunk()",
+      "file_type": "code",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L45",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_build_embeddings_py_path",
+      "label": "Path",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_build_embeddings_load_all_chunks",
+      "label": "load_all_chunks()",
+      "file_type": "code",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L70",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "dataframe",
+      "label": "DataFrame",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_build_embeddings_build_embeddings",
+      "label": "build_embeddings()",
+      "file_type": "code",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L80",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_build_embeddings_main",
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L106",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest",
+      "label": "manifest.json",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_total_chunks",
+      "label": "total_chunks",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L2",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_chunks_por_corpus",
+      "label": "chunks_por_corpus",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L3",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_chunks_por_corpus_cc",
+      "label": "CC",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L4",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_chunks_por_corpus_cdc",
+      "label": "CDC",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L5",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_chunks_por_corpus_cpc",
+      "label": "CPC",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L6",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_chunks_por_corpus_l8987",
+      "label": "L8987",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L7",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_chunks_por_corpus_l9427",
+      "label": "L9427",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L8",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_chunks_por_corpus_ren1000",
+      "label": "REN1000",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L9",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_embedding_dim",
+      "label": "embedding_dim",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L11",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_metodo",
+      "label": "metodo",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L12",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_variancia_explicada_acumulada",
+      "label": "variancia_explicada_acumulada",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L13",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_arquivos",
+      "label": "arquivos",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L14",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_arquivos_combinado",
+      "label": "combinado",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L15",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_arquivos_por_corpus",
+      "label": "por_corpus",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "_origin": "ast"
+    },
+    {
+      "id": "ref_embeddings_cpc_parquet",
+      "label": "embeddings_CPC.parquet",
+      "file_type": "concept",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "_origin": "ast"
+    },
+    {
+      "id": "ref_embeddings_cc_parquet",
+      "label": "embeddings_CC.parquet",
+      "file_type": "concept",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "_origin": "ast"
+    },
+    {
+      "id": "ref_embeddings_cdc_parquet",
+      "label": "embeddings_CDC.parquet",
+      "file_type": "concept",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "_origin": "ast"
+    },
+    {
+      "id": "ref_embeddings_ren1000_parquet",
+      "label": "embeddings_REN1000.parquet",
+      "file_type": "concept",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "_origin": "ast"
+    },
+    {
+      "id": "ref_embeddings_l8987_parquet",
+      "label": "embeddings_L8987.parquet",
+      "file_type": "concept",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "_origin": "ast"
+    },
+    {
+      "id": "ref_embeddings_l9427_parquet",
+      "label": "embeddings_L9427.parquet",
+      "file_type": "concept",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_arquivos_vectorizer",
+      "label": "vectorizer",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L24",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_arquivos_svd",
+      "label": "svd",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L25",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_runtime",
+      "label": "runtime",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L27",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_runtime_python",
+      "label": "python",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L28",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_runtime_scikit_learn",
+      "label": "scikit_learn",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L29",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_runtime_numpy",
+      "label": "numpy",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L30",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_runtime_scipy",
+      "label": "scipy",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L31",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_runtime_joblib",
+      "label": "joblib",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L32",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_runtime_pandas",
+      "label": "pandas",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L33",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_runtime_pyarrow",
+      "label": "pyarrow",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L34",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_sha256",
+      "label": "sha256",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L36",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_sha256_embeddings_all_parquet",
+      "label": "embeddings_all.parquet",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L37",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_sha256_vectorizer_joblib",
+      "label": "vectorizer.joblib",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L38",
+      "_origin": "ast"
+    },
+    {
+      "id": "embeddings_manifest_sha256_svd_joblib",
+      "label": "svd.joblib",
+      "file_type": "code",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L39",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_init",
+      "label": "__init__.py",
+      "file_type": "code",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_parser",
+      "label": "citation_parser.py",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_parser.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_parser_parse_citacao",
+      "label": "parse_citacao()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_parser.py",
+      "source_location": "L31",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_parser_rationale_32",
+      "label": "Retorna dict com: raw \u2014 texto original artigo \u2014 int do primeiro artigo citado,\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/citation_parser.py",
+      "source_location": "L32",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator",
+      "label": "citation_validator.py",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_ler_chunk",
+      "label": "_ler_chunk()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L42",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_py_path",
+      "label": "Path",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_diploma_norma_de",
+      "label": "_diploma_norma_de()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L62",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_marcador_artigo_re",
+      "label": "_marcador_artigo_re()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L78",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "pattern",
+      "label": "Pattern",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_extrair_bloco_artigo",
+      "label": "extrair_bloco_artigo()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L87",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_bloco_caput",
+      "label": "bloco_caput()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L103",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_bloco_paragrafo",
+      "label": "bloco_paragrafo()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L111",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_incisos_em",
+      "label": "incisos_em()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L124",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_bloco_inciso",
+      "label": "bloco_inciso()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L128",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_alineas_em",
+      "label": "alineas_em()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L137",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_carregar_indice_artigos",
+      "label": "_carregar_indice_artigos()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L142",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_sugerir_candidato",
+      "label": "_sugerir_candidato()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L150",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_validar_citacao",
+      "label": "validar_citacao()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L174",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_enriquecer_resultados",
+      "label": "enriquecer_resultados()",
+      "file_type": "code",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L300",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_rationale_43",
+      "label": "Retorna (frontmatter: dict, corpo: str). Sem pyyaml, frontmatter fica {}\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L43",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_rationale_63",
+      "label": "Corpora \"lei\"-based (CPC/CC/CDC/L8987/L9427): campo \u00fanico \"Lei n\u00ba X \u2014 Nome do\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L63",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_rationale_88",
+      "label": "Texto do \"Art. N.\" at\u00e9 o pr\u00f3ximo \"Art. N+1.\" (ou fim do chunk, se N for o\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L88",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_rationale_104",
+      "label": "Texto do artigo at\u00e9 o primeiro \"\u00a7\"/\"Par\u00e1grafo \u00fanico\" \u2014 escopo onde incisos\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L104",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_rationale_112",
+      "label": "alvo: \"unico\" ou string do n\u00famero (\"1\", \"2\", ...). None se o par\u00e1grafo pedido\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L112",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_rationale_151",
+      "label": "Camada 2 do fluxo do \u00a716: busca h\u00edbrida DIRECIONADA ao corpus, s\u00f3 para sugerir\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L151",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_rationale_175",
+      "label": "Ponto de entrada principal (REQ-027/028). Retorna sempre: {input, status,\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L175",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_citation_validator_rationale_301",
+      "label": "REQ-024/025/026 + \u00a721 (Fase 5): recebe a sa\u00edda de\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L301",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_models",
+      "label": "models.py",
+      "file_type": "code",
+      "source_file": "legal_validation/models.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_models_fonte_juridica",
+      "label": "fonte_juridica()",
+      "file_type": "code",
+      "source_file": "legal_validation/models.py",
+      "source_location": "L32",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_models_rationale_40",
+      "label": "Constr\u00f3i o modelo can\u00f4nico. Levanta ValueError se um dos tr\u00eas enums receber um\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/models.py",
+      "source_location": "L40",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_provenance",
+      "label": "provenance.py",
+      "file_type": "code",
+      "source_file": "legal_validation/provenance.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_provenance_proveniencia",
+      "label": "proveniencia()",
+      "file_type": "code",
+      "source_file": "legal_validation/provenance.py",
+      "source_location": "L12",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_source_authority",
+      "label": "source_authority.py",
+      "file_type": "code",
+      "source_file": "legal_validation/source_authority.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_source_authority_carregar_mapa",
+      "label": "_carregar_mapa()",
+      "file_type": "code",
+      "source_file": "legal_validation/source_authority.py",
+      "source_location": "L39",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_source_authority_classificar_autoridade",
+      "label": "classificar_autoridade()",
+      "file_type": "code",
+      "source_file": "legal_validation/source_authority.py",
+      "source_location": "L58",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_source_authority_rationale_40",
+      "label": "REQ-044: configur\u00e1vel via rag/config.yaml (chave\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/source_authority.py",
+      "source_location": "L40",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_source_authority_rationale_59",
+      "label": "Determin\u00edstica: o mesmo corpus sempre retorna o mesmo n\u00edvel. Corpus fora do\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/source_authority.py",
+      "source_location": "L59",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_temporal_status",
+      "label": "temporal_status.py",
+      "file_type": "code",
+      "source_file": "legal_validation/temporal_status.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_temporal_status_vigencia_de",
+      "label": "vigencia_de()",
+      "file_type": "code",
+      "source_file": "legal_validation/temporal_status.py",
+      "source_location": "L20",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "legal_validation_temporal_status_rationale_21",
+      "label": "Hoje sempre NAO_VERIFICADA, para qualquer corpus/artigo: nenhum dado de\u2026",
+      "file_type": "rationale",
+      "source_file": "legal_validation/temporal_status.py",
+      "source_location": "L21",
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid",
+      "label": "search_hybrid.py",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_carregar_config",
+      "label": "_carregar_config()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L56",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_cfg",
+      "label": "_cfg()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L75",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_normalize",
+      "label": "normalize()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L115",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_tokenize",
+      "label": "tokenize()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L121",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_detect_articles",
+      "label": "detect_articles()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L149",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_hybridsearcher",
+      "label": "HybridSearcher",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L167",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_hybridsearcher_init",
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L168",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_hybridsearcher_embed_query",
+      "label": "._embed_query()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L219",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "ndarray",
+      "label": "ndarray",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_hybridsearcher_coverage",
+      "label": "._coverage()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L228",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_hybridsearcher_lookup_article",
+      "label": ".lookup_article()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L235",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_hybridsearcher_rerank",
+      "label": "._rerank()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L250",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_hybridsearcher_search",
+      "label": ".search()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L262",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_hybridsearcher_confianca",
+      "label": ".confianca()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L291",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_hybridsearcher_query",
+      "label": ".query()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L326",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_main",
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "search_hybrid.py",
+      "source_location": "L345",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_rationale_57",
+      "label": "REQ-044 (Fase 4): par\u00e2metros antes hardcoded agora v\u00eam de config.yaml. Se\u2026",
+      "file_type": "rationale",
+      "source_file": "search_hybrid.py",
+      "source_location": "L57",
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_rationale_150",
+      "label": "Retorna (lista de artigos citados, corpus indicado ou None).",
+      "file_type": "rationale",
+      "source_file": "search_hybrid.py",
+      "source_location": "L150",
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_rationale_251",
+      "label": "Est\u00e1gio de reranking (SPEC-0001 \u00a715: fus\u00e3o -> reranking -> contexto). A fus\u00e3o\u2026",
+      "file_type": "rationale",
+      "source_file": "search_hybrid.py",
+      "source_location": "L251",
+      "_origin": "ast"
+    },
+    {
+      "id": "search_hybrid_rationale_292",
+      "label": "Classifica a confian\u00e7a de que a base cont\u00e9m a resposta. baixa -> provavelmente\u2026",
+      "file_type": "rationale",
+      "source_file": "search_hybrid.py",
+      "source_location": "L292",
+      "_origin": "ast"
+    }
+  ],
+  "edges": [
+    {
+      "source": "avaliar_recuperacao",
+      "target": "argparse",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L20",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "avaliar_recuperacao",
+      "target": "json",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L21",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "avaliar_recuperacao",
+      "target": "os",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L22",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "avaliar_recuperacao",
+      "target": "sys",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "avaliar_recuperacao",
+      "target": "search_hybrid",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "avaliar_recuperacao",
+      "target": "avaliar_recuperacao_arts_to_files",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L30",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "avaliar_recuperacao",
+      "target": "avaliar_recuperacao_main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L40",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "avaliar_recuperacao_main",
+      "target": "avaliar_recuperacao_arts_to_files",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L66",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "avaliar_recuperacao_rationale_31",
+      "target": "avaliar_recuperacao_arts_to_files",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L31",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "build_embeddings_semantic",
+      "target": "json",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "build_embeddings_semantic.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "build_embeddings_semantic",
+      "target": "re",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "build_embeddings_semantic.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "build_embeddings_semantic",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "build_embeddings_semantic.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "build_embeddings_semantic",
+      "target": "pandas",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "build_embeddings_semantic.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "build_embeddings_semantic",
+      "target": "yaml",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "build_embeddings_semantic.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "build_embeddings_semantic",
+      "target": "sentence_transformers",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "build_embeddings_semantic.py",
+      "source_location": "L29",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "build_embeddings_semantic",
+      "target": "build_embeddings_semantic_load_chunks",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "build_embeddings_semantic.py",
+      "source_location": "L42",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "build_embeddings_semantic",
+      "target": "build_embeddings_semantic_main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "build_embeddings_semantic.py",
+      "source_location": "L55",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "build_embeddings_semantic_main",
+      "target": "build_embeddings_semantic_load_chunks",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "build_embeddings_semantic.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "calibrar_confianca",
+      "target": "json",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "calibrar_confianca.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "calibrar_confianca",
+      "target": "search_hybrid",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "calibrar_confianca.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "calibrar_confianca",
+      "target": "calibrar_confianca_main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "calibrar_confianca.py",
+      "source_location": "L45",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract",
+      "target": "hashlib",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract",
+      "target": "importlib_metadata",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L11",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract",
+      "target": "sys",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract",
+      "target": "embeddings_artifact_contract_ragartifactcompatibilityerror",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_ragartifactcompatibilityerror",
+      "target": "runtimeerror",
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract",
+      "target": "embeddings_artifact_contract_runtime_atual",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L31",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract",
+      "target": "embeddings_artifact_contract_sha256_arquivo",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_sha256_arquivo",
+      "target": "embeddings_artifact_contract_py_path",
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract",
+      "target": "embeddings_artifact_contract_hashes_dos_artefatos",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L47",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_hashes_dos_artefatos",
+      "target": "embeddings_artifact_contract_py_path",
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L47",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract",
+      "target": "embeddings_artifact_contract_validar_contrato_lsa",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L66",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_validar_contrato_lsa",
+      "target": "embeddings_artifact_contract_py_path",
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L66",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_hashes_dos_artefatos",
+      "target": "embeddings_artifact_contract_ragartifactcompatibilityerror",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L52",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_hashes_dos_artefatos",
+      "target": "embeddings_artifact_contract_py_path",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L55",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_hashes_dos_artefatos",
+      "target": "embeddings_artifact_contract_sha256_arquivo",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L62",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_validar_contrato_lsa",
+      "target": "embeddings_artifact_contract_ragartifactcompatibilityerror",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L70",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_validar_contrato_lsa",
+      "target": "embeddings_artifact_contract_runtime_atual",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L75",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_validar_contrato_lsa",
+      "target": "embeddings_artifact_contract_hashes_dos_artefatos",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L100",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_rationale_1",
+      "target": "embeddings_artifact_contract",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_rationale_28",
+      "target": "embeddings_artifact_contract_ragartifactcompatibilityerror",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_rationale_32",
+      "target": "embeddings_artifact_contract_runtime_atual",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L32",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_artifact_contract_rationale_67",
+      "target": "embeddings_artifact_contract_validar_contrato_lsa",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/artifact_contract.py",
+      "source_location": "L67",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "os",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L14",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "re",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L15",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "json",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "yaml",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "joblib",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "numpy",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "pandas",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L20",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L21",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "sklearn_feature_extraction_text",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L22",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "sklearn_decomposition",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "artifact_contract",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "embeddings_build_embeddings_parse_chunk",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L45",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings_parse_chunk",
+      "target": "embeddings_build_embeddings_py_path",
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L45",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "embeddings_build_embeddings_load_all_chunks",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L70",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings_load_all_chunks",
+      "target": "dataframe",
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L70",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "embeddings_build_embeddings_build_embeddings",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L80",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings_build_embeddings",
+      "target": "dataframe",
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L80",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "embeddings_build_embeddings_main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L106",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings_load_all_chunks",
+      "target": "embeddings_build_embeddings_parse_chunk",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L75",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings_main",
+      "target": "embeddings_build_embeddings_load_all_chunks",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L107",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings_main",
+      "target": "embeddings_build_embeddings_build_embeddings",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L111",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest",
+      "target": "embeddings_manifest_total_chunks",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L2",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest",
+      "target": "embeddings_manifest_chunks_por_corpus",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_chunks_por_corpus",
+      "target": "embeddings_manifest_chunks_por_corpus_cc",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_chunks_por_corpus",
+      "target": "embeddings_manifest_chunks_por_corpus_cdc",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_chunks_por_corpus",
+      "target": "embeddings_manifest_chunks_por_corpus_cpc",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_chunks_por_corpus",
+      "target": "embeddings_manifest_chunks_por_corpus_l8987",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_chunks_por_corpus",
+      "target": "embeddings_manifest_chunks_por_corpus_l9427",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_chunks_por_corpus",
+      "target": "embeddings_manifest_chunks_por_corpus_ren1000",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest",
+      "target": "embeddings_manifest_embedding_dim",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L11",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest",
+      "target": "embeddings_manifest_metodo",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest",
+      "target": "embeddings_manifest_variancia_explicada_acumulada",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L13",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest",
+      "target": "embeddings_manifest_arquivos",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L14",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_arquivos",
+      "target": "embeddings_manifest_arquivos_combinado",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L15",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_arquivos",
+      "target": "embeddings_manifest_arquivos_por_corpus",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_arquivos_por_corpus",
+      "target": "ref_embeddings_cpc_parquet",
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_arquivos_por_corpus",
+      "target": "ref_embeddings_cc_parquet",
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_arquivos_por_corpus",
+      "target": "ref_embeddings_cdc_parquet",
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_arquivos_por_corpus",
+      "target": "ref_embeddings_ren1000_parquet",
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_arquivos_por_corpus",
+      "target": "ref_embeddings_l8987_parquet",
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_arquivos_por_corpus",
+      "target": "ref_embeddings_l9427_parquet",
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L16",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_arquivos",
+      "target": "embeddings_manifest_arquivos_vectorizer",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_arquivos",
+      "target": "embeddings_manifest_arquivos_svd",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L25",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest",
+      "target": "embeddings_manifest_runtime",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L27",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_runtime",
+      "target": "embeddings_manifest_runtime_python",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L28",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_runtime",
+      "target": "embeddings_manifest_runtime_scikit_learn",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L29",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_runtime",
+      "target": "embeddings_manifest_runtime_numpy",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L30",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_runtime",
+      "target": "embeddings_manifest_runtime_scipy",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L31",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_runtime",
+      "target": "embeddings_manifest_runtime_joblib",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L32",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_runtime",
+      "target": "embeddings_manifest_runtime_pandas",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L33",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_runtime",
+      "target": "embeddings_manifest_runtime_pyarrow",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L34",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest",
+      "target": "embeddings_manifest_sha256",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L36",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_sha256",
+      "target": "embeddings_manifest_sha256_embeddings_all_parquet",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L37",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_sha256",
+      "target": "embeddings_manifest_sha256_vectorizer_joblib",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L38",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_manifest_sha256",
+      "target": "embeddings_manifest_sha256_svd_joblib",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/manifest.json",
+      "source_location": "L39",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_citation_parser",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_citation_validator",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_models",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_provenance",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L26",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_source_authority",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_temporal_status",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_parser",
+      "target": "re",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_parser.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_parser",
+      "target": "sys",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_parser.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_parser",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_parser.py",
+      "source_location": "L14",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_parser",
+      "target": "search_hybrid",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_parser.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_parser",
+      "target": "legal_validation_citation_parser_parse_citacao",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_parser.py",
+      "source_location": "L31",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_parser_rationale_32",
+      "target": "legal_validation_citation_parser_parse_citacao",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_parser.py",
+      "source_location": "L32",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "json",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L21",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "re",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L22",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "sys",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "yaml",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_models",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L31",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_provenance",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L32",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_source_authority",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_temporal_status",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L34",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_ler_chunk",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L42",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_ler_chunk",
+      "target": "legal_validation_citation_validator_py_path",
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L42",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_diploma_norma_de",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L62",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_marcador_artigo_re",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L78",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_marcador_artigo_re",
+      "target": "pattern",
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L78",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_extrair_bloco_artigo",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L87",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_bloco_caput",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L103",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_bloco_paragrafo",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L111",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_incisos_em",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L124",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_bloco_inciso",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L128",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_alineas_em",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L137",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_carregar_indice_artigos",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L142",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_sugerir_candidato",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L150",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_validar_citacao",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L174",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_validator_enriquecer_resultados",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L300",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_extrair_bloco_artigo",
+      "target": "legal_validation_citation_validator_marcador_artigo_re",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L90",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_citation_validator_carregar_indice_artigos",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L199",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_citation_validator_sugerir_candidato",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L207",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_citation_validator_ler_chunk",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L221",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_citation_validator_extrair_bloco_artigo",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L222",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_citation_validator_bloco_paragrafo",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L230",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_citation_validator_bloco_caput",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L236",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_citation_validator_incisos_em",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L243",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_citation_validator_bloco_inciso",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L249",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_citation_validator_alineas_em",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L258",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_citation_validator_diploma_norma_de",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L269",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_enriquecer_resultados",
+      "target": "legal_validation_citation_validator_carregar_indice_artigos",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L321",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_enriquecer_resultados",
+      "target": "legal_validation_citation_validator_ler_chunk",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L328",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_enriquecer_resultados",
+      "target": "legal_validation_citation_validator_diploma_norma_de",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L329",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_rationale_43",
+      "target": "legal_validation_citation_validator_ler_chunk",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_rationale_63",
+      "target": "legal_validation_citation_validator_diploma_norma_de",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L63",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_rationale_88",
+      "target": "legal_validation_citation_validator_extrair_bloco_artigo",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L88",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_rationale_104",
+      "target": "legal_validation_citation_validator_bloco_caput",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L104",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_rationale_112",
+      "target": "legal_validation_citation_validator_bloco_paragrafo",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L112",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_rationale_151",
+      "target": "legal_validation_citation_validator_sugerir_candidato",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L151",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_rationale_175",
+      "target": "legal_validation_citation_validator_validar_citacao",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L175",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_rationale_301",
+      "target": "legal_validation_citation_validator_enriquecer_resultados",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L301",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_models",
+      "target": "legal_validation_models_fonte_juridica",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/models.py",
+      "source_location": "L32",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_models_rationale_40",
+      "target": "legal_validation_models_fonte_juridica",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/models.py",
+      "source_location": "L40",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_provenance",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/provenance.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_provenance",
+      "target": "legal_validation_provenance_proveniencia",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/provenance.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_source_authority",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/source_authority.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_source_authority",
+      "target": "yaml",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/source_authority.py",
+      "source_location": "L15",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_source_authority",
+      "target": "legal_validation_models",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/source_authority.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_source_authority",
+      "target": "legal_validation_source_authority_carregar_mapa",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/source_authority.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_source_authority",
+      "target": "legal_validation_source_authority_classificar_autoridade",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/source_authority.py",
+      "source_location": "L58",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_source_authority_rationale_40",
+      "target": "legal_validation_source_authority_carregar_mapa",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/source_authority.py",
+      "source_location": "L40",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_source_authority_rationale_59",
+      "target": "legal_validation_source_authority_classificar_autoridade",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/source_authority.py",
+      "source_location": "L59",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_temporal_status",
+      "target": "legal_validation_models",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/temporal_status.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_temporal_status",
+      "target": "legal_validation_temporal_status_vigencia_de",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/temporal_status.py",
+      "source_location": "L20",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_temporal_status_rationale_21",
+      "target": "legal_validation_temporal_status_vigencia_de",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/temporal_status.py",
+      "source_location": "L21",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "argparse",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L34",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "json",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "re",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L36",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "unicodedata",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L37",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L38",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "joblib",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L40",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "numpy",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L41",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "pandas",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L42",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "rank_bm25",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "embeddings_artifact_contract",
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "yaml",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L47",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "search_hybrid_carregar_config",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "search_hybrid_cfg",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L75",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "search_hybrid_normalize",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L115",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "search_hybrid_tokenize",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L121",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "search_hybrid_detect_articles",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L149",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "search_hybrid_hybridsearcher",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L167",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher",
+      "target": "search_hybrid_hybridsearcher_init",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L168",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher",
+      "target": "search_hybrid_hybridsearcher_embed_query",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L219",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher_embed_query",
+      "target": "ndarray",
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L219",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher",
+      "target": "search_hybrid_hybridsearcher_coverage",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L228",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher",
+      "target": "search_hybrid_hybridsearcher_lookup_article",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L235",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher",
+      "target": "search_hybrid_hybridsearcher_rerank",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L250",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher",
+      "target": "search_hybrid_hybridsearcher_search",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L262",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher",
+      "target": "search_hybrid_hybridsearcher_confianca",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L291",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher",
+      "target": "search_hybrid_hybridsearcher_query",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L326",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "search_hybrid_main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L345",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_tokenize",
+      "target": "search_hybrid_normalize",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L122",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_detect_articles",
+      "target": "search_hybrid_normalize",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L157",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher_init",
+      "target": "search_hybrid_tokenize",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L212",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher_search",
+      "target": "search_hybrid_tokenize",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L263",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher_search",
+      "target": "search_hybrid_hybridsearcher_embed_query",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L267",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher_search",
+      "target": "search_hybrid_hybridsearcher_coverage",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L286",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher_search",
+      "target": "search_hybrid_hybridsearcher_rerank",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L288",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher_confianca",
+      "target": "search_hybrid_detect_articles",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L294",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher_confianca",
+      "target": "search_hybrid_hybridsearcher_search",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L297",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher_query",
+      "target": "search_hybrid_detect_articles",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L327",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher_query",
+      "target": "search_hybrid_hybridsearcher_lookup_article",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L332",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher_query",
+      "target": "search_hybrid_hybridsearcher_search",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L337",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_main",
+      "target": "search_hybrid_hybridsearcher",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L354",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_rationale_57",
+      "target": "search_hybrid_carregar_config",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L57",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_rationale_150",
+      "target": "search_hybrid_detect_articles",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L150",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_rationale_251",
+      "target": "search_hybrid_hybridsearcher_rerank",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L251",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_rationale_292",
+      "target": "search_hybrid_hybridsearcher_confianca",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L292",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_citation_parser",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_citation_validator",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_models",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_provenance",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L26",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_source_authority",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_temporal_status",
+      "relation": "re_exports",
+      "context": "export",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "avaliar_recuperacao",
+      "target": "search_hybrid_hybridsearcher",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "calibrar_confianca",
+      "target": "search_hybrid_hybridsearcher",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "calibrar_confianca.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "embeddings_artifact_contract_hashes_dos_artefatos",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings",
+      "target": "embeddings_artifact_contract_runtime_atual",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_citation_parser_parse_citacao",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_citation_validator_enriquecer_resultados",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_citation_validator_validar_citacao",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_models_fonte_juridica",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_provenance_proveniencia",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L26",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_source_authority_classificar_autoridade",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_init",
+      "target": "legal_validation_temporal_status_vigencia_de",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/__init__.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_parser",
+      "target": "search_hybrid_detect_articles",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_parser.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_models_fonte_juridica",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L31",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_provenance_proveniencia",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L32",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_source_authority_classificar_autoridade",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_temporal_status_vigencia_de",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L34",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "search_hybrid_hybridsearcher",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L161",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator",
+      "target": "legal_validation_citation_parser_parse_citacao",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L181",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid",
+      "target": "embeddings_artifact_contract_validar_contrato_lsa",
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "search_hybrid.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "avaliar_recuperacao_main",
+      "target": "search_hybrid_hybridsearcher",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "avaliar_recuperacao.py",
+      "source_location": "L53",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "calibrar_confianca_main",
+      "target": "search_hybrid_hybridsearcher",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "calibrar_confianca.py",
+      "source_location": "L46",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings_main",
+      "target": "embeddings_artifact_contract_runtime_atual",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L148",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "embeddings_build_embeddings_main",
+      "target": "embeddings_artifact_contract_hashes_dos_artefatos",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "embeddings/build_embeddings.py",
+      "source_location": "L149",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_parser_parse_citacao",
+      "target": "search_hybrid_detect_articles",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_parser.py",
+      "source_location": "L42",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_sugerir_candidato",
+      "target": "search_hybrid_hybridsearcher",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L162",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_citation_parser_parse_citacao",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L183",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_models_fonte_juridica",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L280",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_temporal_status_vigencia_de",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L284",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_source_authority_classificar_autoridade",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L285",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_validar_citacao",
+      "target": "legal_validation_provenance_proveniencia",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L288",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_enriquecer_resultados",
+      "target": "legal_validation_models_fonte_juridica",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L338",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_enriquecer_resultados",
+      "target": "legal_validation_temporal_status_vigencia_de",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L343",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_enriquecer_resultados",
+      "target": "legal_validation_source_authority_classificar_autoridade",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L344",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "legal_validation_citation_validator_enriquecer_resultados",
+      "target": "legal_validation_provenance_proveniencia",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "legal_validation/citation_validator.py",
+      "source_location": "L349",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "search_hybrid_hybridsearcher_init",
+      "target": "embeddings_artifact_contract_validar_contrato_lsa",
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "search_hybrid.py",
+      "source_location": "L207",
+      "weight": 1.0,
+      "_origin": "ast"
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

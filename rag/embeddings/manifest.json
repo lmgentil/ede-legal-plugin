@@ -33,9 +33,14 @@
     "pandas": "3.0.5",
     "pyarrow": "25.0.1"
   },
+  "armazenamento": {
+    "svd_components_dtype": "float32",
+    "joblib_compress": "zlib",
+    "joblib_compress_level": 3
+  },
   "sha256": {
     "embeddings_all.parquet": "d0884e2f2aaf650e417e555d6be9bc1d0d86b165955f0afd02a761b7760e9ddf",
-    "vectorizer.joblib": "bc979d6fd59b603a4a66e601df826bcc9fd47ae148a15319f71111a6ece6bf15",
-    "svd.joblib": "c8892f75d4bb2ae284500b4354239f21a587ebb57ab421b0184c3341b7bd67e5"
+    "vectorizer.joblib": "2b4a74eb51c3d037e4b6ba0d538f9e2cc327349bef5c03625d2d0ad6ad7bf0d4",
+    "svd.joblib": "99ee6bd567c94446c6d7e43d00f8b0da71ddfb4850970019297ff51f1d2fbabd"
   }
 }

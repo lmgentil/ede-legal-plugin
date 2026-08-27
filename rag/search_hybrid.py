@@ -41,7 +41,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from rank_bm25 import BM25Okapi
-from embeddings.artifact_contract import validar_contrato_lsa
+from embeddings.artifact_contract import validar_contrato_lsa, validar_svd_lsa
 
 try:
     import yaml
@@ -208,6 +208,7 @@ class HybridSearcher:
             self.df = pd.read_parquet(EMB / "embeddings_all.parquet")
             self.vectorizer = joblib.load(EMB / "vectorizer.joblib")
             self.svd = joblib.load(EMB / "svd.joblib")
+            validar_svd_lsa(self.svd, manifest_lsa)
         self.E = np.vstack(self.df["embedding"].apply(np.array))
         self.bm25 = BM25Okapi([tokenize(t) for t in self.df["text"].fillna("")])
         # chunks de navegação (mestres/INDEX): fora do ranking

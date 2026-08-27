@@ -5,7 +5,7 @@ Todas as mudanças relevantes deste projeto são documentadas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/) e
 este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [0.10.0] - 2026-08-26 — Renumeração dinâmica, Modelo Institucional como Fonte Primária, Zona de Complementação Documental e portabilidade via CLAUDE_PLUGIN_ROOT
 
 ### Corrigido (Etapa 5.6 — orquestração e entrega da Contestação)
 - `INV-CONTESTACAO-ENTREGA-DOCX` (`docs/specs/SPEC-0001.md` §54,
@@ -26,6 +26,84 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   `tests/test_orquestracao_entrega_contestacao.py`. Correção exclusiva de
   orquestração/entrega — redação, template, placeholders, blocos, RAG,
   tempestividade, DataJud e demais regras de conteúdo não foram alteradas.
+
+### Adicionado (INV-NUMERACAO-DINAMICA-CONTESTACAO)
+- Novo `scripts/docx_numeracao_engine.py`: recalcula deterministicamente
+  os prefixos numéricos dos subtítulos (nível 2/3) após a composição de
+  blocos — nível 1 (títulos-badge) continua na lista numerada nativa do
+  Word (`numId=17`), já dinâmica por construção. Exclusão de bloco
+  provoca renumeração automática dos sobreviventes, sem lacuna; título
+  numerado residual, duplicidade, salto ou inconsistência hierárquica
+  causam fail-closed, nunca correção silenciosa. `scripts/
+  docx_block_engine.py` aciona a renumeração entre a composição e a
+  substituição de placeholders; Template Lock passa a cobrir também a
+  renumeração (`docs/specs/SPEC-0001.md` §55). 16 novos testes
+  (`tests/test_docx_numeracao_engine.py`).
+
+### Adicionado (INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA — Etapa 5.7)
+- Novo `scripts/docx_context_engine.py`: extrai, somente leitura, o
+  contexto institucional real ao redor de cada placeholder gerativo
+  (título/subtítulo mais próximo, texto fixo imediatamente anterior/
+  posterior, bloco condicional ancestral) diretamente do
+  `modelo-oficial.docx` — nunca de transcrição manual. `scripts/
+  gerar_contestacao.py` passa a chamar essa extração como primeira
+  etapa, incondicional, do pipeline; falha nela aborta antes de
+  qualquer leitura de documento do caso. Regra PRESERVAR >
+  COMPLEMENTAR > CRIAR: o texto institucional fixo nunca é reescrito/
+  parafraseado pela IA; Redator e Humanizer passam a receber esse
+  contexto como referência não editável (`docs/specs/SPEC-0001.md`
+  §§56-57).
+
+### Corrigido (infraestrutura de testes)
+- `sys.exit` disparado durante a fase de *collection* do pytest (fora
+  de qualquer teste) podia interromper a suíte antes mesmo de rodar —
+  corrigido em `scripts/docx_template_engine.py`/`scripts/
+  gerar_contestacao.py`; novo `conftest.py` e `tests/
+  test_infra_garantir_utf8_import_safe.py` cobrem a regressão. Sem
+  efeito sobre o comportamento em produção do plugin.
+
+### Adicionado (INV-ZONA-COMPLEMENTACAO — Etapa 5.8-B/5.8-C/5.8-C.1, ADR-0010)
+- Terceira categoria de zona de intervenção textual, ao lado de bloco e
+  placeholder: `ZONA_METODOLOGIA_APURACAO` (bloco-pai
+  `CALCULOS_RECUPERACAO_CONSUMO`) conecta a fundamentação normativa
+  fixa do tópico 3.4 aos dados concretos de apuração do processo —
+  normalmente vazia, só existe com suporte fático documentado e
+  conteúdo efetivamente produzido pelo Redator; nunca é perguntada ao
+  advogado, nunca vira placeholder (os 13 continuam 13), nunca provoca
+  inclusão de bloco.
+- Proveniência estruturada: cada dado da zona declara tipo/valor/
+  unidade/fonte/natureza (documental/derivado), com operação matemática
+  opcional quando mantém relação com outros dados, verificada em
+  `Decimal` (nunca float para dinheiro), com álgebra de unidades por
+  cancelamento — controle de coerência, nunca recálculo autônomo da
+  cobrança; os valores dos Memoriais de Cálculo/Faturamento são
+  preservados como fonte de verdade, nunca recalculados pela IA.
+- `INV-PARAGRAFO-380` passa a contar apenas caracteres efetivos (sem
+  espaços) por parágrafo; o teto agregado por bloco continua bruto —
+  duas contenções deliberadamente distintas, não uniformizadas.
+- `INV-CONTINUIDADE-ZONA` (Etapa 5.8-E/5.8-D.1, `docs/specs/
+  SPEC-0001.md` §60): a zona demonstra, o texto institucional conclui —
+  novo comparador genérico (`paragrafos_compartilham_abertura`, sem
+  blacklist de frases) vira gate fail-closed em `gerar_contestacao.py`,
+  rejeitando parágrafo de zona que repita a abertura do texto
+  institucional imediatamente anterior/posterior.
+- 82 novos testes (`tests/test_zonas_complementacao.py`).
+
+### Corrigido (Etapa 5.9-A/5.9-B — portabilidade via CLAUDE_PLUGIN_ROOT)
+- `atualizar-ede` e `contestacao` resolviam recursos internos do plugin
+  (`scripts/*.py`, `templates/contestacao/modelo-oficial.docx`,
+  `templates/contestacao/blocos.json`, módulos de `rag/`) por caminho
+  relativo ao diretório de trabalho corrente — funcionava só por
+  coincidência quando o `cwd` era o próprio checkout do plugin, nunca
+  no uso real do advogado (pasta do caso). Ambas as Skills passam a
+  resolver esses recursos exclusivamente via `$CLAUDE_PLUGIN_ROOT`, com
+  fail-closed explícito (sem fallback para `./scripts`, `../scripts`,
+  cwd ou diretório alternativo) quando a variável não está disponível.
+  Recursos do próprio caso (`fatos.json` etc.) continuam relativos ao
+  workspace do advogado. Melhorias de portabilidade para execução fora
+  do checkout do plugin — não resolvem, e não têm relação com, o
+  problema documentado de sincronização de marketplaces pessoais no
+  Claude Cowork.
 
 ## [0.9.1] - 2026-08-21 — Etapa 5.3–5.5, DataJud, vedação de pesquisa jurisprudencial e dano moral documental
 

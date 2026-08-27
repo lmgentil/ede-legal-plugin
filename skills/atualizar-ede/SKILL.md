@@ -64,7 +64,7 @@ Esta Skill nunca:
 
 ## 2. Versão instalada
 
-**Versão instalada neste pacote: `0.10.0`**
+**Versão instalada neste pacote: `0.10.1`**
 
 Este valor é a versão instalada — não é lido de `VERSION`, de
 `.claude-plugin/plugin.json`, nem de variável de ambiente em tempo de

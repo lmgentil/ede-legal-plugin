@@ -5,6 +5,43 @@ Todas as mudanças relevantes deste projeto são documentadas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/) e
 este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [0.10.1] - 2026-08-27 — `/atualizar-ede` transformado em verificador puro de versão (Etapa 5.9-I)
+
+### Modificado
+- `skills/atualizar-ede/SKILL.md` reescrita por inteiro: deixou de
+  "orientar e validar" a atualização (gate de `$CLAUDE_PLUGIN_ROOT`,
+  detecção de escopo via `/plugin list`, condução passo a passo de
+  `/plugin marketplace update`/`/plugin update`) e passou a ser
+  exclusivamente um **VERIFICADOR DE VERSÃO**: identifica a versão
+  instalada, consulta a última versão oficialmente publicada, compara e
+  informa status — nada além disso. `allowed-tools` reduzido a só
+  `WebFetch` (sem Bash/Python, sem `CLAUDE_PLUGIN_ROOT`/`os.environ` em
+  tempo de execução, sem comandos `/plugin`, sem detecção de escopo, sem
+  self-update).
+- Versão instalada passa a ser um valor literal embutido no próprio
+  `SKILL.md` (não lida de arquivo/variável de ambiente em runtime) —
+  guarda de sincronismo obrigatória (`VERSION == plugin.json == versão
+  embutida na Skill`) em `tests/test_atualizar_ede_skill.py`, para que
+  divergência vire teste vermelho, nunca versão errada relatada em
+  silêncio.
+- Versão oficial mais recente passa a ser consultada via GitHub Releases
+  API (`GET /repos/lmgentil/ede-legal-plugin/releases/latest`) — nunca
+  `main`/`VERSION` do repositório (branch de desenvolvimento, pode estar
+  à frente de qualquer versão realmente publicada). Comparação sempre
+  por SemVer numérico componente a componente, nunca lexicográfica de
+  string (`scripts/comparar_versao.py`, novo, utilitário testado — não é
+  dependência operacional da Skill).
+- Comportamento fail-closed explícito para os três casos de falha:
+  nenhuma Release publicada ainda (404), GitHub indisponível/resposta
+  inválida, e versão instalada não identificável — nenhum deles é
+  tratado como "atualizado".
+- `README.md`, `docs/adr/ADR-0008-distribuicao-marketplace.md` e
+  `docs/specs/SPEC-0001.md` (REQ-039) atualizados para refletir o
+  contrato definitivo; histórico das duas decisões descartadas ao longo
+  da própria Etapa 5.9-I (condução manual do `/plugin update`; exigência
+  de asset `.zip` para considerar uma Release válida) preservado só como
+  registro, explicitamente marcado como superado.
+
 ## [0.10.0] - 2026-08-26 — Renumeração dinâmica, Modelo Institucional como Fonte Primária, Zona de Complementação Documental e portabilidade via CLAUDE_PLUGIN_ROOT
 
 ### Corrigido (Etapa 5.6 — orquestração e entrega da Contestação)

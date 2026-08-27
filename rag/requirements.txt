@@ -1,14 +1,16 @@
-# Núcleo — busca híbrida (search_hybrid.py, avaliar_recuperacao.py, calibrar_confianca.py)
-joblib
-numpy
-pandas
-pyarrow
-scikit-learn
-rank_bm25
+# Runtime canônico dos artefatos LSA (Python 3.12.10).
+# Alterar qualquer versão exige regenerar rag/embeddings/ e o manifest.json.
+joblib==1.5.3
+numpy==2.4.2
+pandas==3.0.5
+pyarrow==25.0.1
+scikit-learn==1.9.0
+scipy==1.18.0
+rank_bm25==0.2.2
 # lê rag/config.yaml (REQ-044, religado na Fase 4). Sem ela, search_hybrid.py
 # cai para os defaults hardcoded com aviso — não é fail-closed, então
 # permanece tecnicamente opcional, mas é núcleo na prática.
-pyyaml
+pyyaml==6.0.3
 
 # Opcional — regeneração de embeddings semânticos (build_embeddings_semantic.py).
 # Só é necessário se rag/embeddings/semantic/ for regenerado localmente; sem

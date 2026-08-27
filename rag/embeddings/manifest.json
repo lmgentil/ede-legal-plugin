@@ -10,7 +10,7 @@
   },
   "embedding_dim": 256,
   "metodo": "TF-IDF (1-2 gramas) + TruncatedSVD (LSA), 100% local/offline",
-  "variancia_explicada_acumulada": 0.7164323565107207,
+  "variancia_explicada_acumulada": 0.7164461782929348,
   "arquivos": {
     "combinado": "embeddings_all.parquet",
     "por_corpus": [
@@ -23,5 +23,19 @@
     ],
     "vectorizer": "vectorizer.joblib",
     "svd": "svd.joblib"
+  },
+  "runtime": {
+    "python": "3.12.10",
+    "scikit_learn": "1.9.0",
+    "numpy": "2.4.2",
+    "scipy": "1.18.0",
+    "joblib": "1.5.3",
+    "pandas": "3.0.5",
+    "pyarrow": "25.0.1"
+  },
+  "sha256": {
+    "embeddings_all.parquet": "d0884e2f2aaf650e417e555d6be9bc1d0d86b165955f0afd02a761b7760e9ddf",
+    "vectorizer.joblib": "bc979d6fd59b603a4a66e601df826bcc9fd47ae148a15319f71111a6ece6bf15",
+    "svd.joblib": "c8892f75d4bb2ae284500b4354239f21a587ebb57ab421b0184c3341b7bd67e5"
   }
 }

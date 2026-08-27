@@ -33,7 +33,13 @@ com cobertura 100% e busca híbrida BM25 + vetores densos.
   (`Path(__file__).parent`) — funciona em qualquer pasta.
   Dependências: `joblib`, `scikit-learn`, `pandas`, `pyarrow`, `rank_bm25`.
 - `embeddings/` — vetores TF-IDF+LSA (fallback offline). Gerados no sandbox do Cowork,
-  que bloqueia HuggingFace/OpenAI.
+  que bloqueia HuggingFace/OpenAI. O runtime canônico está fixado em
+  `rag/requirements.txt` (Python 3.12.10); `manifest.json` registra as
+  versões exatas e os hashes SHA-256 dos artefatos efetivamente carregados.
+  `search_hybrid.py` valida o contrato antes de abrir Parquet ou Joblib e
+  aborta em caso de manifesto legado, versão incompatível ou alteração de
+  arquivo. Nessas hipóteses, regenere com `python rag/embeddings/build_embeddings.py`
+  dentro do runtime canônico — não ignore nem suprima o erro.
 - `build_embeddings_semantic.py` + `RODAR_EMBEDDINGS_SEMANTICOS.bat` — gera embeddings
   semânticos (sentence-transformers/mpnet) **na máquina local do usuário**; quando
   `embeddings/semantic/` existir, o `search_hybrid.py` os usa automaticamente com prioridade.
@@ -61,6 +67,10 @@ python search_hybrid.py "art. 373 CPC"
 
 ## Histórico
 
+- Correção de compatibilidade (2026-08-27): artefatos LSA regenerados com
+  scikit-learn 1.9.0 / NumPy 2.4.2 e dependências fixadas; introduzido
+  contrato fail-closed de runtime e integridade (ADR-0011). O gold set foi
+  preservado em top-1 75% e top-3 88%.
 - Fase 5 (2026-08-18, EDE Legal Plugin): nova camada `legal_validation/`
   (desacoplada deste módulo — ver `ADR-0007`), com `validar_citacao()`
   para conferir uma referência jurídica (artigo/parágrafo/inciso/alínea)

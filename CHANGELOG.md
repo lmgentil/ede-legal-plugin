@@ -5,6 +5,16 @@ Todas as mudanças relevantes deste projeto são documentadas neste arquivo.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/) e
 este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [Não publicado]
+
+### Corrigido
+- Compatibilidade do fallback RAG TF-IDF+LSA: dependências numéricas e de
+  serialização fixadas, artefatos regenerados no runtime canônico e novo
+  contrato fail-closed no `manifest.json`, com versões de Python/pacotes e
+  SHA-256 dos arquivos carregados. O loader agora rejeita o manifesto legado,
+  runtime incompatível, arquivo ausente ou alterado antes de abrir Parquet ou
+  desserializar Joblib (ADR-0011). Qualidade preservada: 75% top-1 e 88% top-3.
+
 ## [0.10.1] - 2026-08-27 — `/atualizar-ede` transformado em verificador puro de versão (Etapa 5.9-I)
 
 ### Modificado

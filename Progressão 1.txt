@@ -1,0 +1,13 @@
+1. Corrigir compatibilidade do RAG
+2. Resolver localização dos recursos do plugin
+3. Reconciliar documentação e pendências
+4. Segmentar a suíte
+5. Homologar E2E no Claude Code
+6. Fortalecer o validador de instalação
+7. Restringir ou homologar Cowork
+8. Reduzir peso do RAG
+9. Registrar proveniência completa do runtime
+10. Simplificar a visão documental vigente
+11. Avaliar lista multinível nativa
+12. Avaliar fotos embutidas
+13. Manter jurisprudência como iniciativa separada

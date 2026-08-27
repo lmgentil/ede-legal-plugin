@@ -41,6 +41,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from rank_bm25 import BM25Okapi
+from embeddings.artifact_contract import validar_contrato_lsa
 
 try:
     import yaml
@@ -201,6 +202,9 @@ class HybridSearcher:
                 print(f"[AVISO] Falha ao carregar índice semântico ({e.__class__.__name__}). Usando LSA.")
                 self.semantic = False
         if not self.semantic:
+            with open(EMB / "manifest.json", encoding="utf-8") as f:
+                manifest_lsa = json.load(f)
+            validar_contrato_lsa(manifest_lsa, EMB)
             self.df = pd.read_parquet(EMB / "embeddings_all.parquet")
             self.vectorizer = joblib.load(EMB / "vectorizer.joblib")
             self.svd = joblib.load(EMB / "svd.joblib")

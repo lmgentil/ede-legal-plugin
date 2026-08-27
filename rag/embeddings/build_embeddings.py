@@ -21,6 +21,7 @@ import pandas as pd
 from pathlib import Path
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
+from artifact_contract import hashes_dos_artefatos, runtime_atual
 
 # Caminhos relativos ao próprio script (rag/embeddings/build_embeddings.py)
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -144,6 +145,8 @@ def main():
             "svd": "svd.joblib",
         },
     }
+    manifest["runtime"] = runtime_atual()
+    manifest["sha256"] = hashes_dos_artefatos(OUT_DIR, manifest["arquivos"])
     with open(OUT_DIR / "manifest.json", "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
     print("Manifest salvo.")

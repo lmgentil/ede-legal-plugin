@@ -59,12 +59,66 @@ antiga nem exemplos de terceiros — Fase 8 §61), confirmado que:
    por simplesmente não duplicar o campo). `tests/test_marketplace.py`
    e `claude plugin tag . --dry-run` são as duas checagens de
    sincronização — uma no repositório, outra no CLI oficial.
-4. **`/updateEde` = Skill `atualizar-ede`**, fachada sobre o mecanismo
-   oficial: identifica versão, explica e conduz os comandos oficiais,
-   valida o resultado com `scripts/validar_instalacao.py`. **Não
-   implementa self-update** — não existe mecanismo oficial para isso, e
-   fingir um seria pior que não ter o comando (Fail Closed, CLAUDE.md
-   §17).
+4. **`/updateEde` = Skill `atualizar-ede`** — **revisado na Etapa 5.9-I,
+   com correção no Gate de Fechamento seguinte**: deixou de ser fachada
+   de orientação/condução da atualização (versão original desta ADR,
+   abaixo) e passou a ser exclusivamente um **VERIFICADOR DE VERSÃO**:
+   identifica a versão instalada, consulta a **versão distribuível**
+   (nunca `main`) e informa status — nada além disso. **Não implementa
+   self-update** — não existe mecanismo oficial para isso, e fingir um
+   seria pior que não ter o comando (Fail Closed, CLAUDE.md §17); a
+   versão original desta Skill orientava os comandos oficiais `/plugin
+   marketplace update`/`/plugin update` passo a passo, mas a auditoria
+   real de uso mostrou dois problemas que motivaram a simplificação:
+   (a) o marketplace pessoal do Cowork pode permanecer desatualizado
+   (`stale`) sem avisar o advogado, e o runtime pode carregar uma versão
+   antiga sem alerta — o status `loaded`/`updated`/`synced` não é
+   confiável como sinal de "está atualizado"; (b) um plugin marcado
+   `@synced` não pode ser atualizado pela CLI, e a Skill não tem — nem
+   deveria ter — meios de contornar isso. Conduzir o advogado por um
+   mecanismo que a própria plataforma pode não conseguir aplicar (ou que
+   não reflete a versão real carregada) é pior que apenas informar a
+   versão e apontar onde baixar.
+
+   **Correção do Gate de Fechamento (mesma etapa, revisão adicional):**
+   a primeira implementação consultava
+   `raw.githubusercontent.com/.../main/VERSION` — auditoria encontrou
+   isso arquiteturalmente incorreto: `main` é branch de desenvolvimento,
+   pode estar à frente de qualquer versão realmente publicada. Corrigido
+   para consultar a API de Releases do GitHub (`GET
+   /repos/lmgentil/ede-legal-plugin/releases/latest`): `tag_name` é a
+   versão oficialmente publicada, e o `html_url` da mesma resposta é o
+   link informado — nunca reconstruído à parte, garantindo que a versão
+   anunciada e o link levam sempre à mesma Release. Auditoria confirmou
+   nesta correção que o repositório **ainda não tem nenhuma Release nem
+   tag publicada** (`releases/latest` responde 404 hoje) — tratado como
+   estado esperado (§3.2 do SKILL.md), não como falha; a Skill não
+   anuncia nenhuma atualização enquanto isso não mudar.
+
+   **Segunda correção, mesmo Gate Final:** essa mesma revisão introduziu
+   (e o usuário revogou, no Gate Final imediatamente seguinte, ainda
+   antes do commit) a exigência de que a Release tivesse um asset `.zip`
+   anexado para contar como "distribuível" — decisão descartada por
+   inteiro, preservada aqui só como registro histórico do que **não**
+   vigora: **ZIP oficial não faz parte da arquitetura desta Skill.** Uma
+   Release publicada com tag SemVer válida (e que o próprio endpoint
+   `releases/latest` já garante não ser draft/prerelease) é suficiente —
+   `/atualizar-ede` não verifica, não exige e não menciona asset, pacote
+   `.zip` ou mecanismo de instalação algum; só aponta a Release
+   correspondente. `scripts/comparar_versao.py` compara via SemVer
+   (nunca comparação lexicográfica de string) — é utilitário testado
+   (`tests/test_comparar_versao.py`), não é dependência operacional nem
+   é invocado em tempo de execução pela Skill (`allowed-tools` é só
+   `WebFetch`).
+   `scripts/validar_instalacao.py` permanece no repositório (valida
+   integridade da instalação, item independente), mas não é mais
+   invocado por esta Skill. A versão instalada é lida do próprio
+   conteúdo do `SKILL.md` (valor literal, sincronizado com `VERSION`/
+   `plugin.json` a cada release e verificado por
+   `tests/test_atualizar_ede_skill.py`) — não de
+   `$CLAUDE_PLUGIN_ROOT`/`os.environ` via Bash, que a auditoria da
+   Etapa 5.9-I não confirma disponível de forma confiável em toda
+   camada de execução (Claude Code e Cowork).
 5. **`/atualizar-rag` (REQ-038)** permanece fora do escopo desta fase —
    não foi solicitado nem implementado aqui; o RAG atual não tem fonte de
    atualização automática de corpus (é migrado, versionado estaticamente).
@@ -93,8 +147,9 @@ antiga nem exemplos de terceiros — Fase 8 §61), confirmado que:
   git acessível** (hoje não há remote configurado; ver `git remote -v`,
   vazio). Testável localmente (`/plugin marketplace add <caminho-local>`)
   desde já.
-- `/updateEde` orienta e valida — nunca afirma sucesso de atualização sem
-  checagem real (`scripts/validar_instalacao.py`).
+- `/updateEde` (Etapa 5.9-I) só verifica versão instalada × versão
+  publicada no GitHub e informa status — nunca afirma "atualizado" sem
+  essa comparação, nunca executa nem finge executar a atualização em si.
 - **Tensão não resolvida por esta ADR:** o objetivo de distribuição
   pública (instalável por outros advogados) pressupõe que o repositório
   seja publicamente clonável/instalável, mas a `LICENSE` atual do

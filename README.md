@@ -108,7 +108,7 @@ basta pedir em linguagem natural, por exemplo:
 | `redator-peca-processual-elite` | Realiza a redação jurídica estruturada |
 | `humanizer-pt-br` | Refina a naturalidade e fluidez do texto |
 | `calendario-forense-tjba-2026` | Auxilia na análise de tempestividade |
-| `atualizar-ede` | Auxilia na atualização do plugin |
+| `atualizar-ede` | Verifica se há versão mais nova do plugin publicada |
 
 ## Template institucional
 
@@ -129,7 +129,9 @@ Claude Code:
 /plugin update ede-legal-plugin@ede
 ```
 
-Também é possível digitar `/updateEde`.
+`/updateEde` (Skill `atualizar-ede`) não executa os comandos acima — ela
+só verifica se a versão instalada está desatualizada em relação à última
+Release oficial publicada no GitHub e indica a Release correspondente.
 
 ## Desinstalação
 

@@ -1,190 +1,254 @@
 ---
 name: atualizar-ede
 description: >
-  Orienta e valida a atualização do EDE Legal Plugin — a experiência
-  equivalente a "/updateEde" (SPEC-0001 REQ-037). Use quando o usuário
-  digitar "/updateEde", pedir para "atualizar o plugin EDE", "verificar se
-  há versão nova do EDE Legal Plugin", ou perguntar "qual versão do EDE eu
-  tenho". Não existe mecanismo do Claude Code para um plugin atualizar a
-  si mesmo programaticamente — esta Skill nunca finge o contrário: ela
-  identifica a versão atual, explica e conduz o advogado pelos comandos
-  oficiais (`/plugin marketplace update`, `/plugin update`), e valida o
-  resultado com `scripts/validar_instalacao.py` depois que a atualização
-  oficial for aplicada.
+  Verificador de versão do EDE Legal Plugin — a experiência equivalente a
+  "/updateEde" (SPEC-0001 REQ-037/REQ-039, revisado na Etapa 5.9-I e nos
+  dois Gates seguintes). Use quando o usuário digitar "/updateEde", pedir
+  para "verificar se há versão nova do EDE Legal Plugin", "checar
+  atualização do EDE", ou perguntar "qual versão do EDE eu tenho". Esta
+  Skill NÃO atualiza, instala, sincroniza, reinstala nem modifica arquivo
+  algum do plugin, e não baixa nem verifica pacote algum — ela só
+  identifica a versão instalada, consulta a última versão OFICIALMENTE
+  PUBLICADA (a última GitHub Release não-draft/não-prerelease, nunca o
+  estado de desenvolvimento em `main`), compara as duas e informa o
+  resultado, apontando a Release correspondente quando houver versão
+  mais nova.
 allowed-tools:
-  - Read
-  - Bash
+  - WebFetch
 ---
 
-# Atualizar EDE Legal Plugin — fachada segura sobre o mecanismo oficial
+# Verificador de versão do EDE Legal Plugin
 
-## 1. O que esta Skill é e o que ela não é
+## 1. Escopo único — VERIFICADOR, não atualizador
 
-Você **orienta e valida** a atualização — você não a executa por conta
-própria. Não existe, hoje, API do Claude Code para um plugin instalado
-disparar sua própria atualização de dentro de uma Skill (confirmado na
-documentação oficial vigente, Fase 8, ADR-0008). Fingir automação aqui
-seria pior que não ter o comando: o advogado sairia achando que atualizou
-quando não atualizou. Prefira sempre o comportamento correto — orientar —
-a uma automação falsa (SPEC-0001 Fase 8 §29). Esta decisão está encerrada
-(ADR-0008) — não reabra a discussão nem tente disparar `/plugin
-marketplace update`/`/plugin update` programaticamente (não são binários
-de shell, são comandos nativos do Claude Code; nenhuma ferramenta desta
-Skill os invoca por conta própria).
+Decisão definitiva da Etapa 5.9-I (substitui o comportamento anterior desta
+Skill, que orientava e validava a atualização): esta Skill **só verifica
+versão**. Fluxo fixo, sempre nesta ordem:
 
-Todo caminho de arquivo usado por esta Skill é resolvido a partir de
-`$CLAUDE_PLUGIN_ROOT` — a variável de ambiente que o Claude Code expõe
-para um plugin localizar a própria instalação (mesmo padrão já usado em
-`scripts/docx_template_engine.py`). Nunca use caminho relativo
-(`scripts/validar_instalacao.py`, `VERSION`) nem o `cwd` corrente: o
-diretório de trabalho do advogado é a pasta do caso, não a instalação do
-plugin — um caminho relativo resolve contra o `cwd` e falha
-("arquivo não encontrado") fora do checkout do próprio plugin.
-
-## 2. Passo 0 — gate de ambiente (obrigatório, antes de qualquer outra ação)
-
-Antes de identificar versão, comparar, ou orientar qualquer comando,
-verifique se `CLAUDE_PLUGIN_ROOT` está disponível, por exemplo:
-
-```bash
-echo "$CLAUDE_PLUGIN_ROOT"
+```text
+VERSÃO INSTALADA → VERSÃO OFICIAL PUBLICADA → COMPARAR → INFORMAR STATUS
 ```
 
-- **Ausente ou vazia** (Claude.ai, web, ou qualquer ambiente sem esta
-  instalação local do plugin) → responda **somente**:
+Esta Skill nunca:
 
-  > A atualização do EDE deve ser executada no Claude Code onde o plugin
-  > está instalado.
+- atualiza, instala ou reinstala o EDE;
+- sincroniza o marketplace;
+- executa ou menciona `/plugin update`, `/plugin marketplace update`,
+  `/plugin install` ou qualquer outro comando `/plugin`;
+- faz `git pull` ou qualquer operação Git;
+- modifica, baixa ou reconstrói arquivo algum do plugin;
+- identifica ou pergunta escopo (`user`/`project`/`local`) de instalação;
+- usa `$CLAUDE_PLUGIN_ROOT`, `os.environ`, Bash ou Python em tempo de
+  execução (o `allowed-tools` acima é só `WebFetch`, de propósito);
+- apaga cache;
+- consulta o marketplace local como fonte de verdade;
+- confia no status `loaded`/`updated`/`synced` do Cowork para concluir que
+  o plugin está atualizado (achado real: o Cowork pode carregar uma versão
+  antiga sem alertar o usuário — ver §9);
+- tenta se autoatualizar;
+- baixa arquivo algum, instala pacote algum, nem verifica a existência de
+  asset `.zip` ou de qualquer outro artefato de instalação — **essa
+  exigência foi avaliada e revogada** (Gate Final da Etapa 5.9-I): uma
+  Release oficialmente publicada, com tag SemVer válida, já representa
+  versão disponível por si só; o mecanismo/pacote de instalação não é
+  responsabilidade desta Skill;
+- decide ou prescreve o mecanismo de instalação (não diz qual arquivo
+  baixar, nem como instalar) — só aponta a Release correspondente; só
+  entra em mecanismo de instalação se o próprio advogado perguntar,
+  fora do fluxo de verificação;
+- diferencia o fluxo de verificação entre Claude Code e Cowork (§8);
+- tenta corrigir uma instalação;
+- compara a versão instalada contra `main` do repositório (branch de
+  desenvolvimento — ver §3, distinção obrigatória entre versão de
+  desenvolvimento e versão oficialmente publicada).
 
-  E **PARE**. Não tente localizar `VERSION`, `plugin.json` ou
-  `validar_instalacao.py` por caminho alternativo, não use o `cwd`
-  corrente como substituto, não tente rodar em sandbox/web como fallback
-  — nenhum destes é equivalente válido (fail-closed, CLAUDE.md §17).
-- **Presente** → prossiga para o Passo 1, sempre com `$CLAUDE_PLUGIN_ROOT`
-  como raiz de qualquer caminho usado por esta Skill a partir daqui.
+## 2. Versão instalada
 
-## 3. Passo 1 — identificar a versão atual
+**Versão instalada neste pacote: `0.10.0`**
 
-```bash
-python "$CLAUDE_PLUGIN_ROOT/scripts/validar_instalacao.py"
+Este valor é a versão instalada — não é lido de `VERSION`, de
+`.claude-plugin/plugin.json`, nem de variável de ambiente em tempo de
+execução. Mecanismo deliberado (auditoria da plataforma, Etapa 5.9-I): o
+próprio conteúdo desta Skill só chega ao advogado dentro do pacote
+instalado — se este arquivo foi carregado, o valor acima **é** a versão
+instalada, sem precisar de `$CLAUDE_PLUGIN_ROOT`, `os.environ`, Bash, nem
+resolução de caminho nenhuma. Isso funciona identicamente em Claude Code e
+em Cowork, porque não depende de nenhuma camada de execução — só do
+próprio pacote ter sido carregado.
+
+Contrapartida: este valor precisa ser mantido em sincronia com `VERSION` e
+`.claude-plugin/plugin.json` a cada release — **obrigação de processo de
+release, não opcional** — `tests/test_atualizar_ede_skill.py` verifica
+essa sincronia automaticamente (fail se os três divergirem), para que o
+esquecimento vire teste vermelho, nunca versão errada relatada em
+silêncio.
+
+Se este trecho estiver ausente, ilegível, ou o valor não parecer um SemVer
+válido (`MAJOR.MINOR.PATCH`), responda apenas:
+
+> Não foi possível identificar com segurança a versão instalada do EDE.
+
+e **PARE** — não invente, não estime, não assuma a partir de outro dado.
+
+## 3. Versão oficialmente publicada — nunca `main`, sempre a última Release válida
+
+**Distinção obrigatória (mantida desde a Etapa 5.9-I):**
+
+- **VERSÃO DE DESENVOLVIMENTO** = estado atual de `main`/`VERSION` no
+  repositório. Pode estar à frente de qualquer versão realmente publicada
+  — nunca é o que esta Skill anuncia ao advogado, nem entra em
+  comparação alguma.
+- **VERSÃO OFICIALMENTE PUBLICADA** = a versão (`tag_name`) da última
+  GitHub Release válida (§3.1) — é a única fonte de verdade desta Skill.
+
+**Revogado no Gate Final:** a versão anterior desta seção também exigia
+um asset `.zip` anexado à Release para considerá-la "distribuível". Essa
+exigência foi avaliada e **revogada** — ZIP oficial não faz parte da
+arquitetura desta Skill. Uma Release publicada com tag SemVer válida já
+é, por si só, versão oficial suficiente para a comparação; esta Skill não
+verifica, exige nem menciona asset de instalação algum.
+
+Consulte, via `WebFetch`, exclusivamente a API de Releases do GitHub —
+**nunca** `raw.githubusercontent.com/.../main/VERSION` nem qualquer
+conteúdo de branch:
+
+```text
+https://api.github.com/repos/lmgentil/ede-legal-plugin/releases/latest
 ```
 
-Ou leia diretamente `$CLAUDE_PLUGIN_ROOT/VERSION` e
-`$CLAUDE_PLUGIN_ROOT/.claude-plugin/plugin.json` (campo `version`) — os
-dois devem estar sincronizados. **Guarde este valor** (versão anterior):
-ele é necessário no Passo 4 para informar se algo mudou.
+### 3.1. O que conta como Release válida
 
-**Se `VERSION` e `plugin.json` divergirem** → FAIL-CLOSED: informe ao
-advogado que a instalação está inconsistente (cite os dois valores lidos)
-e **não** avance para orientar nenhuma atualização até isso ser resolvido
-— sinal de instalação corrompida, não algo que a atualização normal
-corrige.
+Da resposta JSON, use:
 
-## 4. Passo 2 — escopo (a partir de `/plugin list`, nunca "user" por hábito)
+- `tag_name` — remova um `v` inicial se houver (ex.: `v0.10.1` → `0.10.1`)
+  e valide como SemVer (`MAJOR.MINOR.PATCH`). Esta é a **versão
+  oficialmente publicada**.
+- `html_url` — é o link a informar ao advogado quando houver atualização
+  (§7). Vem da **mesma resposta JSON** usada para ler `tag_name`, então
+  aponta sempre para a mesma Release comparada — nunca reconstrua ou
+  monte essa URL manualmente (ex.: nunca `.../releases/latest` como link
+  final: esse endereço é um redirecionamento que pode mudar entre a
+  consulta e o clique do advogado; use o `html_url` literal já resolvido
+  na resposta).
 
-`/plugin list` não pode ser executado programaticamente por esta Skill —
-é um comando nativo do Claude Code, não um binário de shell. Peça ao
-advogado para rodá-lo e colar a saída aqui.
+`GET .../releases/latest` já é, pelo próprio contrato da API do GitHub, a
+última release **não-draft e não-prerelease** — usar exatamente este
+endpoint (nunca listar `/releases` e pegar o primeiro item manualmente)
+já resolve a exclusão de rascunho/pré-lançamento na origem. Mesmo assim,
+como checagem defensiva (a resposta é dado externo, nunca confiar
+cegamente): se o objeto retornado trouxer `draft: true` ou
+`prerelease: true`, trate como se não houvesse Release válida — mesma
+resposta do §3.2, nunca anuncie essa versão.
 
-A partir do texto colado, identifique **você mesmo**, sem pedir ao
-advogado para interpretar a coluna:
+Nenhuma lógica desta Skill verifica, exige ou menciona `assets`, pacote
+`.zip`, "Source code (zip)" ou qualquer artefato de instalação — a tag
+SemVer válida da Release é suficiente.
 
-- a linha correspondente a `ede-legal-plugin`;
-- a versão instalada reportada ali (cheque contra o Passo 1);
-- o marketplace associado — espera-se `@ede` (ADR-0008); se vier
-  diferente, sinalize e não prossiga, é sinal de instalação fora do
-  padrão desta Skill;
-- o escopo (`user`, `project` ou `local`) reportado na mesma linha.
+### 3.2. Nenhuma Release oficial publicada
 
-**Nunca assuma `scope=user` por padrão.** Se a saída colada não deixar o
-escopo inequívoco, pergunte objetivamente ao advogado qual escopo foi
-usado na instalação — nunca escolha um sozinho, e nunca prossiga sem essa
-confirmação.
+Estado real confirmado por auditoria (Etapa 5.9-I e Gate Final): o
+repositório **não tem nenhuma GitHub Release nem tag publicada** —
+`releases/latest` responde 404 hoje. Trate isso como estado esperado, não
+como falha de rede, e use exatamente esta mensagem — nunca a de "erro"
+genérica do §3.3, que é para falha de consulta, não para ausência real de
+Release:
 
-## 5. Passo 3 — explicar e conduzir a atualização oficial
+> Não há versão oficial publicada disponível para comparação neste
+> momento.
 
-O mecanismo oficial de atualização de plugins no Claude Code é:
+e **PARE**. Nunca compare contra `main/VERSION` como substituto, nunca
+diga que o EDE está desatualizado, nunca invente versão publicada.
 
-```bash
-/plugin marketplace update ede
-/plugin update ede-legal-plugin@ede --scope <SCOPE_DETECTADO>
-```
+### 3.3. GitHub indisponível ou resposta inválida
 
-Substitua `<SCOPE_DETECTADO>` pelo escopo identificado no Passo 2 — nunca
-"user" por padrão, nunca um escopo diferente do detectado. **Achado
-confirmado em teste real (Fase 8):** `/plugin update` usa escopo `user`
-por padrão quando `--scope` é omitido; se o plugin foi instalado com
-`--scope local` ou `--scope project`, omitir `--scope` faz o update
-**falhar silenciosamente com "not installed at scope user"**.
+Se a API não responder, responder com erro diferente de 404, ou o corpo
+não for o JSON esperado (sem `tag_name`, `tag_name` que não valida como
+SemVer após remover o `v`):
 
-Se o escopo detectado não puder ser confirmado, não crie uma segunda
-instalação "para simplificar" nem sugira desinstalar/reinstalar como
-atalho — pare e peça a confirmação do Passo 2.
+> Não foi possível verificar a versão do EDE neste momento. Tente
+> novamente mais tarde.
 
-Diferença importante a explicar ao usuário, se perguntado: atualizar o
-*marketplace* só atualiza o que o Claude Code sabe sobre versões
-disponíveis; atualizar o *plugin* de fato baixa/aplica a nova versão. Os
-dois passos são normalmente necessários, nessa ordem.
+e **PARE**. Nunca presuma que a versão instalada é a mais recente só
+porque a consulta falhou — fail-closed.
 
-O Claude Code também verifica e atualiza plugins automaticamente em
-segundo plano após o início da sessão (com atraso aleatório) — se isso já
-tiver acontecido, o Claude Code avisa para rodar `/reload-plugins`. Se o
-usuário perguntar por que a versão já mudou sem ele ter feito nada, essa é
-a explicação provável.
+## 4. Comparação — SemVer numérico, nunca string
 
-**Depois de rodar os comandos acima, é necessário recarregar/reiniciar a
-sessão do Claude Code para a nova versão ser efetivamente carregada** —
-diga isso explicitamente; não deixe o usuário achar que terminou sem
-reiniciar.
+Compare `VERSÃO_INSTALADA` × `VERSÃO_PUBLICADA` componente a componente
+(major, minor, patch) como números inteiros — **nunca** como comparação
+lexicográfica de string. Exemplo do motivo: como string, `"0.10.10"` vem
+antes de `"0.10.9"`; como versão, `0.10.10` é MAIOR que `0.10.9`.
+`scripts/comparar_versao.py` (`comparar_semver`) implementa essa lógica e
+é coberto por `tests/test_comparar_versao.py` — é um **utilitário
+testado, não é dependência operacional desta Skill nem é invocado em
+tempo de execução por ela** (o `allowed-tools` acima é só `WebFetch`, sem
+Bash/Python): sua função é dar ao algoritmo descrito aqui (comparação de
+três inteiros, major primeiro) uma guarda de regressão automatizada, já
+que a prosa por si só não pode provar que a lógica está correta no caso
+`0.10.10` × `0.10.9`. Ao executar esta Skill, aplique a mesma regra
+diretamente por raciocínio (nunca comparação de string).
 
-## 6. Passo 4 — validar após a atualização
+## 5. Resultado — atualizado
 
-Depois que o usuário confirmar que reiniciou/recarregou:
+Se `VERSÃO_INSTALADA == VERSÃO_PUBLICADA`:
 
-```bash
-python "$CLAUDE_PLUGIN_ROOT/scripts/validar_instalacao.py" --json
-```
+> EDE Legal Plugin está atualizado.
+>
+> Versão instalada: X
+> Versão mais recente: X
+>
+> Nenhuma ação necessária.
 
-Compare o campo `versao` deste resultado com a versão guardada no Passo 1
-e responda exatamente num dos três formatos abaixo:
+## 6. Resultado — atualização disponível
 
-- **`status == "OK"` e a versão mudou:**
+Se `VERSÃO_PUBLICADA` for maior (SemVer, §4) que `VERSÃO_INSTALADA`:
 
-  > EDE Legal Plugin atualizado com sucesso.
-  > Versão anterior: X
-  > Versão atual: Y
-  > Instalação: OK
+> Há uma nova versão do EDE Legal Plugin disponível.
+>
+> Versão instalada: X
+> Versão mais recente: Y
+>
+> Consulte a versão mais recente:
+> <html_url da mesma resposta usada para ler a versão — nunca link fixo>
 
-  Aponte também a seção correspondente do `CHANGELOG.md` (cabeçalho
-  `## [<versao>]`).
+e **PARE**. Não mencione ZIP, asset, pacote de instalação ou qualquer
+mecanismo de instalação nesta resposta — só entre nesse assunto se o
+próprio advogado perguntar depois, fora deste fluxo. Não execute nenhuma
+atualização automaticamente — só informe e aponte a Release. A versão
+anunciada (Y) e o link informado são sempre a mesma Release, por
+construção (mesma resposta JSON, §3) — nunca versões diferentes.
 
-- **`status == "OK"` e a versão é a mesma do Passo 1:**
+## 7. Resultado — versão instalada maior que a publicada
 
-  > EDE Legal Plugin já estava atualizado.
-  > Versão atual: X
-  > Instalação: OK
+Se `VERSÃO_INSTALADA` for maior (SemVer, §4) que `VERSÃO_PUBLICADA`,
+**nunca trate isso como downgrade a sugerir nem como "atualizado"**: é
+uma inconsistência a reportar, sem inventar causa.
 
-- **`status == "UPDATE_FAILED"`** — **nunca afirme que a atualização
-  terminou corretamente** (SPEC-0001 Fase 8 §35, Fail Closed):
+> A versão instalada do EDE é superior à última versão oficial publicada.
+>
+> Instalada: X
+> Última versão publicada: Y.
+>
+> Nenhuma atualização é recomendada.
 
-  > Atualização não concluída.
-  > Motivo: <causa objetiva, a partir de `obrigatorias_falhando`>
+## 8. Claude Code e Cowork — mesmo contrato
 
-  Sugira reinstalar (`/plugin uninstall ede-legal-plugin@ede` seguido de
-  `/plugin install ede-legal-plugin@ede`) se o problema persistir.
+A lógica e a resposta são idênticas nos dois ambientes: versão instalada
+→ versão oficialmente publicada → comparar → informar status — nunca
+duplique o fluxo de verificação por ambiente, e não diferencie a
+resposta final entre Claude Code e Cowork (nenhuma das duas menciona
+mecanismo de instalação, por §6/§1).
 
-## 7. Limitações a comunicar quando perguntado
+## 9. Marketplace nunca é fonte de verdade
 
-- **Rollback:** não há comando oficial confirmado de "instalar versão
-  anterior" de um plugin — se o usuário precisar reverter, a via é
-  reinstalar apontando para uma tag/commit anterior do repositório fonte
-  (`/plugin marketplace add <origem>@<tag-ou-commit>`, quando o
-  marketplace for git), não algo automatizado por esta Skill.
-- **Configurações locais:** a atualização do plugin não deve, pelo próprio
-  mecanismo oficial, sobrescrever `.env`, workspace de documentos ou
-  saídas locais do advogado — esses diretórios nunca fazem parte do
-  pacote versionado (ver `.gitignore`, CLAUDE.md §19).
-- **Template institucional:** `templates/contestacao/modelo-oficial.docx`
-  é asset privado do escritório (ADR-0006), não distribuído pelo plugin
-  público — uma atualização nunca o toca, e sua ausência não é falha de
-  atualização (ver `scripts/validar_instalacao.py`, item opcional).
+O status do marketplace (`loaded`, `updated`, `synced` no Cowork, ou
+equivalente no Claude Code) nunca é usado para decidir se o EDE está
+atualizado — só a última Release oficialmente publicada no GitHub (§3).
+Não consulte, não mencione, não infira a partir de comandos de
+marketplace.
+
+## 10. O que nunca expor
+
+Fora de modo diagnóstico explicitamente solicitado pelo advogado, a
+resposta não expõe: cache, scope de instalação, `CLAUDE_PLUGIN_ROOT`,
+commit SHA, detalhes de marketplace, asset/pacote de instalação, ou
+qualquer comando técnico (`/plugin ...`, `git ...`).

@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-test_contestacao_skill_caminhos.py — guarda estrutural da correção de
-portabilidade de caminhos em skills/contestacao/SKILL.md (Etapa 5.9-B):
-todo recurso PERTENCENTE AO PLUGIN citado como comando executável é
-resolvido via $CLAUDE_PLUGIN_ROOT, nunca via caminho relativo dependente
-do cwd; recursos do CASO (fatos.json etc.) continuam relativos ao
-workspace do advogado, nunca redirecionados para $CLAUDE_PLUGIN_ROOT.
+"""Regressão da resolução de recursos em ``skills/contestacao/SKILL.md``.
 
-Esta etapa não declara compatibilidade com Claude Cowork — só elimina
-dependência indevida do cwd, mesmo princípio já validado em
-test_atualizar_ede_skill.py.
-
-Como a Skill é prosa/Markdown, o teste verifica o CONTEÚDO do arquivo —
-mesmo padrão sem framework de test_contestacao_skill_dependencies.py.
+O contrato do host substitui ``${CLAUDE_PLUGIN_ROOT}`` diretamente no
+conteúdo da Skill. A Skill não pode tratar o token como variável de ambiente
+do Bash/Python, pois esse ambiente não é o contrato da expansão. Arquivos do
+caso continuam relativos ao workspace do advogado.
 """
+
+import json
+import os
+import re
+import subprocess
+import sys
 from pathlib import Path
+
 
 BASE = Path(__file__).parent.parent
 SKILL_PATH = BASE / "skills" / "contestacao" / "SKILL.md"
+TOKEN_PLUGIN_ROOT = "${CLAUDE_PLUGIN_ROOT}"
 
 
 def _texto() -> str:
@@ -30,95 +30,103 @@ def _normalizado() -> str:
     return " ".join(_texto().split())
 
 
-# --------------------------------------------- A/B: sem dependência do cwd
-def test_declara_regra_de_portabilidade():
-    texto = _normalizado()
-    assert "$CLAUDE_PLUGIN_ROOT" in texto
-    assert "nunca do `cwd`" in texto or "nunca do cwd" in texto.replace("`", "")
+def _expandir_como_host(texto: str, root: str) -> str:
+    return texto.replace(TOKEN_PLUGIN_ROOT, root)
 
 
-def test_nenhuma_invocacao_bare_de_validate_fatos():
+def test_recursos_do_plugin_usam_token_de_expansao_inline_do_host():
     texto = _texto()
-    assert "python scripts/validate_fatos.py" not in texto
-    assert 'python "$CLAUDE_PLUGIN_ROOT/scripts/validate_fatos.py" --dados fatos.json' in texto
+
+    assert TOKEN_PLUGIN_ROOT in texto
+    assert "$CLAUDE_PLUGIN_ROOT" not in texto
+    assert not re.search(r"os\.environ(?:\.get)?\s*[\[(].*CLAUDE_PLUGIN_ROOT", texto)
 
 
-def test_nenhum_sys_path_insert_scripts_bare():
-    # a forma antiga (sys.path.insert(0, 'scripts')) não pode mais existir —
-    # dependia do cwd ser a raiz do checkout do plugin.
-    texto = _texto()
-    assert "sys.path.insert(0, 'scripts')" not in texto
-    assert 'os.path.join(root, \'scripts\')' in texto or \
-        'sys.path.insert(0, os.path.join(root' in texto
+def test_expansao_inline_resolve_comando_fora_do_cwd_e_com_espacos():
+    root = r"C:\Plugin EDE\versao instalada"
+    expandido = _expandir_como_host(_texto(), root)
+
+    assert TOKEN_PLUGIN_ROOT not in expandido
+    assert f'python "{root}/scripts/validate_fatos.py" --dados fatos.json' in expandido
+    assert "$CLAUDE_PLUGIN_ROOT" not in expandido
 
 
-def test_nenhum_sys_path_insert_rag_bare():
-    texto = _texto()
-    assert 'sys.path.insert(0, "rag")' not in texto
-    assert "sys.path.insert(0, 'rag')" not in texto
-    ocorrencias = texto.count(
-        'sys.path.insert(0, os.path.join(os.environ["CLAUDE_PLUGIN_ROOT"], "rag"))'
+def test_script_expandido_executa_com_caso_relativo_e_sem_variavel_de_ambiente(
+    tmp_path, monkeypatch
+):
+    fatos = tmp_path / "fatos.json"
+    fatos.write_text(
+        json.dumps(
+            [{"fact": "Fato documentado.", "source_document": "prova.pdf"}]
+        ),
+        encoding="utf-8",
     )
-    assert ocorrencias == 2, (
-        "esperava 2 ocorrências (search_hybrid + legal_validation) do setup "
-        f"de sys.path via CLAUDE_PLUGIN_ROOT para rag/, encontrei {ocorrencias}")
+    script = Path(
+        _expandir_como_host("${CLAUDE_PLUGIN_ROOT}/scripts/validate_fatos.py", str(BASE))
+    )
+    ambiente = os.environ.copy()
+    ambiente.pop("CLAUDE_PLUGIN_ROOT", None)
+    monkeypatch.chdir(tmp_path)
+
+    resultado = subprocess.run(
+        [sys.executable, str(script), "--dados", "fatos.json"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=ambiente,
+        check=False,
+    )
+
+    assert resultado.returncode == 0, resultado.stderr or resultado.stdout
+    assert "proveniência válida" in resultado.stdout
 
 
-def test_modelo_oficial_e_blocos_json_resolvidos_via_plugin_root():
-    # a forma antiga passava os caminhos bare, direto como argumento de
-    # extrair_contexto_do_template(...) — a correta envolve cada um em
-    # os.path.join(root, ...), nunca a string sozinha como argumento.
+def test_snippets_python_recebem_root_expandido_sem_ler_ambiente():
     texto = _texto()
-    assert "extrair_contexto_do_template(\n    'templates/contestacao/modelo-oficial.docx'" not in texto
-    assert "os.path.join(root, 'templates/contestacao/modelo-oficial.docx')" in texto
-    assert "os.path.join(root, 'templates/contestacao/blocos.json')" in texto
+
+    assert 'Path(r"""${CLAUDE_PLUGIN_ROOT}""")' in texto
+    assert "plugin_root / \"rag\"" in texto
+    assert re.search(r"plugin_root / ['\"]scripts['\"]", texto)
+    assert re.search(
+        r"plugin_root / ['\"]templates['\"] / ['\"]contestacao['\"]", texto
+    )
+    assert "os.environ" not in texto
 
 
-# ------------------------------------------------------ C: paths com espaço
-def test_quoting_seguro_para_caminho_com_espaco():
-    # a invocação bash usa aspas duplas ao redor de "$CLAUDE_PLUGIN_ROOT/...";
-    # as substituições em python -c ocorrem via os.environ/os.path.join
-    # (nunca concatenação crua sem aspas em contexto de shell), então um
-    # valor de CLAUDE_PLUGIN_ROOT com espaço nunca quebra a invocação.
-    texto = _texto()
-    assert '"$CLAUDE_PLUGIN_ROOT/scripts/validate_fatos.py"' in texto
-
-
-# --------------------------------------------------- E: recursos do caso
-def test_fatos_json_continua_relativo_ao_caso():
+def test_skill_define_fail_closed_para_token_nao_expandido_ou_root_invalido():
     texto = _normalizado()
+
+    assert "token não expandido" in texto.lower()
+    assert ".claude-plugin/plugin.json" in texto
+    assert "FAIL-CLOSED" in texto
+    assert "cwd" in texto
+
+
+def test_fatos_json_continua_relativo_ao_workspace_do_caso():
+    texto = _normalizado()
+
     assert "--dados fatos.json" in texto
-    assert "$CLAUDE_PLUGIN_ROOT/fatos.json" not in texto
+    assert "${CLAUDE_PLUGIN_ROOT}/fatos.json" not in texto
     assert "recurso do caso" in texto
 
 
-# --------------------------------------------------- F: fail-closed
-def test_fail_closed_sem_claude_plugin_root():
-    texto = _normalizado()
-    assert "FAIL-CLOSED" in texto
-    assert "./scripts" in texto and "../scripts" in texto
-    assert "diretório alternativo" in texto or "não presuma" in texto.lower()
+def test_nao_restam_invocacoes_bare_de_recursos_do_plugin():
+    texto = _texto()
 
-
-def test_keyerror_sem_fallback_no_heredoc_context_engine():
-    texto = _normalizado()
-    assert 'KeyError' in texto
-    assert "nenhum fallback para" in texto.lower() or "nenhum fallback" in texto.lower()
-
-
-# ----------------------------------------------- G: sem referência antiga
-def test_nenhuma_referencia_antiga_python_scripts_bare():
-    for linha_num, linha in enumerate(_texto().splitlines(), start=1):
-        stripped = linha.strip()
-        if stripped.startswith("python scripts/") or stripped.startswith("python3 scripts/"):
-            raise AssertionError(
-                f"{SKILL_PATH}:{linha_num} ainda invoca script do plugin por "
-                f"caminho relativo bare: {linha!r}")
+    proibidos = (
+        "python scripts/",
+        "python3 scripts/",
+        "sys.path.insert(0, 'scripts')",
+        'sys.path.insert(0, "rag")',
+        "sys.path.insert(0, 'rag')",
+    )
+    for proibido in proibidos:
+        assert proibido not in texto
 
 
 if __name__ == "__main__":
     testes = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
-    for t in testes:
-        t()
-        print(f"OK  {t.__name__}")
+    for teste in testes:
+        teste()
+        print(f"OK  {teste.__name__}")
     print(f"\n{len(testes)}/{len(testes)} testes passaram.")

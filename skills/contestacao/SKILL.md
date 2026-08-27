@@ -63,19 +63,25 @@ contra o caso real**, numa única execução contínua
 Etapas 5.2 a 5.5 deste arquivo e em `docs/specs/SPEC-0001.md` §§46-53 já
 são execuções ponta a ponta desta fase — não é mais um estado futuro.
 
-**Portabilidade de caminhos (Etapa 5.9-B).** Todo recurso PERTENCENTE AO
-PLUGIN citado nesta Skill (scripts em `scripts/`, `templates/contestacao/
-blocos.json`, o `modelo-oficial.docx` instalado nesta árvore, módulos em
-`rag/`) é resolvido a partir de `$CLAUDE_PLUGIN_ROOT` — nunca do `cwd`
-corrente, que é a pasta de trabalho do caso, não a instalação do plugin
-(mesmo princípio já aplicado em `skills/atualizar-ede/SKILL.md`). Arquivos
-do próprio caso (`fatos.json`, `placeholders.json`,
-`decisoes_blocos.json`, documentos do processo, o DOCX de saída)
+**Portabilidade de caminhos (Etapa 5.9-B, corrigida após auditoria).** Todo
+recurso PERTENCENTE AO PLUGIN citado nesta Skill (scripts em `scripts/`,
+`templates/contestacao/blocos.json`, o `modelo-oficial.docx` instalado
+nesta árvore e módulos em `rag/`) é resolvido a partir do token
+`${CLAUDE_PLUGIN_ROOT}`. O host substitui esse token diretamente no
+conteúdo da Skill antes da execução: ele **não** deve ser lido como variável
+de ambiente do Bash/Python e nunca é
+inferido a partir do `cwd`, que é a pasta de trabalho do caso, não a
+instalação do plugin.
+
+Arquivos do próprio caso (`fatos.json`, `placeholders.json`,
+`decisoes_blocos.json`, documentos do processo e o DOCX de saída)
 continuam resolvidos a partir do workspace do advogado — nunca
-redirecionados para `$CLAUDE_PLUGIN_ROOT`. Se `$CLAUDE_PLUGIN_ROOT` não
-estiver disponível quando uma etapa depender de recurso do plugin,
-FAIL-CLOSED: não presuma `./scripts`, `../scripts`, `cwd` ou qualquer
-diretório alternativo — informe a inconsistência e pare.
+redirecionados para `${CLAUDE_PLUGIN_ROOT}`. Antes do primeiro uso, confira
+que o valor expandido é absoluto e contém `.claude-plugin/plugin.json`,
+`scripts/`, `rag/` e `templates/contestacao/`. Se houver token não
+expandido ou qualquer sentinela estiver ausente, **FAIL-CLOSED**: não
+presuma `./scripts`, `../scripts`, `cwd`, cache de marketplace ou outro
+diretório alternativo; informe a inconsistência e pare.
 
 ## 2. Componentes acionados (quem faz o quê)
 
@@ -443,10 +449,11 @@ qual documento ele veio. Antes de usar a lista de fatos extraídos (e antes
 de acionar o estrategista, §4), valide-a estruturalmente:
 
 ```bash
-python "$CLAUDE_PLUGIN_ROOT/scripts/validate_fatos.py" --dados fatos.json
+python "${CLAUDE_PLUGIN_ROOT}/scripts/validate_fatos.py" --dados fatos.json
 ```
 
-`validate_fatos.py` é recurso do plugin (`$CLAUDE_PLUGIN_ROOT`);
+`validate_fatos.py` é recurso do plugin (`${CLAUDE_PLUGIN_ROOT}` já
+expandido pelo host, não variável de ambiente do subprocesso);
 `fatos.json` é recurso do caso, resolvido a partir do workspace do
 advogado — nunca inverta os dois.
 
@@ -590,10 +597,13 @@ e teses subsidiárias, para cada fundamento normativo que a análise ou a
 redação precisarem citar:
 
 1. Recupere candidatos com `rag/search_hybrid.py` — recurso do plugin,
-   resolvido a partir de `$CLAUDE_PLUGIN_ROOT`, nunca do `cwd`:
+   resolvido a partir da expansão inline de `${CLAUDE_PLUGIN_ROOT}`, nunca
+   do ambiente do subprocesso nem do `cwd`:
    ```python
-   import os, sys
-   sys.path.insert(0, os.path.join(os.environ["CLAUDE_PLUGIN_ROOT"], "rag"))
+   import sys
+   from pathlib import Path
+   plugin_root = Path(r"""${CLAUDE_PLUGIN_ROOT}""")
+   sys.path.insert(0, str(plugin_root / "rag"))
    from search_hybrid import HybridSearcher
    s = HybridSearcher()
    resultados = s.query("recuperação de consumo por irregularidade no medidor", k=5)
@@ -602,11 +612,13 @@ redação precisarem citar:
    CDC, L8987, L9427, REN 1000/2021) — nunca jurisprudência (ver
    INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL abaixo).
 2. **Nunca cite um resultado de recuperação diretamente.** Antes de
-   qualquer citação entrar na peça, valide-a (mesma resolução via
-   `$CLAUDE_PLUGIN_ROOT`, recurso do plugin):
+   qualquer citação entrar na peça, valide-a (mesma resolução por expansão
+   inline de `${CLAUDE_PLUGIN_ROOT}`, recurso do plugin):
    ```python
-   import os, sys
-   sys.path.insert(0, os.path.join(os.environ["CLAUDE_PLUGIN_ROOT"], "rag"))
+   import sys
+   from pathlib import Path
+   plugin_root = Path(r"""${CLAUDE_PLUGIN_ROOT}""")
+   sys.path.insert(0, str(plugin_root / "rag"))
    from legal_validation import validar_citacao
    r = validar_citacao("art. 129 da REN ANEEL 1.000/2021")
    ```
@@ -707,23 +719,25 @@ institucional real do template para cada placeholder gerativo:
 
 ```bash
 python -c "
-import os, sys
-root = os.environ['CLAUDE_PLUGIN_ROOT']
-sys.path.insert(0, os.path.join(root, 'scripts'))
+import sys
+from pathlib import Path
+plugin_root = Path(r'''${CLAUDE_PLUGIN_ROOT}''')
+sys.path.insert(0, str(plugin_root / 'scripts'))
 from docx_context_engine import extrair_contexto_do_template
 import json
 contexto = extrair_contexto_do_template(
-    os.path.join(root, 'templates/contestacao/modelo-oficial.docx'),
-    os.path.join(root, 'templates/contestacao/blocos.json'),
+    plugin_root / 'templates' / 'contestacao' / 'modelo-oficial.docx',
+    plugin_root / 'templates' / 'contestacao' / 'blocos.json',
 )
 print(json.dumps(contexto, ensure_ascii=False, indent=2))
 "
 ```
 
 Os três caminhos (`scripts`, `modelo-oficial.docx`, `blocos.json`) são
-recursos do plugin — resolvidos via `$CLAUDE_PLUGIN_ROOT`
-(`os.environ["CLAUDE_PLUGIN_ROOT"]`, que falha explicitamente com
-`KeyError` se a variável não existir — nenhum fallback para `cwd`).
+recursos do plugin, derivados do valor que o host inseriu no lugar de
+`${CLAUDE_PLUGIN_ROOT}`. O subprocesso não consulta o ambiente; falha na
+expansão ou nas sentinelas encerra o fluxo conforme a regra de portabilidade
+acima, sem fallback para `cwd`.
 
 `scripts/docx_context_engine.py` lê o `modelo-oficial.docx` real (nunca o
 altera — extração é SOMENTE LEITURA, mesma disciplina INV-012 do Template

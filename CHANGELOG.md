@@ -14,6 +14,12 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   SHA-256 dos arquivos carregados. O loader agora rejeita o manifesto legado,
   runtime incompatível, arquivo ausente ou alterado antes de abrir Parquet ou
   desserializar Joblib (ADR-0011). Qualidade preservada: 75% top-1 e 88% top-3.
+- Localização dos recursos da Skill `contestacao`: substituído o uso de
+  `$CLAUDE_PLUGIN_ROOT`/`os.environ` nos subprocessos pela expansão inline
+  `${CLAUDE_PLUGIN_ROOT}` feita pelo host no conteúdo da Skill. Scripts,
+  RAG, catálogo e template continuam independentes do `cwd`; arquivos do caso
+  permanecem relativos ao workspace do advogado. Token não expandido ou root
+  sem as sentinelas do plugin causa fail-closed (ADR-0012, SPEC-0001 §61).
 
 ## [0.10.1] - 2026-08-27 — `/atualizar-ede` transformado em verificador puro de versão (Etapa 5.9-I)
 
@@ -151,6 +157,11 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   do checkout do plugin — não resolvem, e não têm relação com, o
   problema documentado de sincronização de marketplaces pessoais no
   Claude Cowork.
+
+> **Nota posterior:** o mecanismo desta etapa tratava o root como variável de
+> ambiente do subprocesso. A correção registrada em **Não publicado** e no
+> ADR-0012 preserva a intenção de portabilidade, mas usa a expansão inline
+> `${CLAUDE_PLUGIN_ROOT}` do host; esta descrição permanece como histórico.
 
 ## [0.9.1] - 2026-08-21 — Etapa 5.3–5.5, DataJud, vedação de pesquisa jurisprudencial e dano moral documental
 

@@ -63,7 +63,11 @@ Resolução Normativa ANEEL 1.000/2021.
 
 ### Opção 1 — Claude Cowork
 
-Método recomendado para quem deseja utilizar o plugin sem terminal.
+Instalação pela interface, sem terminal. Este fluxo ainda **não foi
+homologado de ponta a ponta**: marketplaces pessoais do Cowork podem
+manter conteúdo anterior mesmo quando a interface exibe `synced` ou
+`updated`. Esses estados não comprovam que a versão atual do plugin foi
+carregada.
 
 1. **Adicionar o marketplace:** Customize → Plugins → Personal plugins
    → **+** → Add marketplace → Add from a repository → informe
@@ -122,7 +126,7 @@ institucional correspondente.
 
 ## Atualização
 
-Claude Code:
+No Claude Code:
 
 ```text
 /plugin marketplace update ede
@@ -132,6 +136,13 @@ Claude Code:
 `/updateEde` (Skill `atualizar-ede`) não executa os comandos acima — ela
 só verifica se a versão instalada está desatualizada em relação à última
 Release oficial publicada no GitHub e indica a Release correspondente.
+
+No Claude Cowork, use `/updateEde` apenas para verificar a versão
+carregada. Até a homologação completa desse fluxo, `synced` ou `updated`
+não comprova atualização efetiva. Se houver divergência, reinstale por
+um pacote/versionamento explicitamente identificado conforme o canal de
+distribuição autorizado; não presuma que a sincronização visual resolveu
+o cache.
 
 ## Desinstalação
 
@@ -146,7 +157,7 @@ Release oficial publicada no GitHub e indica a Release correspondente.
 | Marketplace não encontrado | Confirme que adicionou `lmgentil/ede-legal-plugin` como marketplace antes de instalar o plugin. |
 | Plugin não encontrado | O identificador técnico é `ede-legal-plugin`, dentro do marketplace `ede`. |
 | Template institucional ausente | Esperado antes do fornecimento do arquivo pelo escritório — não é erro de instalação. |
-| Versão antiga carregada | Rode a atualização (acima) e reinicie/recarregue a sessão. |
+| Versão antiga carregada | No Claude Code, rode os comandos de atualização acima e reinicie/recarregue a sessão. No Cowork, confira com `/updateEde`; se persistir, reinstale por um pacote/versionamento explicitamente identificado, pois `synced` não comprova a versão carregada. |
 
 ## Segurança
 

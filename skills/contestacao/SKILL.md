@@ -710,7 +710,7 @@ por vírgula/hífen (a pontuação correta é decisão do Redator/Humanizer,
 não deste validador). Escopo: só o conteúdo variável; o texto fixo
 institucional do modelo nunca é tocado por esta regra.
 
-## 9. Geração dos 12 placeholders
+## 9. Geração dos 13 placeholders
 
 ### Contexto institucional do modelo — INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA (Etapa 5.7-B)
 

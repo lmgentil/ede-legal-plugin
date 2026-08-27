@@ -89,11 +89,12 @@ antiga nem exemplos de terceiros — Fase 8 §61), confirmado que:
    /repos/lmgentil/ede-legal-plugin/releases/latest`): `tag_name` é a
    versão oficialmente publicada, e o `html_url` da mesma resposta é o
    link informado — nunca reconstruído à parte, garantindo que a versão
-   anunciada e o link levam sempre à mesma Release. Auditoria confirmou
-   nesta correção que o repositório **ainda não tem nenhuma Release nem
-   tag publicada** (`releases/latest` responde 404 hoje) — tratado como
-   estado esperado (§3.2 do SKILL.md), não como falha; a Skill não
-   anuncia nenhuma atualização enquanto isso não mudar.
+   anunciada e o link levam sempre à mesma Release. Na data daquela
+   auditoria, o repositório não tinha Release oficial disponível e
+   `releases/latest` respondeu 404. O achado foi tratado como estado
+   esperado (§3.2 do SKILL.md), não como falha. Em execução, a Skill
+   sempre consulta a API e não presume que esse estado histórico
+   permaneça vigente.
 
    **Segunda correção, mesmo Gate Final:** essa mesma revisão introduziu
    (e o usuário revogou, no Gate Final imediatamente seguinte, ainda

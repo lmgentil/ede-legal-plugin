@@ -16,10 +16,10 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 |---|---|---|---|---|
 | PEND-001 | DEFERRED | Fase 3 | Nenhuma (deferida por decisão do usuário — correção v0.6.1) | Suporte multimídia ao placeholder `FOTOS_DA_IRREGULARIADE` |
 | PEND-002 | ABERTA | Fase 4 | Nenhuma (adiada por decisão do usuário) | Indexação de jurisprudência (REQ-018) na busca híbrida |
-| PEND-003 | ABERTA | Fase 8 | Nenhuma (não impede uso; afeta tamanho de clone/instalação) | `rag/embeddings/svd.joblib` (~81 MB) domina o tamanho do repositório distribuído |
+| PEND-003 | ABERTA | Fase 8 | Nenhuma (não impede uso; afeta tamanho de clone/instalação) | `rag/embeddings/svd.joblib` (~81 MB) domina o tamanho do repositório distribuído; compatibilidade de runtime já resolvida separadamente |
 | PEND-004 | RESOLVIDA (gate PEND-004) | Fase 8 | — | Definir licença proprietária/source-available compatível com repositório público e distribuição do plugin |
-| PEND-005 | ABERTA | Etapa 5 | Nenhuma (cosmético — numeração manual preservada e funcional) | Numeração manual das subseções não migrada para lista multinível nativa |
-| PEND-006 | ABERTA | Etapa 5 | Nenhuma (validado em 3 camadas; risco só em edição futura do texto institucional) | Fronteira do bloco `EVOLUCAO_CONSUMO` definida por julgamento humano, não por marcador estrutural único |
+| PEND-005 | ABERTA | Etapa 5 | Nenhuma (dívida estrutural; a renumeração dinâmica atual elimina lacunas) | Subtítulos ainda não migrados para lista multinível nativa do Word |
+| PEND-006 | RESOLVIDA (causa eliminada) | Etapa 5 | — | Ambiguidade da fronteira de `EVOLUCAO_CONSUMO` eliminada com a retirada do placeholder duplicado |
 
 ---
 
@@ -212,10 +212,13 @@ instalação/atualização).
 
 ### Risco se não resolvido
 
-Nenhum risco funcional — o arquivo é determinístico e portátil (sem
-caminho absoluto, confirmado nesta auditoria). O risco é só de
-experiência: instalação mais lenta, repositório mais pesado para clonar
-via `/plugin marketplace add`.
+O risco que permanece nesta pendência é exclusivamente distributivo:
+instalação mais lenta e repositório mais pesado para clonar via
+`/plugin marketplace add`. A incompatibilidade de serialização/runtime
+identificada posteriormente foi resolvida separadamente pelo contrato
+fail-closed do manifesto, dependências fixadas e artefatos regenerados
+no runtime canônico, conforme `docs/adr/ADR-0011-contrato-artefatos-rag.md`.
+Essa correção não reduz os ~81 MB e, portanto, não encerra a PEND-003.
 
 ### Critério de resolução
 
@@ -236,28 +239,30 @@ Em aberto, sem prazo.
 
 **Status:** ABERTA
 **Aberta em:** Etapa 5 (Motor Composicional de Blocos Condicionais)
-**Bloqueia:** nenhuma fase — a numeração manual atual ("2.1", "3.2",
-"3.4" etc., texto fixo digitado, não `w:numPr`/`numId` automático)
-continua funcionando e foi preservada intocada pela composição de
-blocos; isso só significa que incluir/excluir um bloco não renumera
-automaticamente os títulos vizinhos.
+**Bloqueia:** nenhuma fase — o motor atual renumera os títulos
+sobreviventes e elimina lacunas; permanece apenas a dívida de migrar os
+subtítulos literais para uma lista multinível nativa do Word.
 
 ### Contexto
 
 A Etapa 4-A avaliou migrar essas subseções para lista multinível nativa
 do Word e decidiu explicitamente **não improvisar**: só migrar se
 comprovadamente sem regressão visual, com `numbering.xml` preservado e
-teste visual+estrutural, Word abrindo sem reparo. A Etapa 5 manteve essa
-decisão — a composição de blocos (Etapa 5) opera sobre o texto fixo
-numerado exatamente como estava, sem tentar renumerar.
+teste visual+estrutural, Word abrindo sem reparo.
+
+A implementação posterior de `scripts/docx_numeracao_engine.py` aplica
+`INV-NUMERACAO-DINAMICA-CONTESTACAO`: depois da composição dos blocos,
+recalcula deterministicamente os prefixos literais dos níveis 2 e 3. O
+nível 1 continua sob a lista nativa já existente (`numId=17`). Saltos,
+duplicidades e inconsistências hierárquicas causam fail-closed.
 
 ### Risco se não resolvido
 
-Nenhum risco estrutural. Risco de qualidade redacional: em combinações
-específicas de blocos incluídos/excluídos, a sequência numérica dos
-títulos (ex.: "3.2", "3.4" sem "3.3") pode ficar com saltos visíveis se
-o bloco correspondente a um número for excluído — cosmético, não afeta
-validade jurídica nem estrutura do documento.
+Não há risco conhecido de lacunas na numeração final, coberta pelo motor
+e por seus testes. O risco remanescente é de manutenção: os níveis 2 e 3
+continuam acoplados a prefixos textuais do template e dependem do motor
+determinístico, em vez de aproveitar integralmente a estrutura nativa de
+listas multinível do Word.
 
 ### Critério de resolução
 
@@ -278,49 +283,37 @@ Em aberto, sem prazo.
 **Aberta em:** Etapa 5 (Motor Composicional de Blocos Condicionais)
 **Resolvida em:** correção pontual de remoção definitiva de
 `ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA` — ver `docs/specs/SPEC-0001.md`
-§49. O placeholder que aparecia duas vezes na região candidata (causa
-raiz desta pendência) foi removido de toda a arquitetura; o modelo
-oficial passou a trazer a argumentação de evolução de consumo
-inteiramente fixa, sem marcador algum. Sem placeholder, a ambiguidade de
-fronteira que motivava a releitura humana não pode mais ocorrer — a
-fronteira `[87, 93]` continua validada estruturalmente (LOCAL_ONLY),
-mas o risco descrito abaixo (reauditoria manual necessária se o texto
-institucional for editado) deixa de depender de contar ocorrências de um
-placeholder que não existe mais.
-**Bloqueia:** nenhuma fase — a fronteira usada (índices de corpo do
-documento 87 a 93) foi validada em 3 camadas (lxml + XSD do toolkit +
-Word/PDF real) e o teste `LOCAL_ONLY` de ponta a ponta confirma que
-`EXCLUIR` remove o bloco inteiro sem deixar `{{ARGUMENTACAO_EVOLUCAO_DE_
-CONSUMO_FIXA}}` residual.
+§49.
+**Bloqueia:** —
 
 ### Contexto
 
-O placeholder `{{ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA}}` aparece duas
-vezes dentro da região candidata do template real — diferente dos demais
-blocos, que têm um banner/heading único e inequívoco marcando início e
-fim. A fronteira `[87, 93]` (índices de filho do corpo do documento) foi
-escolhida por leitura humana do conteúdo (Etapa 5), não derivada de um
-marcador estrutural único como os demais blocos.
+Historicamente, `{{ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA}}` tinha duas
+ocorrências dentro da região candidata do template real. Isso impedia
+usar sua ocorrência como marcador estrutural inequívoco e exigiu leitura
+humana para definir a fronteira `[87, 93]`.
+
+A correção eliminou o placeholder de toda a arquitetura e tornou a
+argumentação de evolução de consumo integralmente fixa no modelo. A
+causa da ambiguidade deixou de existir. A composição resultante foi
+validada em três camadas (lxml, XSD do toolkit e Word/PDF real), além do
+teste de ponta a ponta `LOCAL_ONLY`.
 
 ### Risco se não resolvido
 
-Nenhum risco imediato — validado estrutural e visualmente. Risco latente:
-se o texto institucional dessa seção for editado futuramente pelo
-escritório (fora deste plugin), a fronteira pode precisar reauditoria
-manual — um marcador estrutural dedicado (ex.: comentário XML ou
-`w:bookmarkStart`/`End` nomeado especificamente para essa fronteira)
-tornaria a manutenção futura menos dependente de releitura humana do
-conteúdo.
+Nenhum risco pendente associado à causa registrada. Uma edição futura do
+modelo institucional continua sujeita ao Template Lock e à validação
+estrutural aplicável; eventual nova ambiguidade deverá gerar uma nova
+pendência, baseada no novo estado do template.
 
 ### Critério de resolução
 
-Quando priorizado: considerar inserir um marcador de fronteira dedicado
-e inequívoco para `EVOLUCAO_CONSUMO`, ou apenas documentar/reauditar a
-cada edição futura do texto institucional dessa seção.
+Atendido: o marcador ambíguo foi removido e a região final foi validada.
 
 ### Fechamento
 
-Em aberto, sem prazo.
+Resolvida por eliminação da causa. Nenhuma ação remanescente nesta
+pendência.
 
 ---
 

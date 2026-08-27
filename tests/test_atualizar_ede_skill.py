@@ -23,6 +23,7 @@ from pathlib import Path
 BASE = Path(__file__).parent.parent
 SKILL_PATH = BASE / "skills" / "atualizar-ede" / "SKILL.md"
 SPEC_PATH = BASE / "docs" / "specs" / "SPEC-0001.md"
+ADR_PATH = BASE / "docs" / "adr" / "ADR-0008-distribuicao-marketplace.md"
 
 
 def _texto() -> str:
@@ -123,10 +124,19 @@ def test_tag_semver_invalida_cai_no_erro_generico():
 def test_nenhuma_release_publicada_e_estado_tratado_nao_como_falha():
     texto = _texto()
     assert "Não há versão oficial publicada disponível para comparação neste" in texto
-    assert "404" in texto  # documentado como o estado real auditado nesta revisão
+    assert "404" in texto  # condição possível da API, não fotografia temporal do repositório
+    assert "responde 404 hoje" not in texto
+    assert "não tem nenhuma GitHub Release nem tag publicada" not in texto
+    assert "Estado real confirmado" not in texto
     # mensagem distinta da mensagem de erro genérica (§3.3) — nunca a mesma frase
     assert "Não há versão oficial publicada disponível para comparação neste momento." != \
         "Não foi possível verificar a versão do EDE neste momento. Tente novamente mais tarde."
+
+
+def test_adr_preserva_404_apenas_como_registro_historico():
+    texto = ADR_PATH.read_text(encoding="utf-8")
+    assert "responde 404 hoje" not in texto
+    assert "na data daquela auditoria" in " ".join(texto.lower().split())
 
 
 # --------------------------------------------------- I: GitHub indisponível → erro controlado

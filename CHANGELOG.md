@@ -20,6 +20,15 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   RAG, catálogo e template continuam independentes do `cwd`; arquivos do caso
   permanecem relativos ao workspace do advogado. Token não expandido ou root
   sem as sentinelas do plugin causa fail-closed (ADR-0012, SPEC-0001 §61).
+- Reconciliação da documentação pós-auditoria: `PEND-006` passa a constar
+  como resolvida também no índice e deixa de manter fechamento contraditório;
+  `PEND-005` fica aberta somente para a futura migração a listas multinível
+  nativas, reconhecendo que o motor atual já elimina lacunas; `PEND-003`
+  distingue o tamanho ainda pendente da compatibilidade de runtime já
+  corrigida pelo ADR-0011. Corrigidas também a contagem documental de 13
+  placeholders, a condição 404 de `/atualizar-ede` sem afirmação temporal e
+  a advertência de que o fluxo Cowork ainda não foi homologado de ponta a
+  ponta e que `synced`/`updated` não comprova a versão efetivamente carregada.
 
 ## [0.10.1] - 2026-08-27 — `/atualizar-ede` transformado em verificador puro de versão (Etapa 5.9-I)
 

@@ -146,11 +146,11 @@ SemVer válida da Release é suficiente.
 
 ### 3.2. Nenhuma Release oficial publicada
 
-Estado real confirmado por auditoria (Etapa 5.9-I e Gate Final): o
-repositório **não tem nenhuma GitHub Release nem tag publicada** —
-`releases/latest` responde 404 hoje. Trate isso como estado esperado, não
+Se `GET /repos/lmgentil/ede-legal-plugin/releases/latest` responder 404,
+isso significa que não há Release oficial válida disponível para
+comparação naquele momento. Trate a resposta como estado esperado, não
 como falha de rede, e use exatamente esta mensagem — nunca a de "erro"
-genérica do §3.3, que é para falha de consulta, não para ausência real de
+genérica do §3.3, que é para falha de consulta, não para ausência de
 Release:
 
 > Não há versão oficial publicada disponível para comparação neste

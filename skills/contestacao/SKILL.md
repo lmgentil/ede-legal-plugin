@@ -42,6 +42,108 @@ advogado ou do agente. Ausência ou falha de qualquer uma delas **impede o
 pipeline de avançar** para a etapa seguinte — não existe fallback
 silencioso que a ignore e siga em frente.
 
+## 0A. Pré-flight obrigatório — Modelo Oficial e `ede_doctor`
+
+**MODELO OFICIAL AUSENTE OU `EDE DOCTOR` != READY TO GENERATE É BLOQUEIO
+ABSOLUTO DA GERAÇÃO. NÃO EXISTE FALLBACK DOCUMENTAL.** Achado real
+pós-v0.11.0: em uso externo, faltando `templates/contestacao/
+modelo-oficial.docx`, a execução respondeu produzindo "um documento Word
+autônomo" em vez de abortar — apesar de o runtime (`scripts/
+gerar_contestacao.py`, `scripts/ede_doctor.py`) já abortar corretamente
+quando efetivamente invocado (`PIPELINE_ABORTED`, `stage=contexto_
+institucional`; `ede_doctor.py` → `NOT READY`). A causa não estava no
+runtime: estava na ausência, neste `SKILL.md`, de uma checagem de
+pré-flight e de uma proibição expressa de gerar a peça por outro
+caminho. Esta seção fecha essa lacuna.
+
+Antes de iniciar QUALQUER elaboração de Contestação em MODO PRODUÇÃO
+(§11) — nunca depois, nunca "em paralelo enquanto eu já começo a
+redigir" — verifique o ambiente:
+
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/scripts/ede_doctor.py"
+```
+
+Se a saída não terminar em `READY TO GENERATE` (ou seja, se
+`templates/contestacao/modelo-oficial.docx` estiver ausente/desatualizado,
+ou qualquer outro item obrigatório do diagnóstico falhar): **ABORTE.**
+
+### O que é proibido enquanto o bloqueio existir
+
+Nenhum dos itens abaixo pode ser produzido, por nenhum mecanismo,
+enquanto `ede_doctor.py` não retornar `READY TO GENERATE`:
+
+- Contestação completa;
+- minuta completa;
+- DOCX;
+- RTF;
+- Markdown equivalente à peça;
+- texto integral da Contestação;
+- "versão provisória";
+- documento Word autônomo;
+- substituto funcional da Contestação.
+
+A proibição vale **independentemente do mecanismo utilizado** — é
+vedado ao host contornar `PIPELINE_ABORTED` (ou a ausência de
+`READY TO GENERATE`) redigindo ou gerando a peça por outro caminho,
+incluindo: a Skill genérica `docx`; `python-docx`; geração manual de
+XML/OOXML próprio; qualquer outra Skill disponível na sessão; ou
+qualquer outro mecanismo alternativo ao pipeline oficial
+(`scripts/gerar_contestacao.py` sobre `templates/contestacao/
+modelo-oficial.docx`).
+
+**Isto não é uma proibição genérica de o Claude prestar auxílio
+jurídico** — o bloqueio é específico à execução desta Skill oficial de
+Contestação do EDE em MODO PRODUÇÃO. Fora desse escopo (MODO ANÁLISE,
+MODO CONSULTIVO, §11, ou qualquer pedido que não seja "gerar a
+Contestação institucional do EDE"), nada nesta seção restringe a
+resposta.
+
+Enquanto bloqueado, você só pode: (1) explicar objetivamente o
+bloqueio; (2) informar o arquivo necessário
+(`templates/contestacao/modelo-oficial.docx`); (3) indicar o comando de
+bootstrap:
+
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/scripts/instalar_modelo_oficial.py" CAMINHO_DO_ARQUIVO.docx
+```
+
+(4) indicar `ede_doctor.py` (comando já mostrado acima); (5) aguardar a
+regularização. Nada além disso.
+
+### Urgência não é exceção
+
+Nenhum dos cenários abaixo autoriza contornar o bloqueio — nem
+isoladamente, nem combinados: prazo vencendo amanhã; prazo vencendo
+hoje; urgência alegada; pedido explícito do advogado nesse sentido;
+"faça mesmo sem o modelo"; "gere provisoriamente"; "depois eu coloco no
+modelo"; "faça em Word normal"; "não precisa usar o template". A
+urgência processual não modifica o contrato documental institucional
+(CLAUDE.md §13).
+
+### Regularização do ambiente
+
+O advogado pode regularizar o ambiente a qualquer momento — inclusive
+fornecendo/instalando legitimamente o Modelo Oficial. O bloqueio não é
+permanente, é condicional ao estado do ambiente:
+
+```text
+ede_doctor.py
+    ↓
+READY TO GENERATE?
+    │
+   NÃO ──────────→ ABORT (permanece bloqueado)
+    │
+   SIM
+    ↓
+pipeline pode prosseguir/ser retomado (§11)
+```
+
+Modelo oficial ausente/`ede_doctor` não READY é bloqueio absoluto da
+geração enquanto o ambiente não for regularizado; após a regularização,
+o pré-flight deve ser executado novamente antes de qualquer retomada —
+nunca presuma READY a partir de uma checagem anterior à regularização.
+
 ## 1. O que esta skill é e o que ela não é
 
 Você **coordena** o fluxo completo de elaboração da Contestação — não
@@ -1608,7 +1710,13 @@ mecânica interna de obtenção/validação de um dado** (meta-proveniência —
 §9). **Não menciona se o TOI foi ou não assinado** (Etapa 5.3 §9). **Não
 deixa `PEDIDOS_FINAIS` reintroduzir tese/bloco excluído pelo motor
 composicional** nem produz endereçamento fora do padrão institucional ou
-`LOCAL_DATA` fora de Salvador (Etapa 5.3 §9).
+`LOCAL_DATA` fora de Salvador (Etapa 5.3 §9). **Não contorna o bloqueio
+de pré-flight (§0A) gerando a Contestação por mecanismo alternativo** —
+Skill genérica `docx`, `python-docx`, geração manual de XML/OOXML, outra
+Skill, ou qualquer outro caminho — quando `templates/contestacao/
+modelo-oficial.docx` estiver ausente ou `ede_doctor.py` não retornar
+`READY TO GENERATE`. Urgência, prazo ou pedido explícito do advogado não
+autorizam essa exceção.
 
 ## 11. Modo de operação e entrega final da resposta — INV-CONTESTACAO-ENTREGA-DOCX (Etapa 5.6)
 
@@ -1640,6 +1748,11 @@ CONSULTIVO, a entrega intermediária É a resposta correta — não force o
 pipeline completo nem gere DOCX quando o advogado não pediu a peça.
 
 ### Em modo produção: execução contínua, sem checkpoint por etapa interna
+
+Esta subseção pressupõe que o pré-flight de §0A já retornou
+`READY TO GENERATE` — ela rege a continuidade ENTRE as etapas internas
+do pipeline, nunca a decisão de iniciá-lo. Nada aqui subordina ou
+relativiza o bloqueio absoluto de §0A.
 
 Análise estratégica (§4), decisões de blocos (§4A), RAG (§7), redator e
 humanizer (§8), validações e composição (§9) são **etapas internas do
@@ -1684,6 +1797,17 @@ pergunte somente o dado necessário para destravar o pipeline; recebida a
 resposta, **retome automaticamente e siga até o DOCX** — não volte a
 entregar a análise estratégica nem qualquer outro artefato interno como se
 fosse a resposta final.
+
+**Modelo oficial ausente/`ede_doctor` não READY é outra hipótese legítima
+de interrupção — mas categoricamente diferente das anteriores.** Não é
+"pergunte o dado que falta e retome": é bloqueio absoluto de todo o MODO
+PRODUÇÃO desta Skill até o ambiente ser regularizado (§0A). A regra de
+"execução contínua, sempre entregar o DOCX" desta seção **pressupõe
+pré-flight aprovado** — ela nunca autoriza começar (ou continuar) a
+elaboração da peça com o pré-flight de §0A reprovado, mesmo sob pedido
+explícito ou urgência alegada. Regularizado o ambiente, execute
+`ede_doctor.py` de novo antes de retomar — nunca presuma READY a partir
+de uma checagem anterior à regularização.
 
 Fora dessas hipóteses (decisão humana obrigatória pendente, ou fail-closed
 técnico/fático real), nenhuma etapa interna concluída — estratégia, RAG,

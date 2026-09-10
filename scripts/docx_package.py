@@ -76,6 +76,52 @@ foi avaliado como complexidade sem benefício real: o requisito nuclear é
 o conteúdo das partes não alteradas permanecer idêntico, não o contêiner
 ZIP inteiro.
 
+Taxonomia de `PacoteDocxAbortada.stage` (Etapa 5.10, Commit 4 — padronização
+do fail-closed do runtime DOCX):
+  - `docx_package_invalido`: arquivo ausente/ilegível, ZIP corrompido ou
+    inválido, pacote vazio, `[Content_Types].xml` ausente, ou qualquer
+    entrada de caminho perigosa rejeitada por `_resolver_entrada_segura`/
+    `_eh_symlink` (Zip Slip, path absoluto, prefixo de unidade Windows,
+    separador ambíguo, symlink) — todos os casos em que o ZIP em si não
+    pode ser confiavelmente tratado como um pacote OPC.
+  - `docx_package_estrutura_incompleta`: o diretório de origem de
+    `empacotar_pacote_docx` está ausente ou vazio — condição estrutural,
+    não de conteúdo malicioso.
+  Consumidores (`docx_template_engine.gerar_peca`,
+  `docx_block_engine.gerar_peca_com_blocos`) propagam `e.stage`
+  diretamente para o campo `"etapa"` do relatório de falha — nunca um
+  rótulo genérico próprio (`"unpack"`/`"pack"`) que descartaria a
+  informação, mesmo padrão já usado para `ComposicaoAbortada`/
+  `NumeracaoAbortada` nesses arquivos.
+
+  `template_ausente` (checado ANTES deste módulo ser chamado, pelos
+  próprios consumidores — `docx_context_engine.py`/`docx_block_engine.py`/
+  `docx_template_engine.py` — e por `dependencia_python_ausente`/
+  `erro_interno`, abaixo) não é produzido por este módulo.
+
+`dependencia_python_ausente` — DELIBERADAMENTE NÃO implementado neste
+módulo nem em seus consumidores (Commit 4, item 6 do pedido). `lxml` é
+importada no nível de módulo aqui e em todo consumidor
+(`docx_template_engine.py`/`docx_context_engine.py`/`docx_block_engine.py`
+já importam este módulo no próprio topo do arquivo) — se `lxml` não
+estiver instalada, o `ImportError` ocorre ANTES de qualquer código do
+pipeline poder envolvê-lo num `try/except`, e criar um import artificial
+tardio só para tornar esse erro "capturável" adicionaria complexidade sem
+benefício real (import dinâmico não é o padrão do projeto em nenhum outro
+lugar). Verificação preventiva de dependências fica para
+`scripts/ede_doctor.py` (Commit 6, ainda não implementado) — checar antes
+da primeira geração, não durante.
+
+`erro_interno` — reservado a pontos defensivos específicos e nomeados
+onde uma inconsistência interna seria, por construção, impossível em
+operação normal (ex.: `empacotar_pacote_docx` retornar sem levantar
+exceção mas o arquivo de saída não existir) — nunca um
+`except Exception` genérico envolvendo o pipeline inteiro. Uma exceção
+verdadeiramente inesperada (bug de programação, não um destes casos
+nomeados) continua se propagando com traceback completo — não é
+convertida em `PacoteDocxAbortada` nem em `PIPELINE_ABORTED` por nenhum
+`except` deste módulo ou de seus consumidores diretos.
+
 Uso programático:
     from docx_package import extrair_pacote_docx, empacotar_pacote_docx, validar_estrutura_minima
     extrair_pacote_docx(Path("modelo.docx"), Path("/tmp/unpacked"))
@@ -146,7 +192,7 @@ def _eh_symlink(info: zipfile.ZipInfo) -> bool:
 
 def _resolver_entrada_segura(nome: str, destino_dir: Path) -> Path:
     """Valida uma entrada de ZIP antes de extraí-la; devolve o Path de
-    destino se segura. Levanta PacoteDocxAbortada (stage="docx_invalido")
+    destino se segura. Levanta PacoteDocxAbortada (stage="docx_package_invalido")
     para path traversal, path absoluto (POSIX ou Windows) ou separador de
     diretório ambíguo entre Windows/POSIX.
 
@@ -161,25 +207,25 @@ def _resolver_entrada_segura(nome: str, destino_dir: Path) -> Path:
     Windows ("C:...") é rejeitado à parte, porque PurePosixPath não o
     reconhece como caminho absoluto."""
     if not nome:
-        raise PacoteDocxAbortada("docx_invalido", "entrada de ZIP com nome vazio rejeitada")
+        raise PacoteDocxAbortada("docx_package_invalido", "entrada de ZIP com nome vazio rejeitada")
     if "\\" in nome:
         raise PacoteDocxAbortada(
-            "docx_invalido",
+            "docx_package_invalido",
             f"entrada de ZIP com separador de diretório ambíguo (Windows) rejeitada: {nome!r}",
         )
     if _PADRAO_DRIVE_WINDOWS.match(nome):
-        raise PacoteDocxAbortada("docx_invalido", f"entrada com prefixo de unidade Windows rejeitada: {nome!r}")
+        raise PacoteDocxAbortada("docx_package_invalido", f"entrada com prefixo de unidade Windows rejeitada: {nome!r}")
 
     caminho_puro = PurePosixPath(nome)
     if caminho_puro.is_absolute():
-        raise PacoteDocxAbortada("docx_invalido", f"entrada de caminho absoluto rejeitada: {nome!r}")
+        raise PacoteDocxAbortada("docx_package_invalido", f"entrada de caminho absoluto rejeitada: {nome!r}")
     if ".." in caminho_puro.parts:
-        raise PacoteDocxAbortada("docx_invalido", f"entrada com travessia de diretório ('..') rejeitada: {nome!r}")
+        raise PacoteDocxAbortada("docx_package_invalido", f"entrada com travessia de diretório ('..') rejeitada: {nome!r}")
 
     destino_resolvido = destino_dir.resolve()
     alvo = (destino_dir / nome).resolve()
     if alvo != destino_resolvido and not alvo.is_relative_to(destino_resolvido):
-        raise PacoteDocxAbortada("docx_invalido", f"entrada resolvida fora do diretório de destino (zip slip): {nome!r}")
+        raise PacoteDocxAbortada("docx_package_invalido", f"entrada resolvida fora do diretório de destino (zip slip): {nome!r}")
     return alvo
 
 
@@ -190,7 +236,7 @@ def extrair_pacote_docx(docx_path: Path, destino_dir: Path) -> None:
     função (o que ainda não foi tocado pelos motores do EDE nunca é
     reescrito por este módulo).
 
-    Fail-closed: levanta PacoteDocxAbortada("docx_invalido", ...) para
+    Fail-closed: levanta PacoteDocxAbortada("docx_package_invalido", ...) para
     arquivo ausente, ZIP corrompido/ilegível, pacote vazio, qualquer
     entrada de caminho perigosa (Zip Slip, path absoluto, prefixo de
     unidade Windows, separador ambíguo, link simbólico) ou pacote sem
@@ -203,26 +249,26 @@ def extrair_pacote_docx(docx_path: Path, destino_dir: Path) -> None:
     try:
         zf = zipfile.ZipFile(docx_path, "r")
     except FileNotFoundError:
-        raise PacoteDocxAbortada("docx_invalido", f"arquivo não encontrado: {docx_path}")
+        raise PacoteDocxAbortada("docx_package_invalido", f"arquivo não encontrado: {docx_path}")
     except (zipfile.BadZipFile, OSError) as e:
-        raise PacoteDocxAbortada("docx_invalido", f"não é um pacote ZIP válido: {docx_path} ({e})")
+        raise PacoteDocxAbortada("docx_package_invalido", f"não é um pacote ZIP válido: {docx_path} ({e})")
 
     with zf:
         try:
             infos = zf.infolist()
             if not infos:
-                raise PacoteDocxAbortada("docx_invalido", f"pacote ZIP vazio: {docx_path}")
+                raise PacoteDocxAbortada("docx_package_invalido", f"pacote ZIP vazio: {docx_path}")
 
             alvos = []
             for info in infos:
                 if _eh_symlink(info):
-                    raise PacoteDocxAbortada("docx_invalido", f"entrada de link simbólico rejeitada: {info.filename!r}")
+                    raise PacoteDocxAbortada("docx_package_invalido", f"entrada de link simbólico rejeitada: {info.filename!r}")
                 alvos.append((info, _resolver_entrada_segura(info.filename, destino_dir)))
 
             nomes = {info.filename for info, _ in alvos}
             if "[Content_Types].xml" not in nomes:
                 raise PacoteDocxAbortada(
-                    "docx_invalido",
+                    "docx_package_invalido",
                     f"pacote sem [Content_Types].xml — não é um pacote OPC válido: {docx_path}",
                 )
 
@@ -234,7 +280,7 @@ def extrair_pacote_docx(docx_path: Path, destino_dir: Path) -> None:
                 with zf.open(info) as origem, open(alvo, "wb") as saida:
                     shutil.copyfileobj(origem, saida)
         except (zipfile.BadZipFile, OSError) as e:
-            raise PacoteDocxAbortada("docx_invalido", f"pacote ZIP corrompido ou ilegível: {docx_path} ({e})")
+            raise PacoteDocxAbortada("docx_package_invalido", f"pacote ZIP corrompido ou ilegível: {docx_path} ({e})")
 
 
 def empacotar_pacote_docx(origem_dir: Path, docx_saida: Path) -> None:

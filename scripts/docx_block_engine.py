@@ -998,9 +998,9 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
         try:
             extrair_pacote_docx(copia_template, unpacked_template)
         except PacoteDocxAbortada as e:
-            return {"status": "FALHOU", "etapa": "unpack", "erros": [e.motivo]}
+            return {"status": "FALHOU", "etapa": e.stage, "erros": [e.motivo]}
         if not (unpacked_template / "word" / "document.xml").exists():
-            return {"status": "FALHOU", "etapa": "unpack",
+            return {"status": "FALHOU", "etapa": "docx_package_estrutura_incompleta",
                      "erros": [f"word/document.xml ausente após extração: {template_path}"]}
 
         template_xml = (unpacked_template / "word" / "document.xml").read_text(encoding="utf-8")
@@ -1033,9 +1033,13 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
         try:
             empacotar_pacote_docx(gerado_dir, output_path)
         except PacoteDocxAbortada as e:
-            return {"status": "FALHOU", "etapa": "pack", "erros": [e.motivo]}
+            return {"status": "FALHOU", "etapa": e.stage, "erros": [e.motivo]}
         if not output_path.exists():
-            return {"status": "FALHOU", "etapa": "pack", "erros": ["arquivo de saída não foi criado"]}
+            # Defensivo: ver mesma justificativa em docx_template_engine.gerar_peca
+            # (item 7, Commit 4) — inconsistência interna, não condição ambiental.
+            return {"status": "FALHOU", "etapa": "erro_interno",
+                     "erros": ["arquivo de saída não foi criado apesar de empacotar_pacote_docx "
+                               "não ter levantado exceção — inconsistência interna inesperada"]}
 
         containers_derivados = [b["id"] for b in catalogo["blocks"] if b["decision_mode"] == "derived"]
         return {

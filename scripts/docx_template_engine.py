@@ -587,9 +587,9 @@ def gerar_peca(template_path, schema_path, dados: dict, output_path, tokens_zona
         try:
             extrair_pacote_docx(copia_template, unpacked_template)
         except PacoteDocxAbortada as e:
-            return {"status": "FALHOU", "etapa": "unpack", "erros": [e.motivo]}
+            return {"status": "FALHOU", "etapa": e.stage, "erros": [e.motivo]}
         if not (unpacked_template / "word" / "document.xml").exists():
-            return {"status": "FALHOU", "etapa": "unpack",
+            return {"status": "FALHOU", "etapa": "docx_package_estrutura_incompleta",
                      "erros": [f"word/document.xml ausente após extração: {template_path}"]}
 
         template_xml = (unpacked_template / "word" / "document.xml").read_text(encoding="utf-8")
@@ -612,9 +612,15 @@ def gerar_peca(template_path, schema_path, dados: dict, output_path, tokens_zona
         try:
             empacotar_pacote_docx(gerado_dir, output_path)
         except PacoteDocxAbortada as e:
-            return {"status": "FALHOU", "etapa": "pack", "erros": [e.motivo]}
+            return {"status": "FALHOU", "etapa": e.stage, "erros": [e.motivo]}
         if not output_path.exists():
-            return {"status": "FALHOU", "etapa": "pack", "erros": ["arquivo de saída não foi criado"]}
+            # Defensivo: empacotar_pacote_docx só retorna sem levantar
+            # PacoteDocxAbortada após os.replace() bem-sucedido (garantia
+            # atômica) — chegar aqui indica inconsistência interna, nunca
+            # uma condição documental/ambiental esperada (item 7, Commit 4).
+            return {"status": "FALHOU", "etapa": "erro_interno",
+                     "erros": ["arquivo de saída não foi criado apesar de empacotar_pacote_docx "
+                               "não ter levantado exceção — inconsistência interna inesperada"]}
 
         return {
             "status": "OK",

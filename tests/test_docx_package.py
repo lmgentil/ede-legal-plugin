@@ -145,13 +145,13 @@ def test_zip_corrompido_aborta_docx_invalido():
         tmp = Path(tmp)
         lixo = tmp / "nao_e_um_docx.docx"
         lixo.write_bytes(b"isto nao e um zip valido")
-        _assert_aborta(lambda: extrair_pacote_docx(lixo, tmp / "unpacked"), "docx_invalido")
+        _assert_aborta(lambda: extrair_pacote_docx(lixo, tmp / "unpacked"), "docx_package_invalido")
 
 
 def test_arquivo_ausente_aborta_docx_invalido():
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
-        _assert_aborta(lambda: extrair_pacote_docx(tmp / "nao_existe.docx", tmp / "unpacked"), "docx_invalido")
+        _assert_aborta(lambda: extrair_pacote_docx(tmp / "nao_existe.docx", tmp / "unpacked"), "docx_package_invalido")
 
 
 def test_content_types_ausente_aborta_docx_invalido():
@@ -160,7 +160,7 @@ def test_content_types_ausente_aborta_docx_invalido():
         partes = _partes_minimas()
         del partes["[Content_Types].xml"]
         docx = _criar_docx_sintetico(tmp / "sem_content_types.docx", partes)
-        e = _assert_aborta(lambda: extrair_pacote_docx(docx, tmp / "unpacked"), "docx_invalido")
+        e = _assert_aborta(lambda: extrair_pacote_docx(docx, tmp / "unpacked"), "docx_package_invalido")
         assert "Content_Types" in e.motivo
 
 
@@ -224,7 +224,7 @@ def test_zip_slip_com_dotdot_e_rejeitado():
         alvo_externo = tmp.parent / "fora_do_pacote.txt"
         if alvo_externo.exists():
             alvo_externo.unlink()
-        _assert_aborta(lambda: extrair_pacote_docx(docx, tmp / "unpacked"), "docx_invalido")
+        _assert_aborta(lambda: extrair_pacote_docx(docx, tmp / "unpacked"), "docx_package_invalido")
         assert not alvo_externo.exists(), "Zip Slip vazou para fora do diretório de destino"
 
 
@@ -234,7 +234,7 @@ def test_path_absoluto_posix_e_rejeitado():
         docx = _criar_docx_sintetico(tmp / "absoluto.docx", _partes_minimas(), entradas_brutas=[
             ("/etc/evil.txt", b"x", 0),
         ])
-        _assert_aborta(lambda: extrair_pacote_docx(docx, tmp / "unpacked"), "docx_invalido")
+        _assert_aborta(lambda: extrair_pacote_docx(docx, tmp / "unpacked"), "docx_package_invalido")
 
 
 def test_prefixo_de_unidade_windows_e_rejeitado():
@@ -243,7 +243,7 @@ def test_prefixo_de_unidade_windows_e_rejeitado():
         docx = _criar_docx_sintetico(tmp / "unidade.docx", _partes_minimas(), entradas_brutas=[
             ("C:/Windows/evil.txt", b"x", 0),
         ])
-        _assert_aborta(lambda: extrair_pacote_docx(docx, tmp / "unpacked"), "docx_invalido")
+        _assert_aborta(lambda: extrair_pacote_docx(docx, tmp / "unpacked"), "docx_package_invalido")
 
 
 def test_separador_windows_ambiguo_e_rejeitado():
@@ -256,7 +256,7 @@ def test_separador_windows_ambiguo_e_rejeitado():
         docx = _criar_docx_sintetico(tmp / "backslash.docx", _partes_minimas(), entradas_brutas=[
             ("word\\..\\..\\evil.txt", b"x", 0),
         ])
-        _assert_aborta(lambda: extrair_pacote_docx(docx, tmp / "unpacked"), "docx_invalido")
+        _assert_aborta(lambda: extrair_pacote_docx(docx, tmp / "unpacked"), "docx_package_invalido")
 
 
 def test_symlink_e_rejeitado():
@@ -266,7 +266,7 @@ def test_symlink_e_rejeitado():
         docx = _criar_docx_sintetico(tmp / "symlink.docx", _partes_minimas(), entradas_brutas=[
             ("word/evil_link", b"/etc/passwd", modo_symlink),
         ])
-        _assert_aborta(lambda: extrair_pacote_docx(docx, tmp / "unpacked"), "docx_invalido")
+        _assert_aborta(lambda: extrair_pacote_docx(docx, tmp / "unpacked"), "docx_package_invalido")
 
 
 def test_erro_e_deterministico_entre_chamadas():
@@ -280,7 +280,7 @@ def test_erro_e_deterministico_entre_chamadas():
                 extrair_pacote_docx(lixo, tmp / f"unpacked_{i}")
             except PacoteDocxAbortada as e:
                 stages.append(e.stage)
-        assert stages == ["docx_invalido", "docx_invalido"]
+        assert stages == ["docx_package_invalido", "docx_package_invalido"]
 
 
 # --------------------------------------------------------------- reempacotamento

@@ -284,6 +284,48 @@ Consequências para esta decisão arquitetural:
 
 Nada disso altera a natureza da zona (não é bloco, não é placeholder, é
 normalmente vazia), a cadeia determinística, o Template Lock, nem a
-quantidade de zonas autorizadas — que continua **uma**.
+quantidade de zonas autorizadas — que continua **uma** (nesta etapa;
+ver Adendo — Etapa 5.8-G abaixo para a expansão posterior).
 
 Detalhamento completo em `docs/specs/SPEC-0001.md` §59.
+
+## Adendo — Etapa 5.8-G (quatro zonas adicionais, autorizadas)
+
+A "Contenção permanente" acima nunca foi revogada: toda zona futura
+continua exigindo autorização expressa do usuário, com auditoria
+própria. O que mudou é que essa autorização **foi dada**, na Etapa
+5.8-G, para quatro zonas novas — mesmo padrão estrutural da zona
+piloto (Alternativa D, cadeia determinística, gate fático em
+`estado_processual.json`, nunca decidida pelo advogado), uma para cada
+um dos quatro novos tópicos preliminares (2.3 a 2.6):
+
+| Zona | Bloco/subbloco-pai | Tópico | `requires_facts` |
+|---|---|---|---|
+| `ZONA_METODOLOGIA_APURACAO` (piloto, 5.8-B) | `CALCULOS_RECUPERACAO_CONSUMO` | 3.4 | `METODOLOGIA_APURACAO_DOCUMENTADA` |
+| `ZONA_PRETENSAO_RESISTIDA` | `PRELIMINAR_AUSENCIA_INTERESSE_AGIR` | 2.3 | `AUSENCIA_TENTATIVA_ADMINISTRATIVA_COMPROVADA` (reaproveita o `linked_fact` do bloco-pai) |
+| `ZONA_TITULARIDADE_UC` | `PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO` | 2.4 | `UC_TITULARIDADE_TERCEIRO_COMPROVADA` (idem) |
+| `ZONA_FUNDAMENTACAO_INEPCIA` | `PRELIMINAR_INEPCIA_INICIAL` | 2.5 | `DEFICIENCIAS_INICIAL_DOCUMENTADAS` (fato **próprio** — o bloco-pai é `estrategista`, sem `linked_fact` para reaproveitar) |
+| `ZONA_COMPOSICAO_PROVEITO_ECONOMICO` | `SUBBLOCO:CUMULACAO_PEDIDOS` (aninhado em 2.6, não o bloco 2.6 em si) | 2.6 | `EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS` (reaproveita o `linked_fact` do subbloco-pai) |
+
+**Zonas autorizadas: cinco.** Continua correto que **não existe, e não
+deve passar a existir**, `ZONA_COMPLEMENTACAO_GENERICA` ou equivalente
+sem bloco-pai único — cada uma das cinco tem exatamente um bloco/
+subbloco-pai catalogado, `requires_facts` próprio ou herdado do mesmo
+fato que já decide esse pai, e limites de tamanho individuais (as duas
+zonas de tópico 2.3/2.4 usam os mesmos limites da piloto — 2 parágrafos/
+700 caracteres; as de 2.5/2.6, por serem potencialmente mais
+enumerativas, usam 3 parágrafos/1000 caracteres, como o teto já
+ampliado da piloto na Etapa 5.8-C). O item "Alternativas rejeitadas —
+Criar um 14º placeholder" permanece correto **na sua lógica** (zona e
+placeholder continuam contratos distintos, nunca misturados); só a
+contagem literal "os 13 são 13" citada ali é histórica — ver
+`CLAUDE.md` §14 e `templates/contestacao/schema.json` para a contagem
+vigente (19, após a correção pontual de 09/09/2026 que catalogou
+`VALOR_TOTAL_PROVEITO_ECONOMICO`, achado de teste automatizado contra o
+DOCX real, não uma zona nova).
+
+Toda zona além destas cinco continua exigindo o mesmo processo de
+autorização expressa e auditoria própria — nada nesta etapa relaxa essa
+regra.
+
+Detalhamento completo em `docs/specs/SPEC-0001.md` §62.

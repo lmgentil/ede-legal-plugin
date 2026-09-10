@@ -1,17 +1,29 @@
 # Dependências de scripts/docx_template_engine.py e dos CLIs que o usam
 # (render_docx.py, validate_template.py).
 #
-# NÃO inclui o skill "docx" em si (unpack.py/pack.py/validate.py) — esse é
-# localizado em tempo de execução em ~/.claude/skills/docx ou
-# ~/.agents/skills/docx (ver docx_template_engine.py:_localizar_docx_toolkit),
-# não vendorizado neste plugin. Sem ele instalado, render_docx.py e
-# validate_template.py falham explicitamente (fail closed) — instale-o
-# separadamente se ainda não tiver.
-#
-# Estas duas dependências abaixo são do PRÓPRIO toolkit "docx" (transitivas,
-# mas precisam estar no ambiente Python que roda os scripts deste plugin):
-defusedxml
+# Situação na Etapa 5.10 (ADR-0014, PEND-007) — AINDA NÃO totalmente
+# encerrada: docx_template_engine.py/docx_context_engine.py/
+# docx_block_engine.py/validate_template.py CONTINUAM dependendo em
+# runtime do skill "docx" de terceiro (unpack.py/pack.py/validate.py,
+# localizado via docx_template_engine.py:_localizar_docx_toolkit — NÃO
+# vendorizado neste plugin, instalação separada do usuário). O runtime
+# próprio do EDE (scripts/docx_package.py) já existe e já cobre a mesma
+# capacidade sem essa dependência, mas ainda não foi migrado para
+# nenhum consumidor real (Commit 3 em diante da Etapa 5.10, sob
+# autorização própria) — até lá, ambos coexistem.
 lxml
+
+# lxml é usada tanto pelo toolkit externo acima (enquanto ainda em uso)
+# quanto por scripts/docx_package.py, docx_numeracao_engine.py e
+# docx_block_engine.py (código próprio do EDE).
+#
+# defusedxml foi avaliada e REJEITADA nesta etapa como dependência de
+# scripts/docx_package.py — decisão e justificativa completas no
+# docstring desse módulo ("Decisão lxml × defusedxml"): lxml.etree com
+# parser configurado para processamento seguro (resolve_entities=False,
+# no_network=True, load_dtd=False) já cobre XXE/expansão de entidade sem
+# adicionar uma segunda pilha de XML ao projeto. Não listar defusedxml
+# aqui.
 
 # validate_placeholders.py sozinho NÃO precisa de nada disto — só lê o zip
 # do .docx com a stdlib (zipfile) para conferir placeholders.

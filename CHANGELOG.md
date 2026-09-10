@@ -7,6 +7,8 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+## [0.11.0] - 2026-09-10 — Runtime DOCX autônomo e distribuição reprodutível (Etapa 5.10)
+
 ### Adicionado (Etapa 5.10 — runtime DOCX autônomo e distribuição reprodutível, ADR-0014)
 - Runtime OOXML/ZIP próprio do EDE (`scripts/docx_package.py`) substituindo
   a dependência de runtime do skill "docx" de terceiro (Anthropic) —

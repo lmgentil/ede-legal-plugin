@@ -7,6 +7,43 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Adicionado (Etapa 5.10 — runtime DOCX autônomo e distribuição reprodutível, ADR-0014)
+- Runtime OOXML/ZIP próprio do EDE (`scripts/docx_package.py`) substituindo
+  a dependência de runtime do skill "docx" de terceiro (Anthropic) —
+  não redistribuível pela licença dele e com contrato incompatível com a
+  versão atualmente publicada (PEND-007, **resolvida**). Extração/
+  reempacotamento OOXML próprios, XXE mitigado via `lxml` configurado
+  (sem `defusedxml` — decisão registrada em `ADR-0014`), migrado para
+  todos os consumidores (`docx_template_engine.py`, `docx_context_engine.py`,
+  `docx_block_engine.py`, `validate_template.py`) sem regressão (57/57
+  partes OOXML byte-idênticas na comparação runtime antigo × novo).
+- `scripts/instalar_modelo_oficial.py` — bootstrap do Modelo Oficial:
+  valida pacote OOXML e contrato institucional (placeholders/blocos/
+  zonas) antes de instalar, instalação atômica, nunca substitui um
+  modelo válido por um arquivo não validado; SHA-256 registrado só para
+  auditoria, nunca como gate de compatibilidade.
+- `scripts/ede_doctor.py` — diagnóstico de ambiente host-agnostic
+  (`READY TO GENERATE`/`NOT READY`), verificação controlada de
+  dependências Python (nunca importa o runtime antes de confirmar
+  `lxml` presente), sem exigir `CLAUDE_PLUGIN_ROOT`.
+- `scripts/homologar_distribuicao.py` — harness de homologação de
+  distribuição: prova, sobre um clone Git limpo e temporário, que o
+  pacote publicamente distribuível instala dependências, instala o
+  Modelo Oficial, passa no doctor antes/depois, executa o pipeline
+  completo até o DOCX final com Template Lock aprovado e zero resíduo
+  de placeholder/zona/SDT, e aprova `validate_template.py` — sem
+  depender de `skills/docx/`, DataJud real (isolado por stub
+  determinístico só nesta homologação) ou caminho privado do
+  desenvolvedor.
+- `scripts/validate_template.py` reconstrói a peça de referência pelo
+  mecanismo real de geração (`gerar_peca_com_blocos` — composição de
+  blocos/zonas, renumeração, Template Lock interno), corrigindo um
+  falso negativo sistemático contra Contestações reais com blocos
+  excluídos (achado do Commit 7, corrigido no Microfix 7.1); propagação
+  crua de erro de pacote OOXML inválido também corrigida (Microfix 7.1).
+- `docs/DISTRIBUICAO.md` — guia de instalação/distribuição reprodutível,
+  documentando exclusivamente o que foi homologado nos Commits 1–8.
+
 ### Corrigido
 - Peso do fallback RAG TF-IDF+LSA: `svd.joblib` passou de 77,34 MiB para
   34,19 MiB (redução de 55,8%) com `components_` em `float32` e compactação

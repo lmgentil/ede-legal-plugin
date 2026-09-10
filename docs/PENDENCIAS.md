@@ -20,7 +20,10 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-004 | RESOLVIDA (gate PEND-004) | Fase 8 | — | Definir licença proprietária/source-available compatível com repositório público e distribuição do plugin |
 | PEND-005 | ABERTA | Etapa 5 | Nenhuma (dívida estrutural; a renumeração dinâmica atual elimina lacunas) | Subtítulos ainda não migrados para lista multinível nativa do Word |
 | PEND-006 | RESOLVIDA (causa eliminada) | Etapa 5 | — | Ambiguidade da fronteira de `EVOLUCAO_CONSUMO` eliminada com a retirada do placeholder duplicado |
-| PEND-007 | ABERTA (decisão registrada em ADR-0014) | Etapa 5.9 | Nenhuma (pipeline atual continua funcional com o toolkit antigo até a migração — Commits 3-5 da Etapa 5.10) | Dependência runtime do skill "docx" de terceiro (Anthropic) — não redistribuível por licença e com contrato obsoleto frente à versão atualmente publicada |
+| PEND-007 | RESOLVIDA (Commits 3-7.2 da Etapa 5.10) | Etapa 5.9 | — | Dependência runtime do skill "docx" de terceiro (Anthropic) — não redistribuível por licença e com contrato obsoleto frente à versão atualmente publicada |
+| PEND-008 | ABERTA | Etapa 5.10, Microfix 7.1 | Nenhuma (não bloqueante — partes OOXML byte-idênticas ao canônico) | Segundo asset de teste `modelo-oficial_topicos-2.3-a-2.6_contratados.docx` é legado/redundante |
+| PEND-009 | ABERTA | Etapa 5.10, Microfix 7.1 | Nenhuma (dívida arquitetural pré-existente, não introduzida pela Etapa 5.10) | `docx_numeracao_engine.py` localiza títulos de nível 2/3 por âncoras de texto hardcoded do Modelo Oficial real, não derivadas de `blocos.json` |
+| PEND-010 | ABERTA | Etapa 5.10, Commit 7 | Declaração de validação visual automatizada em release público (não bloqueia runtime/distribuição técnica) | Inspeção visual automatizada do DOCX final ainda não executada — nenhum renderizador DOCX legítimo disponível no ambiente de homologação |
 
 ---
 
@@ -403,9 +406,7 @@ decisão operacional separada e futura.
 
 ## PEND-007 — Dependência runtime do skill "docx" de terceiro (Anthropic) — não redistribuível e com contrato obsoleto
 
-**Status:** ABERTA (decisão de correção registrada em `ADR-0014`;
-resolução completa depende da migração dos consumidores existentes,
-ainda não executada)
+**Status:** RESOLVIDA (Commits 3–7.2 da Etapa 5.10; ver "Fechamento" abaixo)
 **Aberta em:** Etapa 5.9 (auditoria de distribuição reprodutível)
 **Bloqueia:** Nenhuma — o pipeline atual continua funcional para quem já
 possui a cópia vendorizada local (`skills/docx/`, gitignored) e
@@ -446,7 +447,138 @@ referências históricas em ADRs/CHANGELOG).
 
 ### Fechamento
 
-Em aberto. `ADR-0014` registra a decisão e o módulo novo
-(`scripts/docx_package.py`, ainda não consumido por nenhum motor
-existente). Migração dos consumidores é trabalho subsequente, sob
-autorização própria.
+**Resolvida.** Runtime próprio (`scripts/docx_package.py`, `ADR-0014`)
+implementado no Commit 2 e migrado para todos os consumidores nos
+Commits 3 (`docx_template_engine.py`, `docx_context_engine.py`,
+`docx_block_engine.py`, `validate_template.py`) e 4 (padronização
+fail-closed). Comparação byte a byte OOXML (57/57 partes idênticas,
+runtime antigo × novo) confirmou zero regressão no Commit 3. O critério
+objetivo de resolução (zero ocorrência funcional de `skills/docx`,
+`unpack.py`, `pack.py` no runtime do pipeline) foi confirmado
+repetidamente: Commits 5, 6, 7 e Microfixes 7.1/7.2, e comprovado de
+forma definitiva pelo harness `scripts/homologar_distribuicao.py`
+(Commit 7) contra um clone Git limpo sem `skills/docx/` — o pipeline
+completo, incluindo `validate_template.py` (corrigido nos Microfixes
+7.1/7.2), chega ao DOCX final com Template Lock aprovado. Reprodutível
+por qualquer instalação pública, sem a cópia vendorizada local. Ver
+`docs/DISTRIBUICAO.md` §5 para o resumo operacional.
+
+
+## PEND-008 — Segundo asset de teste `modelo-oficial_topicos-2.3-a-2.6_contratados.docx` legado/redundante
+
+**Status:** ABERTA
+**Aberta em:** Etapa 5.10, Microfix 7.1 (auditoria dos 3 skips
+dependentes desse asset, requisitada na autorização do Microfix 7.1)
+**Bloqueia:** Nenhuma — asset local do ambiente de desenvolvimento,
+gitignored, não distribuído; os 3 testes que dependem dele (`R/S/W/X`
+em `tests/test_topicos_2_3_a_2_6.py`) já usam `pytest.skip()` explícito
+quando ausente.
+
+### Contexto
+
+`templates/contestacao/modelo-oficial_topicos-2.3-a-2.6_contratados.docx`
+é um snapshot de trabalho salvo durante o desenvolvimento da Etapa
+5.8-G (adição dos tópicos 2.3–2.6), com histórico próprio de correções
+manuais registradas em `templates/contestacao/backup/` (`...-BACKUP-
+pre-fix-merito-sdt-...`, `...-pre-fix-token-economico-...`). Auditoria
+do Microfix 7.1 comparou esse arquivo contra o `modelo-oficial.docx`
+canônico, parte a parte (desempacotamento completo dos dois): **as
+partes OOXML são byte-idênticas** (`word/document.xml` e todas as
+demais partes) — a única diferença está no hash do arquivo `.docx`
+inteiro, decorrente de metadado de contêiner ZIP (timestamp/ordem/
+compressão), não de conteúdo. Confirmado também que o canônico já
+contém todos os SDTs/zonas dos tópicos 2.3–2.6 que os 3 testes
+dependentes exercitam.
+
+### Critério de resolução
+
+Migrar `TEMPLATE_2_3_A_2_6` (`tests/test_topicos_2_3_a_2_6.py`) para
+apontar para `modelo-oficial.docx`, eliminando a necessidade do segundo
+arquivo; ou remover o arquivo duplicado do ambiente de desenvolvimento
+após confirmar que nenhum teste depende mais dele.
+
+### Fechamento
+
+Em aberto — classificado como legado/redundante, não bloqueante.
+Correção explicitamente não autorizada nas rodadas da Etapa 5.10
+(Microfix 7.1/7.2, Commit 8) — fica para rodada própria.
+
+
+## PEND-009 — `docx_numeracao_engine.py` depende de âncoras textuais hardcoded do Modelo Oficial
+
+**Status:** ABERTA
+**Aberta em:** Etapa 5.10, Microfix 7.1 (achado de auditoria, Fase 1,
+antes de desenhar os testes de `validate_template.py`)
+**Bloqueia:** Nenhuma — dívida arquitetural pré-existente (não
+introduzida pela Etapa 5.10); o motor funciona corretamente contra o
+Modelo Oficial real, exatamente como sempre funcionou.
+
+### Contexto
+
+`scripts/docx_numeracao_engine.py` (`NOS_NIVEL_1`/`NOS_LITERAIS`)
+localiza os títulos de nível 2/3 da Contestação por um catálogo
+INTERNO, próprio, de âncoras de texto literal (ex.: `"LEGALIDADE DOS
+PROCEDIMENTOS"` para o nó `LEGALIDADE_PROCEDIMENTOS`) — não deriva nada
+de `templates/contestacao/blocos.json`. Consequência prática, achada ao
+tentar testar `gerar_peca_com_blocos()` (Microfix 7.1) contra um
+catálogo sintético mínimo: a renumeração automática (etapa obrigatória
+de toda geração via blocos) só é executável contra um documento que
+contenha essas âncoras reais — nenhuma composição sintética arbitrária
+chega ao fim do pipeline. Por esse motivo, todo teste que precisa de
+`gerar_peca_com_blocos()` completo (renumeração incluída) já é, e
+continuará sendo, `docx_real` — convenção já estabelecida antes desta
+etapa (`test_pipeline_completo_com_blocos_contra_template_real`, em
+`tests/test_docx_block_engine.py`), não uma limitação nova.
+
+### Risco se não resolvido
+
+Nenhum — é uma característica estrutural conhecida, não um defeito
+ativo. O risco é só de manutenção: qualquer alteração futura de título
+no Modelo Oficial exige atualizar `NOS_LITERAIS` manualmente, em
+sincronia com o `.docx` real.
+
+### Critério de resolução (futuro, não solicitado nesta etapa)
+
+Derivar as âncoras de numeração de `blocos.json` (ou de um catálogo
+próprio declarado nele), eliminando o acoplamento a texto hardcoded —
+refatoração de escopo próprio, fora do que qualquer rodada da Etapa
+5.10 autorizou.
+
+### Fechamento
+
+Em aberto — dívida arquitetural não bloqueante, registrada para etapa
+futura. Não refatorado nesta etapa.
+
+
+## PEND-010 — Inspeção visual automatizada do DOCX final ainda não executada
+
+**Status:** ABERTA
+**Aberta em:** Etapa 5.10, Commit 7 (homologação de distribuição)
+**Bloqueia:** Declaração de validação visual automatizada em release
+público — não bloqueia runtime, distribuição técnica nem os gates já
+homologados (Template Lock estrutural, zero resíduo, OOXML válido
+continuam sendo verificados programaticamente).
+
+### Contexto
+
+Todos os gates de homologação desta etapa (Commits 1–8) são estruturais/
+programáticos — Template Lock, ausência de placeholder/zona/SDT
+residual, numeração, validade OOXML. Nenhum deles renderiza o DOCX
+final visualmente para comparação humana ou automatizada contra a peça
+homologada. O ambiente de homologação usado nesta etapa não possui
+nenhum renderizador DOCX legítimo disponível (e a instalação de um
+toolkit proprietário para viabilizar isso foi explicitamente vedada em
+todas as rodadas desta etapa).
+
+### Critério de resolução
+
+Executar inspeção visual (manual ou por renderizador legítimo,
+licenciado) do DOCX final gerado pelo pipeline, comparando contra a
+peça de referência já homologada manualmente pelo usuário, antes de
+qualquer release público que declare validação visual automatizada.
+
+### Fechamento
+
+Em aberto. Registrada como requisito explícito para esse cenário
+futuro (release público com tal declaração) — não é pré-requisito para
+o uso interno já validado tecnicamente por esta etapa.

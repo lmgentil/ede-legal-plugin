@@ -147,15 +147,33 @@ basta pedir em linguagem natural, por exemplo:
 | `calendario-forense-tjba-2026` | Auxilia na análise de tempestividade |
 | `atualizar-ede` | Verifica se há versão mais nova do plugin publicada |
 
-## Template institucional
+## Template institucional (Modelo Oficial)
 
-O template DOCX institucional não é distribuído neste repositório.
-Usuários autorizados podem receber o arquivo separadamente e utilizá-lo
-com o mecanismo de geração documental do plugin.
+O template DOCX institucional (`modelo-oficial.docx`) não é distribuído
+neste repositório — é um asset institucional externo (`ADR-0009`).
+Usuários autorizados recebem o arquivo separadamente, pelo canal do
+próprio escritório, e o instalam localmente com:
+
+```bash
+python scripts/instalar_modelo_oficial.py CAMINHO_DO_ARQUIVO.docx
+```
+
+O script valida o arquivo (pacote OOXML íntegro + contrato de
+placeholders/blocos/zonas compatível com esta instalação) antes de
+instalá-lo — nunca substitui um modelo já instalado por um arquivo que
+não passou na validação. Depois, confirme o ambiente com:
+
+```bash
+python scripts/ede_doctor.py
+```
+
+que deve terminar em `READY TO GENERATE`. Procedimento completo,
+mensagens de erro (`MODELO_INSTITUCIONAL_DESATUALIZADO`) e solução de
+problemas: [`docs/DISTRIBUICAO.md`](./docs/DISTRIBUICAO.md).
 
 A ausência do template não impede a instalação nem o uso das Skills e
 dos recursos jurídicos; ela apenas impede a geração do DOCX
-institucional correspondente.
+institucional correspondente até que seja instalado.
 
 ## Atualização
 
@@ -189,7 +207,8 @@ o cache.
 |---|---|
 | Marketplace não encontrado | Confirme que adicionou `lmgentil/ede-legal-plugin` como marketplace antes de instalar o plugin. |
 | Plugin não encontrado | O identificador técnico é `ede-legal-plugin`, dentro do marketplace `ede`. |
-| Template institucional ausente | Esperado antes do fornecimento do arquivo pelo escritório — não é erro de instalação. |
+| Template institucional ausente | Esperado antes da instalação do arquivo — rode `python scripts/instalar_modelo_oficial.py CAMINHO_DO_ARQUIVO.docx` (ver seção acima); não é erro de instalação do plugin em si. |
+| `ede_doctor.py` reporta `NOT READY` | Veja o item obrigatório indicado na saída e [`docs/DISTRIBUICAO.md`](./docs/DISTRIBUICAO.md) (seção "Solução de problemas") — causas comuns: Modelo Oficial ausente/desatualizado, dependência Python ausente. |
 | Versão antiga carregada | No Claude Code, rode os comandos de atualização acima e reinicie/recarregue a sessão. No Cowork, confira com `/updateEde`; se persistir, reinstale por um pacote/versionamento explicitamente identificado, pois `synced` não comprova a versão carregada. |
 
 ## Segurança
@@ -225,3 +244,6 @@ conteúdo final antes de qualquer protocolo ou utilização profissional.
 
 Para desenvolvedores e interessados na arquitetura:
 [`CLAUDE.md`](./CLAUDE.md), [`docs/`](./docs/), [`CHANGELOG.md`](./CHANGELOG.md).
+Instalação/distribuição reprodutível (Modelo Oficial, `ede_doctor.py`,
+runtime DOCX autônomo, homologação de distribuição):
+[`docs/DISTRIBUICAO.md`](./docs/DISTRIBUICAO.md).

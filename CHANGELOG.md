@@ -7,6 +7,39 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+## [0.11.1] - 2026-09-10 — Fail-closed sem Modelo Oficial (hotfix)
+
+### Corrigido
+- Achado real pós-v0.11.0: em uso externo sem `templates/contestacao/
+  modelo-oficial.docx` instalado, a execução produzia um documento Word
+  autônomo em vez de abortar. Auditoria confirmou que o runtime Python
+  já abortava corretamente (`gerar_contestacao.py` → `PIPELINE_ABORTED`,
+  `stage=contexto_institucional`; `ede_doctor.py` → `NOT READY`) — a
+  lacuna estava em `skills/contestacao/SKILL.md`, sem alteração de
+  runtime, Template Lock, schema ou catálogo de blocos.
+- `skills/contestacao/SKILL.md` — nova seção `§0A` exigindo pré-flight
+  obrigatório via `ede_doctor.py` antes de qualquer elaboração em MODO
+  PRODUÇÃO: sem `READY TO GENERATE`, bloqueio absoluto da geração,
+  sem fallback documental.
+- Proibição explícita de contornar o bloqueio gerando a Contestação por
+  mecanismo alternativo (Skill genérica `docx`, `python-docx`, XML
+  manual, outra Skill, ou qualquer outro caminho fora do pipeline
+  oficial) — registrada em `§0A` e `§10`.
+- Urgência processual, prazo vencendo ou pedido explícito do advogado
+  nesse sentido não autorizam o bypass — o bloqueio é condicional ao
+  estado do ambiente (`ede_doctor.py`), nunca à alegação de urgência.
+- `§11` (`INV-CONTESTACAO-ENTREGA-DOCX`) passa a reconhecer
+  explicitamente "modelo ausente/`ede_doctor` não READY" como
+  interrupção legítima, distinta das demais; a regra de entrega
+  contínua ("sempre entregar o DOCX") passa a ficar expressamente
+  subordinada ao pré-flight aprovado.
+
+### Adicionado
+- `tests/test_contestacao_modelo_ausente_bloqueio.py` — guardas
+  estruturais do contrato de pré-flight/bloqueio absoluto, mais
+  confirmação funcional de que o runtime continua abortando sem o
+  template e de que o ambiente regularizado não permanece bloqueado.
+
 ## [0.11.0] - 2026-09-10 — Runtime DOCX autônomo e distribuição reprodutível (Etapa 5.10)
 
 ### Adicionado (Etapa 5.10 — runtime DOCX autônomo e distribuição reprodutível, ADR-0014)

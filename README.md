@@ -1,6 +1,6 @@
 # EDE Legal
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-0.11.0-blue)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-0.11.1-blue)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![Licença](https://img.shields.io/badge/licen%C3%A7a-source--available-lightgrey)
 

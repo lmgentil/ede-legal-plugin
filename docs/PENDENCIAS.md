@@ -20,6 +20,7 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-004 | RESOLVIDA (gate PEND-004) | Fase 8 | — | Definir licença proprietária/source-available compatível com repositório público e distribuição do plugin |
 | PEND-005 | ABERTA | Etapa 5 | Nenhuma (dívida estrutural; a renumeração dinâmica atual elimina lacunas) | Subtítulos ainda não migrados para lista multinível nativa do Word |
 | PEND-006 | RESOLVIDA (causa eliminada) | Etapa 5 | — | Ambiguidade da fronteira de `EVOLUCAO_CONSUMO` eliminada com a retirada do placeholder duplicado |
+| PEND-007 | ABERTA (decisão registrada em ADR-0014) | Etapa 5.9 | Nenhuma (pipeline atual continua funcional com o toolkit antigo até a migração — Commits 3-5 da Etapa 5.10) | Dependência runtime do skill "docx" de terceiro (Anthropic) — não redistribuível por licença e com contrato obsoleto frente à versão atualmente publicada |
 
 ---
 
@@ -397,3 +398,55 @@ Continuam válidas, sem alteração por esta resolução: `PEND-001`
 `svd.joblib`). Nenhum remote foi criado, nenhum push ou publicação
 externa foi realizado ao resolver esta pendência — isso permanece uma
 decisão operacional separada e futura.
+
+---
+
+## PEND-007 — Dependência runtime do skill "docx" de terceiro (Anthropic) — não redistribuível e com contrato obsoleto
+
+**Status:** ABERTA (decisão de correção registrada em `ADR-0014`;
+resolução completa depende da migração dos consumidores existentes,
+ainda não executada)
+**Aberta em:** Etapa 5.9 (auditoria de distribuição reprodutível)
+**Bloqueia:** Nenhuma — o pipeline atual continua funcional para quem já
+possui a cópia vendorizada local (`skills/docx/`, gitignored) e
+`CLAUDE_PLUGIN_ROOT` apontando para ela; bloqueia, sim, a reprodutibilidade
+da instalação para qualquer usuário fora desse ambiente específico, que é
+exatamente o problema que motivou a auditoria.
+
+### Contexto
+
+`scripts/docx_template_engine.py`, `docx_context_engine.py`,
+`docx_block_engine.py` e `validate_template.py` dependem em runtime de
+`unpack.py`/`pack.py` do skill "docx" da Anthropic, localizados via
+`_localizar_docx_toolkit()`. Essa dependência nunca foi vendorizável de
+forma distribuível: (1) a licença do skill (`skills/docx/LICENSE.txt`)
+proíbe extração, cópia e redistribuição fora dos Services da Anthropic;
+(2) a versão atualmente publicada do skill não expõe mais
+`unpack.py`/`pack.py` — reescrita para um fluxo `unzip/editar/zip`,
+contrato incompatível com o que o EDE espera, confirmado inclusive na
+própria máquina do desenvolvedor fora do checkout deste repositório.
+
+### Risco se não resolvido
+
+Nenhum advogado externo consegue gerar a Contestação a partir de uma
+instalação padrão do plugin (marketplace ou clone), mesmo fornecendo o
+`modelo-oficial.docx` pelo canal externo já previsto em `ADR-0009` — a
+geração falha sempre no estágio de desempacotamento do DOCX, com
+`RuntimeError` não tratado (achado da auditoria da Etapa 5.9, Fase 6).
+
+### Critério de resolução
+
+Runtime DOCX próprio do EDE (`scripts/docx_package.py`, `ADR-0014`),
+sem dependência de `skills/docx/` nem de qualquer outro toolkit de
+terceiro, migrado para todos os consumidores atuais e validado contra o
+Template Lock (`verificar_template_lock`) sem regressão. Critério
+objetivo: busca por `skills/docx`, `unpack.py`, `pack.py` no runtime do
+pipeline de Contestação retorna zero ocorrências funcionais (só
+referências históricas em ADRs/CHANGELOG).
+
+### Fechamento
+
+Em aberto. `ADR-0014` registra a decisão e o módulo novo
+(`scripts/docx_package.py`, ainda não consumido por nenhum motor
+existente). Migração dos consumidores é trabalho subsequente, sob
+autorização própria.

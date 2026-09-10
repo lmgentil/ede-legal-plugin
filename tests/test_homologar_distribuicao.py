@@ -191,6 +191,67 @@ def test_avaliar_checks_saida_placeholder_residual():
     assert h.avaliar_checks_saida(checks) is False
 
 
+# ------------------------------------------------- Microfix 7.2: chamada a validate_template.py
+def test_montar_args_validate_template_inclui_decisoes_blocos_obrigatorio():
+    args = h._montar_args_validate_template("gerado.docx", "dados.json", "decisoes.json")
+    assert "--decisoes-blocos" in args
+    assert args[args.index("--decisoes-blocos") + 1] == "decisoes.json"
+    assert "--gerado" in args and "--dados" in args
+    # opcionais não fornecidos nunca aparecem
+    assert "--catalogo" not in args
+    assert "--fatos-processuais" not in args
+    assert "--conteudo-zonas" not in args
+
+
+def test_montar_args_validate_template_inclui_catalogo_quando_fornecido():
+    args = h._montar_args_validate_template("gerado.docx", "dados.json", "decisoes.json",
+                                             catalogo_path="blocos_do_clone.json")
+    assert "--catalogo" in args
+    assert args[args.index("--catalogo") + 1] == "blocos_do_clone.json"
+
+
+def test_montar_args_validate_template_repassa_fatos_processuais_quando_existente():
+    args = h._montar_args_validate_template("gerado.docx", "dados.json", "decisoes.json",
+                                             fatos_processuais_path="estado.json")
+    assert "--fatos-processuais" in args
+    assert args[args.index("--fatos-processuais") + 1] == "estado.json"
+
+
+def test_montar_args_validate_template_repassa_conteudo_zonas_quando_existente():
+    args = h._montar_args_validate_template("gerado.docx", "dados.json", "decisoes.json",
+                                             conteudo_zonas_path="zonas.json")
+    assert "--conteudo-zonas" in args
+    assert args[args.index("--conteudo-zonas") + 1] == "zonas.json"
+
+
+def test_avaliar_homologacao_aprovada_exige_happy_path_e_validate_template_ok():
+    hp_ok = {"ok_geral": True}
+    vt_ok = {"json": {"ok": True, "divergencias": []}}
+    assert h.avaliar_homologacao(hp_ok, vt_ok) is True
+
+
+def test_avaliar_homologacao_reprovada_quando_validate_template_ok_false():
+    """Microfix 7.2, Fase 5: 'retorno ok=false continua fazendo a
+    homologação falhar' — mesmo com o happy path/Fase 8 aprovados."""
+    hp_ok = {"ok_geral": True}
+    vt_false = {"json": {"ok": False, "divergencias": ["alguma divergência real"]}}
+    assert h.avaliar_homologacao(hp_ok, vt_false) is False
+
+
+def test_avaliar_homologacao_reprovada_quando_happy_path_falhou():
+    hp_falhou = {"ok_geral": False}
+    vt_ok = {"json": {"ok": True, "divergencias": []}}
+    assert h.avaliar_homologacao(hp_falhou, vt_ok) is False
+
+
+def test_avaliar_homologacao_reprovada_quando_validate_template_ausente():
+    """happy path aprovado mas validate_template nunca rodou (ex.: pipeline
+    abortado antes da Fase 14) — nunca aprova por omissão."""
+    hp_ok = {"ok_geral": True}
+    assert h.avaliar_homologacao(hp_ok, None) is False
+    assert h.avaliar_homologacao(hp_ok, {}) is False
+
+
 def test_resolver_juizo_stub_e_deterministico():
     """Fase 17, cenário 'DataJud fake usado': o stub embutido no driver
     (_RESOLVER_JUIZO_STUB_SRC) devolve sempre o mesmo valor, nunca chama
@@ -302,6 +363,34 @@ def test_happy_path_aprovado_contra_repositorio_real():
         assert resultado["checks"]["template_lock"] == "OK"
         assert resultado["checks"]["zero_placeholder_residual"] is True
         assert resultado["checks"]["zero_sdt_residual"] is True
+
+
+@pytest.mark.docx_real
+def test_rodar_validate_template_contra_artefatos_do_happy_path_real():
+    """Microfix 7.2: fecha o laço Fase 7 -> Fase 14 contra o repositório
+    real — os artefatos que o driver reconstrói (dados/decisoes_blocos/
+    fatos_processuais/conteudo_zonas) devem ser exatamente os que
+    validate_template.py aceita como compatíveis (ok=true), sem
+    reimplementar nada do que já é testado em
+    tests/test_validate_template.py."""
+    if not TEMPLATE_REAL.exists():
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
+    with tempfile.TemporaryDirectory() as tmp:
+        saida_dir = Path(tmp)
+        hp = h.rodar_happy_path(BASE, "tests/fixtures/contestacao/happy_path", saida_dir)
+        assert hp["relatorio"]["status"] == "OK", hp["relatorio"]
+
+        vt = h.rodar_validate_template(
+            BASE, Path(hp["_output_path"]), Path(hp["_dados_path"]), Path(hp["_decisoes_blocos_path"]),
+            catalogo_path=BASE / "templates" / "contestacao" / "blocos.json",
+            fatos_processuais_path=Path(hp["_fatos_processuais_path"]),
+            conteudo_zonas_path=Path(hp["_conteudo_zonas_path"]))
+
+        assert vt["json"] is not None, vt
+        assert vt["json"]["ok"] is True, vt["json"]["divergencias"]
+        assert vt["returncode"] == 0
+        assert h.avaliar_homologacao(hp, vt) is True
 
 
 def main():

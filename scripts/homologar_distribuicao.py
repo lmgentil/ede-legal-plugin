@@ -35,6 +35,17 @@ NÃO faz parte da suíte pytest padrão (depende do Modelo Oficial real,
 fornecido externamente por parâmetro) — harness standalone, repetível,
 auditável, host-agnostic e fail-closed.
 
+Fase 14 (auditoria via `scripts/validate_template.py`) — Microfix 7.2:
+o driver reconstrói, por reinvocação READ-ONLY das mesmas etapas
+determinísticas de `gerar_contestacao.py` (nunca uma composição
+fabricada à parte), os MESMOS artefatos que produziram o DOCX do happy
+path — `dados`/`decisoes_blocos`/`fatos_processuais`/`conteudo_zonas` —
+e o harness os repassa à interface atual de `validate_template.py`
+(Microfix 7.1: `--decisoes-blocos` obrigatório, `--catalogo`/
+`--fatos-processuais`/`--conteudo-zonas` opcionais). `ok=false` em
+qualquer uma das duas fases (happy path ou validate_template) reprova a
+homologação inteira (`avaliar_homologacao`).
+
 Uso:
   python scripts/homologar_distribuicao.py --modelo-oficial CAMINHO.docx
   python scripts/homologar_distribuicao.py --modelo-oficial CAMINHO.docx --json
@@ -102,7 +113,7 @@ import docx_numeracao_engine  # noqa: E402
 def main():
     caso_dir = Path(sys.argv[1])
     output_path = Path(sys.argv[2])
-    dados_saida = Path(sys.argv[3])
+    artefatos_dir = Path(sys.argv[3])
 
     relatorio = gerar_contestacao.gerar(caso_dir, output_path,
                                          resolver_juizo_fn=_resolver_juizo_stub)
@@ -112,15 +123,37 @@ def main():
         print(json.dumps(resultado, ensure_ascii=False))
         sys.exit(1)
 
-    # Reconstrucao READ-ONLY de `dados` (mesmas etapas ja executadas
-    # dentro de gerar(), chamadas de novo aqui so para obter o dict --
-    # nao reimplementa nenhuma logica de negocio) -- usada por
-    # validate_template.py (Fase 14 do pedido).
+    # Reconstrucao READ-ONLY dos MESMOS artefatos deterministicos que
+    # gerar() ja usou internamente para produzir output_path (Microfix
+    # 7.2, Fase 2 do pedido: nunca fabricar um segundo estado estrutural
+    # so para o validator) -- as mesmas etapas de gerar_contestacao.py,
+    # chamadas de novo aqui so para obter os dicts, na MESMA ordem e com
+    # os MESMOS argumentos default (TEMPLATE_PADRAO/SCHEMA_PADRAO/
+    # CATALOGO_BLOCOS_PADRAO do proprio modulo, resolvidos relativos a
+    # onde gerar_contestacao.py foi copiado -- o clone) -- nao
+    # reimplementa nenhuma logica de negocio.
     stages_aux = []
+    contexto_institucional = gerar_contestacao._etapa_contexto_institucional(
+        gerar_contestacao.TEMPLATE_PADRAO, gerar_contestacao.SCHEMA_PADRAO,
+        gerar_contestacao.CATALOGO_BLOCOS_PADRAO, stages_aux)
+    fatos = gerar_contestacao._etapa_fatos(caso_dir, stages_aux)
     tempestividade_valor = gerar_contestacao._etapa_tempestividade(caso_dir, stages_aux)
+    decisoes_blocos, fatos_processuais = gerar_contestacao._etapa_blocos(
+        caso_dir, stages_aux, gerar_contestacao.CATALOGO_BLOCOS_PADRAO)
     dados = gerar_contestacao._etapa_placeholders(caso_dir, stages_aux, tempestividade_valor,
                                                    _resolver_juizo_stub)
-    dados_saida.write_text(json.dumps(dados, ensure_ascii=False), encoding="utf-8")
+    conteudo_zonas = gerar_contestacao._etapa_zonas(
+        caso_dir, stages_aux, gerar_contestacao.CATALOGO_BLOCOS_PADRAO, fatos,
+        contexto_institucional=contexto_institucional)
+
+    artefatos_dir.mkdir(parents=True, exist_ok=True)
+    (artefatos_dir / "dados.json").write_text(json.dumps(dados, ensure_ascii=False), encoding="utf-8")
+    (artefatos_dir / "decisoes_blocos.json").write_text(
+        json.dumps(decisoes_blocos, ensure_ascii=False), encoding="utf-8")
+    (artefatos_dir / "fatos_processuais.json").write_text(
+        json.dumps(fatos_processuais, ensure_ascii=False), encoding="utf-8")
+    (artefatos_dir / "conteudo_zonas.json").write_text(
+        json.dumps(conteudo_zonas, ensure_ascii=False), encoding="utf-8")
 
     checks = resultado["checks"]
     checks["arquivo_existe"] = output_path.is_file()
@@ -275,15 +308,19 @@ def rodar_pytest(clone_dir: Path, marker: str = None, timeout=500) -> dict:
 def rodar_happy_path(clone_dir: Path, caso_relativo: str, saida_dir: Path) -> dict:
     """Fase 7 (happy path completo) + Fase 8 (asserts de saída) num único
     subprocesso, via driver escrito em `saida_dir` (fora do clone —
-    nunca precisa ser versionado nem sujar o clone)."""
+    nunca precisa ser versionado nem sujar o clone). Devolve, além do
+    relatório/checks já existentes, os caminhos dos artefatos
+    deterministicos reconstruídos (dados/decisoes_blocos/
+    fatos_processuais/conteudo_zonas) — os MESMOS que produziram o DOCX
+    final, para uso por `rodar_validate_template` (Microfix 7.2)."""
     driver_path = saida_dir / "_driver_pipeline.py"
     driver_path.write_text(_DRIVER_SRC, encoding="utf-8")
 
     caso_dir = clone_dir / caso_relativo
     output_path = saida_dir / "contestacao_homologacao.docx"
-    dados_path = saida_dir / "dados_reconstruidos.json"
+    artefatos_dir = saida_dir / "artefatos"
 
-    r = subprocess.run([PYTHON, str(driver_path), str(caso_dir), str(output_path), str(dados_path)],
+    r = subprocess.run([PYTHON, str(driver_path), str(caso_dir), str(output_path), str(artefatos_dir)],
                         cwd=str(clone_dir), env=_ambiente_limpo(), capture_output=True, text=True,
                         encoding="utf-8", errors="replace", timeout=180)
     try:
@@ -292,14 +329,40 @@ def rodar_happy_path(clone_dir: Path, caso_relativo: str, saida_dir: Path) -> di
         raise HomologacaoFalhou("happy_path", f"driver não retornou JSON válido "
                                  f"(returncode={r.returncode}); stdout={r.stdout!r} stderr={r.stderr!r}")
     resultado["_output_path"] = str(output_path)
-    resultado["_dados_path"] = str(dados_path)
+    resultado["_dados_path"] = str(artefatos_dir / "dados.json")
+    resultado["_decisoes_blocos_path"] = str(artefatos_dir / "decisoes_blocos.json")
+    resultado["_fatos_processuais_path"] = str(artefatos_dir / "fatos_processuais.json")
+    resultado["_conteudo_zonas_path"] = str(artefatos_dir / "conteudo_zonas.json")
     resultado["_stderr"] = r.stderr
     return resultado
 
 
-def rodar_validate_template(clone_dir: Path, docx_gerado: Path, dados_path: Path) -> dict:
-    r = _run(["scripts/validate_template.py", "--gerado", str(docx_gerado), "--dados", str(dados_path)],
-              clone_dir, timeout=120)
+def _montar_args_validate_template(docx_gerado, dados_path, decisoes_blocos_path,
+                                    catalogo_path=None, fatos_processuais_path=None,
+                                    conteudo_zonas_path=None) -> list:
+    """Monta os argv de `scripts/validate_template.py` na interface atual
+    (Microfix 7.1: `--decisoes-blocos` obrigatório; `--catalogo`/
+    `--fatos-processuais`/`--conteudo-zonas` opcionais, cada um só
+    incluído quando o caminho correspondente é fornecido). Função pura,
+    sem subprocesso — testável em isolamento
+    (tests/test_homologar_distribuicao.py, Fase 5 do pedido)."""
+    args = ["scripts/validate_template.py", "--gerado", str(docx_gerado),
+            "--dados", str(dados_path), "--decisoes-blocos", str(decisoes_blocos_path)]
+    if catalogo_path is not None:
+        args += ["--catalogo", str(catalogo_path)]
+    if fatos_processuais_path is not None:
+        args += ["--fatos-processuais", str(fatos_processuais_path)]
+    if conteudo_zonas_path is not None:
+        args += ["--conteudo-zonas", str(conteudo_zonas_path)]
+    return args
+
+
+def rodar_validate_template(clone_dir: Path, docx_gerado: Path, dados_path: Path, decisoes_blocos_path: Path,
+                             catalogo_path: Path = None, fatos_processuais_path: Path = None,
+                             conteudo_zonas_path: Path = None) -> dict:
+    args = _montar_args_validate_template(docx_gerado, dados_path, decisoes_blocos_path,
+                                           catalogo_path, fatos_processuais_path, conteudo_zonas_path)
+    r = _run(args, clone_dir, timeout=120)
     try:
         return {"json": json.loads(r.stdout), "returncode": r.returncode, "stderr": r.stderr}
     except json.JSONDecodeError:
@@ -352,6 +415,17 @@ def avaliar_checks_saida(checks: dict) -> bool:
     )
 
 
+def avaliar_homologacao(happy_path_resultado: dict, validate_template_resultado: dict) -> bool:
+    """True somente se o happy path (Fase 7/8, `ok_geral`) E
+    validate_template.py (Fase 14, `json.ok`) aprovarem — extraída para
+    ser testável isoladamente (Microfix 7.2: "retorno ok=false continua
+    fazendo a homologação falhar"), mesmo padrão de `avaliar_checks_saida`
+    acima."""
+    hp_ok = (happy_path_resultado or {}).get("ok_geral") is True
+    vt_ok = (validate_template_resultado or {}).get("json", {}).get("ok") is True
+    return hp_ok and vt_ok
+
+
 def _ler_document_xml_bruto(docx_path: Path) -> str:
     with zipfile.ZipFile(docx_path) as z:
         return z.read("word/document.xml").decode("utf-8", errors="replace")
@@ -394,7 +468,11 @@ def homologar(modelo_oficial: Path, repo: Path = REPO_PADRAO, manter_clone: bool
         hp = relatorio["fases"]["happy_path"]
         if hp.get("relatorio", {}).get("status") == "OK":
             relatorio["fases"]["validate_template"] = rodar_validate_template(
-                clone_dir, Path(hp["_output_path"]), Path(hp["_dados_path"]))
+                clone_dir, Path(hp["_output_path"]), Path(hp["_dados_path"]),
+                Path(hp["_decisoes_blocos_path"]),
+                catalogo_path=clone_dir / "templates" / "contestacao" / "blocos.json",
+                fatos_processuais_path=Path(hp["_fatos_processuais_path"]),
+                conteudo_zonas_path=Path(hp["_conteudo_zonas_path"]))
 
         relatorio["fases"]["dependencias_skills_docx"] = buscar_dependencias_skills_docx(clone_dir)
 
@@ -409,7 +487,7 @@ def homologar(modelo_oficial: Path, repo: Path = REPO_PADRAO, manter_clone: bool
             textos_para_busca["docx_document_xml"] = _ler_document_xml_bruto(docx_saida)
         relatorio["fases"]["busca_caminho_privado"] = buscar_caminho_privado(textos_para_busca, str(repo))
 
-        pipeline_ok = hp.get("ok_geral") is True
+        pipeline_ok = avaliar_homologacao(hp, relatorio["fases"].get("validate_template"))
         relatorio["pipeline_chegou_ao_docx_final"] = pipeline_ok
     finally:
         if not manter_clone:

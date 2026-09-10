@@ -272,9 +272,8 @@ def test_compor_xml_via_wrapper_string_to_string():
 @pytest.mark.docx_real
 def test_pipeline_completo_com_blocos_contra_template_real():
     if not TEMPLATE_REAL.exists():
-        print(f"SKIP: {TEMPLATE_REAL} não existe localmente (esperado — "
-              "template institucional fora do git, ADR-0006).")
-        return
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
 
     from docx_block_engine import carregar_catalogo, gerar_peca_com_blocos, validar_catalogo
 

@@ -45,10 +45,11 @@ ARQUIVOS_HISTORICOS_PERMITIDOS = {
 
 
 def _pular_se_sem_template_real():
+    """Etapa 5.10, Commit 5: pytest.skip() explícito — nunca conta como
+    PASSED quando o asset não está instalado (falso verde corrigido)."""
     if not TEMPLATE_REAL.exists():
-        print("SKIP (template real ausente localmente — ADR-0006, esperado em CI/clone limpo)")
-        return True
-    return False
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
 
 
 # A. zero ocorrência nos contratos ativos (código, schema, catálogo, fixtures) do projeto.

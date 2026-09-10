@@ -83,10 +83,11 @@ def gerar(caso_dir, saida, *args, resolver_juizo_fn=None, **kwargs):
 
 
 def _pular_se_sem_template_real():
+    """Etapa 5.10, Commit 5: pytest.skip() explícito — nunca conta como
+    PASSED quando o asset não está instalado (falso verde corrigido)."""
     if not REAL_TEMPLATE.exists():
-        print("SKIP (template real ausente localmente — ADR-0006, esperado em CI/clone limpo)")
-        return True
-    return False
+        pytest.skip(f"{REAL_TEMPLATE} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
 
 
 # --------------------------------------------------------------- happy path

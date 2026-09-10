@@ -74,11 +74,11 @@ def _abortou(fn, *args, **kwargs):
 
 
 def _pular_sem_template():
+    """Etapa 5.10, Commit 5: pytest.skip() explícito — nunca conta como
+    PASSED quando o asset não está instalado (falso verde corrigido)."""
     if not TEMPLATE_2_3_A_2_6.exists():
-        print(f"SKIP: {TEMPLATE_2_3_A_2_6} não existe localmente (esperado — "
-              "template institucional fora do git, ADR-0009).")
-        return True
-    return False
+        pytest.skip(f"{TEMPLATE_2_3_A_2_6} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
 
 
 # ============================================================== catálogo sintético

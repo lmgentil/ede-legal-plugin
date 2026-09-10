@@ -83,11 +83,11 @@ ZONAS_ESPERADAS = {
 
 
 def _pular_se_sem_template_real():
+    """Etapa 5.10, Commit 5: pytest.skip() explícito — nunca conta como
+    PASSED quando o asset não está instalado (falso verde corrigido)."""
     if not TEMPLATE_REAL.exists():
-        print(f"SKIP: {TEMPLATE_REAL} não existe localmente (esperado — "
-              "template institucional fora do git, ADR-0006).")
-        return True
-    return False
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
 
 
 # --------------------------------------------------------------- 1: caminho feliz

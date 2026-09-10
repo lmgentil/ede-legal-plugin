@@ -240,9 +240,8 @@ def test_G_extracao_e_idempotente_e_nunca_muta_o_xml_de_entrada():
 @pytest.mark.docx_real
 def test_E_valor_fra_duplicado_dentro_de_reconvencao_no_template_real():
     if not TEMPLATE_REAL.exists():
-        print(f"SKIP: {TEMPLATE_REAL} não existe localmente (esperado — "
-              "template institucional fora do git, ADR-0006).")
-        return
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
     ctx = extrair_contexto_do_template(TEMPLATE_REAL, CATALOGO_REAL)
     ocorrencias = ctx["VALOR_FRA"]
     assert len(ocorrencias) == 2
@@ -252,8 +251,8 @@ def test_E_valor_fra_duplicado_dentro_de_reconvencao_no_template_real():
 @pytest.mark.docx_real
 def test_F_mc_choice_fallback_nao_gera_contexto_falso_no_template_real():
     if not TEMPLATE_REAL.exists():
-        print(f"SKIP: {TEMPLATE_REAL} não existe localmente.")
-        return
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
     ctx = extrair_contexto_do_template(TEMPLATE_REAL, CATALOGO_REAL)
     # AUTOR vem logo depois da caixa de título duplicada (mc:Choice/
     # mc:Fallback, INLINE:COM_RECONVENCAO) — não pode herdar bloco dela
@@ -265,8 +264,8 @@ def test_F_mc_choice_fallback_nao_gera_contexto_falso_no_template_real():
 @pytest.mark.docx_real
 def test_H_hash_do_template_mestre_inalterado_apos_extracao():
     if not TEMPLATE_REAL.exists():
-        print(f"SKIP: {TEMPLATE_REAL} não existe localmente.")
-        return
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
     antes = hashlib.sha256(TEMPLATE_REAL.read_bytes()).hexdigest()
     extrair_contexto_do_template(TEMPLATE_REAL, CATALOGO_REAL)
     depois = hashlib.sha256(TEMPLATE_REAL.read_bytes()).hexdigest()
@@ -276,8 +275,8 @@ def test_H_hash_do_template_mestre_inalterado_apos_extracao():
 @pytest.mark.docx_real
 def test_O_placeholders_oficiais_batem_exatamente_com_schema_no_template_real():
     if not TEMPLATE_REAL.exists():
-        print(f"SKIP: {TEMPLATE_REAL} não existe localmente.")
-        return
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
     schema = json.loads(SCHEMA_REAL.read_text(encoding="utf-8"))
     catalogo = json.loads(CATALOGO_REAL.read_text(encoding="utf-8"))
     ctx = extrair_contexto_do_template(TEMPLATE_REAL, CATALOGO_REAL)
@@ -299,8 +298,8 @@ def test_O_placeholders_oficiais_batem_exatamente_com_schema_no_template_real():
 @pytest.mark.docx_real
 def test_R_e2e_contexto_institucional_completo_contra_template_real():
     if not TEMPLATE_REAL.exists():
-        print(f"SKIP: {TEMPLATE_REAL} não existe localmente.")
-        return
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
     ctx = extrair_contexto_do_template(TEMPLATE_REAL, CATALOGO_REAL)
     # JUIZO é resolvido via DataJud (INV-JUIZO-DATAJUD) — nunca tem título/
     # bloco jurídico ao redor, é isolado no endereçamento.

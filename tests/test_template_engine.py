@@ -315,10 +315,8 @@ def test_template_lock_detecta_arquivo_extra_ou_ausente():
 @pytest.mark.docx_real
 def test_pipeline_completo_contra_template_real():
     if not TEMPLATE_REAL.exists():
-        print(f"SKIP: {TEMPLATE_REAL} não existe localmente (esperado — "
-              "template institucional fora do git, ver ADR-0006). "
-              "Rodando só os testes de unidade sobre XML sintético.")
-        return
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
 
     from docx_template_engine import carregar_schema, extrair_placeholders as _ep
     import shutil as _shutil
@@ -446,9 +444,8 @@ def test_pipeline_completo_contra_template_real():
 @pytest.mark.docx_real
 def test_processo_no_fonte_12_no_template_real():
     if not TEMPLATE_REAL.exists():
-        print(f"SKIP: {TEMPLATE_REAL} não existe localmente (esperado — "
-              "template institucional fora do git, ADR-0006).")
-        return
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
     import zipfile as _zf
     import lxml.etree as LET
 

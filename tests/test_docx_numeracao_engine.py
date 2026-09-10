@@ -310,9 +310,8 @@ def test_validador_detecta_numero_adulterado_apos_renumeracao():
 @pytest.mark.docx_real
 def test_O_P_pipeline_completo_gera_docx_com_numeracao_e_template_lock_ok():
     if not TEMPLATE_REAL.exists():
-        print(f"SKIP: {TEMPLATE_REAL} não existe localmente (esperado — "
-              "template institucional fora do git, ADR-0006).")
-        return
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
 
     import tempfile
 

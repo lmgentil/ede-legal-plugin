@@ -92,6 +92,9 @@ def test_B_F_I_docx_real_sem_marcador_bloco_funciona_lock_integro():
         "VALOR_DANO_MORAL_PRETENDIDO": "R$ 0,00 (dado fictício de teste)",
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
         "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
+        # Etapa 5.8-G: exigido por PRELIMINAR_INEPCIA_INICIAL, que entra em
+        # `decisoes` abaixo (decision_mode="estrategista", INCLUIR).
+        "SINOPSE_FATOS_NUCLEO_OBJETO": "Objeto fictício de teste (dado fictício de teste).",
     }
     assert TERMO not in dados
 

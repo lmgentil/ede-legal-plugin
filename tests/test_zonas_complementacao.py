@@ -526,12 +526,20 @@ def test_W_X_Y_Z_contexto_da_zona_no_template_real():
 
 
 # =============================================================== catálogo real
-def test_catalogo_real_tem_exatamente_a_zona_piloto():
+def test_catalogo_real_tem_a_zona_piloto_com_os_campos_da_etapa_5_8_b():
+    # Etapa 5.8-G: o catálogo passou a ter 5 zonas (ZONA_METODOLOGIA_
+    # APURACAO + as 4 dos tópicos 2.3-2.6, autorizadas junto com esses
+    # tópicos — CLAUDE.md "Zonas autorizadas hoje: cinco"). Este teste
+    # (arquivo específico da zona piloto, Etapa 5.8-B) deixou de exigir
+    # exclusividade ("UMA zona, só") e passou a exigir só que a zona
+    # piloto continue presente, com os campos exatos desta etapa; as
+    # outras 4 são regredidas em tests/test_topicos_2_3_a_2_6.py.
     catalogo = carregar_catalogo(CATALOGO_REAL)
     validar_catalogo(catalogo)
     zonas = catalogo["zones"]
-    assert [z["id"] for z in zonas] == [ZONA_ID], "Etapa 5.8-B autoriza UMA zona, só"
-    z = zonas[0]
+    por_id = {zz["id"]: zz for zz in zonas}
+    assert ZONA_ID in por_id, f"{ZONA_ID} (zona piloto) precisa continuar no catálogo"
+    z = por_id[ZONA_ID]
     assert z["tag"] == ZONA_TAG
     assert z["bloco_pai"] == "CALCULOS_RECUPERACAO_CONSUMO"
     assert z["tipo_conteudo"] == "dado_documental"
@@ -545,11 +553,16 @@ def test_catalogo_real_tem_exatamente_a_zona_piloto():
     assert token_da_zona(z) == TOKEN
 
 
-def test_AE_treze_placeholders_oficiais_preservados():
+def test_AE_placeholders_oficiais_preservados():
+    # Etapa 5.8-G: 13->18 (CONTA_CONTRATO/NOME_TITULAR_DA_UC/TELAS_DA_
+    # TITULARIDADE/SINOPSE_FATOS_NUCLEO_OBJETO/VALOR_DA_CAUSA, tópicos
+    # 2.3-2.6) — mudança de contrato deliberada e documentada, não uma
+    # regressão; o que este teste continua garantindo é que zona nunca
+    # colide com placeholder, qualquer que seja a contagem.
     schema = json.loads(SCHEMA_REAL.read_text(encoding="utf-8"))
     catalogo = carregar_catalogo(CATALOGO_REAL)
-    assert len(schema["editable_placeholders"]) == 13
-    assert len(schema["placeholder_contracts"]) == 13
+    assert len(schema["editable_placeholders"]) == 19
+    assert len(schema["placeholder_contracts"]) == 19
     ids_zona = {z["id"] for z in catalogo["zones"]}
     assert not (ids_zona & set(schema["editable_placeholders"])), \
         "zona NUNCA entra em editable_placeholders — placeholder e zona são contratos distintos"
@@ -600,7 +613,13 @@ def test_AA_AC_AD_AF_e2e_zona_incluida_contra_template_real():
         assert "CALCULOS_RECUPERACAO_CONSUMO" in r["blocos_incluidos"]
         stage_engine = next(s for s in r["stages"] if s["name"] == "template_engine")
         assert stage_engine["numeracao"], "renumeração continua reportada"
-        assert stage_engine["zonas"] == {ZONA_ID: "INCLUIR"}
+        # Etapa 5.8-G: o catálogo tem 5 zonas agora — a fixture happy_path
+        # só fornece fato para a zona piloto (METODOLOGIA_APURACAO_
+        # DOCUMENTADA), as outras 4 resolvem EXCLUIR automaticamente (fato
+        # ausente, sem pergunta — mesma disciplina de INV-BLOCO-SUPORTE-
+        # FATICO). A zona piloto continua a única INCLUIR neste cenário.
+        assert stage_engine["zonas"][ZONA_ID] == "INCLUIR"
+        assert all(v == "EXCLUIR" for k, v in stage_engine["zonas"].items() if k != ZONA_ID)
 
         xml = _docx_xml(saida)
         assert TOKEN not in xml, "AF: nenhum token residual"
@@ -1638,7 +1657,7 @@ def test_5D1_J_K_L_geracao_valida_passa_pelo_gate_sem_regressao():
     if _pular_sem_template():
         return
     schema = json.loads((BASE / "templates" / "contestacao" / "schema.json").read_text(encoding="utf-8"))
-    assert len(schema["editable_placeholders"]) == 13, "L: 13 placeholders oficiais preservados"
+    assert len(schema["editable_placeholders"]) == 19, "L: 19 placeholders oficiais preservados (correção pontual 09/09/2026)"
     with tempfile.TemporaryDirectory() as tmp:
         caso = _caso_com_zona(tmp, ZONA_RICA)
         saida = Path(tmp) / "com-zona.docx"

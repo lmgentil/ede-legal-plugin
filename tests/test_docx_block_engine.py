@@ -295,6 +295,9 @@ def test_pipeline_completo_com_blocos_contra_template_real():
         "VALOR_DANO_MORAL_PRETENDIDO": "R$ 0,00 (dado fictício de teste)",
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
         "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
+        # Etapa 5.8-G: exigido por PRELIMINAR_INEPCIA_INICIAL, que agora
+        # entra em decisoes_tudo_incluido (decision_mode="estrategista").
+        "SINOPSE_FATOS_NUCLEO_OBJETO": "Objeto fictício de teste (dado fictício de teste).",
     }
     decisoes_tudo_incluido = {b["id"]: {"decisao": "INCLUIR"}
                                for b in catalogo["blocks"] if b["decision_mode"] in ("estrategista", "humano")}
@@ -331,14 +334,18 @@ def test_pipeline_completo_com_blocos_contra_template_real():
         assert "LICITUDE_CORTE_SUSPENSAO" in r["blocos_incluidos"]
 
         # cenário "nenhuma preliminar / evolução excluída / reconvenção
-        # excluída / sem corte efetivo". PRELIMINAR_REVOGACAO_GRATUIDADE NÃO
-        # entra neste loop — 'state_linked' (INV-GRATUIDADE-LINKED), nunca
-        # aceita decisão manual; sem fatos_processuais nesta chamada,
-        # resolve automaticamente para EXCLUIR (fato ausente).
+        # excluída / sem corte efetivo". PRELIMINAR_REVOGACAO_GRATUIDADE e
+        # as demais preliminares 'state_linked' da Etapa 5.8-G (2.3/2.4/2.6)
+        # NÃO entram neste loop — sem fatos_processuais nesta chamada,
+        # todas resolvem automaticamente para EXCLUIR (fato ausente).
+        # PRELIMINAR_INEPCIA_INICIAL (2.5) É 'estrategista' — igual a
+        # PRELIMINAR_CDC_INAPLICAVEL, precisa de EXCLUIR explícito aqui
+        # para que "nenhuma preliminar" seja de fato nenhuma.
         # LICITUDE_CORTE_SUSPENSAO recebe EXCLUIR explícito (decision_mode
         # 'humano' aceita EXCLUIR mesmo sem o gate satisfeito).
         decisoes_minimo = dict(decisoes_tudo_incluido)
-        for bid in ("PRELIMINAR_CDC_INAPLICAVEL", "EVOLUCAO_CONSUMO", "RECONVENCAO", "LICITUDE_CORTE_SUSPENSAO"):
+        for bid in ("PRELIMINAR_CDC_INAPLICAVEL", "PRELIMINAR_INEPCIA_INICIAL",
+                    "EVOLUCAO_CONSUMO", "RECONVENCAO", "LICITUDE_CORTE_SUSPENSAO"):
             decisoes_minimo[bid] = {"decisao": "EXCLUIR"}
         dados_sem_evolucao = dict(dados)
         saida2 = Path(tmp) / "contestacao-blocos-minimo.docx"

@@ -59,10 +59,18 @@ PLACEHOLDERS_GERATIVOS_ESPERADOS = {
     "TEMPESTIVIDADE_CASO", "SINOPSE_FATOS", "REALIDADE_FATICA",
     "IRREGULARIDADE_ENCONTRADA", "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE",
     "PEDIDOS_FINAIS",
+    # Etapa 5.8-G — único dos 5 placeholders novos que é TEXTO_TECNICO
+    # (schema.json placeholder_contracts); os outros quatro são
+    # IDENTIFICADOR/VALOR/MARCADOR_MANUAL (determinísticos/documentais).
+    "SINOPSE_FATOS_NUCLEO_OBJETO",
 }
 PLACEHOLDERS_DETERMINISTICOS = {
     "JUIZO", "FOTOS_DA_IRREGULARIADE", "NUMERO_PROCESSO", "AUTOR",
     "VALOR_FRA", "VALOR_DANO_MORAL_PRETENDIDO", "LOCAL_DATA",
+    # Etapa 5.8-G — CONTA_CONTRATO/NOME_TITULAR_DA_UC (IDENTIFICADOR),
+    # TELAS_DA_TITULARIDADE (MARCADOR_MANUAL) e VALOR_DA_CAUSA (VALOR).
+    "CONTA_CONTRATO", "NOME_TITULAR_DA_UC", "TELAS_DA_TITULARIDADE",
+    "VALOR_DA_CAUSA",
 }
 # Etapa 5.8-B: zona é ponto gerativo (o Redator precisa do contexto
 # institucional para aplicar o teste de necessidade), mas NÃO é

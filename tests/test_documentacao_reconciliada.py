@@ -77,7 +77,7 @@ def test_contagem_de_placeholders_e_consistente_entre_contratos():
     skill = _texto(CONTESTACAO_SKILL)
     quantidade = len(schema["editable_placeholders"])
 
-    assert quantidade == 13
+    assert quantidade == 19
     assert len(schema["placeholder_contracts"]) == quantidade
     assert f"Geração dos {quantidade} placeholders" in skill
     assert f"Contrato semântico dos {quantidade} placeholders" in schema[

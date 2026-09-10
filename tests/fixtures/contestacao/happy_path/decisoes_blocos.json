@@ -1,5 +1,6 @@
 {
   "PRELIMINAR_CDC_INAPLICAVEL": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — parte autora é pessoa física, relação de consumo típica, CDC se aplica normalmente."},
+  "PRELIMINAR_INEPCIA_INICIAL": {"decisao": "EXCLUIR", "fundamento": "cenário sintético — causa de pedir individualizada (data, UC, período) e documentos essenciais presentes, sem deficiência estrutural."},
   "DEVER_LEGAL_FISCALIZACAO": {"decisao": "INCLUIR", "fundamento": "cenário sintético — TOI lavrado no exercício do dever legal de fiscalização (REN ANEEL 1.000/2021)."},
   "DESNECESSIDADE_AVISO_PREVIO": {"decisao": "INCLUIR", "fundamento": "cenário sintético — inspeção de rotina, sem exigência normativa de aviso prévio."},
   "CALCULOS_RECUPERACAO_CONSUMO": {"decisao": "INCLUIR", "fundamento": "cenário sintético — memorial de cálculo apresentado, metodologia do art. 595 aplicável."},

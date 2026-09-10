@@ -274,7 +274,7 @@ def test_H_hash_do_template_mestre_inalterado_apos_extracao():
 
 
 @pytest.mark.docx_real
-def test_O_treze_placeholders_batem_exatamente_com_schema_no_template_real():
+def test_O_placeholders_oficiais_batem_exatamente_com_schema_no_template_real():
     if not TEMPLATE_REAL.exists():
         print(f"SKIP: {TEMPLATE_REAL} não existe localmente.")
         return
@@ -285,10 +285,14 @@ def test_O_treze_placeholders_batem_exatamente_com_schema_no_template_real():
     # Complementação catalogadas. A asserção continua EXATA — nenhum token
     # no template pode existir fora dessas duas listas (INV-ZONA-
     # COMPLEMENTACAO: sem placeholder ou zona catalogada, sem escrita
-    # gerativa) — e os 13 placeholders oficiais continuam sendo 13.
+    # gerativa). Etapa 5.8-G: 13->18 placeholders / 1->5 zonas (tópicos
+    # 2.3-2.6); correção pontual de 09/09/2026: 18->19 (VALOR_TOTAL_
+    # PROVEITO_ECONOMICO, existia no DOCX real mas não estava catalogado —
+    # ver schema.json). TEMPLATE_REAL já incorpora os SDTs dos tópicos
+    # 2.3-2.6 (confirmado empiricamente).
     zonas = {z["id"] for z in catalogo.get("zones", [])}
     assert set(ctx.keys()) == set(schema["editable_placeholders"]) | zonas
-    assert len(schema["editable_placeholders"]) == 13
+    assert len(schema["editable_placeholders"]) == 19
     assert not (zonas & set(schema["editable_placeholders"]))
 
 

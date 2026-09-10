@@ -339,16 +339,20 @@ def test_pipeline_completo_contra_template_real():
         unpack_mod.unpack(str(cópia), str(unpacked))
         template_xml = (unpacked / "word" / "document.xml").read_text(encoding="utf-8")
 
-    # Etapa 5.8-B: além dos 13 placeholders oficiais, o template real passa
+    # Etapa 5.8-B: além dos placeholders oficiais, o template real passa
     # a conter os tokens das Zonas de Complementação catalogadas. A
     # asserção continua exata (nenhum token pode existir fora dessas duas
-    # listas — INV-ZONA-COMPLEMENTACAO) e os 13 continuam 13; zona nunca
-    # entra em editable_placeholders.
+    # listas — INV-ZONA-COMPLEMENTACAO); zona nunca entra em
+    # editable_placeholders. Etapa 5.8-G: 13->18 placeholders / 1->5
+    # zonas (tópicos 2.3-2.6) — TEMPLATE_REAL (modelo-oficial.docx) já
+    # incorpora os SDTs dos tópicos 2.3-2.6 (confirmado empiricamente em
+    # 09/09/2026: placeholders_reais bate exatamente com schema | zonas);
+    # a promoção mencionada em versões anteriores desta nota já ocorreu.
     catalogo_real = json.loads(
         (BASE / "templates" / "contestacao" / "blocos.json").read_text(encoding="utf-8"))
     tokens_zona = {z["id"] for z in catalogo_real.get("zones", [])}
     assert not (tokens_zona & set(schema["editable_placeholders"]))
-    assert len(schema["editable_placeholders"]) == 13
+    assert len(schema["editable_placeholders"]) == 19
 
     placeholders_reais = _ep(template_xml)
     assert placeholders_reais == set(schema["editable_placeholders"]) | tokens_zona, (
@@ -371,6 +375,17 @@ def test_pipeline_completo_contra_template_real():
         "VALOR_DANO_MORAL_PRETENDIDO": "R$ 0,00 (dado fictício de teste)",
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
         "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
+        # Etapa 5.8-G — sem composição de blocos neste teste (motor de
+        # baixo nível), todos os SDTs permanecem no XML bruto, inclusive
+        # os dos tópicos 2.3-2.6: os 5 placeholders novos precisam de
+        # valor mesmo que, em produção, só sejam exigidos com o bloco
+        # correspondente INCLUIR.
+        "CONTA_CONTRATO": "0000000000 (dado fictício de teste)",
+        "NOME_TITULAR_DA_UC": "FULANO DE TAL TITULAR (DADOS FICTÍCIOS DE TESTE)",
+        "TELAS_DA_TITULARIDADE": "(nenhuma tela anexada, dado fictício de teste)",
+        "SINOPSE_FATOS_NUCLEO_OBJETO": "Objeto fictício de teste (dado fictício de teste).",
+        "VALOR_DA_CAUSA": "R$ 0,00 (dado fictício de teste)",
+        "VALOR_TOTAL_PROVEITO_ECONOMICO": "R$ 0,00 (dado fictício de teste)",
     }
     # Este teste exercita o motor de baixo nível (gerar_peca, SEM composição
     # de blocos/zonas) contra o arquivo real; por isso os tokens de zona

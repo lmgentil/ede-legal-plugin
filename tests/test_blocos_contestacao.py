@@ -63,6 +63,10 @@ def test_catalogo_real_carrega_e_valida():
     ids = {b["id"] for b in catalogo["blocks"]}
     esperado = {
         "PRELIMINARES", "PRELIMINAR_CDC_INAPLICAVEL", "PRELIMINAR_REVOGACAO_GRATUIDADE",
+        # Etapa 5.8-G — tópicos 2.3 a 2.6 e seus dois subblocos aninhados.
+        "PRELIMINAR_AUSENCIA_INTERESSE_AGIR", "PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO",
+        "SUBBLOCO_AUSENCIA_TRANSFERENCIA_TITULARIDADE", "PRELIMINAR_INEPCIA_INICIAL",
+        "PRELIMINAR_IMPUGNACAO_VALOR_CAUSA", "SUBBLOCO_CUMULACAO_PEDIDOS",
         "DEVER_LEGAL_FISCALIZACAO", "DESNECESSIDADE_AVISO_PREVIO", "CALCULOS_RECUPERACAO_CONSUMO",
         "EVOLUCAO_CONSUMO", "LICITUDE_CORTE_SUSPENSAO", "NEXO_CAUSAL_INDEMONSTRADO",
         "DESCABIMENTO_DANO_MORAL", "RECONVENCAO", "INLINE_COM_RECONVENCAO",
@@ -75,8 +79,14 @@ def test_catalogo_real_preliminares_e_container_derived():
     por_id = {b["id"]: b for b in catalogo["blocks"]}
     assert por_id["PRELIMINARES"]["tipo"] == "CONTAINER_DERIVED"
     assert por_id["PRELIMINARES"]["derived_rule"] == "ANY_CHILD_INCLUDED"
+    # Etapa 5.8-G: children passou a incluir também os tópicos 2.3-2.6
+    # (lógicos — decidem a sobrevivência do badge nível-1, mesmo não
+    # aninhados fisicamente no <w:sdt> de PRELIMINARES; ver nota
+    # "_nota_etapa_5_8_g" em blocos.json).
     assert set(por_id["PRELIMINARES"]["children"]) == {
-        "PRELIMINAR_CDC_INAPLICAVEL", "PRELIMINAR_REVOGACAO_GRATUIDADE"}
+        "PRELIMINAR_CDC_INAPLICAVEL", "PRELIMINAR_REVOGACAO_GRATUIDADE",
+        "PRELIMINAR_AUSENCIA_INTERESSE_AGIR", "PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO",
+        "PRELIMINAR_INEPCIA_INICIAL", "PRELIMINAR_IMPUGNACAO_VALOR_CAUSA"}
 
 
 def test_catalogo_real_evolucao_consumo_e_puramente_fixo_sem_placeholder():

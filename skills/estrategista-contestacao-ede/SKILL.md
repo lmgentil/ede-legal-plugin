@@ -324,6 +324,30 @@ problemas confirmados no primeiro teste real:
   DOCUMENTAL, `docs/specs/SPEC-0001.md` §53); nunca estime ou arredonde
   esse valor, e sinalize se a inicial trouxer quantificações
   incompatíveis para o mesmo pedido.
+- **Três preliminares novas (Etapa 5.8-G, tópicos 2.3, 2.4 e 2.6) também
+  não são decisão sua — são vínculo determinístico, mesmo padrão de
+  revogação de gratuidade acima.** Você não inclui/exclui "ausência de
+  interesse de agir", "ilegitimidade ativa por titularidade de terceiro"
+  ou "impugnação ao valor da causa" na seção IV: aponta, no Diagnóstico
+  Executivo/Fatos comprovados, se os elementos do caso confirmam (a) que
+  não houve prévia tentativa administrativa nem pretensão resistida —
+  insumo para `AUSENCIA_TENTATIVA_ADMINISTRATIVA_COMPROVADA`; (b) que a
+  UC está cadastrada em nome de pessoa diversa da autora, com o
+  identificador (conta-contrato) e o nome do titular real — insumo para
+  `UC_TITULARIDADE_TERCEIRO_COMPROVADA`; (c) discrepância relevante entre
+  o valor da causa fixado na inicial e a soma dos pedidos com conteúdo
+  econômico — insumo para `EXISTE_DISCREPANCIA_VALOR_CAUSA`. A Skill
+  `contestacao` resolve o vínculo em `estado_processual.json`; você só
+  entrega o fato com proveniência, nunca a decisão de inclusão.
+- **Inépcia da inicial (2.4→2.5) É decisão sua, normalmente, como
+  qualquer outra preliminar — mas com critério mais restrito que os
+  demais.** Não recomende essa preliminar por um único fator isolado
+  (ex.: só "falta um documento"): exige combinação materialmente
+  relevante entre narrativa genérica, ausência de individualização de
+  tempo/modo/lugar e ausência de documentos essenciais/prova mínima. Se a
+  causa de pedir já estiver individualizada e os documentos essenciais
+  presentes, não recomende — inicial "poderia ser melhor" não é o
+  mesmo que "inepta".
 
 Evite também multiplicar argumentos equivalentes com palavras diferentes
 só para parecer mais robusto (mesmo princípio de `redator-peca-processual-

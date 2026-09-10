@@ -17,9 +17,17 @@
     "VALOR_FRA",
     "VALOR_DANO_MORAL_PRETENDIDO",
     "PEDIDOS_FINAIS",
-    "LOCAL_DATA"
+    "LOCAL_DATA",
+    "CONTA_CONTRATO",
+    "NOME_TITULAR_DA_UC",
+    "TELAS_DA_TITULARIDADE",
+    "SINOPSE_FATOS_NUCLEO_OBJETO",
+    "VALOR_DA_CAUSA",
+    "VALOR_TOTAL_PROVEITO_ECONOMICO"
   ],
   "_nota_auditoria_fase3": "Lista extraída por auditoria direta do DOCX (não da versão original da SPEC-0001 REQ-014, que previa TIPO_ACAO/TITULO_TESE_FATICA/VALOR_DANO_MORAL — nenhum dos três existe neste template real). SPEC-0001 e CLAUDE.md foram atualizados para refletir este contrato. Ver docs/adr ou CHANGELOG para o registro da divergência.",
+  "_nota_topicos_2_3_a_2_6": "Etapa 5.8-G. 13→18 placeholders, auditados diretamente em modelo-oficial_topicos-2.3-a-2.6_contratados.docx (texto corrido reconstruído a partir de todos os <w:t>, não regex bruto sobre o XML — tokens de placeholder aparecem split entre runs). CONTA_CONTRATO/NOME_TITULAR_DA_UC/TELAS_DA_TITULARIDADE pertencem ao tópico 2.4 (ilegitimidade ativa); SINOPSE_FATOS_NUCLEO_OBJETO ao 2.5 (inépcia); VALOR_DA_CAUSA ao 2.6 (impugnação ao valor da causa). O tópico 2.3 (ausência de interesse de agir) não tem placeholder atômico próprio — só a zona ZONA_PRETENSAO_RESISTIDA (templates/contestacao/blocos.json).",
+  "_nota_valor_total_proveito_economico": "Correção pontual (09/09/2026, achado do teste automatizado contra o DOCX real — não parte da auditoria original da Etapa 5.8-G): a nota anterior desta seção afirmava que VALOR_TOTAL_PROVEITO_ECONÔMICO 'NÃO existe no DOCX real' e que ZONA_COMPOSICAO_PROVEITO_ECONOMICO cobriria seu papel — INCORRETO. O placeholder existe fisicamente, dentro do próprio BLOCO:PRELIMINAR_IMPUGNACAO_VALOR_CAUSA (não da zona/subbloco), na frase de pedido: '...requer o ACOLHIMENTO DA IMPUGNAÇÃO para retificar o valor da causa para R$ {{VALOR_TOTAL_PROVEITO_ECONOMICO}}, determinando-se a intimação da Parte Autora para que proceda ao recolhimento da complementação das custas iniciais...'. Uma zona (prosa opcional) não pode preencher um valor monetário dentro de frase fixa — os dois papéis são distintos e ambos existem: a zona (quando incluída) demonstra a composição documental dos pedidos; este placeholder é o valor total já somado, exigido pela sentença fixa sempre que o bloco 2.6 estiver INCLUIR. 18→19 placeholders. Sem este cadastro, toda Contestação com o tópico 2.6 incluído saía com um {{...}} residual no documento final — corrigido nesta sessão.",
   "_nota_valor_dano_moral_pretendido": "Correção pontual (não a auditoria de Fase 3 acima): VALOR_DANO_MORAL_PRETENDIDO foi inserido manualmente pelo advogado no modelo-oficial.docx, dentro do bloco BLOCO:DESCABIMENTO_DANO_MORAL ('...no valor de {{VALOR_DANO_MORAL_PRETENDIDO}}, contudo, a mera formulação de pretensão indenizatória não se revela suficiente...'). É homônimo do VALOR_DANO_MORAL previsto na SPEC-0001 original e removido na auditoria de Fase 3, mas semanticamente distinto: aquele seria um placeholder de pedido de dano moral (que este modelo, de Contestação, nunca formula); este é o valor que a AUTORA pediu, citado defensivamente no tópico que argumenta pelo descabimento do dano moral. 12→13 placeholders — ver docs/specs/SPEC-0001.md §53.",
   "_nota_fotos": "FOTOS_DA_IRREGULARIADE (nome com erro de digitação no próprio DOCX, mantido literal) é tratado como texto/legenda pela engine atual. Decisão da V1 (correção v0.6.1, PEND-001 DEFERRED): a inserção de imagem embutida não será automatizada nesta versão — o campo recebe um marcador textual indicando pós-edição manual pelo advogado. Ver placeholder_semantics abaixo e docs/PENDENCIAS.md.",
   "placeholder_semantics": {
@@ -27,9 +35,14 @@
       "tratamento_v1": "manual_post_edit",
       "descricao": "Campo textual — não recebe imagem embutida automaticamente na V1. O valor gerado deve ser um marcador explícito instruindo o advogado a inserir manualmente as fotografias da irregularidade após a geração do DOCX (ex.: \"[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]\"), não uma descrição textual da irregularidade em si (essa é IRREGULARIDADE_ENCONTRADA). Campo puramente informativo — não lido pelo Template Engine (docx_template_engine.py só consome 'editable_placeholders'); documenta a semântica para quem gerar os valores dos placeholders (skills/contestacao/SKILL.md).",
       "referencia": "PEND-001 (docs/PENDENCIAS.md) — status DEFERRED, não bloqueia mais a Fase 7"
+    },
+    "TELAS_DA_TITULARIDADE": {
+      "tratamento_v1": "manual_post_edit",
+      "descricao": "Mesmo tratamento de FOTOS_DA_IRREGULARIADE (Etapa 5.8-G): campo textual, não recebe imagem/print embutido automaticamente. O valor gerado deve ser um marcador explícito instruindo o advogado a inserir manualmente as telas/documentos que comprovam a titularidade cadastral da UC (fatura, cadastro operacional) após a geração do DOCX (ex.: \"[INSERIR MANUALMENTE AS TELAS/DOCUMENTOS DA TITULARIDADE DA UC]\"), não uma descrição textual da divergência de titularidade em si (essa é a zona ZONA_TITULARIDADE_UC ou NOME_TITULAR_DA_UC). Campo puramente informativo — não lido pelo Template Engine.",
+      "referencia": "Mesmo padrão de PEND-001 (docs/PENDENCIAS.md), aplicado por analogia na Etapa 5.8-G"
     }
   },
-  "_nota_placeholder_contracts": "Contrato semântico dos 13 placeholders (Etapa 3, pós-diagnóstico forense do bug real de paginação — ver CHANGELOG; ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA removido em correção pontual posterior — o modelo oficial passou a trazer a argumentação de evolução de consumo inteiramente fixa, sem marcador). Metadado informativo/documental, mesmo status de 'placeholder_semantics' acima: docx_template_engine.py não lê este bloco. A validação executável do que está aqui vive em scripts/validate_placeholder_semantics.py (só os campos com 'restricoes' concretas e verificáveis têm checagem automática — os demais são só documentação de contrato).",
+  "_nota_placeholder_contracts": "Contrato semântico dos 19 placeholders (Etapa 3, pós-diagnóstico forense do bug real de paginação — ver CHANGELOG; ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA removido em correção pontual posterior — o modelo oficial passou a trazer a argumentação de evolução de consumo inteiramente fixa, sem marcador; CONTA_CONTRATO/NOME_TITULAR_DA_UC/TELAS_DA_TITULARIDADE/SINOPSE_FATOS_NUCLEO_OBJETO/VALOR_DA_CAUSA acrescentados na Etapa 5.8-G junto com os tópicos 2.3 a 2.6; VALOR_TOTAL_PROVEITO_ECONOMICO acrescentado em correção pontual de 09/09/2026, ver _nota_valor_total_proveito_economico acima). Metadado informativo/documental, mesmo status de 'placeholder_semantics' acima: docx_template_engine.py não lê este bloco. A validação executável do que está aqui vive em scripts/validate_placeholder_semantics.py (só os campos com 'restricoes' concretas e verificáveis têm checagem automática — os demais são só documentação de contrato).",
   "_nota_paragrafo_380": "INV-PARAGRAFO-380 (Etapa 5.2): todo placeholder com 'multiline': true está sujeito ao limite de 380 caracteres por parágrafo (separador '\\n' dentro do valor). Validado por scripts/validate_paragrafos.py, não duplicado como 'restricoes' individual de cada campo abaixo.",
   "placeholder_contracts": {
     "JUIZO": {
@@ -119,6 +132,48 @@
       "descricao": "Local do escritório e data de assinatura (dado operacional, não jurídico).",
       "multiline": false,
       "restricoes": ["não deve conter narrativa jurídica — validado por scripts/validate_placeholder_semantics.py"]
+    },
+    "CONTA_CONTRATO": {
+      "tipo": "IDENTIFICADOR",
+      "descricao": "Número de conta-contrato/instalação da unidade consumidora (UC) discutida no tópico 2.4 (ilegitimidade ativa) — dado documental extraído da fatura/cadastro operacional da Ré, nunca inferido.",
+      "multiline": false,
+      "restricoes": ["apenas o identificador — sem narrativa, sem CPF/CNPJ do titular (esse é NOME_TITULAR_DA_UC)"]
+    },
+    "NOME_TITULAR_DA_UC": {
+      "tipo": "IDENTIFICADOR",
+      "descricao": "Nome do titular cadastral da UC conforme fatura/cadastro operacional da Ré — fundamenta a divergência entre parte autora e titular formal no tópico 2.4. Dado documental, nunca a mesma pessoa que AUTOR quando o bloco PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO está INCLUIR (se fosse a mesma pessoa, UC_TITULARIDADE_TERCEIRO_COMPROVADA seria false e o bloco nem existiria).",
+      "multiline": false,
+      "restricoes": ["apenas o nome — sem CPF/CNPJ, sem endereço, sem cláusula de qualificação (mesma restrição de AUTOR)"]
+    },
+    "TELAS_DA_TITULARIDADE": {
+      "tipo": "MARCADOR_MANUAL",
+      "descricao": "Ver 'placeholder_semantics.TELAS_DA_TITULARIDADE' acima — marcador textual de pós-edição manual, mesmo tratamento de FOTOS_DA_IRREGULARIADE.",
+      "multiline": false,
+      "restricoes": []
+    },
+    "SINOPSE_FATOS_NUCLEO_OBJETO": {
+      "tipo": "TEXTO_TECNICO",
+      "descricao": "Descrição curta e atômica do objeto/núcleo da demanda, usada exclusivamente no tópico 2.5 (inépcia da inicial) para individualizar em que a causa de pedir é genérica/insuficiente. NÃO é uma segunda SINOPSE_FATOS: nunca narra os fatos alegados pela autora de forma ampla, apenas nomeia o objeto central da demanda em uma frase.",
+      "multiline": false,
+      "restricoes": ["campo atômico e curto — não deve reproduzir ou parafrasear SINOPSE_FATOS — backstop lexical em scripts/validate_placeholder_semantics.py"]
+    },
+    "VALOR_DA_CAUSA": {
+      "tipo": "VALOR",
+      "descricao": "Valor da causa fixado pela parte autora na petição inicial, citado no tópico 2.6 (impugnação ao valor da causa) — dado documental, nunca calculado/estimado pelo Redator. Distinto de VALOR_FRA, VALOR_DANO_MORAL_PRETENDIDO e do valor correto da causa (esse é conclusão de EXISTE_DISCREPANCIA_VALOR_CAUSA, resolvido em estado_processual.json, nunca escrito neste placeholder).",
+      "multiline": false,
+      "restricoes": [
+        "formato monetário brasileiro obrigatório (ex. \"R$ 10.000,00\") — validado por scripts/validate_placeholder_semantics.py",
+        "valores divergentes no mesmo campo (inicial contraditória) são fail-closed — nunca escolher automaticamente"
+      ]
+    },
+    "VALOR_TOTAL_PROVEITO_ECONOMICO": {
+      "tipo": "VALOR",
+      "descricao": "Valor total corrigido do proveito econômico da demanda (soma de todos os pedidos de conteúdo econômico identificados na inicial), usado no tópico 2.6 para pedir a retificação do valor da causa — dado documental/aritmético, a mesma soma já calculada para resolver EXISTE_DISCREPANCIA_VALOR_CAUSA (§4A-1 de skills/contestacao/SKILL.md), nunca recalculado de outra forma nem estimado pelo Redator. Distinto de VALOR_DA_CAUSA (o valor ERRADO fixado pela autora, que este placeholder corrige) e de VALOR_FRA/VALOR_DANO_MORAL_PRETENDIDO (parcelas individuais, não o total). Só é exigido quando PRELIMINAR_IMPUGNACAO_VALOR_CAUSA (2.6) está INCLUIR — mesmo mecanismo automático de VALOR_DA_CAUSA/VALOR_DANO_MORAL_PRETENDIDO (bloco EXCLUIR remove o SDT inteiro, placeholder nunca cobrado).",
+      "multiline": false,
+      "restricoes": [
+        "formato monetário brasileiro obrigatório (ex. \"R$ 10.000,00\") — validado por scripts/validate_placeholder_semantics.py",
+        "deve ser exatamente a soma já usada para resolver EXISTE_DISCREPANCIA_VALOR_CAUSA — nunca um novo cálculo divergente"
+      ]
     }
   }
 }

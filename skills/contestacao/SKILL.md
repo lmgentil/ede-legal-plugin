@@ -15,7 +15,7 @@ description: >
   verificável, e por fim gera o JSON de dados para
   `scripts/render_docx.py`. Diferente de `estrategista-contestacao-ede`
   (só pensa e estrutura) e de `redator-peca-processual-elite` (só redige
-  forma) — esta é a única que fecha o ciclo até os 13 placeholders do
+  forma) — esta é a única que fecha o ciclo até os 19 placeholders do
   template oficial.
 allowed-tools:
   - Read
@@ -57,7 +57,7 @@ CLAUDE.md §17).
 reclassificada `DEFERRED` na v0.6.1):** esta skill define, integra E
 EXECUTA o pipeline abaixo — extração factual, proveniência,
 tempestividade, análise estratégica, RAG, validação jurídica, redator,
-humanizer e geração dos 13 valores de placeholder — **até o DOCX final,
+humanizer e geração dos 19 valores de placeholder — **até o DOCX final,
 contra o caso real**, numa única execução contínua
 (INV-CONTESTACAO-ENTREGA-DOCX, §11). Os "Testes Reais" documentados nas
 Etapas 5.2 a 5.5 deste arquivo e em `docs/specs/SPEC-0001.md` §§46-53 já
@@ -117,7 +117,13 @@ documentos do processo
     + estado_processual.json (GRATUIDADE_CONCEDIDA vincula
     PRELIMINAR_REVOGACAO_GRATUIDADE deterministicamente; CORTE_EFETIVO
     condiciona LICITUDE_CORTE_SUSPENSAO — gate fático, decisão continua
-    sendo do advogado via AskUserQuestion) + reconvenção via
+    sendo do advogado via AskUserQuestion; AUSENCIA_TENTATIVA_
+    ADMINISTRATIVA_COMPROVADA, UC_TITULARIDADE_TERCEIRO_COMPROVADA e
+    EXISTE_DISCREPANCIA_VALOR_CAUSA vinculam deterministicamente os
+    tópicos 2.3/2.4/2.6; AUSENCIA_TRANSFERENCIA_TITULARIDADE_COMPROVADA e
+    EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS vinculam os subblocos aninhados
+    em 2.4/2.6 — Etapa 5.8-G) + PRELIMINAR_INEPCIA_INICIAL (2.5) julgada
+    pelo estrategista, sem vínculo automático + reconvenção via
     AskUserQuestion (SIM/NÃO) — §4A
   ↓
 5. RAG jurídico -> validação jurídica de cada citação (§7)
@@ -194,12 +200,18 @@ a entrega solicitada, e não pare a execução aqui.
 
 O template institucional tem teses condicionais marcadas estruturalmente
 (`<w:sdt>`, catálogo em `templates/contestacao/blocos.json`) — preliminares
-(inaplicabilidade do CDC, revogação da gratuidade), dever legal de
-fiscalização, desnecessidade de aviso prévio, cálculos de recuperação de
-consumo, evolução de consumo, licitude do corte/suspensão, nexo causal
+(inaplicabilidade do CDC, revogação da gratuidade, ausência de interesse
+de agir, ilegitimidade ativa por titularidade de terceiro, inépcia da
+inicial, impugnação ao valor da causa — as quatro últimas acrescentadas
+na Etapa 5.8-G, tópicos 2.3 a 2.6), dever legal de fiscalização,
+desnecessidade de aviso prévio, cálculos de recuperação de consumo,
+evolução de consumo, licitude do corte/suspensão, nexo causal
 indemonstrado, descabimento de dano moral, e a Reconvenção (que também
 governa o título da peça, "CONTESTAÇÃO" vs. "CONTESTAÇÃO COM
-RECONVENÇÃO"). **A decisão de incluir ou excluir cada uma dessas teses é
+RECONVENÇÃO"). Dois subblocos aninhados fisicamente dentro de 2.4 e 2.6
+(ausência de transferência de titularidade; cumulação de pedidos
+econômicos) seguem a mesma disciplina de decisão. **A decisão de incluir
+ou excluir cada uma dessas teses é
 exclusivamente sua, como estrategista** — nunca do motor documental
 (`scripts/docx_block_engine.py`), que só executa deterministicamente o que
 for decidido aqui e nunca decide por conta própria (nenhuma heurística
@@ -220,17 +232,22 @@ bloco, com proveniência:
 ```json
 {
   "PRELIMINAR_CDC_INAPLICAVEL": {"decisao": "INCLUIR", "fundamento": "parte autora é pessoa jurídica que usa a energia como insumo produtivo — sem relação de consumo"},
+  "PRELIMINAR_INEPCIA_INICIAL": {"decisao": "EXCLUIR", "fundamento": "causa de pedir individualizada (data, UC, período) e documentos essenciais presentes nos autos — nenhuma das deficiências candidatas (fatos.json) se confirma"},
   "RECONVENCAO": {"decisao": "INCLUIR", "fundamento": "advogado respondeu SIM à pergunta obrigatória — há débito de recuperação de consumo (FRA) comprovado e não adimplido"}
 }
 ```
 
 Blocos `CONTAINER_DERIVED` (ex.: `PRELIMINARES`), o inline vinculado
-(`INLINE:COM_RECONVENCAO`) e o vinculado a estado processual
-(`PRELIMINAR_REVOGACAO_GRATUIDADE`, ver INV-GRATUIDADE-LINKED abaixo)
+(`INLINE:COM_RECONVENCAO`) e todo bloco/subbloco `state_linked`
+(`PRELIMINAR_REVOGACAO_GRATUIDADE`, ver INV-GRATUIDADE-LINKED abaixo, e
+os cinco vínculos novos da Etapa 5.8-G — §4A-1 mais abaixo)
 **nunca recebem decisão manual** — seus estados são derivados
 automaticamente pelo motor a partir dos filhos/bloco vinculado/estado
 processual (`docx_block_engine.validar_e_resolver_decisoes`); incluí-los
 em `decisoes_blocos.json` é erro (`stage=decisao_invalida`).
+`PRELIMINAR_INEPCIA_INICIAL` (2.5) **não** é `state_linked` — é
+`estrategista`, como `PRELIMINAR_CDC_INAPLICAVEL` — e portanto recebe
+decisão manual normalmente, como no exemplo acima.
 
 ### INV-RECONVENCAO-AUTORIZACAO-EXPRESSA (Etapa 5.2)
 
@@ -379,16 +396,121 @@ advogado ter manifestado vontade de desenvolver a tese. A modelagem
 atual (`humano` + `requires_fact`) combina os dois requisitos: suporte
 fático **e** decisão humana, nenhum dos dois dispensa o outro.
 
+### §4A-1 — Tópicos 2.3, 2.4 e 2.6: vínculos determinísticos (Etapa 5.8-G)
+
+Diferente de `LICITUDE_CORTE_SUSPENSAO`, estes três tópicos são
+`state_linked` puro — **mesma filosofia de `INV-GRATUIDADE-LINKED`
+acima, nunca a de `INV-CORTE-GATE-HUMANO`**: o fato comprovado já é
+suficiente para incluir a tese, sem pergunta adicional ao advogado
+(decisão de produto tomada nesta etapa — não reabra essa discussão sem
+autorização expressa). **Nunca registre decisão manual para nenhum dos
+três em `decisoes_blocos.json`** — o motor rejeita explicitamente
+(`decisao_invalida`), igual a `PRELIMINAR_REVOGACAO_GRATUIDADE`.
+
+**`PRELIMINAR_AUSENCIA_INTERESSE_AGIR` (2.3)** — `linked_fact:
+"AUSENCIA_TENTATIVA_ADMINISTRATIVA_COMPROVADA"`:
+
+```json
+{ "AUSENCIA_TENTATIVA_ADMINISTRATIVA_COMPROVADA": {"valor": true, "fonte_documento": "peticao-inicial.pdf"} }
+```
+
+`true` quando os autos não trazem prévia tentativa de resolução
+administrativa nem pretensão resistida (nenhum protocolo idôneo, resposta
+da concessionária ou reclamação formal) → `INCLUIR`. `false`/ausente
+(há protocolo, resposta ou reclamação documentada — pretensão já
+resistida) → `EXCLUIR`, sem perguntar. `"INDETERMINADO"` → aborta
+(`decisao_indeterminada`). Resolva a partir dos documentos, mesma
+disciplina de proveniência de §5 — nunca por ocorrência lexical.
+
+**`PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO` (2.4)** — `linked_fact:
+"UC_TITULARIDADE_TERCEIRO_COMPROVADA"`:
+
+```json
+{ "UC_TITULARIDADE_TERCEIRO_COMPROVADA": {"valor": true, "fonte_documento": "fatura-uc.pdf"} }
+```
+
+`true` quando fatura/cadastro operacional mostram a UC em nome de pessoa
+diversa da parte autora → `INCLUIR`. `false`/ausente (titular é a
+própria autora) → `EXCLUIR`. `"INDETERMINADO"` → aborta. Quando
+`INCLUIR`, produza também `CONTA_CONTRATO` e `NOME_TITULAR_DA_UC` (§9) —
+o motor cobra esses placeholders automaticamente assim que o SDT
+sobrevive, sem regra adicional em `blocos.json` (mesmo mecanismo de
+`VALOR_DANO_MORAL_PRETENDIDO`).
+
+**`PRELIMINAR_IMPUGNACAO_VALOR_CAUSA` (2.6)** — `linked_fact:
+"EXISTE_DISCREPANCIA_VALOR_CAUSA"`:
+
+```json
+{ "EXISTE_DISCREPANCIA_VALOR_CAUSA": {"valor": true, "fonte_documento": "peticao-inicial.pdf"} }
+```
+
+Diferente dos dois anteriores, este fato **não é uma leitura direta de
+documento** — é o resultado de uma comparação aritmética que você mesma
+faz (decisão expressa: sem helper Python novo nesta etapa). Some, em
+`Decimal`/manualmente com precisão, todos os pedidos com conteúdo
+econômico identificados na extração factual (§5) e compare com o valor
+da causa fixado na inicial (`VALOR_CAUSA_INICIAL`). Divergência
+relevante (valor da causa manifestamente dissociado da soma dos pedidos,
+não mero arredondamento) → registre `true`. Valor da causa compatível
+com a soma → `false`. Extração dos próprios valores dos pedidos
+insuficiente/contraditória para somar com segurança → `"INDETERMINADO"`
+(aborta — pergunte ao advogado antes, nunca estime). Guarde a memória
+desse cálculo (parcelas somadas, total, valor da causa, fonte de cada
+parcela) para sua própria auditoria — nunca a despeje no placeholder
+`VALOR_DA_CAUSA` (§9), que é só o valor fixado na inicial. Quando
+`INCLUIR`, produza `VALOR_DA_CAUSA` (§9).
+
+### §4A-2 — Subblocos aninhados (Etapa 5.8-G)
+
+Dois subblocos vivem fisicamente dentro do `<w:sdt>` de um bloco de
+nível superior (auditado no DOCX real), mas são catalogados com
+`"parent": null` — subbloco não é `children` lógico do bloco-pai (só
+`CONTAINER_DERIVED` declara `children`; nem `PRELIMINAR_
+ILEGITIMIDADE_ATIVA_TERCEIRO` nem `PRELIMINAR_IMPUGNACAO_VALOR_CAUSA`
+são `CONTAINER_DERIVED`). Isso não enfraquece a composição: quando o
+bloco-pai é `EXCLUIR`, o subbloco (fisicamente descendente do `<w:sdt>`
+removido) some junto, automaticamente — mecânica estrutural do motor,
+não depende de nenhum campo de catálogo. **Ambos são `state_linked`, por
+decisão do usuário nesta etapa: sempre automáticos, mesmo quando o
+bloco-pai é `humano`** (não é o caso aqui — os pais são `state_linked` —
+mas a regra vale mesmo que um pai futuro venha a ser `humano`) — nunca
+registre decisão manual para eles.
+
+- `SUBBLOCO:AUSENCIA_TRANSFERENCIA_TITULARIDADE` (dentro de 2.4) —
+  `linked_fact: "AUSENCIA_TRANSFERENCIA_TITULARIDADE_COMPROVADA"`. `true`
+  quando os autos comprovam que não houve pedido nem efetivação de
+  transferência de titularidade → `INCLUIR`. `false`/ausente (houve
+  transferência comprovada, ou pedido em andamento) → `EXCLUIR`.
+  `"INDETERMINADO"` → aborta.
+- `SUBBLOCO:CUMULACAO_PEDIDOS` (dentro de 2.6) — `linked_fact:
+  "EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS"`. `true` quando há efetiva
+  cumulação de pedidos com componentes econômicos distintos (não um
+  pedido econômico único) → `INCLUIR`. `false`/ausente → `EXCLUIR`.
+  `"INDETERMINADO"` → aborta.
+
+**Sempre resolva o fato do subbloco, mesmo quando o bloco-pai já vai ser
+`EXCLUIR`.** O motor não dispensa a resolução do fato só porque o
+resultado será descartado junto com o pai — `estado_processual.json`
+sempre precisa das seis chaves relevantes ao caso (ou ausência
+explícita, que já resolve para `false`) antes da geração final.
+
 ### INV-BLOCO-SUPORTE-FATICO (Etapa 5.2) — princípio geral
 
 Nenhum bloco condicional entra na peça só porque existe no catálogo, é
 juridicamente possível, é comum nesse tipo de processo, ou o RAG recuperou
 legislação relacionada. Para todo bloco decidido por você/estrategista
-(não `PRELIMINAR_REVOGACAO_GRATUIDADE`, o único `state_linked` puro
-acima — `LICITUDE_CORTE_SUSPENSAO` É decidido por você, com o gate
-fático por cima), exija de si mesma um fato/alegação/estado processual
-concreto, com proveniência, antes de considerar a tese elegível — só
-depois disso a decide como estratégica/humana.
+(não os blocos/subblocos `state_linked` — `PRELIMINAR_REVOGACAO_
+GRATUIDADE` e, desde a Etapa 5.8-G, `PRELIMINAR_AUSENCIA_INTERESSE_AGIR`,
+`PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO`, `PRELIMINAR_IMPUGNACAO_VALOR_
+CAUSA` e os dois subblocos aninhados neles, §4A-1/§4A-2 acima —
+`LICITUDE_CORTE_SUSPENSAO` É decidido por você, com o gate fático por
+cima), exija de si mesma um fato/alegação/estado processual concreto,
+com proveniência, antes de considerar a tese elegível — só depois disso
+a decide como estratégica/humana. `PRELIMINAR_INEPCIA_INICIAL` (2.5) é
+`estrategista` puro: exige combinação materialmente relevante entre os
+fatos candidatos (narrativa genérica, ausência de individualização
+tempo/modo/lugar, ausência de documentos essenciais/prova mínima) — um
+único fato isolado não basta, e a ponderação é juízo seu, não mecânica.
 **Exceção expressa: `CORTE_EFETIVO` (que condiciona `LICITUDE_CORTE_
 SUSPENSAO` acima) exige padrão mais rigoroso que "alegação basta" —
 alegação isolada e não corroborada da autora nunca satisfaz esse estado
@@ -710,7 +832,7 @@ por vírgula/hífen (a pontuação correta é decisão do Redator/Humanizer,
 não deste validador). Escopo: só o conteúdo variável; o texto fixo
 institucional do modelo nunca é tocado por esta regra.
 
-## 9. Geração dos 13 placeholders
+## 9. Geração dos 19 placeholders
 
 ### Contexto institucional do modelo — INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA (Etapa 5.7-B)
 
@@ -754,7 +876,7 @@ Isto substitui, como mecanismo PRINCIPAL, a transcrição manual pontual do
 texto fixo que hoje só existe para 2-3 placeholders (ex.:
 `IRREGULARIDADE_ENCONTRADA`, abaixo) — as citações literais que
 permanecem nesta seção continuam válidas como referência histórica/
-exemplo, mas o contexto real e completo (13 placeholders) vem da
+exemplo, mas o contexto real e completo (19 placeholders) vem da
 extração, nunca de memorizar este `SKILL.md`.
 
 Com o contexto em mãos, o Redator segue este raciocínio antes de redigir
@@ -774,8 +896,8 @@ cada placeholder:
   abaixo).
 
 `SEM PLACEHOLDER OU ZONA EXPRESSAMENTE AUTORIZADA → SEM ESCRITA
-GERATIVA` — os 13 placeholders continuam as únicas zonas de intervenção
-textual (nenhuma nova foi criada por esta correção); a única exceção
+GERATIVA` — os 19 placeholders e as 5 zonas catalogadas (§9A) continuam
+as únicas zonas de intervenção textual; a única exceção
 permanece a renumeração determinística de títulos
 (`INV-NUMERACAO-DINAMICA-CONTESTACAO`, §3), que não é escrita gerativa.
 `humanizer-pt-br` **nunca** recebe o contexto institucional como conteúdo
@@ -796,10 +918,17 @@ pipeline não produz a peça final sem o contexto ter sido extraído.
 
 Monte um único JSON `{PLACEHOLDER: valor}` (ver
 `templates/contestacao/schema.json`) para consumo por
-`scripts/render_docx.py` na Fase 7. O template tem 13
-placeholders, mas você (redator) só produz 12 — `JUIZO` é resolvido à
+`scripts/render_docx.py` na Fase 7. O template tem 19
+placeholders, mas você (redator) só produz 18 — `JUIZO` é resolvido à
 parte pela orquestração, nunca por você (INV-JUIZO-DATAJUD, ver linha
-abaixo e detalhe mais adiante). Mapeamento de origem de cada campo:
+abaixo e detalhe mais adiante). Seis dos 18 (`CONTA_CONTRATO`,
+`NOME_TITULAR_DA_UC`, `TELAS_DA_TITULARIDADE`, `SINOPSE_FATOS_NUCLEO_
+OBJETO`, `VALOR_DA_CAUSA`, `VALOR_TOTAL_PROVEITO_ECONOMICO`) só são
+exigidos quando o bloco/preliminar correspondente (2.4, 2.5 ou 2.6,
+§4A/§4A-1) estiver `INCLUIR` — bloco `EXCLUIR` remove o SDT inteiro antes
+da substituição, e o placeholder nunca é cobrado (mesmo mecanismo já
+existente de `VALOR_DANO_MORAL_PRETENDIDO`, sem regra adicional em
+`blocos.json`). Mapeamento de origem de cada campo:
 
 | Placeholder | Vem de |
 |---|---|
@@ -816,25 +945,47 @@ abaixo e detalhe mais adiante). Mapeamento de origem de cada campo:
 | `VALOR_DANO_MORAL_PRETENDIDO` | Extração factual da petição inicial — **nunca inventado, estimado, arredondado, ou confundido com valor da causa/dano material/outro pedido econômico** (INV-VALOR-DANO-MORAL-DOCUMENTAL). Só é produzido quando `DESCABIMENTO_DANO_MORAL` está `INCLUIR` (§4 acima). Inicial sem quantificação ("a ser arbitrado pelo Juízo") → frase natural nesse sentido, nunca a sentinela "NÃO ESPECIFICADO"/"NÃO INFORMADO" impressa literalmente. Valores divergentes na inicial (contraditórios, ou incerteza sobre qual corresponde ao dano moral) → não escolha automaticamente maior/menor/último; sinalize a pendência e, se não resolvida pelos documentos, pergunte ao advogado antes de prosseguir. Formato monetário brasileiro (`R$ 10.000,00`) quando há quantia |
 | `PEDIDOS_FINAIS` | Análise estratégica (§4) + redator/humanizer — **curto, institucional e conclusivo** (Etapa 5.3 §16-§20), refletindo exatamente os blocos incluídos/excluídos, ver detalhe abaixo |
 | `LOCAL_DATA` | **Sempre "Salvador"** + data de elaboração da peça (Etapa 5.3 §21-§22) — nunca a comarca do processo; dado operacional, não jurídico |
+| `CONTA_CONTRATO` | Extração factual (§5) — número de conta-contrato/instalação da UC discutida no tópico 2.4, da fatura/cadastro operacional. Só exigido com `PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO = INCLUIR` (§4A-1). Apenas o identificador — sem narrativa |
+| `NOME_TITULAR_DA_UC` | Extração factual (§5) — nome do titular cadastral da UC (fatura/cadastro operacional), sempre diferente da parte autora quando este campo é exigido. Mesmas restrições de `AUTOR` (sem CPF, sem cláusula de qualificação) |
+| `TELAS_DA_TITULARIDADE` | Marcador textual de pós-edição manual (ex.: `"[INSERIR MANUALMENTE AS TELAS/DOCUMENTOS DA TITULARIDADE DA UC]"`) — mesmo tratamento de `FOTOS_DA_IRREGULARIADE` (PEND-001), aplicado por analogia; nunca imagem embutida automatizada |
+| `SINOPSE_FATOS_NUCLEO_OBJETO` | Extração factual (§5) + redator — descrição curta e atômica do objeto/núcleo da demanda, usada só no tópico 2.5 (inépcia). **Não é uma segunda `SINOPSE_FATOS`**: nunca narra os fatos de forma ampla, só nomeia o objeto central em uma frase. Só exigido com `PRELIMINAR_INEPCIA_INICIAL = INCLUIR` |
+| `VALOR_DA_CAUSA` | Extração factual da petição inicial — valor da causa fixado pela autora, citado no tópico 2.6. **Nunca** o "valor correto"/calculado (essa conclusão fica em `EXISTE_DISCREPANCIA_VALOR_CAUSA`, §4A-1, nunca neste placeholder). Só exigido com `PRELIMINAR_IMPUGNACAO_VALOR_CAUSA = INCLUIR`. Formato monetário brasileiro; valores divergentes na inicial → não escolha automaticamente, pergunte ao advogado |
+| `VALOR_TOTAL_PROVEITO_ECONOMICO` | A mesma soma já calculada para `EXISTE_DISCREPANCIA_VALOR_CAUSA` (§4A-1) — valor total corrigido do proveito econômico da demanda, usado no pedido de retificação do valor da causa. **Nunca** um novo cálculo divergente daquela soma. Só exigido com `PRELIMINAR_IMPUGNACAO_VALOR_CAUSA = INCLUIR`. Formato monetário brasileiro |
 
 Nenhum destes campos pode ser gerado sem que a etapa estratégica (§4) já
 tenha sido executada e concluída — a maioria depende diretamente da
-saída de `estrategista-contestacao-ede`. Lista com 13 placeholders (foi
-12 por um tempo, e antes disso 13 por outro motivo — histórico completo
-em `docs/specs/SPEC-0001.md` §49/§53, não repetido aqui):
-`ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA` foi removido definitivamente
-(o modelo oficial já traz a argumentação de evolução de consumo
-inteiramente fixa, sem marcador; a IA nunca a gera/parafraseia — bloco
-`EVOLUCAO_CONSUMO` continua existindo, sem placeholder próprio); depois
-disso, `VALOR_DANO_MORAL_PRETENDIDO` foi acrescentado (inserido
-manualmente pelo advogado no template, dentro de `DESCABIMENTO_DANO_
-MORAL` — INV-VALOR-DANO-MORAL-DOCUMENTAL, ver §4 e a tabela acima).
+saída de `estrategista-contestacao-ede`. Lista com 19 placeholders (foi
+18 por um tempo, 13 antes disso, 12 antes disso, e 13 por outro motivo
+antes disso ainda — histórico completo em `docs/specs/SPEC-0001.md`
+§49/§53, não repetido aqui): `ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA` foi
+removido definitivamente (o modelo oficial já traz a argumentação de
+evolução de consumo inteiramente fixa, sem marcador; a IA nunca a gera/
+parafraseia — bloco `EVOLUCAO_CONSUMO` continua existindo, sem
+placeholder próprio); depois disso, `VALOR_DANO_MORAL_PRETENDIDO` foi
+acrescentado (inserido manualmente pelo advogado no template, dentro de
+`DESCABIMENTO_DANO_MORAL` — INV-VALOR-DANO-MORAL-DOCUMENTAL, ver §4 e a
+tabela acima); na Etapa 5.8-G, `CONTA_CONTRATO`, `NOME_TITULAR_DA_UC`,
+`TELAS_DA_TITULARIDADE`, `SINOPSE_FATOS_NUCLEO_OBJETO` e `VALOR_DA_CAUSA`
+foram acrescentados junto com os tópicos 2.3 a 2.6. Correção pontual de
+09/09/2026 (achado de teste automatizado contra o DOCX real):
+`VALOR_TOTAL_PROVEITO_ECONOMICO` — ao contrário do que esta seção
+afirmava até então — **existe fisicamente** no bloco `PRELIMINAR_
+IMPUGNACAO_VALOR_CAUSA` (2.6), na frase de pedido de retificação do
+valor da causa; uma zona (prosa opcional) nunca poderia preencher um
+valor monetário dentro de frase fixa, então `ZONA_COMPOSICAO_PROVEITO_
+ECONOMICO` (§9A) NÃO cobre esse papel — os dois coexistem, com
+finalidades distintas. O token no template continha um acento
+(`ECONÔMICO`) incompatível com `[A-Z_]+` (mecanismo de substituição,
+sem suporte a Unicode acentuado); corrigido no texto do template
+(`ECONOMICO`, mesma convenção de `NUMERO_PROCESSO`/`JUIZO`) junto com a
+catalogação em `schema.json`.
 
 Cada placeholder tem um contrato semântico formal (tipo, restrições) em
 `templates/contestacao/schema.json` (`placeholder_contracts`) —
 `scripts/validate_placeholder_semantics.py` verifica automaticamente
 `AUTOR`, `NUMERO_PROCESSO`, `VALOR_FRA`, `VALOR_DANO_MORAL_PRETENDIDO`,
-`LOCAL_DATA` e (Etapa 5.2) `SINOPSE_FATOS` antes da geração final;
+`LOCAL_DATA`, `SINOPSE_FATOS` (Etapa 5.2) e, desde a Etapa 5.8-G,
+`SINOPSE_FATOS_NUCLEO_OBJETO` e `VALOR_DA_CAUSA`, antes da geração final;
 conteúdo semanticamente
 incompatível aborta o pipeline (`PIPELINE_ABORTED`, stage `placeholders`),
 nunca chega ao template. O Template Engine, automaticamente e sem ação
@@ -1088,17 +1239,53 @@ Data é a de elaboração/geração da peça, formato institucional em
 português (ex.: `"Salvador/BA, 20 de agosto de 2026."`), sem metadado
 técnico.
 
+### Etapa 5.8-G — placeholders dos tópicos 2.3 a 2.6
+
+Mesma disciplina PRESERVAR > COMPLEMENTAR > CRIAR de todo o resto desta
+seção — nada aqui relaxa `INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA`.
+
+**`CONTA_CONTRATO` / `NOME_TITULAR_DA_UC` (2.4).** Dados atômicos,
+extraídos da fatura/cadastro operacional — nunca inferidos, nunca o
+mesmo nome de `AUTOR` (se fossem a mesma pessoa, `UC_TITULARIDADE_
+TERCEIRO_COMPROVADA` seria `false` e o bloco nem existiria, §4A-1). Não
+adicione narrativa — o texto fixo do tópico 2.4 já contextualiza os
+dois campos.
+
+**`TELAS_DA_TITULARIDADE` (2.4).** Marcador de pós-edição manual, igual
+`FOTOS_DA_IRREGULARIADE` — nunca descreva a divergência de titularidade
+aqui (isso é `NOME_TITULAR_DA_UC` + `ZONA_TITULARIDADE_UC`, §9A).
+
+**`SINOPSE_FATOS_NUCLEO_OBJETO` (2.5).** Uma frase, atômica, nomeando o
+objeto central da demanda (ex.: `"pedido de declaração de inexigibilidade
+do débito de recuperação de consumo e indenização por danos morais"`).
+Nunca reproduza ou parafraseie `SINOPSE_FATOS` — são placeholders com
+função diferente: `SINOPSE_FATOS` narra os fatos e pedidos por extenso;
+este só nomeia o objeto, para individualizar a inépcia alegada.
+
+**`VALOR_DA_CAUSA` (2.6).** O valor **fixado pela autora na inicial**,
+formato `"R$ 10.000,00"` — nunca o valor que você calculou como
+"correto" (essa comparação vive só em `EXISTE_DISCREPANCIA_VALOR_CAUSA`,
+§4A-1, nunca é impressa aqui). Valores divergentes no próprio texto da
+inicial (contraditória) → não escolha automaticamente, pergunte ao
+advogado antes de prosseguir, mesma disciplina de `VALOR_FRA`/`VALOR_
+DANO_MORAL_PRETENDIDO`.
+
 ## 9A. Zonas de Complementação (INV-ZONA-COMPLEMENTACAO, Etapa 5.8-B)
 
-Além dos 13 placeholders, o modelo tem **uma** Zona de Complementação
-catalogada — `ZONA_METODOLOGIA_APURACAO`, dentro do bloco
-`CALCULOS_RECUPERACAO_CONSUMO` (tópico 3.4). A zona é **normalmente
-vazia**: o estado normal da peça é não ter conteúdo nela.
+Além dos 19 placeholders, o modelo tem **cinco** Zonas de Complementação
+catalogadas — `ZONA_METODOLOGIA_APURACAO` (dentro de `CALCULOS_
+RECUPERACAO_CONSUMO`, tópico 3.4) e, desde a Etapa 5.8-G, mais quatro
+nos tópicos 2.3 a 2.6 (§9A-1 abaixo). Toda zona é **normalmente vazia**:
+o estado normal da peça é não ter conteúdo em nenhuma delas.
 
-Ela existe porque o tópico 3.4 transcreve os cinco incisos do art. 595 e
-afirma aderência a eles "no caso concreto", sem nunca dizer qual inciso
-foi aplicado nem qual período foi apurado. A zona conecta essa
-fundamentação fixa ao dado documental do processo — nada além disso.
+`ZONA_METODOLOGIA_APURACAO` existe porque o tópico 3.4 transcreve os
+cinco incisos do art. 595 e afirma aderência a eles "no caso concreto",
+sem nunca dizer qual inciso foi aplicado nem qual período foi apurado. A
+zona conecta essa fundamentação fixa ao dado documental do processo —
+nada além disso. As quatro zonas novas nasceram do mesmo padrão de
+lacuna, auditado na Etapa 5.8-A/5.8-G: tópicos condicionais inteiramente
+de texto fixo que, ao afirmar algo "no caso concreto", não têm onde
+receber o dado que sustenta a afirmação (ver §9A-1).
 
 **Zona não é bloco:** você nunca pergunta ao advogado se deve incluí-la
 (diferente de Reconvenção e de licitude de corte/suspensão), e ela nunca
@@ -1128,7 +1315,7 @@ Resolva isso **a partir dos documentos, com proveniência em
 
 Na ordem. Qualquer resposta que mande para "zona vazia" encerra o teste:
 
-1. **Algum dos 13 placeholders é o endereço semântico correto disto?**
+1. **Algum dos 19 placeholders é o endereço semântico correto disto?**
    Se sim → zona vazia. A zona nunca é atalho para escapar dos limites de
    `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` ou de qualquer outro campo.
 2. O texto institucional anterior ou posterior já diz isto
@@ -1301,14 +1488,58 @@ sem nenhum número, é rejeitado pelo pipeline.
 
 ### Incoerências que abortam
 
-* conteúdo de zona com `CALCULOS_RECUPERACAO_CONSUMO` excluído →
-  `zona_incoerente`;
-* conteúdo de zona sem `METODOLOGIA_APURACAO_DOCUMENTADA: true` →
-  `zona_incoerente`;
+* conteúdo de zona com o bloco-pai excluído (`CALCULOS_RECUPERACAO_
+  CONSUMO`, ou o bloco/subbloco-pai de qualquer uma das quatro zonas
+  novas, §9A-1) → `zona_incoerente`;
+* conteúdo de zona sem o(s) fato(s) processual(is) que ela exige em
+  `requires_facts` confirmado(s) `true` (`METODOLOGIA_APURACAO_
+  DOCUMENTADA` para esta zona; um fato próprio para cada zona nova,
+  §9A-1) → `zona_incoerente`;
 * modelo do advogado sem o SDT da zona →
   `modelo_institucional_desatualizado`. Oriente-o a substituir o
   `modelo-oficial.docx` pela versão compatível, fornecida separadamente.
   **Nunca** baixe, reconstrua ou edite o modelo por conta própria.
+
+## 9A-1. As quatro zonas dos tópicos 2.3 a 2.6 (Etapa 5.8-G)
+
+Mesmo mecanismo genérico dos Passos 1-3 acima — nada de código novo,
+nada de lógica paralela; só troque a zona/fato/finalidade pela linha
+correspondente da tabela. `blocos.json` já cataloga as quatro; o motor
+(`docx_block_engine.py`, `validate_fatos.py`, `validate_paragrafos.py`,
+`validate_placeholder_semantics.py`) já as trata genericamente por
+`catalogo.get("zones", [])`, sem hardcode de id nenhum.
+
+| Zona | Bloco/subbloco-pai | Passo 1 — fato em `estado_processual.json` | Finalidade (Passo 2) |
+|---|---|---|---|
+| `ZONA_PRETENSAO_RESISTIDA` | `PRELIMINAR_AUSENCIA_INTERESSE_AGIR` (2.3) | `AUSENCIA_TENTATIVA_ADMINISTRATIVA_COMPROVADA` (o mesmo que já decide o bloco, §4A-1 — quando a zona é alcançada, o bloco já é `INCLUIR`, logo o fato já é `true`) | Individualizar objetivamente a ausência de requerimento administrativo/resistência concreta (ex.: ausência de protocolo, ausência de resposta da Ré) — nunca repetir a tese jurídica do texto fixo |
+| `ZONA_TITULARIDADE_UC` | `PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO` (2.4) | `UC_TITULARIDADE_TERCEIRO_COMPROVADA` (idem — reaproveita o fato do bloco) | Individualizar a divergência de titularidade quando `CONTA_CONTRATO`/`NOME_TITULAR_DA_UC` (§9) não bastarem — ex.: data do cadastro, histórico de faturas em nome do titular |
+| `ZONA_FUNDAMENTACAO_INEPCIA` | `PRELIMINAR_INEPCIA_INICIAL` (2.5) | `DEFICIENCIAS_INICIAL_DOCUMENTADAS` — **fato PRÓPRIO**, diferente do bloco (que é `estrategista`, sem `linked_fact`): `true` quando os autos permitem apontar, com proveniência, ao menos uma deficiência concreta da inicial | Listar as deficiências concretas identificadas (documento ausente, protocolo ausente, narrativa genérica etc.) — nunca checklist fictício genérico |
+| `ZONA_COMPOSICAO_PROVEITO_ECONOMICO` | `SUBBLOCO:CUMULACAO_PEDIDOS` (dentro de 2.6 — **não** o bloco 2.6 em si; auditado no DOCX real) | `EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS` (o mesmo que decide o subbloco, §4A-2) | Descrever a composição documental dos pedidos que formam o proveito econômico real. **A zona não calcula** — só explica valores já extraídos/comparados em `EXISTE_DISCREPANCIA_VALOR_CAUSA` (§4A-1) |
+
+`requires_facts` de cada uma no catálogo é só o(s) fato(s) da coluna
+acima — quando ele reaproveita o `linked_fact` do bloco/subbloco-pai,
+não é redundância inventada: no momento em que a cascata de ativação
+chega a checar `requires_facts`, o bloco-pai já está `INCLUIR`, o que só
+é possível se esse fato já for `true`. Nos casos onde o bloco-pai é
+`estrategista` (`PRELIMINAR_INEPCIA_INICIAL`), o fato da zona é
+necessariamente próprio — não existe `linked_fact` de bloco para
+reaproveitar.
+
+Limites de cada uma (Passo 2A/3, catálogo): `ZONA_PRETENSAO_RESISTIDA` e
+`ZONA_TITULARIDADE_UC` — 2 parágrafos, 380 caracteres/parágrafo (sem
+espaços), 700 no total (com espaços); `ZONA_FUNDAMENTACAO_INEPCIA` e
+`ZONA_COMPOSICAO_PROVEITO_ECONOMICO` — 3 parágrafos, 380/parágrafo, 1000
+no total (mesmos números de `ZONA_METODOLOGIA_APURACAO`, por serem
+potencialmente mais enumerativas). Mesma forma estruturada obrigatória
+em `zonas.json` (`{"conteudo": ..., "fatos": [...]}`), mesma verificação
+de proveniência/ancoragem lexical, mesmas frases vazias proibidas, mesmo
+vedado (título/subtítulo, numeração, travessão, jurisprudência,
+repetição de placeholder). `ZONA_COMPOSICAO_PROVEITO_ECONOMICO`
+especialmente: não reproduza a aritmética de `EXISTE_DISCREPANCIA_VALOR_
+CAUSA` como se fosse fórmula do texto — descreva a composição
+documental (quais pedidos, que documento os comprova), nunca a conta em
+si (mesma disciplina de "a zona demonstra, o texto institucional
+conclui" já aplicada a `ZONA_METODOLOGIA_APURACAO`).
 
 ## 10. O que esta skill nunca faz
 
@@ -1350,6 +1581,18 @@ pergunta expressa ao advogado (`AskUserQuestion`, INV-CORTE-GATE-HUMANO,
 `CORTE_EFETIVO: true` sem essa decisão registrada. Em nenhum dos dois
 casos por busca lexical, e a alegação isolada da autora nunca basta para
 `CORTE_EFETIVO: true` (INV-CORTE-GATE-HUMANO, §4A).
+**Nem decide, registra ou tenta influenciar a existência de
+`PRELIMINAR_AUSENCIA_INTERESSE_AGIR`, `PRELIMINAR_ILEGITIMIDADE_ATIVA_
+TERCEIRO`, `PRELIMINAR_IMPUGNACAO_VALOR_CAUSA`, ou os dois subblocos
+aninhados neles** — todos `state_linked`, vinculados a
+`estado_processual.json` (§4A-1/§4A-2, Etapa 5.8-G), nunca a
+`decisoes_blocos.json`. **Já `PRELIMINAR_INEPCIA_INICIAL` (2.5) é
+`estrategista`, decidida normalmente** — não vincule a nenhum fato único,
+não a trate como automática. Não calcula `EXISTE_DISCREPANCIA_VALOR_
+CAUSA` por estimativa/plausibilidade — soma os pedidos com conteúdo
+econômico e compara com o valor da causa da inicial, e sinaliza
+`"INDETERMINADO"` quando a extração não permitir somar com segurança
+(§4A-1).
 **Nem produz, aceita ou reconcilia um `JUIZO` fornecido pelo
 redator/humanizer** — é resolvido automaticamente via DataJud/CNJ
 (`scripts/datajud_client.py`, INV-JUIZO-DATAJUD, §9); qualquer `JUIZO`

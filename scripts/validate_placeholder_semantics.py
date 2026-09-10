@@ -409,6 +409,82 @@ def _validar_pedidos_finais(valor) -> list:
     return _checar_meta_proveniencia(valor, "PEDIDOS_FINAIS")
 
 
+# ============================================================== Etapa 5.8-G — tópicos 2.3 a 2.6
+# SINOPSE_FATOS_NUCLEO_OBJETO (tópico 2.5, inépcia da inicial): campo
+# ATÔMICO e curto — uma frase nomeando o objeto central da demanda, nunca
+# uma segunda SINOPSE_FATOS. Contrato completo em templates/contestacao/
+# schema.json (placeholder_contracts.SINOPSE_FATOS_NUCLEO_OBJETO) e
+# skills/contestacao/SKILL.md §9 (Etapa 5.8-G). Limite de palavras é
+# heurística deliberadamente frouxa (evita falso positivo em frases
+# legítimas um pouco mais longas) — o controle real é comportamental, do
+# redator; este backstop só pega o caso óbvio de reprodução narrativa.
+_SINOPSE_NUCLEO_OBJETO_MAX_PALAVRAS = 40
+
+
+def _validar_sinopse_fatos_nucleo_objeto(valor) -> list:
+    texto = str(valor)
+    erros = _checar_meta_proveniencia(texto, "SINOPSE_FATOS_NUCLEO_OBJETO")
+    n_palavras = len(texto.split())
+    if n_palavras > _SINOPSE_NUCLEO_OBJETO_MAX_PALAVRAS:
+        erros.append(
+            f"SINOPSE_FATOS_NUCLEO_OBJETO tem {n_palavras} palavras (esperado até "
+            f"{_SINOPSE_NUCLEO_OBJETO_MAX_PALAVRAS}) — campo atômico e curto, "
+            f"nomeia só o objeto central da demanda; não é uma segunda SINOPSE_FATOS "
+            f"(a narrativa completa dos fatos/pedidos vive só em SINOPSE_FATOS): {valor!r}")
+    return erros
+
+
+# VALOR_DA_CAUSA (tópico 2.6, impugnação ao valor da causa): dado
+# documental — o valor fixado pela AUTORA na inicial, nunca o "valor
+# correto"/calculado (isso é EXISTE_DISCREPANCIA_VALOR_CAUSA, resolvido à
+# parte em estado_processual.json, nunca impresso neste placeholder).
+# Mesma disciplina de formato/divergência de VALOR_DANO_MORAL_PRETENDIDO
+# acima (reaproveita _VALOR_MONETARIO_BR_RE), mas SEM a hipótese de "sem
+# quantificação": a petição inicial sempre fixa um valor da causa
+# concreto (art. 291, CPC) — diferente do pedido de dano moral, que pode
+# legitimamente não ser quantificado.
+def _validar_valor_da_causa(valor) -> list:
+    texto = str(valor)
+    valores = set(_VALOR_MONETARIO_BR_RE.findall(texto))
+    if len(valores) > 1:
+        return [
+            f"VALOR_DA_CAUSA contém {len(valores)} valores monetários divergentes "
+            f"{sorted(valores)} — inicial contraditória ou extração incerta; "
+            f"deve ser confirmado com o advogado, nunca escolhido automaticamente "
+            f"o maior, menor ou último valor (fail-closed): {valor!r}"]
+    if valores:
+        return []
+    return [
+        f"VALOR_DA_CAUSA não contém valor monetário no formato brasileiro esperado "
+        f"(ex.: 'R$ 10.000,00') — diferente de VALOR_DANO_MORAL_PRETENDIDO, este "
+        f"campo não admite pedido sem quantificação: a petição inicial sempre fixa "
+        f"um valor da causa concreto (art. 291, CPC): {valor!r}"]
+
+
+# VALOR_TOTAL_PROVEITO_ECONOMICO (tópico 2.6, achado do teste automatizado
+# de 09/09/2026 — placeholder existe de fato no DOCX real, apesar de
+# schema.json ter afirmado o contrário até esta correção): a soma já
+# calculada para EXISTE_DISCREPANCIA_VALOR_CAUSA, nunca um novo cálculo
+# divergente. Mesma disciplina de VALOR_DA_CAUSA — sempre quantificado,
+# nunca sem valor.
+def _validar_valor_total_proveito_economico(valor) -> list:
+    texto = str(valor)
+    valores = set(_VALOR_MONETARIO_BR_RE.findall(texto))
+    if len(valores) > 1:
+        return [
+            f"VALOR_TOTAL_PROVEITO_ECONOMICO contém {len(valores)} valores monetários "
+            f"divergentes {sorted(valores)} — deve ser exatamente a soma já usada para "
+            f"resolver EXISTE_DISCREPANCIA_VALOR_CAUSA, nunca um novo cálculo "
+            f"divergente nem escolha automática entre valores: {valor!r}"]
+    if valores:
+        return []
+    return [
+        f"VALOR_TOTAL_PROVEITO_ECONOMICO não contém valor monetário no formato "
+        f"brasileiro esperado (ex.: 'R$ 10.000,00') — o tópico 2.6 sempre exige um "
+        f"total concreto (soma dos pedidos econômicos) para pedir a retificação do "
+        f"valor da causa: {valor!r}"]
+
+
 # Etapa 5.5 (achado real — redação robótica da tempestividade): backstop
 # determinístico contra dump de memória de cálculo no DOCX final —
 # independente da fonte do valor (fallback automático do pipeline ou
@@ -646,6 +722,9 @@ VALIDADORES_ESPECIFICOS = {
     "VALOR_DANO_MORAL_PRETENDIDO": _validar_valor_dano_moral_pretendido,
     "PEDIDOS_FINAIS": _validar_pedidos_finais,
     "LOCAL_DATA": _validar_local_data,
+    "SINOPSE_FATOS_NUCLEO_OBJETO": _validar_sinopse_fatos_nucleo_objeto,
+    "VALOR_DA_CAUSA": _validar_valor_da_causa,
+    "VALOR_TOTAL_PROVEITO_ECONOMICO": _validar_valor_total_proveito_economico,
 }
 
 

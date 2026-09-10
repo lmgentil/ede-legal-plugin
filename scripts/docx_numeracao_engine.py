@@ -126,6 +126,27 @@ NOS_LITERAIS = (
     {"id": "PRELIMINAR_REVOGACAO_GRATUIDADE", "nivel": 2, "pai": "PRELIMINARES",
      "ancora_texto": "REVOGAÇÃO DA ASSITÊNCIA JUDICIÁRIA GRATUITA", "obrigatorio": False},
 
+    # nível 2 — filhos de PRELIMINARES, Etapa 5.8-G (tópicos 2.3 a 2.6 do
+    # modelo modelo-oficial_topicos-2.3-a-2.6_contratados.docx). Âncoras
+    # auditadas contra o DOCX real (única ocorrência cada, confirmado por
+    # varredura de parágrafo — não regex cego). `obrigatorio=False`: são
+    # blocos condicionais (state_linked/estrategista, blocos.json), podem
+    # legitimamente estar ausentes. Posicionadas aqui (logo após os dois
+    # filhos originais de PRELIMINARES, antes de MÉRITO) para refletir a
+    # ordem física real no documento — não é exigência do motor (os
+    # contadores de `_planejar` são isolados por `pai`, a posição relativa
+    # entre grupos de `pai` diferentes na tupla não afeta a numeração), só
+    # legibilidade/manutenção, seguindo a convenção já documentada acima
+    # ("Ordem = ordem física no documento").
+    {"id": "PRELIMINAR_AUSENCIA_INTERESSE_AGIR", "nivel": 2, "pai": "PRELIMINARES",
+     "ancora_texto": "AUSÊNCIA DE INTERESSE DE AGIR", "obrigatorio": False},
+    {"id": "PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO", "nivel": 2, "pai": "PRELIMINARES",
+     "ancora_texto": "ILEGITIMIDADE ATIVA AD CAUSAM", "obrigatorio": False},
+    {"id": "PRELIMINAR_INEPCIA_INICIAL", "nivel": 2, "pai": "PRELIMINARES",
+     "ancora_texto": "INÉPCIA DA PETIÇÃO INICIAL", "obrigatorio": False},
+    {"id": "PRELIMINAR_IMPUGNACAO_VALOR_CAUSA", "nivel": 2, "pai": "PRELIMINARES",
+     "ancora_texto": "IMPUGNAÇÃO AO VALOR DA CAUSA", "obrigatorio": False},
+
     # nível 2/3 — dentro de MÉRITO (fixo, sempre presente)
     {"id": "LEGALIDADE_PROCEDIMENTOS", "nivel": 2, "pai": "MERITO",
      "ancora_texto": "LEGALIDADE DOS PROCEDIMENTOS", "obrigatorio": True},

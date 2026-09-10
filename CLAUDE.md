@@ -604,14 +604,30 @@ validador de linguagem natural: prova-se ancoragem,
 atribuição de fonte, unidade e aritmética declarada, só sobre relações
 estruturadas.
 
-**Zona autorizada hoje: uma.** `ZONA_METODOLOGIA_APURACAO` (bloco-pai
+**Zonas autorizadas hoje: cinco.** `ZONA_METODOLOGIA_APURACAO` (bloco-pai
 `CALCULOS_RECUPERACAO_CONSUMO`) — critério/inciso do art. 595 aplicado,
 período, ciclos, consumos, diferença, tarifa, valor recuperado e base
-documental da apuração. Toda zona futura exige
-autorização expressa do usuário, com auditoria própria. **Não existe
-`ZONA_COMPLEMENTACAO_GENERICA`** e não deve passar a existir. Definição
-completa em `docs/adr/ADR-0010-zonas-complementacao.md` e
-`docs/specs/SPEC-0001.md` §58 — não duplicadas aqui.
+documental da apuração. Acrescentadas na Etapa 5.8-G, junto com os
+tópicos 2.3 a 2.6 (§7 acima), uma zona por tópico — mesma disciplina de
+proveniência/ancoragem/aritmética desta seção, cada uma normalmente vazia
+e restrita à finalidade abaixo: `ZONA_PRETENSAO_RESISTIDA` (bloco-pai
+`PRELIMINAR_AUSENCIA_INTERESSE_AGIR`, 2.3) — ausência documental de
+requerimento administrativo prévio/resistência da Ré;
+`ZONA_TITULARIDADE_UC` (bloco-pai `PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO`,
+2.4) — divergência documental entre a parte autora e o titular formal da
+UC, quando o texto fixo e `CONTA_CONTRATO`/`NOME_TITULAR_DA_UC` não
+bastarem; `ZONA_FUNDAMENTACAO_INEPCIA` (bloco-pai
+`PRELIMINAR_INEPCIA_INICIAL`, 2.5) — deficiências concretas e
+documentadas da inicial; `ZONA_COMPOSICAO_PROVEITO_ECONOMICO` (bloco-pai
+`SUBBLOCO_CUMULACAO_PEDIDOS`, aninhado em 2.6) — composição documental dos
+pedidos que formam o proveito econômico da demanda, sem recalcular o que
+já foi determinado em `EXISTE_DISCREPANCIA_VALOR_CAUSA`. Toda zona além
+destas cinco continua exigindo autorização expressa do usuário, com
+auditoria própria. **Não existe `ZONA_COMPLEMENTACAO_GENERICA`** e não
+deve passar a existir. Definição completa em
+`docs/adr/ADR-0010-zonas-complementacao.md` e `docs/specs/SPEC-0001.md`
+§58 — não duplicadas aqui; ambos os documentos precisam da mesma
+atualização (pendente, fora do escopo desta correção pontual).
 
 **A zona demonstra; o texto institucional conclui (Etapa 5.8-E,
 achado do Teste Real 5.8-D).** A zona não deve ocupar o espaço
@@ -851,7 +867,16 @@ pipeline que não depende dele.
 
 Lista real, auditada diretamente em `templates/contestacao/modelo-oficial.docx`
 (Fase 3) — substitui a lista hipotética original desta seção; ver
-`docs/specs/SPEC-0001.md REQ-014` para a justificativa da divergência:
+`docs/specs/SPEC-0001.md REQ-014` para a justificativa da divergência. A
+lista abaixo foi atualizada em 09/09/2026 (estava desatualizada desde a
+Etapa 5.8-G, que não a havia sincronizado): 13 originais + 5 da Etapa
+5.8-G (tópicos 2.3-2.6) + `VALOR_TOTAL_PROVEITO_ECONOMICO`, achado do
+teste automatizado contra o DOCX real na mesma data — existia fisicamente
+no template (tópico 2.6), mas nunca fora catalogado; o token continha um
+acento (`ECONÔMICO`) incompatível com o mecanismo de substituição
+(`[A-Z_]+`, sem suporte a Unicode acentuado — mesma convenção de
+`NUMERO_PROCESSO`/`JUIZO`), corrigido no texto do template junto com a
+catalogação:
 
 ```text
 {{JUIZO}}
@@ -867,6 +892,12 @@ Lista real, auditada diretamente em `templates/contestacao/modelo-oficial.docx`
 {{VALOR_DANO_MORAL_PRETENDIDO}}
 {{PEDIDOS_FINAIS}}
 {{LOCAL_DATA}}
+{{CONTA_CONTRATO}}
+{{NOME_TITULAR_DA_UC}}
+{{TELAS_DA_TITULARIDADE}}
+{{SINOPSE_FATOS_NUCLEO_OBJETO}}
+{{VALOR_DA_CAUSA}}
+{{VALOR_TOTAL_PROVEITO_ECONOMICO}}
 ```
 
 Não crie novos placeholders silenciosamente.

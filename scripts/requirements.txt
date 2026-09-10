@@ -1,21 +1,19 @@
 # Dependências de scripts/docx_template_engine.py e dos CLIs que o usam
 # (render_docx.py, validate_template.py).
 #
-# Situação na Etapa 5.10 (ADR-0014, PEND-007) — AINDA NÃO totalmente
-# encerrada: docx_template_engine.py/docx_context_engine.py/
-# docx_block_engine.py/validate_template.py CONTINUAM dependendo em
-# runtime do skill "docx" de terceiro (unpack.py/pack.py/validate.py,
-# localizado via docx_template_engine.py:_localizar_docx_toolkit — NÃO
-# vendorizado neste plugin, instalação separada do usuário). O runtime
-# próprio do EDE (scripts/docx_package.py) já existe e já cobre a mesma
-# capacidade sem essa dependência, mas ainda não foi migrado para
-# nenhum consumidor real (Commit 3 em diante da Etapa 5.10, sob
-# autorização própria) — até lá, ambos coexistem.
+# Situação na Etapa 5.10 (ADR-0014, PEND-007) — dependência runtime do
+# skill "docx" de terceiro REMOVIDA (Commit 3): docx_template_engine.py,
+# docx_context_engine.py, docx_block_engine.py e validate_template.py
+# usam exclusivamente o runtime próprio do EDE
+# (scripts/docx_package.py — extrair_pacote_docx/empacotar_pacote_docx),
+# sem unpack.py/pack.py/instalação separada de terceiro. PEND-007
+# permanece aberta só pelo registro histórico (ADR-0014) até revisão
+# formal de fechamento.
 lxml
 
-# lxml é usada tanto pelo toolkit externo acima (enquanto ainda em uso)
-# quanto por scripts/docx_package.py, docx_numeracao_engine.py e
-# docx_block_engine.py (código próprio do EDE).
+# lxml é usada por scripts/docx_package.py, docx_template_engine.py,
+# docx_numeracao_engine.py e docx_block_engine.py — toda a manipulação
+# XML do pipeline de Contestação, código próprio do EDE.
 #
 # defusedxml foi avaliada e REJEITADA nesta etapa como dependência de
 # scripts/docx_package.py — decisão e justificativa completas no

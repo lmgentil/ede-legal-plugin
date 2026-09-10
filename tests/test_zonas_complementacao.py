@@ -676,7 +676,8 @@ def test_AA2_template_lock_reprova_alteracao_fora_da_zona():
     texto institucional — a cadeia de recomputação não foi afrouxada."""
     if _pular_sem_template():
         return
-    from docx_template_engine import _importar_toolkit, verificar_template_lock
+    from docx_package import extrair_pacote_docx
+    from docx_template_engine import verificar_template_lock
     from docx_block_engine import validar_e_resolver_decisoes
     from docx_numeracao_engine import renumerar_titulos
     from docx_template_engine import substituir_placeholders
@@ -701,13 +702,12 @@ def test_AA2_template_lock_reprova_alteracao_fora_da_zona():
         renumerado, _ = renumerar_titulos(com_zonas)
         return substituir_placeholders(renumerado, dados)
 
-    unpack_mod, _ = _importar_toolkit()
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         copia = tmp / "t.docx"
         shutil.copy2(TEMPLATE_REAL, copia)
         template_dir = tmp / "template"
-        unpack_mod.unpack(str(copia), str(template_dir))
+        extrair_pacote_docx(copia, template_dir)
         template_xml = (template_dir / "word" / "document.xml").read_text(encoding="utf-8")
 
         gerado_dir = tmp / "gerado"
@@ -909,13 +909,12 @@ def test_5C_G_H_texto_institucional_adjacente_preservado():
     DOCX exatamente como estão no template, com e sem zona."""
     if _pular_sem_template():
         return
-    from docx_template_engine import _importar_toolkit
-    unpack_mod, _ = _importar_toolkit()
+    from docx_package import extrair_pacote_docx
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         copia = tmp / "t.docx"
         shutil.copy2(TEMPLATE_REAL, copia)
-        unpack_mod.unpack(str(copia), str(tmp / "u"))
+        extrair_pacote_docx(copia, tmp / "u")
         template_xml = (tmp / "u" / "word" / "document.xml").read_text(encoding="utf-8")
         raiz = LET.fromstring(template_xml.encode("utf-8"))
         paras = [_texto(p) for p in raiz.iter(f"{{{W}}}p")]

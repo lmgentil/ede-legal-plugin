@@ -34,8 +34,8 @@ import pytest
 
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
+from docx_package import extrair_pacote_docx  # noqa: E402
 from docx_template_engine import (  # noqa: E402
-    _importar_toolkit,
     extrair_placeholders,
     garantir_utf8,
     gerar_peca,
@@ -320,23 +320,24 @@ def test_pipeline_completo_contra_template_real():
               "Rodando só os testes de unidade sobre XML sintético.")
         return
 
-    from docx_template_engine import carregar_schema, extrair_placeholders as _ep, _importar_toolkit
+    from docx_template_engine import carregar_schema, extrair_placeholders as _ep
     import shutil as _shutil
     import tempfile as _tempfile
 
     schema = carregar_schema(SCHEMA_REAL)
 
-    # IMPORTANTE: alguns placeholders ficam fragmentados entre runs no DOCX
-    # bruto (confirmado na auditoria) — só aparecem inteiros depois do merge
-    # de runs do unpack.py. Ler o zip cru para contar placeholders SUBESTIMA
-    # o total; por isso este teste passa pelo mesmo unpack com merge que a
-    # engine real usa, não por um zipfile.read() ingênuo.
-    unpack_mod, _ = _importar_toolkit()
+    # Este teste passa pela MESMA extração que a engine real usa
+    # (extrair_pacote_docx), não por um zipfile.read() ingênuo — garante que
+    # a contagem de placeholders reflita exatamente o que o pipeline real
+    # enxerga no XML extraído (achado histórico da auditoria original desta
+    # etapa, quando a extração passava por um toolkit externo: nunca contar
+    # placeholders a partir de uma leitura de zip diferente da usada pelo
+    # pipeline).
     with _tempfile.TemporaryDirectory() as tmp:
         cópia = Path(tmp) / "t.docx"
         _shutil.copy2(TEMPLATE_REAL, cópia)
         unpacked = Path(tmp) / "unpacked"
-        unpack_mod.unpack(str(cópia), str(unpacked))
+        extrair_pacote_docx(cópia, unpacked)
         template_xml = (unpacked / "word" / "document.xml").read_text(encoding="utf-8")
 
     # Etapa 5.8-B: além dos placeholders oficiais, o template real passa
@@ -414,8 +415,7 @@ def test_pipeline_completo_contra_template_real():
         assert "COELBA" in gerado_xml, "texto fixo institucional não pode sumir"
 
         # Etapa 3: todo conteúdo substituído fica em FF0000 — contra o
-        # template real, com <w:rPr> pretty-printado pelo unpack.py
-        # (achado real desta implementação).
+        # template real (achado real desta implementação).
         assert 'w:val="FF0000"' in gerado_xml, "conteúdo substituído deveria estar em FF0000"
         assert "FULANO DE TAL" in gerado_xml  # AUTOR fictício, sem qualificação (Etapa 3, achado real)
 
@@ -432,10 +432,9 @@ def test_pipeline_completo_contra_template_real():
                     data = doc_adulterado.encode("utf-8")
                 zout.writestr(item, data)
 
-        unpack_mod, _ = _importar_toolkit()
         ref_dir, aud_dir = Path(tmp) / "ref_unpacked", Path(tmp) / "aud_unpacked"
-        unpack_mod.unpack(str(saida), str(ref_dir))
-        unpack_mod.unpack(str(adulterada), str(aud_dir))
+        extrair_pacote_docx(saida, ref_dir)
+        extrair_pacote_docx(adulterada, aud_dir)
         lock_result = verificar_template_lock(ref_dir, aud_dir, dados_ficticios)
         assert not lock_result["ok"], "Template Lock deveria reprovar adulteração de texto institucional fixo"
 

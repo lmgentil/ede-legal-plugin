@@ -26,7 +26,8 @@ from pathlib import Path
 
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(Path(__file__).parent))
-from docx_template_engine import _importar_toolkit, garantir_utf8, gerar_peca  # noqa: E402
+from docx_package import extrair_pacote_docx  # noqa: E402
+from docx_template_engine import garantir_utf8, gerar_peca  # noqa: E402
 
 TEMPLATE_PADRAO = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
 SCHEMA_PADRAO = BASE / "templates" / "contestacao" / "schema.json"
@@ -66,10 +67,9 @@ def main():
             ]}, ensure_ascii=False, indent=2))
             sys.exit(1)
 
-        unpack_mod, _pack_mod = _importar_toolkit()
         ref_dir, aud_dir = tmp / "ref_unpacked", tmp / "aud_unpacked"
-        unpack_mod.unpack(str(referencia), str(ref_dir))
-        unpack_mod.unpack(args.gerado, str(aud_dir))
+        extrair_pacote_docx(referencia, ref_dir)
+        extrair_pacote_docx(args.gerado, aud_dir)
 
         divergencias = _diff_diretorios(ref_dir, aud_dir, "referência", "auditado")
         resultado = {"ok": not divergencias, "divergencias": divergencias}

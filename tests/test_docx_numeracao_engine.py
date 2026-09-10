@@ -367,9 +367,9 @@ def test_O_P_pipeline_completo_gera_docx_com_numeracao_e_template_lock_ok():
 
         # caso M/N: reabrir o DOCX final e confirmar que o título de nível
         # 2 aparece com o número recalculado, texto e negrito intactos.
-        unpack_mod, _pack_mod = __import__("docx_template_engine")._importar_toolkit()
+        from docx_package import extrair_pacote_docx
         unpacked = Path(tmp) / "gerado_unpacked"
-        unpack_mod.unpack(str(saida), str(unpacked))
+        extrair_pacote_docx(saida, unpacked)
         doc_xml = (unpacked / "word" / "document.xml").read_text(encoding="utf-8")
         # Pontuação real do template (auditada diretamente no XML gerado em
         # 09/09/2026): "N.N. TÍTULO" com PONTO, não travessão, logo após o

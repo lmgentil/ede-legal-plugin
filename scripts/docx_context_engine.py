@@ -48,7 +48,8 @@ from pathlib import Path
 import lxml.etree as LET
 
 from docx_block_engine import carregar_catalogo, validar_catalogo
-from docx_template_engine import _PLACEHOLDER_RE, _importar_toolkit
+from docx_package import PacoteDocxAbortada, extrair_pacote_docx
+from docx_template_engine import _PLACEHOLDER_RE
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 NS = {"w": W}
@@ -221,7 +222,6 @@ def extrair_contexto_do_template(template_path, catalogo_path) -> dict:
 
     catalogo = carregar_catalogo(catalogo_path)
     validar_catalogo(catalogo)
-    unpack_mod, _pack_mod = _importar_toolkit()
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
@@ -229,18 +229,24 @@ def extrair_contexto_do_template(template_path, catalogo_path) -> dict:
         shutil.copy2(template_path, copia)  # nunca lê o mestre diretamente
 
         unpacked = tmp / "template_unpacked"
-        _, msg = unpack_mod.unpack(str(copia), str(unpacked))
+        try:
+            extrair_pacote_docx(copia, unpacked)
+        except PacoteDocxAbortada as e:
+            raise ContextoAbortada("unpack_falhou", e.motivo)
+
         documento = unpacked / "word" / "document.xml"
-        # Achado real desta implementação: `unpack_mod.unpack()` (toolkit
-        # externo "docx", não vendorizado) pode criar `unpacked` mesmo
-        # quando o .docx de entrada é inválido (zip corrompido/arquivo
-        # arbitrário) — checar só `unpacked.exists()` não é suficiente
+        # Achado real da implementação anterior (toolkit externo "docx"):
+        # a extração podia "suceder" mesmo quando o .docx de entrada é
+        # inválido — checar só a existência do diretório não bastava
         # (deixava um FileNotFoundError não tratado escapar na leitura
-        # abaixo, violando fail-closed — item 6 da Etapa 5.7-C). Checa o
-        # arquivo que de fato importa.
+        # abaixo, violando fail-closed — item 6 da Etapa 5.7-C). O runtime
+        # próprio (docx_package.py) preserva a mesma disciplina: extração
+        # OPC/ZIP genérica não garante sozinha que exista especificamente
+        # um word/document.xml utilizável — checa-se o arquivo que de fato
+        # importa, não só o diretório.
         if not documento.exists():
-            raise ContextoAbortada("unpack_falhou", msg or f"{template_path}: falha ao "
-                                    "desempacotar (word/document.xml ausente após unpack — "
+            raise ContextoAbortada("unpack_falhou", f"{template_path}: falha ao "
+                                    "desempacotar (word/document.xml ausente após extração — "
                                     "arquivo não é um .docx válido)")
 
         document_xml = documento.read_text(encoding="utf-8")

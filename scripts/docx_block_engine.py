@@ -76,8 +76,8 @@ from pathlib import Path
 import lxml.etree as LET
 
 sys.path.insert(0, str(Path(__file__).parent))
+from docx_package import PacoteDocxAbortada, empacotar_pacote_docx, extrair_pacote_docx  # noqa: E402
 from docx_template_engine import (  # noqa: E402
-    _importar_toolkit,
     carregar_schema,
     substituir_placeholders,
     validar_placeholders,
@@ -972,7 +972,6 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
         return {"status": "FALHOU", "etapa": e.stage, "erros": [e.motivo]}
 
     schema = carregar_schema(schema_path)
-    unpack_mod, pack_mod = _importar_toolkit()
 
     # Etapa 5.8-B: o conteúdo das zonas INCLUIR entra no MESMO dicionário de
     # substituição dos placeholders — reaproveitando integralmente FF0000,
@@ -996,9 +995,13 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
         shutil.copy2(template_path, copia_template)  # INV-012: nunca ler/escrever o mestre diretamente
 
         unpacked_template = tmp / "template_unpacked"
-        _, msg = unpack_mod.unpack(str(copia_template), str(unpacked_template))
-        if not unpacked_template.exists():
-            return {"status": "FALHOU", "etapa": "unpack", "erros": [msg]}
+        try:
+            extrair_pacote_docx(copia_template, unpacked_template)
+        except PacoteDocxAbortada as e:
+            return {"status": "FALHOU", "etapa": "unpack", "erros": [e.motivo]}
+        if not (unpacked_template / "word" / "document.xml").exists():
+            return {"status": "FALHOU", "etapa": "unpack",
+                     "erros": [f"word/document.xml ausente após extração: {template_path}"]}
 
         template_xml = (unpacked_template / "word" / "document.xml").read_text(encoding="utf-8")
 
@@ -1027,12 +1030,12 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
             return {"status": "FALHOU", "etapa": "template_lock", "erros": lock["divergencias"]}
 
         output_path = Path(output_path)
-        _, msg_pack = pack_mod.pack(
-            str(gerado_dir), str(output_path),
-            original_file=str(copia_template), validate=True,
-        )
+        try:
+            empacotar_pacote_docx(gerado_dir, output_path)
+        except PacoteDocxAbortada as e:
+            return {"status": "FALHOU", "etapa": "pack", "erros": [e.motivo]}
         if not output_path.exists():
-            return {"status": "FALHOU", "etapa": "pack", "erros": [msg_pack]}
+            return {"status": "FALHOU", "etapa": "pack", "erros": ["arquivo de saída não foi criado"]}
 
         containers_derivados = [b["id"] for b in catalogo["blocks"] if b["decision_mode"] == "derived"]
         return {
@@ -1050,5 +1053,5 @@ def gerar_peca_com_blocos(template_path, schema_path, catalogo_path, dados: dict
             "zonas": dict(estados_zonas),
             "numeracao": relatorio_numeracao["numeracao"],
             "template_lock": "OK",
-            "mensagem_pack": msg_pack,
+            "mensagem_pack": "reempacotado via docx_package.empacotar_pacote_docx (runtime próprio, ADR-0014)",
         }

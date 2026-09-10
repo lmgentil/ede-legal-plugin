@@ -335,6 +335,9 @@ def test_O_P_pipeline_completo_gera_docx_com_numeracao_e_template_lock_ok():
         "VALOR_DANO_MORAL_PRETENDIDO": "R$ 0,00 (dado fictício de teste)",
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
         "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
+        # Etapa 5.8-G: exigido por PRELIMINAR_INEPCIA_INICIAL, que entra em
+        # `decisoes` abaixo (decision_mode="estrategista", INCLUIR).
+        "SINOPSE_FATOS_NUCLEO_OBJETO": "Objeto fictício de teste (dado fictício de teste).",
     }
     # cenário deliberadamente PARCIAL — exclui PRELIMINAR_CDC_INAPLICAVEL
     # (nível 2) e mantém PRELIMINARES via GRATUIDADE (state_linked), para
@@ -368,9 +371,16 @@ def test_O_P_pipeline_completo_gera_docx_com_numeracao_e_template_lock_ok():
         unpacked = Path(tmp) / "gerado_unpacked"
         unpack_mod.unpack(str(saida), str(unpacked))
         doc_xml = (unpacked / "word" / "document.xml").read_text(encoding="utf-8")
-        assert "2.1 – REVOGAÇÃO DA ASSITÊNCIA JUDICIÁRIA GRATUITA" in doc_xml
-        assert "2.2 – REVOGAÇÃO DA ASSITÊNCIA JUDICIÁRIA GRATUITA" not in doc_xml
-        assert "3.1 – LEGALIDADE DOS PROCEDIMENTOS" in doc_xml  # MÉRITO continua "3" (nada acima dele mudou)
+        # Pontuação real do template (auditada diretamente no XML gerado em
+        # 09/09/2026): "N.N. TÍTULO" com PONTO, não travessão, logo após o
+        # número — o travessão do texto original só aparece mais adiante,
+        # dentro do próprio título ("...GRATUITA – AUSÊNCIA DOS
+        # REQUISITOS..."). As asserções anteriores usavam "–" logo após o
+        # número, que nunca existiu neste título — desatualizadas desde
+        # antes da Etapa 5.8-G, só nunca exercitadas neste cenário exato.
+        assert "2.1. REVOGAÇÃO DA ASSITÊNCIA JUDICIÁRIA GRATUITA" in doc_xml
+        assert "2.2. REVOGAÇÃO DA ASSITÊNCIA JUDICIÁRIA GRATUITA" not in doc_xml
+        assert "3.1. LEGALIDADE DOS PROCEDIMENTOS" in doc_xml  # MÉRITO continua "3" (nada acima dele mudou)
 
 
 def main():

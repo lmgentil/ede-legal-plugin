@@ -251,23 +251,42 @@ def _badges_nivel1_presentes(root):
     return achados
 
 
+def _paragrafo_de(t):
+    p = t
+    while p is not None and p.tag != _qn("p"):
+        p = p.getparent()
+    return p
+
+
 def _localizar_run_literal(root, no):
-    """Retorna o elemento <w:t> que carrega o prefixo numérico do título
-    literal de `no`, ou None se o nó estiver legitimamente ausente (bloco
-    EXCLUIR — conteúdo inteiro já descartado pela composição;
-    `obrigatorio=False`). Candidato = run cujo próprio texto começa com
-    `\\d+(\\.\\d+)*` E cujo PARÁGRAFO (não necessariamente a mesma run —
-    achado real: "2.1 - " e o título que a segue vivem em runs distintas
-    por causa de negrito/formatação) contém a substring âncora."""
+    """Retorna a PRIMEIRA <w:t> do parágrafo que carrega o título literal
+    de `no`, ou None se o nó estiver legitimamente ausente (bloco EXCLUIR —
+    conteúdo inteiro já descartado pela composição; `obrigatorio=False`).
+
+    Candidato = PARÁGRAFO cujo texto completo contém a substring âncora E
+    cuja primeira <w:t> começa com `\\d+(\\.\\d+)*`. A busca é por
+    PARÁGRAFO, não por run isolada (redesenhado na Etapa 5.8-G — achado
+    real: nos tópicos 2.3/2.4/2.5 do modelo, o prefixo numérico vem
+    fisicamente partido em runs de um caractere cada — "2", ".", "3" —,
+    então mais de uma run do mesmo parágrafo começa com dígito; a versão
+    anterior deste método tratava cada run digit-prefixed como candidato
+    independente e levantava `numeracao_titulo_ambiguo` sobre um único
+    título legítimo). Itera `<w:p>` diretamente (cada parágrafo visitado
+    exatamente uma vez por construção do `.iter()`) — deliberadamente
+    nunca deduplica por `id()` de proxy lxml: `id()` de um `_Element`
+    efêmero (obtido, por exemplo, subindo de `<w:t>` até o `<w:p>` pai a
+    cada iteração e descartando a referência em seguida) pode ser
+    reciclado pelo GC entre chamadas e colidir com outro nó — mesma
+    armadilha já documentada em `_badges_nivel1_presentes` acima; a forma
+    seguramente correta de "visitar cada parágrafo uma vez" é iterar
+    parágrafos, não recompô-los a partir de runs."""
     candidatos = []
-    for t in root.iter(_qn("t")):
-        if not _NUM_PREFIXO_RE.match(t.text or ""):
+    for p in root.iter(_qn("p")):
+        if no["ancora_texto"] not in _texto_paragrafo(p):
             continue
-        p = t
-        while p is not None and p.tag != _qn("p"):
-            p = p.getparent()
-        if p is not None and no["ancora_texto"] in _texto_paragrafo(p):
-            candidatos.append(t)
+        primeira = next(p.iter(_qn("t")), None)
+        if primeira is not None and _NUM_PREFIXO_RE.match(primeira.text or ""):
+            candidatos.append(primeira)
 
     if not candidatos:
         if no["obrigatorio"]:
@@ -284,6 +303,56 @@ def _localizar_run_literal(root, no):
             f"{no['ancora_texto']!r} — catálogo de numeração precisa de âncora mais específica",
         )
     return candidatos[0]
+
+
+def _escrever_numero(elemento, numero_novo):
+    """Reescreve o prefixo numérico de um título literal já localizado por
+    `_localizar_run_literal`, cobrindo o caso em que o número físico está
+    espalhado por várias runs consecutivas do mesmo parágrafo (achado real,
+    Etapa 5.8-G — ver docstring acima). `elemento` é sempre a PRIMEIRA
+    <w:t> do parágrafo (garantia de `_localizar_run_literal`).
+
+    Regra ('alterar SOMENTE o número', preservada): recalcula, a partir do
+    texto concatenado do parágrafo, o span de caracteres ocupado pelo
+    número ANTIGO (`_NUM_PREFIXO_RE`), e distribui o número NOVO por esse
+    mesmo span — nunca toca em texto fora dele:
+
+      - a run mais à esquerda do span recebe o número novo inteiro,
+        seguido do que sobrar dela mesma após o fim do span (idêntico ao
+        `sub()` de sempre quando o span cabe numa única run — nenhuma
+        regressão para os títulos já existentes, todos de run única);
+      - cada run seguinte, ainda dentro do span, perde só os caracteres
+        que o span antigo consumia dela — o eventual restante (ex.: o
+        início do próprio título, quando a última run do span mistura o
+        último dígito com o texto que segue) é preservado literalmente.
+
+    Nunca remove elementos <w:r>/<w:t> (uma run que fique inteiramente
+    dentro do span vira texto vazio, não é excluída — minimiza a
+    cirurgia sobre o XML, sem risco de mexer em contagem de runs usada
+    por revisão/rastreamento)."""
+    paragrafo = _paragrafo_de(elemento)
+    runs = list(paragrafo.iter(_qn("t")))
+    texto_paragrafo = "".join(r.text or "" for r in runs)
+    m = _NUM_PREFIXO_RE.match(texto_paragrafo)
+    if not m:
+        raise NumeracaoAbortada(
+            "numeracao_titulo_sem_numero",
+            "título localizado sem prefixo numérico no início do parágrafo — "
+            "inconsistência entre _localizar_run_literal e _escrever_numero",
+        )
+    fim_span = m.end()
+
+    pos = 0
+    primeira = True
+    for r in runs:
+        if pos >= fim_span:
+            break
+        texto_run = r.text or ""
+        consumidos = min(len(texto_run), fim_span - pos)
+        sobra = texto_run[consumidos:]
+        r.text = (numero_novo + sobra) if primeira else sobra
+        primeira = False
+        pos += len(texto_run)
 
 
 # ============================================================== plano de numeração
@@ -329,7 +398,7 @@ def renumerar_titulos(document_xml: str):
     plano, numeros = _planejar(root)
 
     for _id, numero, elemento in plano:
-        elemento.text = _NUM_PREFIXO_RE.sub(numero, elemento.text, count=1)
+        _escrever_numero(elemento, numero)
 
     novo_xml = LET.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True).decode("utf-8")
     relatorio = {"numeracao": numeros, "titulos_renumerados": [i for i, _n, _e in plano]}
@@ -389,6 +458,14 @@ def _p_badge(texto):
 
 def _p_texto(texto):
     return f'<w:p><w:r><w:t>{texto}</w:t></w:r></w:p>'
+
+
+def _p_texto_runs(*textos):
+    """Como _p_texto, mas o parágrafo é composto por várias runs
+    consecutivas (uma <w:r> por texto) — reproduz o achado real da Etapa
+    5.8-G: número partido em runs de um caractere cada."""
+    corpo = "".join(f'<w:r><w:t>{t}</w:t></w:r>' for t in textos)
+    return f'<w:p>{corpo}</w:p>'
 
 
 if __name__ == "__main__":
@@ -455,5 +532,42 @@ if __name__ == "__main__":
     # deixar lacuna no lugar do irmão excluído.
     assert rel3["numeracao"]["CALCULOS_RECUPERACAO_CONSUMO"] == "2.2"
     assert validar_numeracao_final(_novo3) == []
+
+    # caso D (Etapa 5.8-G): número físico partido em runs de um caractere
+    # cada — achado real do modelo-oficial_topicos-2.3-a-2.6_contratados.docx
+    # para 2.3/2.4/2.5 ("2", ".", "3" como <w:t> distintas). Aqui 2.4 está
+    # ausente (bloco EXCLUIR — nem paragrafo nem runs no XML), então 2.3
+    # (split-run) vira "2.1", 2.5 (split-run) vira "2.2" e 2.6 (run única)
+    # vira "2.3" — cobre reescrita multi-run E run-única no mesmo teste,
+    # sem lacuna e sem resíduo.
+    XML_NUMERO_PARTIDO = (
+        '<w:document xmlns:w="%s"><w:body>'
+        + _p_badge("TEMPESTIVIDADE")
+        + _p_badge("PRELIMINARES")
+        + _p_texto_runs("2", ".", "3", ". DA AUSÊNCIA DE INTERESSE DE AGIR (RESTO)")
+        + _p_texto_runs("2", ".", "5", ". DA INÉPCIA DA PETIÇÃO INICIAL (RESTO)")
+        + _p_texto("2.6. DA IMPUGNAÇÃO AO VALOR DA CAUSA (RESTO)")
+        + _p_badge("MÉRITO")
+        + _p_texto("3.1 - LEGALIDADE DOS PROCEDIMENTOS")
+        + _p_texto("3.1.1 - SINOPSE DOS FATOS")
+        + _p_texto("3.1.2 - REALIDADE FÁTICA")
+        + '</w:body></w:document>'
+    ) % W
+    _novo4, rel4 = renumerar_titulos(XML_NUMERO_PARTIDO)
+    assert rel4["numeracao"]["PRELIMINAR_AUSENCIA_INTERESSE_AGIR"] == "2.1"
+    assert rel4["numeracao"]["PRELIMINAR_INEPCIA_INICIAL"] == "2.2"
+    assert rel4["numeracao"]["PRELIMINAR_IMPUGNACAO_VALOR_CAUSA"] == "2.3"
+    assert "PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO" not in rel4["numeracao"]
+    assert validar_numeracao_final(_novo4) == []
+    # reconstrução lógica exata (concatenação das runs do parágrafo, não
+    # substring na serialização crua — o número novo pode ocupar menos
+    # caracteres que o antigo, deixando runs vazias no meio) confirma que
+    # nenhum fragmento do número antigo ("3.", "5.", run vazia com lixo)
+    # sobrou nem foi perdido.
+    _root4 = LET.fromstring(_novo4.encode("utf-8"))
+    _textos4 = [_texto_paragrafo(p) for p in _root4.iter(_qn("p"))]
+    assert "2.1. DA AUSÊNCIA DE INTERESSE DE AGIR (RESTO)" in _textos4
+    assert "2.2. DA INÉPCIA DA PETIÇÃO INICIAL (RESTO)" in _textos4
+    assert "2.3. DA IMPUGNAÇÃO AO VALOR DA CAUSA (RESTO)" in _textos4
 
     print("docx_numeracao_engine: auto-verificação OK")

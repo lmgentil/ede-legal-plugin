@@ -187,14 +187,20 @@ jobs:
 
       # ----------------------------------------------------- runtime real
       # PORT customizada e distinta de 8080/8765 (exemplo conceitual do
-      # gate, não vira default do produto). 8080 e 8765 são publicadas
-      # SÓ para o teste negativo seguinte poder provar que o servidor não
-      # está escutando nelas.
+      # gate, não vira default do produto). Publica SÓ 9123 — achado real
+      # da 1a execução deste gate (run 34555870396): publicar -p também
+      # para 8080/8765 (para "testar" que elas recusam) faz o Docker
+      # userland-proxy escutar nesses PORTOS DO HOST mesmo sem NADA
+      # ouvindo dentro do container — o handshake TCP então é aceito
+      # pelo próprio docker-proxy, não pelo processo, dando falso
+      # positivo de "a porta aceitou conexão". A prova correta é
+      # inspecionar o processo DENTRO do container (próximo step), nunca
+      # tentar conectar via uma porta publicada só para o teste.
       - name: Subir container real com PORT customizada (9123)
         run: |
           docker run -d --name ede-mcp-ci \
             -e PORT=9123 \
-            -p 9123:9123 -p 8080:8080 -p 8765:8765 \
+            -p 9123:9123 \
             ede-mcp:ci
           ok=""
           for i in $(seq 1 30); do
@@ -210,16 +216,39 @@ jobs:
             exit 1
           fi
 
-      - name: "Provar que 8080 e 8765 NÃO aceitam conexão (só a PORT fornecida está ativa)"
+      # Inspeciona /proc/net/tcp[6] DENTRO do container (sempre presente
+      # em qualquer processo Linux, sem precisar instalar netstat/ss) —
+      # prova o que o processo real está escutando, sem depender de
+      # publicação de porta nenhuma do lado do host (ver achado acima).
+      - name: "Provar que o processo só escuta na PORT fornecida (9123) — nunca 8080/8765"
         run: |
-          for porta in 8080 8765; do
-            if (exec 3<>"/dev/tcp/127.0.0.1/$porta") 2>/dev/null; then
-              exec 3<&- 3>&-
-              echo "GATE FALHOU: container aceitou conexão na porta antiga $porta (não deveria depender dela)."
+          portas_json=$(docker exec ede-mcp-ci python -c '
+          import json
+          portas = set()
+          for arq in ("/proc/net/tcp", "/proc/net/tcp6"):
+              try:
+                  linhas = open(arq).read().splitlines()[1:]
+              except FileNotFoundError:
+                  continue
+              for linha in linhas:
+                  campos = linha.split()
+                  if len(campos) > 3 and campos[3] == "0A":  # 0A = TCP_LISTEN
+                      portas.add(int(campos[1].split(":")[1], 16))
+          print(json.dumps(sorted(portas)))
+          ')
+          echo "Portas em LISTEN dentro do container: $portas_json"
+          { echo "### Portas em LISTEN dentro do container real"; echo '```'; echo "$portas_json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if ! echo "$portas_json" | grep -q '9123'; then
+            echo "GATE FALHOU: processo não está escutando em 9123 (PORT fornecida)."
+            exit 1
+          fi
+          for porta_antiga in 8080 8765; do
+            if echo "$portas_json" | grep -qE "(^|[^0-9])${porta_antiga}([^0-9]|$)"; then
+              echo "GATE FALHOU: processo está escutando na porta antiga $porta_antiga (não deveria depender dela)."
               exit 1
             fi
-            echo "OK — porta $porta corretamente recusada (não é a PORT fornecida)."
           done
+          echo "OK — processo escuta só em 9123; 8080 e 8765 ausentes."
 
       - name: "Cliente MCP real -> HTTP real -> container -> Streamable HTTP -> ede_health"
         run: |

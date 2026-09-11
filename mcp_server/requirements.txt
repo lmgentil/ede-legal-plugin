@@ -1,0 +1,18 @@
+# Dependência de mcp_server/server.py (Etapa 6.1, ADR-0015).
+#
+# SDK Python oficial do Model Context Protocol. Versão pinada na versão
+# estável mais recente confirmada nesta rodada (não por memória) contra
+# https://pypi.org/pypi/mcp/json e o changelog de releases de
+# https://github.com/modelcontextprotocol/python-sdk — release 2.2.0,
+# publicada em 2026-09-07, linha major v2, compatível com a especificação
+# MCP 2026-07-28 (núcleo stateless, transporte Streamable HTTP).
+#
+# Só a dependência direta é pinada aqui, no mesmo padrão de
+# scripts/requirements.txt e rag/requirements.txt — as transitivas
+# (pydantic, anyio, starlette, uvicorn, mcp_types, etc.) ficam a cargo da
+# resolução do próprio pacote "mcp".
+#
+# Deliberadamente ausentes nesta etapa (Etapa 6.1, ADR-0015): pyarrow,
+# rank_bm25, sentence-transformers, pandas, numpy, joblib — RAG entra em
+# etapa posterior. O servidor mínimo só precisa responder ede_health.
+mcp==2.2.0

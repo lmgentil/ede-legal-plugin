@@ -200,23 +200,46 @@ def ede_health() -> EdeHealthResponse:
         )
 
 
+DEFAULT_HOST_LOCAL = "127.0.0.1"
+DEFAULT_PORT_LOCAL = 8765
+"""Endereço/porta default da EXECUÇÃO LOCAL SEM CONFIGURAÇÃO (não do
+container/Cloud Run -- ver main()). Decisão de arquitetura registrada
+nesta rodada: a porta usada por esta constante ANTES desta mudança
+(ver `git log -p` do commit que a alterou para a Etapa 6.2) passou a
+estar reservada a outro serviço no ambiente local do projeto e NUNCA
+deve voltar a ser o default do EDE MCP -- 8765 é, daqui em diante, a
+única porta local default do EDE MCP; nenhum outro ponto deste módulo
+hardcoda um valor de substituição."""
+
+
 def main() -> None:
     """Entrypoint de processo — único lugar que decide transporte/porta.
 
     Streamable HTTP conforme a especificação MCP 2026-07-28. Nenhuma
     lógica de protocolo é escrita aqui; `mcp.run()` é fornecido pelo SDK.
 
-    Host/porta são lidos do ambiente (Etapa 6.2, item 3 do pedido —
-    "auditar" o bind fixo em 127.0.0.1:8080 herdado da Etapa 6.1, porque
-    Cloud Run injeta a variável PORT e espera bind em 0.0.0.0, não em
-    127.0.0.1). Os defaults abaixo preservam exatamente o comportamento
-    local anterior quando nenhuma variável é definida — nenhuma mudança
-    de comportamento para quem já rodava isto localmente. A escolha de
-    HOST/PORT em produção (Dockerfile/Cloud Run) é decisão de uma etapa
-    posterior, ainda não autorizada; este entrypoint só fica pronto para
-    recebê-la sem precisar ser reescrito de novo."""
-    host = os.environ.get("HOST", "127.0.0.1")
-    port = int(os.environ.get("PORT", "8080"))
+    Host/porta são sempre lidos do ambiente primeiro -- distinção
+    obrigatória entre dois cenários (não confundir um com o outro):
+
+      EXECUÇÃO LOCAL SEM CONFIGURAÇÃO -> 127.0.0.1:8765
+        (DEFAULT_HOST_LOCAL/DEFAULT_PORT_LOCAL acima; usado só quando
+        HOST/PORT não estão definidas no ambiente)
+
+      CONTAINER/CLOUD RUN -> 0.0.0.0:${PORT}
+        (a plataforma injeta PORT; o Dockerfile define HOST=0.0.0.0;
+        este código nunca decide isso por conta própria nem substitui a
+        PORT fornecida por um valor fixo -- só cai nos defaults locais
+        quando a variável correspondente está mesmo ausente)
+
+    O default local mudou para 127.0.0.1:8765 nesta rodada (commit
+    25791cd tinha introduzido a leitura de ambiente preservando ainda o
+    valor antigo como fallback) porque a porta antiga passou a ser
+    reservada a outro serviço do ambiente local -- decisão de
+    arquitetura explícita do usuário, não uma escolha técnica deste
+    módulo. Nenhum outro ponto deste arquivo hardcoda um valor de
+    substituição."""
+    host = os.environ.get("HOST", DEFAULT_HOST_LOCAL)
+    port = int(os.environ.get("PORT", DEFAULT_PORT_LOCAL))
     mcp.run(transport="streamable-http", host=host, port=port)
 
 

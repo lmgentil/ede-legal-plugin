@@ -199,3 +199,81 @@ def test_nenhuma_dependencia_de_pyarrow_ou_rank_bm25():
     ]
     for proibida in proibidas:
         assert not any(proibida in linha for linha in linhas_ativas)
+
+
+# ------------------------------------------------- resolução de HOST/PORT
+#
+# Ajuste obrigatório (mensagem do usuário, pós-Etapa 6.2, commit 25791cd):
+# 8080 estava reservada a outro serviço do ambiente local e NUNCA deve
+# voltar a ser o default local do EDE MCP; 127.0.0.1:8765 passa a ser o
+# único default local. `main()` nunca é chamado de verdade nestes testes
+# (bloquearia a suíte inteira, é `mcp.run()`) -- `mcp.run` é substituído
+# por um espião que só grava os kwargs recebidos.
+
+def _capturar_chamada_run(monkeypatch):
+    capturado: dict = {}
+    monkeypatch.setattr(mcp, "run", lambda **kwargs: capturado.update(kwargs))
+    return capturado
+
+
+def test_resolucao_host_port_sem_configuracao(monkeypatch):
+    """A. Sem HOST e sem PORT no ambiente, main() resolve para o novo
+    default local 127.0.0.1:8765 — nunca mais a porta antiga."""
+    monkeypatch.delenv("HOST", raising=False)
+    monkeypatch.delenv("PORT", raising=False)
+    capturado = _capturar_chamada_run(monkeypatch)
+
+    ede_mcp_server.main()
+
+    assert capturado["host"] == "127.0.0.1"
+    assert capturado["port"] == 8765
+    assert capturado["transport"] == "streamable-http"
+
+
+def test_resolucao_respeita_host_customizado(monkeypatch):
+    """B. HOST customizado é respeitado (ex.: 0.0.0.0 dentro de um
+    container) — PORT continua no default local quando ausente."""
+    monkeypatch.setenv("HOST", "0.0.0.0")
+    monkeypatch.delenv("PORT", raising=False)
+    capturado = _capturar_chamada_run(monkeypatch)
+
+    ede_mcp_server.main()
+
+    assert capturado["host"] == "0.0.0.0"
+    assert capturado["port"] == 8765
+
+
+def test_resolucao_respeita_port_customizada(monkeypatch):
+    """C. PORT customizada (ex.: a que o Cloud Run injeta) é respeitada —
+    nunca substituída por um valor fixo."""
+    monkeypatch.delenv("HOST", raising=False)
+    monkeypatch.setenv("PORT", "9999")
+    capturado = _capturar_chamada_run(monkeypatch)
+
+    ede_mcp_server.main()
+
+    assert capturado["host"] == "127.0.0.1"
+    assert capturado["port"] == 9999
+
+
+def test_resolucao_respeita_host_e_port_customizados(monkeypatch):
+    """D. HOST e PORT customizados simultaneamente — o cenário real de
+    CONTAINER/CLOUD RUN (HOST=0.0.0.0, PORT injetada pela plataforma)."""
+    monkeypatch.setenv("HOST", "0.0.0.0")
+    monkeypatch.setenv("PORT", "12345")
+    capturado = _capturar_chamada_run(monkeypatch)
+
+    ede_mcp_server.main()
+
+    assert capturado["host"] == "0.0.0.0"
+    assert capturado["port"] == 12345
+
+
+def test_nenhuma_dependencia_funcional_da_porta_antiga():
+    """E. Nenhuma ocorrência funcional da porta antiga (8080) permanece
+    no EDE MCP Server — nem como default, nem como fallback, nem como
+    valor de substituição em qualquer ponto do módulo."""
+    codigo_fonte = (MCP_SERVER_DIR / "server.py").read_text(encoding="utf-8")
+    assert "8080" not in codigo_fonte
+    assert ede_mcp_server.DEFAULT_HOST_LOCAL == "127.0.0.1"
+    assert ede_mcp_server.DEFAULT_PORT_LOCAL == 8765

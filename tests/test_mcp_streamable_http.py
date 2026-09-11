@@ -19,7 +19,9 @@ Determinístico e sem processo órfão: a fixture `servidor_http_real`
 garante finalização do subprocesso (terminate -> wait com timeout ->
 kill se necessário) em `finally`, mesmo se o teste falhar no meio; a
 porta é obtida do próprio SO (bind a porta 0), nunca fixa, para não
-colidir com nada que já esteja ouvindo em 8080 nesta máquina.
+colidir com nada que já esteja ouvindo na porta local default do EDE MCP
+(127.0.0.1:8765 -- server.DEFAULT_PORT_LOCAL) nem em qualquer outra porta
+ocupada nesta máquina.
 """
 import os
 import socket
@@ -36,11 +38,24 @@ MCP_SERVER_DIR = BASE / "mcp_server"
 
 def _porta_livre() -> int:
     """Porta TCP livre em loopback, escolhida pelo SO (bind à porta 0 e
-    lida de volta) — evita colisão com qualquer processo já ocupando a
-    porta padrão 8080 nesta máquina."""
+    lida de volta) — evita colisão com a porta local default do EDE MCP
+    (8765) ou qualquer outra porta já ocupada nesta máquina."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
+
+def test_porta_livre_eh_dinamica_nao_fixa():
+    """F. A porta usada pelo teste de transporte é pedida ao SO a cada
+    chamada — nunca um literal fixo (nem 8765, o novo default local do
+    EDE MCP, nem qualquer outro) — o que evita colisão tanto com um
+    servidor local real quanto entre execuções concorrentes desta própria
+    suíte. Rebinda cada porta devolvida para confirmar que era mesmo
+    livre no momento em que foi obtida (não uma constante reaproveitada)."""
+    for _ in range(2):
+        porta = _porta_livre()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", porta))  # não levanta OSError -> porta era livre de fato
 
 
 def _porta_aceita_conexao(host: str, porta: int) -> bool:

@@ -1,0 +1,42 @@
+# .dockerignore — contexto de build do mcp_server/Dockerfile (Etapa 6.2-A).
+#
+# Estratégia OBRIGATÓRIA: ALLOWLIST. Nega tudo por padrão (`*`) e libera
+# nominalmente só os três arquivos que mcp_server/Dockerfile copia —
+# nunca o inverso (denylist enumerando o que excluir), que ficaria
+# frágil a qualquer arquivo novo/sensível adicionado depois ao
+# repositório sem atualização deste arquivo. Isto importa de verdade:
+# templates/contestacao/modelo-oficial.docx e seus backups
+# (templates/contestacao/backup/*.docx) EXISTEM DE FATO nesta máquina
+# agora — são ignorados pelo Git (CLAUDE.md §13/§18-19), mas o contexto
+# de build do Docker NÃO respeita .gitignore, só .dockerignore. Sem este
+# allowlist, esses .docx (e rag/, scripts/, skills/, tests/, docs/,
+# .claude/, .claude-plugin/, .cache/, .env.example) seriam enviados ao
+# daemon de build por padrão.
+#
+# Sintaxe estilo .gitignore: um padrão sem "/" (como o "*" abaixo) casa
+# o basename em QUALQUER profundidade, então exclui tudo — inclusive o
+# próprio diretório mcp_server/. Builders "legados" (pré-BuildKit) têm
+# uma limitação conhecida: não descem em diretório já excluído, mesmo
+# havendo negação específica de um arquivo dentro dele. Por isso o
+# diretório é re-incluído explicitamente (`!mcp_server`, garante a
+# travessia) ANTES da negação dos dois arquivos que de fato interessam
+# — sem essa linha, o padrão funcionaria só sob BuildKit (builder
+# default do Docker Engine desde a 23.0), não sob o builder legado.
+# Reincluir o diretório não reinclui seu conteúdo inteiro: cada arquivo
+# dentro dele continua sujeito à lista de padrões por conta própria, e
+# `*` ainda casa qualquer coisa não negada explicitamente — por isso
+# mcp_server/__pycache__/ (existente nesta máquina agora) permanece
+# excluído, sem precisar de uma linha de exclusão dedicada para ele.
+#
+# NÃO VERIFICADO NESTA RODADA CONTRA UM BUILD REAL (sem Docker neste
+# ambiente) — a Etapa 6.2-B deve confirmar o contexto efetivo, por
+# exemplo com o dump de contexto:
+#   printf 'FROM scratch\nCOPY . /\n' | \
+#     docker build -f - -o /tmp/ctx-dump "$(git rev-parse --show-toplevel)"
+# e então inspecionar /tmp/ctx-dump — deve conter exatamente
+# mcp_server/server.py, mcp_server/requirements.txt e VERSION.
+*
+!mcp_server
+!mcp_server/server.py
+!mcp_server/requirements.txt
+!VERSION

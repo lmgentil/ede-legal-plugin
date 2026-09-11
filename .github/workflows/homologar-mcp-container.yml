@@ -1,0 +1,253 @@
+# .github/workflows/homologar-mcp-container.yml — Etapa 6.2-B.
+#
+# Laboratório EFÊMERO em runner Linux padrão do GitHub Actions para
+# provar o container real do EDE MCP Server (mcp_server/Dockerfile +
+# .dockerignore, ambos já aprovados na Etapa 6.2-A) fora desta máquina —
+# sem instalar Docker/WSL localmente, sem tocar GCP, sem publicar a
+# imagem em lugar nenhum.
+#
+# Disparo: SOMENTE manual (workflow_dispatch). Deliberadamente sem
+# push/pull_request/schedule nesta primeira homologação — o usuário
+# aciona explicitamente quando quiser rodar este gate.
+#
+# Nunca acessa: Modelo Oficial (templates/contestacao/modelo-oficial.docx
+# — nunca commitado, ADR-0009), rag/jurisprudencia/, documentos jurídicos
+# reais, secrets do EDE, credenciais GCP. Nunca publica a imagem (sem
+# login/push para Docker Hub, GHCR ou Artifact Registry) e nunca faz
+# upload da imagem/seu filesystem como artifact — só texto de evidência,
+# via $GITHUB_STEP_SUMMARY.
+#
+# Runner: ubuntu-latest, hospedado pelo GitHub (não self-hosted, não
+# "larger runner").
+name: Homologação do container EDE MCP (efêmera, sem GCP)
+
+on:
+  workflow_dispatch: {}
+
+# contents:read é a única permissão necessária (clonar o repositório).
+# Sem packages/id-token/pull-requests/issues — nada é publicado, nenhuma
+# credencial de nuvem é assumida.
+permissions:
+  contents: read
+
+# Evita duas execuções concorrentes deste gate no mesmo runner lógico.
+concurrency:
+  group: homologacao-container-ede-mcp
+  cancel-in-progress: true
+
+jobs:
+  homologar:
+    name: Build real + testes reais do container (sem GCP, sem publicar imagem)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      # ------------------------------------------------------ checkout
+      - name: Checkout (clone limpo — sem modelo-oficial.docx, sem skills/docx/, ambos gitignored)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Configurar Python 3.12 (host do runner — fora do container)
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      # ----------------------------------------- dependências LEVES
+      # Só o necessário para os testes MCP existentes e para o cliente
+      # MCP auxiliar deste workflow — instalado ANTES do build/testes do
+      # container, para falhar rápido (fail-fast) sem pagar o custo das
+      # dependências pesadas de rag/scripts caso o container já falhe
+      # aqui. pytest==9.1.1 pinado na mesma versão já usada localmente
+      # (evidência: tests/__pycache__/*-pytest-9.1.1.pyc nesta máquina).
+      - name: Instalar dependências leves (pytest + mcp_server/requirements.txt)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest==9.1.1
+          pip install -r mcp_server/requirements.txt
+
+      - name: Testes MCP (contrato in-memory — tests/test_mcp_server.py)
+        run: pytest tests/test_mcp_server.py -q
+
+      - name: Teste Streamable HTTP real (subprocess local, FORA do container — tests/test_mcp_streamable_http.py)
+        run: pytest tests/test_mcp_streamable_http.py -m mcp_transport -q
+
+      # ------------------------------------------------ digest — informativo
+      # NUNCA reescreve o Dockerfile. Só compara o digest PINADO com o
+      # digest ATUAL da tag "python:3.12-slim" para registro no gate. Se
+      # o digest pinado não puder mais ser resolvido, o step de build
+      # (abaixo) falha sozinho — não há aqui nenhuma lógica de
+      # auto-correção.
+      - name: "Digest da imagem-base: pinado (Dockerfile) vs. atual (tag) — informativo"
+        run: |
+          {
+            echo "### Digest da imagem-base python:3.12-slim"
+            echo '```'
+            grep '^FROM' mcp_server/Dockerfile
+            docker pull python:3.12-slim
+            echo -n "Digest ATUAL resolvido para a tag python:3.12-slim: "
+            docker inspect --format='{{index .RepoDigests 0}}' python:3.12-slim
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # -------------------------------------------------------- build real
+      - name: Build real da imagem (mcp_server/Dockerfile + .dockerignore já aprovados)
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: docker build -f mcp_server/Dockerfile -t ede-mcp:ci .
+
+      - name: Registrar metadados reais da imagem construída
+        run: |
+          {
+            echo "### Metadados reais da imagem"
+            echo '```'
+            echo "Image ID:     $(docker image inspect ede-mcp:ci --format '{{.Id}}')"
+            echo "Tamanho:      $(docker image inspect ede-mcp:ci --format '{{.Size}}') bytes"
+            echo "Arquitetura:  $(docker image inspect ede-mcp:ci --format '{{.Architecture}}')"
+            echo "Python real:  $(docker run --rm ede-mcp:ci python --version)"
+            echo "mcp real:     $(docker run --rm ede-mcp:ci python -c 'import importlib.metadata as m; print(m.version("mcp"))')"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # ------------------------------------------------- inventário real
+      - name: "Inventário de dependências da imagem (pip freeze) + checagem de proibidas"
+        run: |
+          docker run --rm ede-mcp:ci python -m pip freeze | tee pip-freeze-imagem.txt
+          {
+            echo "### Inventário de dependências da imagem (pip freeze)"
+            echo '```'
+            cat pip-freeze-imagem.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          achado=0
+          for proibida in pyarrow rank_bm25 sentence-transformers sentence_transformers pandas numpy joblib lxml; do
+            if grep -iE "^${proibida}(==| )" pip-freeze-imagem.txt; then
+              echo "GATE FALHOU: dependência proibida presente na imagem do container: $proibida"
+              achado=1
+            fi
+          done
+          if [ "$achado" = "1" ]; then
+            echo "Ver acima qual(is) dependência(s) proibida(s) a imagem instalou e por qual linha de mcp_server/requirements.txt (transitiva de mcp==2.2.0) ela entrou."
+            exit 1
+          fi
+          echo "OK — nenhuma dependência proibida na imagem." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # ------------------------------------------------- usuário não-root
+      - name: Prova de usuário não-root (UID/GID reais em runtime)
+        run: |
+          uid="$(docker run --rm ede-mcp:ci id -u)"
+          gid="$(docker run --rm ede-mcp:ci id -g)"
+          nome="$(docker run --rm ede-mcp:ci id -un)"
+          {
+            echo "### Usuário em runtime"
+            echo '```'
+            echo "id: uid=$uid gid=$gid usuario=$nome"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$uid" != "10001" ]; then
+            echo "GATE FALHOU: processo não roda como UID 10001 (obtido: $uid)"
+            exit 1
+          fi
+          if [ "$uid" = "0" ]; then
+            echo "GATE FALHOU: processo rodando como root."
+            exit 1
+          fi
+
+      # -------------------------------------------------- testes negativos
+      - name: "Testes negativos: ausência de assets sensíveis DENTRO da imagem real (não confia só no .dockerignore)"
+        run: |
+          docker run --rm ede-mcp:ci sh -c '
+            set -e
+            for p in templates skills skills/docx rag scripts tests docs .git .claude .claude-plugin .env; do
+              if [ -e "/app/$p" ] || [ -e "/$p" ]; then
+                echo "ENCONTRADO INDEVIDAMENTE NA IMAGEM: $p"
+                exit 1
+              fi
+            done
+            achados=$(find / -xdev -iname "*.docx" 2>/dev/null || true)
+            if [ -n "$achados" ]; then
+              echo "DOCX ENCONTRADO NA IMAGEM: $achados"
+              exit 1
+            fi
+            echo "OK — nenhum asset sensivel encontrado na imagem real."
+          '
+
+      # ----------------------------------------------------- runtime real
+      # PORT customizada e distinta de 8080/8765 (exemplo conceitual do
+      # gate, não vira default do produto). 8080 e 8765 são publicadas
+      # SÓ para o teste negativo seguinte poder provar que o servidor não
+      # está escutando nelas.
+      - name: Subir container real com PORT customizada (9123)
+        run: |
+          docker run -d --name ede-mcp-ci \
+            -e PORT=9123 \
+            -p 9123:9123 -p 8080:8080 -p 8765:8765 \
+            ede-mcp:ci
+          ok=""
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -m 1 http://127.0.0.1:9123/mcp; then
+              ok=1
+              break
+            fi
+            sleep 1
+          done
+          if [ -z "$ok" ]; then
+            echo "GATE FALHOU: container não passou a responder em PORT=9123 dentro do prazo."
+            docker logs ede-mcp-ci || true
+            exit 1
+          fi
+
+      - name: "Provar que 8080 e 8765 NÃO aceitam conexão (só a PORT fornecida está ativa)"
+        run: |
+          for porta in 8080 8765; do
+            if (exec 3<>"/dev/tcp/127.0.0.1/$porta") 2>/dev/null; then
+              exec 3<&- 3>&-
+              echo "GATE FALHOU: container aceitou conexão na porta antiga $porta (não deveria depender dela)."
+              exit 1
+            fi
+            echo "OK — porta $porta corretamente recusada (não é a PORT fornecida)."
+          done
+
+      - name: "Cliente MCP real -> HTTP real -> container -> Streamable HTTP -> ede_health"
+        run: |
+          python .github/ci/homologar_container_mcp.py http://127.0.0.1:9123/mcp | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Encerrar e remover o container de teste (sempre, mesmo em falha)
+        if: always()
+        run: |
+          docker logs ede-mcp-ci || true
+          docker stop ede-mcp-ci || true
+          docker rm ede-mcp-ci || true
+
+      # --------------------------------------------- regressão do projeto
+      # Só chega aqui se todo o gate acima do container já passou.
+      # Dependências PESADAS (rag/requirements.txt traz pyarrow, pandas,
+      # numpy, scikit-learn, scipy, sentence-transformers/torch) —
+      # deliberadamente instaladas só agora, nunca dentro da imagem do
+      # container (ver step de inventário acima).
+      - name: Instalar dependências pesadas do projeto (scripts/ + rag/) para a suíte completa
+        run: |
+          pip install -r scripts/requirements.txt
+          pip install -r rag/requirements.txt
+
+      - name: "pytest tests/ (suíte completa, clone limpo — sem skills/docx/ presente)"
+        run: pytest tests/ -q
+
+      # SKIP não pode virar sinônimo de sucesso por omissão. --junit-xml
+      # produz um relatório estruturado (tests/failures/errors/skipped +
+      # razão de cada skip) que .github/ci/analisar_docx_real.py classifica
+      # em UMA de seis categorias (A a F, ver docstring do script) — só a
+      # categoria A (SKIP legítimo, razão idêntica em toda a suíte:
+      # "não instalado localmente — asset institucional externo
+      # (ADR-0009).") passa; qualquer outra (erro de coleta, marker
+      # inexistente, import failure, zero testes coletados, falha real,
+      # skip por motivo diferente) falha o gate explicitamente.
+      # `set +e`/`set -e`: captura o exit code real do pytest sem deixar
+      # o `errexit` do shell abortar a linha antes de repassá-lo ao
+      # analisador.
+      - name: "pytest -m docx_real — só SKIP legítimo (ADR-0009) é aceito, ver análise abaixo"
+        run: |
+          set +e
+          pytest -m docx_real -v -rs --tb=short --junit-xml=docx_real_report.xml
+          codigo=$?
+          set -e
+          python .github/ci/analisar_docx_real.py docx_real_report.xml "$codigo"

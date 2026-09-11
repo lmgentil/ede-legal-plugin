@@ -58,6 +58,7 @@ e mais informativo, nunca o mesmo mecanismo (item 6 do pedido).
 from __future__ import annotations
 
 import importlib.metadata
+import os
 import sys
 from enum import Enum
 from pathlib import Path
@@ -204,8 +205,19 @@ def main() -> None:
 
     Streamable HTTP conforme a especificação MCP 2026-07-28. Nenhuma
     lógica de protocolo é escrita aqui; `mcp.run()` é fornecido pelo SDK.
-    Uso local/protótipo apenas — nenhum deploy é feito por esta etapa."""
-    mcp.run(transport="streamable-http", host="127.0.0.1", port=8080)
+
+    Host/porta são lidos do ambiente (Etapa 6.2, item 3 do pedido —
+    "auditar" o bind fixo em 127.0.0.1:8080 herdado da Etapa 6.1, porque
+    Cloud Run injeta a variável PORT e espera bind em 0.0.0.0, não em
+    127.0.0.1). Os defaults abaixo preservam exatamente o comportamento
+    local anterior quando nenhuma variável é definida — nenhuma mudança
+    de comportamento para quem já rodava isto localmente. A escolha de
+    HOST/PORT em produção (Dockerfile/Cloud Run) é decisão de uma etapa
+    posterior, ainda não autorizada; este entrypoint só fica pronto para
+    recebê-la sem precisar ser reescrito de novo."""
+    host = os.environ.get("HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", "8080"))
+    mcp.run(transport="streamable-http", host=host, port=port)
 
 
 if __name__ == "__main__":

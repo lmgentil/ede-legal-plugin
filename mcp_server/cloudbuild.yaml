@@ -1,0 +1,35 @@
+# mcp_server/cloudbuild.yaml — build determinístico do EDE MCP Server
+# (Etapa 6.2-C.4B.2), acionado por
+# .github/workflows/deploy-mcp-staging.yml via `gcloud builds submit`,
+# autenticado como ede-mcp-deployer (WIF, sem chave JSON).
+#
+# Contexto de build: SEMPRE a raiz do repositório (`.`, a partir de onde
+# o workflow chama `gcloud builds submit .`), nunca este diretório — o
+# allowlist de .dockerignore (raiz do repo) e o próprio
+# mcp_server/Dockerfile (COPY mcp_server/requirements.txt,
+# mcp_server/server.py, VERSION, todos relativos à raiz) dependem disso.
+# Mesmo padrão já homologado em
+# .github/workflows/homologar-mcp-container.yml (Etapa 6.2-B):
+#   docker build -f mcp_server/Dockerfile -t ede-mcp:ci .
+#
+# `images:` faz o Cloud Build publicar `_IMAGE_URI` no Artifact Registry
+# ao final do step de build — o workflow resolve o DIGEST resultante
+# separadamente, via `gcloud artifacts docker images describe`
+# (determinístico, sem depender de parsing do JSON de resultado do
+# build), e é esse digest — nunca a tag — que vai para o deploy no Cloud
+# Run (INV local desta etapa: deploy sempre por IMAGE_URI@sha256:...).
+#
+# Nenhuma outra imagem-base, nenhuma outra dependência: mcp_server/
+# Dockerfile e .dockerignore (Etapa 6.2-A, já homologados) permanecem a
+# única fonte de verdade do conteúdo da imagem — este arquivo só decide
+# COMO/ONDE o build roda, nunca O QUE entra na imagem.
+#
+# _IMAGE_URI é fornecida em todo submit via `--substitutions=_IMAGE_URI=...`
+# (nunca com default aqui) — o workflow sempre a monta com a tag
+# ${GITHUB_SHA} (nunca "latest", ver pedido da Etapa 6.2-C.4B.2, item 7).
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["build", "-f", "mcp_server/Dockerfile", "-t", "${_IMAGE_URI}", "."]
+
+images:
+  - "${_IMAGE_URI}"

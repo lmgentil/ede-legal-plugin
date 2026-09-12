@@ -1,0 +1,352 @@
+# .github/workflows/deploy-mcp-staging.yml — Etapa 6.2-C.4B.2.
+#
+# Prova ponta a ponta, sem chave JSON persistente:
+#
+#   GitHub Actions -> GitHub OIDC -> WIF -> ede-mcp-deployer -> Cloud
+#   Build -> Artifact Registry -> deploy Cloud Run POR DIGEST ->
+#   ede-mcp-smoke -> ID token -> Cloud Run IAM -> MCP SDK 2.2.0 ->
+#   Streamable HTTP -> ede_health
+#
+# Infraestrutura já homologada nas Etapas 6.2-C.4A/4B.1 (ver
+# docs/specs/SPEC-0001.md): ede-mcp-runtime (Cloud Run, zero roles de
+# projeto), ede-mcp-deployer (cloudbuild.builds.editor no projeto,
+# run.developer só em ede-mcp-staging, serviceAccountUser só sobre
+# ede-mcp-runtime — nunca run.invoker), ede-mcp-smoke (run.invoker só em
+# ede-mcp-staging — nunca poder de deploy), github-pool/github-provider
+# (condition: repository_id, repository_owner_id, refs/heads/main). Este
+# workflow não cria/altera nenhum desses recursos — só os USA.
+#
+# Duas identidades, nunca uma só: ede-mcp-deployer builda/deploya e
+# NUNCA invoca o serviço; ede-mcp-smoke invoca o serviço e NUNCA
+# builda/deploya. A troca de identidade dentro do job é feita por
+# reautenticações sucessivas via google-github-actions/auth (cada
+# chamada sobrescreve as Application Default Credentials do runner) —
+# nunca por uma única identidade acumulando os dois poderes.
+name: Deploy MCP Server (staging) — WIF, digest, smoke remoto
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "mcp_server/**"
+      - "VERSION"
+      - ".github/workflows/deploy-mcp-staging.yml"
+      - ".github/ci/smoke_remoto_mcp.py"
+  workflow_dispatch: {}
+
+# Mínimas necessárias: contents:read para clonar, id-token:write para o
+# runner poder solicitar o token OIDC do GitHub que a troca WIF consome.
+# Nenhuma outra (sem packages, sem pull-requests, sem issues, sem
+# actions:write) — nada além disso é usado neste workflow.
+permissions:
+  contents: read
+  id-token: write
+
+# Nunca cancelar um deploy em andamento (poderia deixar Cloud
+# Build/Cloud Run em estado intermediário sem que o rollback deste
+# workflow chegasse a rodar) — execuções concorrentes esperam a anterior
+# terminar, nunca a interrompem.
+concurrency:
+  group: deploy-mcp-staging
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ede-legal-mcp-01
+  PROJECT_NUMBER: "269134711029"
+  REGION: southamerica-east1
+  SERVICE: ede-mcp-staging
+  REPOSITORY: ede-mcp
+  IMAGE_NAME: mcp-server
+  RUNTIME_SA: ede-mcp-runtime@ede-legal-mcp-01.iam.gserviceaccount.com
+  DEPLOYER_SA: ede-mcp-deployer@ede-legal-mcp-01.iam.gserviceaccount.com
+  SMOKE_SA: ede-mcp-smoke@ede-legal-mcp-01.iam.gserviceaccount.com
+  WORKLOAD_IDENTITY_PROVIDER: projects/269134711029/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+
+jobs:
+  deploy:
+    name: Build por digest + deploy Cloud Run + smoke remoto autenticado
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      # ------------------------------------------------------ checkout
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      # -------------------------------------------------- test gate
+      # Conjunto mínimo seguro (§5 do pedido): só os testes MCP, que não
+      # dependem de skills/docx local, Modelo Oficial privado nem dados
+      # jurídicos reais. scripts/requirements.txt (lxml) é necessário
+      # mesmo aqui — conftest.py da raiz importa incondicionalmente
+      # scripts/docx_template_engine.py (mesmo achado documentado em
+      # .github/workflows/homologar-mcp-container.yml, Etapa 6.2-B).
+      - name: Instalar dependências leves (pytest + mcp_server/ + scripts/requirements.txt)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest==9.1.1
+          pip install -r mcp_server/requirements.txt
+          pip install -r scripts/requirements.txt
+
+      - name: "TEST GATE — Testes MCP (contrato in-memory — tests/test_mcp_server.py)"
+        run: pytest tests/test_mcp_server.py -q
+
+      - name: "TEST GATE — Streamable HTTP real (subprocess local — tests/test_mcp_streamable_http.py)"
+        run: pytest tests/test_mcp_streamable_http.py -m mcp_transport -q
+
+      # ---------------------------------------------- auth: ede-mcp-deployer
+      - name: "Auth (WIF) — ede-mcp-deployer"
+        id: auth-deployer
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.DEPLOYER_SA }}
+
+      - name: Instalar Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: "WIF PROOF — confirmar identidade ativa (nenhum token impresso)"
+        run: |
+          ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')
+          echo "Identidade ativa após troca GitHub OIDC -> WIF: $ACTIVE_ACCOUNT"
+          if [ "$ACTIVE_ACCOUNT" != "$DEPLOYER_SA" ]; then
+            echo "GATE FALHOU: identidade ativa não é ede-mcp-deployer."
+            exit 1
+          fi
+
+      # --------------------------------------------------- baseline / rollback
+      # Capturado ANTES de qualquer alteração real (§15 do pedido):
+      # revision atual (usada no rollback via update-traffic — a revision
+      # é imutável, então apontar tráfego de volta para ela restaura
+      # exatamente o digest anterior) e o digest atual (só para registro
+      # no relatório).
+      - name: "Baseline — revision e digest atuais (para eventual rollback)"
+        id: baseline
+        run: |
+          PREVIOUS_REVISION=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format='value(status.latestReadyRevisionName)')
+          PREVIOUS_IMAGE=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format='value(spec.template.spec.containers[0].image)')
+          SERVICE_URL=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')
+          echo "Revision anterior: $PREVIOUS_REVISION"
+          echo "Imagem anterior:   $PREVIOUS_IMAGE"
+          echo "Service URL:       $SERVICE_URL"
+          {
+            echo "PREVIOUS_REVISION=$PREVIOUS_REVISION"
+            echo "SERVICE_URL=$SERVICE_URL"
+          } >> "$GITHUB_ENV"
+          echo "previous_image=$PREVIOUS_IMAGE" >> "$GITHUB_OUTPUT"
+
+      # -------------------------------------------------------- build
+      # Cloud Build, nunca `docker build` no runner — ede-mcp-deployer só
+      # tem cloudbuild.builds.editor (sem artifactregistry.writer
+      # próprio); é a service account de build do Cloud Build
+      # (269134711029@cloudbuild.gserviceaccount.com, já com
+      # roles/cloudbuild.builds.builder no projeto) quem publica no
+      # Artifact Registry. Tag = SHA completo do commit que acionou o
+      # workflow (nunca "latest").
+      - name: "Build (Cloud Build) — tag = ${{ github.sha }}"
+        id: build
+        run: |
+          IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:${GITHUB_SHA}"
+          echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+          gcloud builds submit . \
+            --project="$PROJECT_ID" \
+            --config=mcp_server/cloudbuild.yaml \
+            --substitutions=_IMAGE_URI="$IMAGE_URI"
+
+      # ------------------------------------------------- digest — determinístico
+      # Nunca confiar só na tag: resolve o digest publicado consultando o
+      # Artifact Registry diretamente (fully_qualified_digest já vem no
+      # formato IMAGE_URI@sha256:..., pronto para o deploy).
+      - name: "Resolver DIGEST publicado (determinístico, via Artifact Registry)"
+        id: digest
+        run: |
+          FULL_DIGEST=$(gcloud artifacts docker images describe "$IMAGE_URI" --project="$PROJECT_ID" --format='value(image_summary.fully_qualified_digest)')
+          if [ -z "$FULL_DIGEST" ]; then
+            echo "GATE FALHOU: não foi possível resolver o digest publicado para $IMAGE_URI"
+            exit 1
+          fi
+          echo "Digest publicado: $FULL_DIGEST"
+          echo "FULL_DIGEST=$FULL_DIGEST" >> "$GITHUB_ENV"
+
+      # -------------------------------------------------- deploy por digest
+      # Só o necessário é passado — tudo mais (memória, concorrência,
+      # timeout etc.) permanece o que já estava configurado na revision
+      # anterior, preservado automaticamente pelo `gcloud run deploy`
+      # quando a flag correspondente não é repetida.
+      - name: "Deploy Cloud Run — imagem por DIGEST"
+        id: deploy
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --project="$PROJECT_ID" \
+            --region="$REGION" \
+            --image="$FULL_DIGEST" \
+            --service-account="$RUNTIME_SA" \
+            --no-allow-unauthenticated \
+            --min-instances=0 \
+            --quiet
+
+      - name: "Confirmar que a nova revision referencia exatamente o digest do build"
+        run: |
+          NEW_REVISION=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format='value(status.latestReadyRevisionName)')
+          NEW_IMAGE=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format='value(spec.template.spec.containers[0].image)')
+          echo "Nova revision: $NEW_REVISION"
+          echo "Imagem da nova revision: $NEW_IMAGE"
+          echo "NEW_REVISION=$NEW_REVISION" >> "$GITHUB_ENV"
+          if [ "$NEW_IMAGE" != "$FULL_DIGEST" ]; then
+            echo "GATE FALHOU: a revision publicada não referencia o digest esperado."
+            echo "  esperado: $FULL_DIGEST"
+            echo "  obtido:   $NEW_IMAGE"
+            exit 1
+          fi
+          {
+            echo "### Deploy — commit, imagem, digest, revision"
+            echo '```'
+            echo "commit:            $GITHUB_SHA"
+            echo "image (tag):       $IMAGE_URI"
+            echo "image (digest):    $FULL_DIGEST"
+            echo "revision anterior: $PREVIOUS_REVISION"
+            echo "revision nova:     $NEW_REVISION"
+            echo "runtime SA:        $RUNTIME_SA"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ---------------------------------------- negative test A — sem Authorization
+      - name: "NEGATIVE TEST A — sem Authorization, esperado 403"
+        run: |
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "${SERVICE_URL}/mcp")
+          echo "HTTP sem Authorization: $STATUS"
+          if [ "$STATUS" != "403" ]; then
+            echo "GATE FALHOU: endpoint sem Authorization retornou $STATUS, esperado 403."
+            exit 1
+          fi
+
+      # ------------------------------------ negative test B — identidade deployer
+      # ede-mcp-deployer nunca tem run.invoker — só serve para provar que
+      # nem quem builda/deploya consegue invocar o serviço.
+      - name: "NEGATIVE TEST B — ede-mcp-deployer tentando invocar, esperado 403"
+        run: |
+          DEPLOYER_ID_TOKEN=$(gcloud auth print-identity-token --audiences="$SERVICE_URL")
+          echo "::add-mask::$DEPLOYER_ID_TOKEN"
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${DEPLOYER_ID_TOKEN}" "${SERVICE_URL}/mcp")
+          echo "HTTP com identidade ede-mcp-deployer: $STATUS"
+          if [ "$STATUS" != "403" ]; then
+            echo "GATE FALHOU: ede-mcp-deployer conseguiu invocar o serviço (HTTP $STATUS), esperado 403."
+            exit 1
+          fi
+
+      # ---------------------------------------------- auth: ede-mcp-smoke
+      # Sobrescreve as ADC do runner — a partir daqui a identidade ativa
+      # é ede-mcp-smoke, nunca mais ede-mcp-deployer, até uma
+      # reautenticação explícita (rollback, se necessário).
+      - name: "Auth (WIF) — ede-mcp-smoke (ID token, audience = URL real do serviço)"
+        id: auth-smoke
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SMOKE_SA }}
+          token_format: id_token
+          id_token_audience: ${{ env.SERVICE_URL }}
+
+      - name: Mascarar ID token da identidade smoke
+        run: echo "::add-mask::${{ steps.auth-smoke.outputs.id_token }}"
+
+      - name: "WIF PROOF — confirmar identidade ativa (nenhum token impresso)"
+        run: |
+          ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')
+          echo "Identidade ativa após troca GitHub OIDC -> WIF: $ACTIVE_ACCOUNT"
+          if [ "$ACTIVE_ACCOUNT" != "$SMOKE_SA" ]; then
+            echo "GATE FALHOU: identidade ativa não é ede-mcp-smoke."
+            exit 1
+          fi
+
+      # --------------------------------------- negative test D — audience incorreta
+      - name: "NEGATIVE TEST D — audience incorreta, esperado rejeição (nunca 200)"
+        run: |
+          WRONG_AUDIENCE_TOKEN=$(gcloud auth print-identity-token --audiences="https://wrong-audience.invalid.example")
+          echo "::add-mask::$WRONG_AUDIENCE_TOKEN"
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${WRONG_AUDIENCE_TOKEN}" "${SERVICE_URL}/mcp")
+          echo "HTTP com audience incorreta: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "GATE FALHOU: ID token com audience incorreta foi aceito (HTTP 200)."
+            exit 1
+          fi
+
+      # --------------------------------------- negative test C / smoke MCP real
+      # O único uso do ID token correto (audience = URL real do serviço)
+      # é este — nunca impresso, nunca logado, passado só via env para o
+      # processo Python (mesma variável que smoke_remoto_mcp.py lê).
+      - name: "SMOKE MCP REMOTO — MCP SDK 2.2.0, Streamable HTTP, Cloud Run real, ede_health"
+        env:
+          EDE_MCP_SMOKE_TOKEN: ${{ steps.auth-smoke.outputs.id_token }}
+        run: |
+          EXPECTED_VERSION=$(cat VERSION)
+          python .github/ci/smoke_remoto_mcp.py "${SERVICE_URL}/mcp" --expected-version "$EXPECTED_VERSION" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # ============================================================
+      # ROLLBACK — só executa se o deploy já tiver publicado uma nova
+      # revision (steps.deploy.outcome == 'success') e alguma etapa
+      # POSTERIOR tiver falhado (verificação de digest, negative tests,
+      # ou o próprio smoke MCP). Roda mesmo com o job já marcado como
+      # failure — isso é INTENCIONAL (fail-closed, §14 do pedido): o
+      # job permanece FAILURE mesmo que o rollback tenha sucesso, porque
+      # o deploy desta execução não foi validado.
+      # ============================================================
+      - name: "ROLLBACK — reautenticar como ede-mcp-deployer"
+        id: auth-deployer-rollback
+        if: failure() && steps.deploy.outcome == 'success'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.DEPLOYER_SA }}
+
+      - name: "ROLLBACK — apontar 100% do tráfego de volta para a revision anterior"
+        if: failure() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Executando rollback: $SERVICE -> $PREVIOUS_REVISION (100% do tráfego)"
+          gcloud run services update-traffic "$SERVICE" \
+            --project="$PROJECT_ID" \
+            --region="$REGION" \
+            --to-revisions="${PREVIOUS_REVISION}=100" \
+            --quiet
+          {
+            echo "### ROLLBACK executado"
+            echo '```'
+            echo "de:   $NEW_REVISION (digest $FULL_DIGEST)"
+            echo "para: $PREVIOUS_REVISION"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "ROLLBACK — reautenticar como ede-mcp-smoke para novo ede_health"
+        id: auth-smoke-rollback
+        if: failure() && steps.deploy.outcome == 'success'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SMOKE_SA }}
+          token_format: id_token
+          id_token_audience: ${{ env.SERVICE_URL }}
+
+      - name: Mascarar ID token pós-rollback
+        if: failure() && steps.deploy.outcome == 'success'
+        run: echo "::add-mask::${{ steps.auth-smoke-rollback.outputs.id_token }}"
+
+      - name: "ROLLBACK — repetir ede_health na revision restaurada"
+        if: failure() && steps.deploy.outcome == 'success'
+        env:
+          EDE_MCP_SMOKE_TOKEN: ${{ steps.auth-smoke-rollback.outputs.id_token }}
+        run: |
+          EXPECTED_VERSION=$(cat VERSION)
+          {
+            echo "### ede_health após rollback (revision restaurada: $PREVIOUS_REVISION)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          python .github/ci/smoke_remoto_mcp.py "${SERVICE_URL}/mcp" --expected-version "$EXPECTED_VERSION" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

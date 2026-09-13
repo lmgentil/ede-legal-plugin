@@ -113,14 +113,62 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: "WIF PROOF — confirmar identidade ativa (nenhum token impresso)"
+      # WIF PROOF — identidade provada pelo CONTEXTO DE AUTH, nunca por
+      # `gcloud auth list` (defeito exposto na Etapa 6.2-C.4B.2T).
+      #
+      # Causa raiz, comprovada por evidência de hash no run 34737684469:
+      # cada step da action escreve um arquivo de credencial próprio e
+      # reexporta GOOGLE_APPLICATION_CREDENTIALS (5 arquivos distintos
+      # naquele run), mas `gcloud auth list` reporta o CREDENTIAL STORE
+      # PERSISTENTE, populado uma única vez pelo `setup-gcloud` logo após
+      # o primeiro auth. Resultado: a asserção acusava ede-mcp-deployer
+      # mesmo com o contexto correto apontando para ede-mcp-smoke.
+      #
+      # Evidência correta: o arquivo de credencial do PRÓPRIO step. O
+      # código-fonte da action (v3.0.0, client/workload_identity_federation.ts)
+      # grava `service_account_impersonation_url` =
+      # .../serviceAccounts/<service_account>:generateAccessToken sempre
+      # que `service_account` é informado — e o workflow informa o e-mail.
+      #
+      # O arquivo TAMBÉM contém um Bearer token em
+      # credential_source.headers: seu conteúdo NUNCA é impresso; só o
+      # veredito e o e-mail esperado (que já está no env do workflow).
+      - name: "WIF PROOF — identidade do contexto de auth (esperado: ede-mcp-deployer)"
+        env:
+          EXPECTED_SA: ${{ env.DEPLOYER_SA }}
         run: |
-          ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')
-          echo "Identidade ativa após troca GitHub OIDC -> WIF: $ACTIVE_ACCOUNT"
-          if [ "$ACTIVE_ACCOUNT" != "$DEPLOYER_SA" ]; then
-            echo "GATE FALHOU: identidade ativa não é ede-mcp-deployer."
-            exit 1
-          fi
+          python - <<'PROOF'
+          import json, os, sys
+          esperado = os.environ["EXPECTED_SA"]
+          caminho = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") or ""
+          if not caminho or not os.path.exists(caminho):
+              print("GATE FALHOU: contexto de auth sem arquivo de credencial — identidade não comprovável.")
+              sys.exit(1)
+          with open(caminho, encoding="utf-8") as fh:
+              cfg = json.load(fh)
+          # Evidência primária documentada no código da action; varredura
+          # recursiva como reforço, sem depender de um único nome de campo.
+          textos = []
+          def varrer(o):
+              if isinstance(o, dict):
+                  for v in o.values(): varrer(v)
+              elif isinstance(o, list):
+                  for v in o: varrer(v)
+              elif isinstance(o, str):
+                  textos.append(o)
+          varrer(cfg)
+          blob = "\n".join(textos)
+          conhecidas = {os.environ[k] for k in ("DEPLOYER_SA", "SMOKE_SA", "RUNTIME_SA") if os.environ.get(k)}
+          presentes = {sa for sa in conhecidas if sa in blob}
+          if esperado not in presentes:
+              print(f"GATE FALHOU: o contexto de auth não identifica {esperado}.")
+              print(f"  identidades conhecidas encontradas no contexto: {sorted(presentes) or 'nenhuma'}")
+              sys.exit(1)
+          if presentes - {esperado}:
+              print(f"GATE FALHOU: contexto contaminado — identifica também {sorted(presentes - {esperado})}.")
+              sys.exit(1)
+          print(f"Identidade do contexto de auth confirmada: {esperado}")
+          PROOF
 
       # --------------------------------------------------- baseline / rollback
       # Captura o ESTADO DE TRÁFEGO COMPLETO antes de qualquer alteração.
@@ -450,14 +498,43 @@ jobs:
       - name: Mascarar ID token da identidade smoke
         run: echo "::add-mask::${{ steps.auth-smoke.outputs.id_token }}"
 
-      - name: "WIF PROOF — confirmar identidade ativa (nenhum token impresso)"
+      # Mesma prova por contexto de auth (ver comentário acima).
+      - name: "WIF PROOF — identidade do contexto de auth (esperado: ede-mcp-smoke)"
+        env:
+          EXPECTED_SA: ${{ env.SMOKE_SA }}
         run: |
-          ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')
-          echo "Identidade ativa após troca GitHub OIDC -> WIF: $ACTIVE_ACCOUNT"
-          if [ "$ACTIVE_ACCOUNT" != "$SMOKE_SA" ]; then
-            echo "GATE FALHOU: identidade ativa não é ede-mcp-smoke."
-            exit 1
-          fi
+          python - <<'PROOF'
+          import json, os, sys
+          esperado = os.environ["EXPECTED_SA"]
+          caminho = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") or ""
+          if not caminho or not os.path.exists(caminho):
+              print("GATE FALHOU: contexto de auth sem arquivo de credencial — identidade não comprovável.")
+              sys.exit(1)
+          with open(caminho, encoding="utf-8") as fh:
+              cfg = json.load(fh)
+          # Evidência primária documentada no código da action; varredura
+          # recursiva como reforço, sem depender de um único nome de campo.
+          textos = []
+          def varrer(o):
+              if isinstance(o, dict):
+                  for v in o.values(): varrer(v)
+              elif isinstance(o, list):
+                  for v in o: varrer(v)
+              elif isinstance(o, str):
+                  textos.append(o)
+          varrer(cfg)
+          blob = "\n".join(textos)
+          conhecidas = {os.environ[k] for k in ("DEPLOYER_SA", "SMOKE_SA", "RUNTIME_SA") if os.environ.get(k)}
+          presentes = {sa for sa in conhecidas if sa in blob}
+          if esperado not in presentes:
+              print(f"GATE FALHOU: o contexto de auth não identifica {esperado}.")
+              print(f"  identidades conhecidas encontradas no contexto: {sorted(presentes) or 'nenhuma'}")
+              sys.exit(1)
+          if presentes - {esperado}:
+              print(f"GATE FALHOU: contexto contaminado — identifica também {sorted(presentes - {esperado})}.")
+              sys.exit(1)
+          print(f"Identidade do contexto de auth confirmada: {esperado}")
+          PROOF
 
       # --------------------------------------- negative test D — audience incorreta
       # Identidade DELIBERADAMENTE ede-mcp-smoke, não o deployer: smoke TEM
@@ -473,6 +550,43 @@ jobs:
           service_account: ${{ env.SMOKE_SA }}
           token_format: id_token
           id_token_audience: "https://wrong-audience.invalid.example"
+
+      # Mesma prova por contexto de auth (ver comentário no primeiro WIF PROOF).
+      - name: "WIF PROOF — identidade do contexto de auth (esperado: ede-mcp-smoke (contexto de audience incorreta))"
+        env:
+          EXPECTED_SA: ${{ env.SMOKE_SA }}
+        run: |
+          python - <<'PROOF'
+          import json, os, sys
+          esperado = os.environ["EXPECTED_SA"]
+          caminho = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") or ""
+          if not caminho or not os.path.exists(caminho):
+              print("GATE FALHOU: contexto de auth sem arquivo de credencial — identidade não comprovável.")
+              sys.exit(1)
+          with open(caminho, encoding="utf-8") as fh:
+              cfg = json.load(fh)
+          textos = []
+          def varrer(o):
+              if isinstance(o, dict):
+                  for v in o.values(): varrer(v)
+              elif isinstance(o, list):
+                  for v in o: varrer(v)
+              elif isinstance(o, str):
+                  textos.append(o)
+          varrer(cfg)
+          blob = "
+          ".join(textos)
+          conhecidas = {os.environ[k] for k in ("DEPLOYER_SA", "SMOKE_SA", "RUNTIME_SA") if os.environ.get(k)}
+          presentes = {sa for sa in conhecidas if sa in blob}
+          if esperado not in presentes:
+              print(f"GATE FALHOU: o contexto de auth não identifica {esperado}.")
+              print(f"  identidades conhecidas encontradas no contexto: {sorted(presentes) or 'nenhuma'}")
+              sys.exit(1)
+          if presentes - {esperado}:
+              print(f"GATE FALHOU: contexto contaminado — identifica também {sorted(presentes - {esperado})}.")
+              sys.exit(1)
+          print(f"Identidade do contexto de auth confirmada: {esperado}")
+          PROOF
 
       - name: "NEGATIVE TEST D — audience incorreta, esperado 401 (nunca 2xx)"
         env:
@@ -647,6 +761,44 @@ jobs:
       - name: Mascarar ID token pós-rollback
         if: failure() && steps.traffic.outputs.changed == 'true'
         run: echo "::add-mask::${{ steps.auth-smoke-rollback.outputs.id_token }}"
+
+      # Mesma prova por contexto de auth (ver comentário no primeiro WIF PROOF).
+      - name: "WIF PROOF — identidade do contexto de auth (esperado: ede-mcp-smoke (contexto de rollback))"
+        if: failure() && steps.traffic.outputs.changed == 'true'
+        env:
+          EXPECTED_SA: ${{ env.SMOKE_SA }}
+        run: |
+          python - <<'PROOF'
+          import json, os, sys
+          esperado = os.environ["EXPECTED_SA"]
+          caminho = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") or ""
+          if not caminho or not os.path.exists(caminho):
+              print("GATE FALHOU: contexto de auth sem arquivo de credencial — identidade não comprovável.")
+              sys.exit(1)
+          with open(caminho, encoding="utf-8") as fh:
+              cfg = json.load(fh)
+          textos = []
+          def varrer(o):
+              if isinstance(o, dict):
+                  for v in o.values(): varrer(v)
+              elif isinstance(o, list):
+                  for v in o: varrer(v)
+              elif isinstance(o, str):
+                  textos.append(o)
+          varrer(cfg)
+          blob = "
+          ".join(textos)
+          conhecidas = {os.environ[k] for k in ("DEPLOYER_SA", "SMOKE_SA", "RUNTIME_SA") if os.environ.get(k)}
+          presentes = {sa for sa in conhecidas if sa in blob}
+          if esperado not in presentes:
+              print(f"GATE FALHOU: o contexto de auth não identifica {esperado}.")
+              print(f"  identidades conhecidas encontradas no contexto: {sorted(presentes) or 'nenhuma'}")
+              sys.exit(1)
+          if presentes - {esperado}:
+              print(f"GATE FALHOU: contexto contaminado — identifica também {sorted(presentes - {esperado})}.")
+              sys.exit(1)
+          print(f"Identidade do contexto de auth confirmada: {esperado}")
+          PROOF
 
       - name: "ROLLBACK — repetir ede_health na revision restaurada"
         if: failure() && steps.traffic.outputs.changed == 'true'

@@ -151,6 +151,28 @@ jobs:
       # roles/cloudbuild.builds.builder no projeto) quem publica no
       # Artifact Registry. Tag = SHA completo do commit que acionou o
       # workflow (nunca "latest").
+      #
+      # --gcs-source-staging-dir explícito (Etapa 6.2-C.4B.2G, achado da
+      # 6.2-C.4B.2F/6.2-C.4B.2E): aponta para o MESMO bucket/prefixo que o
+      # `gcloud builds submit` já usaria por padrão
+      # (gs://ede-legal-mcp-01_cloudbuild/source) — não muda destino nem
+      # conteúdo do staging. O único efeito é interno ao Cloud SDK: com o
+      # parâmetro ausente, `default_gcs_source=True` liga
+      # `check_ownership=True` em `CreateBucketIfNotExists`, que faz uma
+      # chamada `Buckets.List(project=...)` extra (escopo de PROJETO) só
+      # para provar que o bucket default pertence a este projeto
+      # (proteção antibucket-squatting) — chamada que `ede-mcp-deployer`
+      # não tem permissão de fazer (least-privilege intencional, sem
+      # `storage.buckets.list` no projeto) e que três execuções reais
+      # confirmaram ser a causa do bloqueio em `gcloud builds submit`
+      # ("The user is forbidden from accessing the bucket [...]").
+      # Informar o staging dir explicitamente faz `default_gcs_source=
+      # False` -> `check_ownership=False`, eliminando essa chamada
+      # `Buckets.List` sem afetar `Buckets.Get` (mantido, já coberto por
+      # `roles/storage.bucketViewer` no bucket) nem o upload do source
+      # (`roles/storage.objectCreator`, também só no bucket). Bucket já
+      # verificado (Etapa 6.2-C.4B.2C/2F) como pertencente a este
+      # projeto — nenhuma role de Storage nova, nenhuma no projeto.
       - name: "Build (Cloud Build) — tag = ${{ github.sha }}"
         id: build
         run: |
@@ -159,7 +181,8 @@ jobs:
           gcloud builds submit . \
             --project="$PROJECT_ID" \
             --config=mcp_server/cloudbuild.yaml \
-            --substitutions=_IMAGE_URI="$IMAGE_URI"
+            --substitutions=_IMAGE_URI="$IMAGE_URI" \
+            --gcs-source-staging-dir=gs://ede-legal-mcp-01_cloudbuild/source
 
       # ------------------------------------------------- digest — determinístico
       # Nunca confiar só na tag: resolve o digest publicado consultando o

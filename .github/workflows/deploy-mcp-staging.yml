@@ -574,8 +574,7 @@ jobs:
               elif isinstance(o, str):
                   textos.append(o)
           varrer(cfg)
-          blob = "
-          ".join(textos)
+          blob = "\n".join(textos)
           conhecidas = {os.environ[k] for k in ("DEPLOYER_SA", "SMOKE_SA", "RUNTIME_SA") if os.environ.get(k)}
           presentes = {sa for sa in conhecidas if sa in blob}
           if esperado not in presentes:
@@ -786,8 +785,7 @@ jobs:
               elif isinstance(o, str):
                   textos.append(o)
           varrer(cfg)
-          blob = "
-          ".join(textos)
+          blob = "\n".join(textos)
           conhecidas = {os.environ[k] for k in ("DEPLOYER_SA", "SMOKE_SA", "RUNTIME_SA") if os.environ.get(k)}
           presentes = {sa for sa in conhecidas if sa in blob}
           if esperado not in presentes:

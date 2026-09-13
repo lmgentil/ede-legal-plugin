@@ -27,9 +27,36 @@
 # _IMAGE_URI é fornecida em todo submit via `--substitutions=_IMAGE_URI=...`
 # (nunca com default aqui) — o workflow sempre a monta com a tag
 # ${GITHUB_SHA} (nunca "latest", ver pedido da Etapa 6.2-C.4B.2, item 7).
+#
+# serviceAccount explícita (Etapa 6.2-C.4B.2J, achado da 6.2-C.4B.2H/2I):
+# sem esta chave, o Cloud Build cai por padrão na Compute Engine default
+# service account do projeto — que tem roles/editor, incompatível com o
+# desenho least-privilege de toda esta cadeia de etapas (auditoria
+# completa em docs/specs/SPEC-0001.md). `ede-mcp-builder` é dedicada a
+# este build: só roles/artifactregistry.writer no repositório `ede-mcp`
+# (push da imagem, sem administração do repo) e roles/logging.logWriter
+# no projeto (escrever logs do build) — nenhuma permissão de Storage
+# (comprovado por composição de role, Etapa 6.2-C.4B.2I: quem busca o
+# source staged em GCS é o Cloud Build service agent, via
+# roles/cloudbuild.serviceAgent, já concedida pela plataforma, nunca a
+# serviceAccount de execução do build), nenhuma de Cloud Run, nenhuma
+# administrativa de IAM. `ede-mcp-deployer` (submitter) tem
+# roles/iam.serviceAccountUser só sobre este recurso (actAs), nunca
+# sobre a Compute Engine default SA.
+#
+# options.logging: CLOUD_LOGGING_ONLY é obrigatório sempre que uma
+# serviceAccount própria é especificada (a plataforma não aceita mais o
+# bucket de log padrão, Google-owned, nesse caso) — dispensa criar/
+# manter um bucket GCS de logs dedicado (GCS_ONLY), dentro do free tier
+# de 50 GiB/mês do Cloud Logging para um log de build desta escala.
 steps:
   - name: "gcr.io/cloud-builders/docker"
     args: ["build", "-f", "mcp_server/Dockerfile", "-t", "${_IMAGE_URI}", "."]
 
 images:
   - "${_IMAGE_URI}"
+
+serviceAccount: 'projects/ede-legal-mcp-01/serviceAccounts/ede-mcp-builder@ede-legal-mcp-01.iam.gserviceaccount.com'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

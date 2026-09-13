@@ -482,6 +482,47 @@ jobs:
           fi
           echo "OK — negação na CAMADA DE AUTORIZAÇÃO do Cloud Run (403, sem resposta da aplicação)."
 
+      # ------------------------ confirmação FINAL de tráfego (contexto deployer)
+      # ÚLTIMO ponto do fluxo normal em que o workflow ainda opera sob
+      # ede-mcp-deployer. A confirmação pré-smoke da revision servidora
+      # vivia DENTRO do passo de smoke, que roda sob ede-mcp-smoke —
+      # identidade que tem apenas roles/run.invoker e, por desenho, NÃO
+      # pode executar run.services.get. A Etapa 6.2-C.4B.2V mediu
+      # exatamente isso: PERMISSION_DENIED em run.services.get, evidência
+      # de que o least privilege está vigente. Defeito de ORDENAÇÃO/
+      # CONTEXTO, nunca de IAM: verificação de control-plane pertence ao
+      # deployer, invocação pertence ao smoke. Nenhuma permissão nova foi
+      # concedida a ede-mcp-smoke — a verificação mudou de lugar.
+      #
+      # Entre este passo e o smoke positivo não existe mutação de tráfego
+      # possível: só emissão de ID tokens (google-github-actions/auth),
+      # provas de identidade (leitura do arquivo de credencial) e as
+      # requisições HTTP do NEGATIVE TEST D. O único `update-traffic`
+      # posterior está no rollback, que só roda em `failure()`.
+      - name: "Confirmação FINAL de tráfego pré-smoke (contexto de control-plane do deployer)"
+        id: traffic-final
+        run: |
+          gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format=json > /tmp/svc_presmoke.json
+          SERVING=$(python -c "
+          import json
+          d = json.load(open('/tmp/svc_presmoke.json'))
+          tr = [t for t in d['status'].get('traffic', []) if t.get('percent')]
+          print(json.dumps(sorted((t.get('revisionName'), t.get('percent')) for t in tr)))
+          ")
+          EXPECTED_SERVING=$(python -c "
+          import json, os
+          print(json.dumps([[os.environ['NEW_REVISION'], 100]]))
+          ")
+          echo "Servindo tráfego agora: $SERVING"
+          if [ "$SERVING" != "$EXPECTED_SERVING" ]; then
+            echo "GATE FALHOU: o smoke positivo não pode atestar a revision desta execução."
+            echo "  esperado: $EXPECTED_SERVING"
+            echo "  obtido:   $SERVING"
+            exit 1
+          fi
+          echo "confirmed_revision=${NEW_REVISION}" >> "$GITHUB_OUTPUT"
+          echo "Confirmado sob contexto ede-mcp-deployer: 100% do tráfego em $NEW_REVISION."
+
       # ---------------------------------------------- auth: ede-mcp-smoke
       # Sobrescreve as ADC do runner — a partir daqui a identidade ativa
       # é ede-mcp-smoke, nunca mais ede-mcp-deployer, até uma
@@ -631,27 +672,26 @@ jobs:
       - name: "SMOKE MCP REMOTO — MCP SDK 2.2.0, Streamable HTTP, Cloud Run real, ede_health"
         env:
           EDE_MCP_SMOKE_TOKEN: ${{ steps.auth-smoke.outputs.id_token }}
+          CONFIRMED_REVISION: ${{ steps.traffic-final.outputs.confirmed_revision }}
         run: |
-          # Reconfirma, imediatamente antes do smoke, que quem serve o
-          # tráfego é a revision desta execução — a Etapa 2Q validou a
+          # A revision que serve 100% do tráfego foi confirmada por consulta
+          # REAL ao Cloud Run no passo `traffic-final`, sob o contexto de
+          # control-plane de ede-mcp-deployer — a Etapa 2Q validou a
           # revision ERRADA por não checar isto (o único ede_health bem
-          # sucedido foi contra a revision restaurada pelo rollback).
-          SERVING=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format=json \
-            | python -c "
-          import json, sys
-          d = json.load(sys.stdin)
-          tr = [t for t in d['status'].get('traffic', []) if t.get('percent')]
-          print(json.dumps(sorted((t.get('revisionName'), t.get('percent')) for t in tr)))
-          ")
-          EXPECTED_SERVING=$(python -c "
-          import json, os
-          print(json.dumps([[os.environ['NEW_REVISION'], 100]]))
-          ")
-          echo "Servindo tráfego agora: $SERVING"
-          if [ "$SERVING" != "$EXPECTED_SERVING" ]; then
-            echo "GATE FALHOU: o smoke positivo não pode atestar a revision desta execução."
-            echo "  esperado: $EXPECTED_SERVING"
-            echo "  obtido:   $SERVING"
+          # sucedido foi contra a revision restaurada pelo rollback). Aqui,
+          # sob ede-mcp-smoke, verifica-se apenas a CORRELAÇÃO entre aquela
+          # confirmação e a revision desta execução: nenhuma chamada de
+          # control-plane é feita com a identidade de invocação, que não
+          # tem — nem deve ter — run.services.get. Ausência do valor é
+          # fail-closed: sem prova sob deployer, o smoke não roda.
+          if [ -z "$CONFIRMED_REVISION" ]; then
+            echo "GATE FALHOU: confirmação de tráfego sob contexto deployer ausente — smoke não pode prosseguir."
+            exit 1
+          fi
+          if [ "$CONFIRMED_REVISION" != "$NEW_REVISION" ]; then
+            echo "GATE FALHOU: a confirmação de tráfego não corresponde à revision desta execução."
+            echo "  confirmada: $CONFIRMED_REVISION"
+            echo "  esperada:   $NEW_REVISION"
             exit 1
           fi
           echo "Smoke executará contra a revision desta execução: $NEW_REVISION"

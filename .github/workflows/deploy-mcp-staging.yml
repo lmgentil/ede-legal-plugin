@@ -123,23 +123,66 @@ jobs:
           fi
 
       # --------------------------------------------------- baseline / rollback
-      # Capturado ANTES de qualquer alteração real (§15 do pedido):
-      # revision atual (usada no rollback via update-traffic — a revision
-      # é imutável, então apontar tráfego de volta para ela restaura
-      # exatamente o digest anterior) e o digest atual (só para registro
-      # no relatório).
-      - name: "Baseline — revision e digest atuais (para eventual rollback)"
+      # Captura o ESTADO DE TRÁFEGO COMPLETO antes de qualquer alteração.
+      #
+      # Etapa 6.2-C.4B.2R/2S: o modelo anterior guardava só
+      # `status.latestReadyRevisionName` como "revision anterior" — que NÃO
+      # é a revision que serve tráfego. Na Etapa 2Q os dois divergiram
+      # (latestReady=00003-pvs com 0% de tráfego, tráfego real em
+      # 00002-dp6) e o rollback restaurou a revision errada. `spec.traffic`
+      # é a intenção declarada de roteamento e a única fonte de verdade:
+      # preserva percentuais múltiplos, `tag` e o alvo `latestRevision`.
+      #
+      # Extração via `--format=json` + stdlib do Python, nunca
+      # `--format='value(spec.traffic...)'`: essa projeção emite repr de
+      # dict Python com aspas simples (JSON INVÁLIDO), verificado na
+      # Etapa 2S contra o serviço real.
+      - name: "Baseline — snapshot COMPLETO de tráfego + identidade determinística da revision"
         id: baseline
         run: |
-          PREVIOUS_REVISION=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format='value(status.latestReadyRevisionName)')
-          PREVIOUS_IMAGE=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format='value(spec.template.spec.containers[0].image)')
-          SERVICE_URL=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)')
-          echo "Revision anterior: $PREVIOUS_REVISION"
-          echo "Imagem anterior:   $PREVIOUS_IMAGE"
-          echo "Service URL:       $SERVICE_URL"
+          gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format=json > /tmp/svc_pre.json
+          PRE_TRAFFIC_JSON=$(python -c "
+          import json
+          d = json.load(open('/tmp/svc_pre.json'))
+          print(json.dumps(d['spec'].get('traffic', []), separators=(',', ':')))
+          ")
+          SERVICE_URL=$(python -c "
+          import json
+          print(json.load(open('/tmp/svc_pre.json'))['status']['url'])
+          ")
+          PREVIOUS_IMAGE=$(python -c "
+          import json
+          print(json.load(open('/tmp/svc_pre.json'))['spec']['template']['spec']['containers'][0]['image'])
+          ")
+          if [ -z "$PRE_TRAFFIC_JSON" ] || [ "$PRE_TRAFFIC_JSON" = "[]" ]; then
+            echo "GATE FALHOU: snapshot de tráfego vazio — rollback determinístico seria impossível."
+            exit 1
+          fi
+          # Nome determinístico da revision: rastreável ao commit E ao run.
+          # SHA sozinho colidiria em rerun ("Found a conflicting revision
+          # name"), e reruns são frequentes nesta cadeia de etapas.
+          REVISION_SUFFIX="${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          NEW_REVISION="${SERVICE}-${REVISION_SUFFIX}"
+          # Restrições do Cloud Run: <=63 chars, minúsculas/dígitos/hífen,
+          # não termina em hífen. Fail-closed, nunca truncar em silêncio
+          # (truncar reintroduziria risco de colisão).
+          if [ "${#NEW_REVISION}" -gt 63 ]; then
+            echo "GATE FALHOU: nome de revision com ${#NEW_REVISION} chars excede o limite de 63: $NEW_REVISION"
+            exit 1
+          fi
+          if ! printf '%s' "$NEW_REVISION" | grep -qE '^[a-z][a-z0-9-]*[a-z0-9]$'; then
+            echo "GATE FALHOU: nome de revision inválido para o Cloud Run: $NEW_REVISION"
+            exit 1
+          fi
+          echo "Tráfego pré-deploy (snapshot): $PRE_TRAFFIC_JSON"
+          echo "Imagem anterior (template):    $PREVIOUS_IMAGE"
+          echo "Service URL:                   $SERVICE_URL"
+          echo "Revision desta execução:       $NEW_REVISION"
           {
-            echo "PREVIOUS_REVISION=$PREVIOUS_REVISION"
+            echo "PRE_TRAFFIC_JSON=$PRE_TRAFFIC_JSON"
             echo "SERVICE_URL=$SERVICE_URL"
+            echo "REVISION_SUFFIX=$REVISION_SUFFIX"
+            echo "NEW_REVISION=$NEW_REVISION"
           } >> "$GITHUB_ENV"
           echo "previous_image=$PREVIOUS_IMAGE" >> "$GITHUB_OUTPUT"
 
@@ -204,7 +247,15 @@ jobs:
       # timeout etc.) permanece o que já estava configurado na revision
       # anterior, preservado automaticamente pelo `gcloud run deploy`
       # quando a flag correspondente não é repetida.
-      - name: "Deploy Cloud Run — imagem por DIGEST"
+      #
+      # --no-traffic + --revision-suffix (Etapa 6.2-C.4B.2S): o deploy
+      # NUNCA depende de migração implícita de tráfego. Na Etapa 2Q o
+      # tráfego estava fixado por `update-traffic` numa revision nominal,
+      # e a revision nova nasceu com 0% — os gates pós-deploy testaram a
+      # revision ANTIGA sem que nada acusasse. Agora o roteamento é uma
+      # transição explícita e verificada (step adiante), e a identidade da
+      # revision é conhecida ANTES do deploy, não inferida depois.
+      - name: "Deploy Cloud Run — imagem por DIGEST, sem tráfego, revision determinística"
         id: deploy
         run: |
           gcloud run deploy "$SERVICE" \
@@ -214,19 +265,55 @@ jobs:
             --service-account="$RUNTIME_SA" \
             --no-allow-unauthenticated \
             --min-instances=0 \
+            --no-traffic \
+            --revision-suffix="$REVISION_SUFFIX" \
             --quiet
 
-      - name: "Confirmar que a nova revision referencia exatamente o digest do build"
+      # Identidade da revision: SEMPRE o nome determinístico calculado no
+      # baseline. `status.latestReadyRevisionName` não é usado como
+      # identidade (foi exatamente o que apontou para a revision errada na
+      # Etapa 2Q); `latestCreatedRevisionName` entra só como verificação
+      # cruzada — divergência é fail-closed, nunca palpite.
+      - name: "Confirmar a revision EXATA desta execução (existe, READY, digest correto)"
+        id: verify-revision
         run: |
-          NEW_REVISION=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format='value(status.latestReadyRevisionName)')
-          NEW_IMAGE=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format='value(spec.template.spec.containers[0].image)')
-          echo "Nova revision: $NEW_REVISION"
-          echo "Imagem da nova revision: $NEW_IMAGE"
-          echo "NEW_REVISION=$NEW_REVISION" >> "$GITHUB_ENV"
-          if [ "$NEW_IMAGE" != "$FULL_DIGEST" ]; then
-            echo "GATE FALHOU: a revision publicada não referencia o digest esperado."
+          if ! gcloud run revisions describe "$NEW_REVISION" --region="$REGION" --project="$PROJECT_ID" --format=json > /tmp/rev_new.json 2>/tmp/rev_err.txt; then
+            echo "GATE FALHOU: revision determinística não encontrada: $NEW_REVISION"
+            cat /tmp/rev_err.txt
+            exit 1
+          fi
+          REV_READY=$(python -c "
+          import json
+          d = json.load(open('/tmp/rev_new.json'))
+          conds = d.get('status', {}).get('conditions', [])
+          print(next((c.get('status') for c in conds if c.get('type') == 'Ready'), 'MISSING'))
+          ")
+          REV_IMAGE=$(python -c "
+          import json
+          print(json.load(open('/tmp/rev_new.json'))['spec']['containers'][0]['image'])
+          ")
+          LATEST_CREATED=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format='value(status.latestCreatedRevisionName)')
+          echo "Revision desta execução: $NEW_REVISION"
+          echo "  Ready:                 $REV_READY"
+          echo "  Imagem da revision:    $REV_IMAGE"
+          echo "  latestCreated (cross): $LATEST_CREATED"
+          if [ "$REV_READY" != "True" ]; then
+            echo "GATE FALHOU: revision $NEW_REVISION não está READY (condition Ready=$REV_READY)."
+            exit 1
+          fi
+          if [ "$LATEST_CREATED" != "$NEW_REVISION" ]; then
+            echo "GATE FALHOU: divergência entre a revision determinística e latestCreatedRevisionName."
+            echo "  determinística: $NEW_REVISION"
+            echo "  latestCreated:  $LATEST_CREATED"
+            exit 1
+          fi
+          # Verificação do digest NA REVISION, não em spec.template: a
+          # Etapa 2Q provou que o template do serviço e o que de fato serve
+          # tráfego podem divergir.
+          if [ "$REV_IMAGE" != "$FULL_DIGEST" ]; then
+            echo "GATE FALHOU: a revision não referencia o digest esperado."
             echo "  esperado: $FULL_DIGEST"
-            echo "  obtido:   $NEW_IMAGE"
+            echo "  obtido:   $REV_IMAGE"
             exit 1
           fi
           {
@@ -235,11 +322,44 @@ jobs:
             echo "commit:            $GITHUB_SHA"
             echo "image (tag):       $IMAGE_URI"
             echo "image (digest):    $FULL_DIGEST"
-            echo "revision anterior: $PREVIOUS_REVISION"
-            echo "revision nova:     $NEW_REVISION"
+            echo "tráfego pré-run:   $PRE_TRAFFIC_JSON"
+            echo "revision nova:     $NEW_REVISION (READY, 0% de tráfego neste ponto)"
             echo "runtime SA:        $RUNTIME_SA"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # ------------------------------------ transição explícita de tráfego
+      # Só depois de digest verificado NA revision correta. A partir daqui
+      # o roteamento do serviço foi alterado — o marcador `changed=true` é
+      # o que habilita o rollback (nunca inferência por nome de revision).
+      - name: "Rotear 100% do tráfego para a revision desta execução (explícito e verificado)"
+        id: traffic
+        run: |
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          gcloud run services update-traffic "$SERVICE" \
+            --project="$PROJECT_ID" \
+            --region="$REGION" \
+            --to-revisions="${NEW_REVISION}=100" \
+            --quiet
+          gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format=json > /tmp/svc_post.json
+          EFFECTIVE=$(python -c "
+          import json
+          d = json.load(open('/tmp/svc_post.json'))
+          tr = [t for t in d['status'].get('traffic', []) if t.get('percent')]
+          print(json.dumps(sorted((t.get('revisionName'), t.get('percent')) for t in tr)))
+          ")
+          EXPECTED=$(python -c "
+          import json, os
+          print(json.dumps([[os.environ['NEW_REVISION'], 100]]))
+          ")
+          echo "Tráfego efetivo: $EFFECTIVE"
+          if [ "$EFFECTIVE" != "$EXPECTED" ]; then
+            echo "GATE FALHOU: tráfego efetivo não confirma 100% em $NEW_REVISION."
+            echo "  esperado: $EXPECTED"
+            echo "  obtido:   $EFFECTIVE"
+            exit 1
+          fi
+          echo "Confirmado: 100% do tráfego em $NEW_REVISION — gates HTTP podem executar."
 
       # ---------------------------------------- negative test A — sem Authorization
       - name: "NEGATIVE TEST A — sem Authorization, esperado 403"
@@ -274,7 +394,7 @@ jobs:
           token_format: id_token
           id_token_audience: ${{ env.SERVICE_URL }}
 
-      - name: "NEGATIVE TEST B — ede-mcp-deployer tentando invocar, esperado 403"
+      - name: "NEGATIVE TEST B — ede-mcp-deployer tentando invocar, esperado 403 da camada Cloud Run"
         env:
           DEPLOYER_ID_TOKEN: ${{ steps.auth-deployer-idtoken.outputs.id_token }}
         run: |
@@ -284,13 +404,35 @@ jobs:
             echo "O teste negativo NÃO foi executado — nenhuma conclusão sobre autorização pode ser tirada."
             exit 1
           fi
-          STATUS=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${DEPLOYER_ID_TOKEN}" "${SERVICE_URL}/mcp")
+          STATUS=$(curl -s -o /tmp/b_body.txt -w '%{http_code}' -H "Authorization: Bearer ${DEPLOYER_ID_TOKEN}" "${SERVICE_URL}/mcp")
           echo "HTTP com identidade ede-mcp-deployer: $STATUS"
+          # Fingerprint de CAMADA (Etapa 6.2-C.4B.2R/2S): status sozinho é
+          # ambíguo. Na Etapa 2Q o deployer recebeu 400 — resposta da
+          # APLICAÇÃO (envelope JSON-RPC), provando que a requisição passou
+          # pela autorização e alcançou o container. Assinaturas reais
+          # medidas na Etapa 2R:
+          #   camada Cloud Run -> 403 + corpo HTML "403 Forbidden"
+          #   aplicação MCP    -> 4xx + corpo {"jsonrpc":"2.0",...}
+          # O corpo atravessa o proxy intacto; o header `server` não serve
+          # como discriminador isolado (o Cloud Run o reescreve também nas
+          # respostas da aplicação).
+          if grep -q 'jsonrpc' /tmp/b_body.txt; then
+            echo "UNEXPECTED CLOUD RUN AUTHORIZATION RESULT: a resposta veio da APLICAÇÃO (envelope JSON-RPC),"
+            echo "ou seja, a requisição do deployer PASSOU pela autorização do Cloud Run e alcançou o container."
+            echo "A separação deploy != invoke não está vigente."
+            exit 1
+          fi
           if [ "$STATUS" != "403" ]; then
             echo "UNEXPECTED CLOUD RUN AUTHORIZATION RESULT: ede-mcp-deployer recebeu HTTP $STATUS, esperado 403."
             echo "Token válido e audience correta — 2xx significaria que deploy capability virou invoke capability."
             exit 1
           fi
+          if ! grep -qiE 'forbidden|does not have permission' /tmp/b_body.txt; then
+            echo "UNEXPECTED CLOUD RUN AUTHORIZATION RESULT: 403 sem a assinatura de rejeição do Cloud Run."
+            echo "Não é possível afirmar que a negação veio da camada de autorização."
+            exit 1
+          fi
+          echo "OK — negação na CAMADA DE AUTORIZAÇÃO do Cloud Run (403, sem resposta da aplicação)."
 
       # ---------------------------------------------- auth: ede-mcp-smoke
       # Sobrescreve as ADC do runner — a partir daqui a identidade ativa
@@ -342,8 +484,14 @@ jobs:
             echo "O teste negativo NÃO foi executado — nenhuma conclusão sobre validação de audience pode ser tirada."
             exit 1
           fi
-          STATUS=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${WRONG_AUDIENCE_TOKEN}" "${SERVICE_URL}/mcp")
+          STATUS=$(curl -s -o /tmp/d_body.txt -w '%{http_code}' -H "Authorization: Bearer ${WRONG_AUDIENCE_TOKEN}" "${SERVICE_URL}/mcp")
           echo "HTTP com audience incorreta: $STATUS"
+          # Reforço de camada: a rejeição por audience é da camada de
+          # AUTENTICAÇÃO do Cloud Run e nunca produz envelope JSON-RPC.
+          if grep -q 'jsonrpc' /tmp/d_body.txt; then
+            echo "SECURITY GATE FALHOU: a resposta veio da APLICAÇÃO — token de audience incorreta alcançou o container."
+            exit 1
+          fi
           case "$STATUS" in
             2??)
               echo "SECURITY GATE FALHOU: ID token com audience incorreta foi ACEITO (HTTP $STATUS)."
@@ -371,46 +519,124 @@ jobs:
         env:
           EDE_MCP_SMOKE_TOKEN: ${{ steps.auth-smoke.outputs.id_token }}
         run: |
+          # Reconfirma, imediatamente antes do smoke, que quem serve o
+          # tráfego é a revision desta execução — a Etapa 2Q validou a
+          # revision ERRADA por não checar isto (o único ede_health bem
+          # sucedido foi contra a revision restaurada pelo rollback).
+          SERVING=$(gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format=json \
+            | python -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          tr = [t for t in d['status'].get('traffic', []) if t.get('percent')]
+          print(json.dumps(sorted((t.get('revisionName'), t.get('percent')) for t in tr)))
+          ")
+          EXPECTED_SERVING=$(python -c "
+          import json, os
+          print(json.dumps([[os.environ['NEW_REVISION'], 100]]))
+          ")
+          echo "Servindo tráfego agora: $SERVING"
+          if [ "$SERVING" != "$EXPECTED_SERVING" ]; then
+            echo "GATE FALHOU: o smoke positivo não pode atestar a revision desta execução."
+            echo "  esperado: $EXPECTED_SERVING"
+            echo "  obtido:   $SERVING"
+            exit 1
+          fi
+          echo "Smoke executará contra a revision desta execução: $NEW_REVISION"
           EXPECTED_VERSION=$(cat VERSION)
           python .github/ci/smoke_remoto_mcp.py "${SERVICE_URL}/mcp" --expected-version "$EXPECTED_VERSION" | tee -a "$GITHUB_STEP_SUMMARY"
 
       # ============================================================
-      # ROLLBACK — só executa se o deploy já tiver publicado uma nova
-      # revision (steps.deploy.outcome == 'success') e alguma etapa
-      # POSTERIOR tiver falhado (verificação de digest, negative tests,
-      # ou o próprio smoke MCP). Roda mesmo com o job já marcado como
-      # failure — isso é INTENCIONAL (fail-closed, §14 do pedido): o
-      # job permanece FAILURE mesmo que o rollback tenha sucesso, porque
-      # o deploy desta execução não foi validado.
+      # ROLLBACK — condicionado ao MARCADOR DE TRÁFEGO
+      # (steps.traffic.outputs.changed), nunca ao outcome do deploy.
+      # Com --no-traffic um deploy bem-sucedido NÃO altera roteamento:
+      # falhas anteriores à transição (revision não READY, digest
+      # divergente) não têm o que reverter, e disparar rollback ali mexeria
+      # no tráfego sem necessidade. O marcador é gravado ANTES do
+      # update-traffic, de modo que uma transição parcial também seja
+      # revertida. Roda mesmo com o job já marcado como failure — isso é
+      # INTENCIONAL (fail-closed): o job permanece FAILURE mesmo com
+      # rollback bem-sucedido, porque o deploy não foi validado.
       # ============================================================
       - name: "ROLLBACK — reautenticar como ede-mcp-deployer"
         id: auth-deployer-rollback
-        if: failure() && steps.deploy.outcome == 'success'
+        if: failure() && steps.traffic.outputs.changed == 'true'
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ env.DEPLOYER_SA }}
 
-      - name: "ROLLBACK — apontar 100% do tráfego de volta para a revision anterior"
-        if: failure() && steps.deploy.outcome == 'success'
+      - name: "ROLLBACK — restaurar o snapshot COMPLETO de tráfego pré-deploy"
+        if: failure() && steps.traffic.outputs.changed == 'true'
         run: |
-          echo "Executando rollback: $SERVICE -> $PREVIOUS_REVISION (100% do tráfego)"
-          gcloud run services update-traffic "$SERVICE" \
-            --project="$PROJECT_ID" \
-            --region="$REGION" \
-            --to-revisions="${PREVIOUS_REVISION}=100" \
-            --quiet
+          # Restaura exatamente o que existia antes, a partir do snapshot
+          # do baseline — nunca um nome derivado de
+          # latestReadyRevisionName (erro da Etapa 2Q, que restaurou uma
+          # revision que não era a que servia tráfego). Suporta alvo
+          # LATEST, revision nominal única, split entre várias revisions e
+          # tags. Parsing pela stdlib do Python, nunca JSON em shell.
+          python - > /tmp/restore_args.sh << 'EOF'
+          import json, os, shlex
+          traffic = json.loads(os.environ["PRE_TRAFFIC_JSON"])
+          pcts, tags = [], []
+          for t in traffic:
+              name = "LATEST" if t.get("latestRevision") else t.get("revisionName")
+              if not name:
+                  raise SystemExit(f"target invalido no snapshot: {t}")
+              if t.get("percent"):
+                  pcts.append(f"{name}={t['percent']}")
+              if t.get("tag"):
+                  tags.append(f"{t['tag']}={name}")
+          if not pcts:
+              raise SystemExit("snapshot sem percentuais de trafego")
+          print("TO_REVISIONS=" + shlex.quote(",".join(pcts)))
+          print("SET_TAGS=" + shlex.quote(",".join(tags)))
+          EOF
+          . /tmp/restore_args.sh
+          echo "Restaurando tráfego pré-deploy: $TO_REVISIONS (tags: ${SET_TAGS:-nenhuma})"
+          if [ -n "$SET_TAGS" ]; then
+            gcloud run services update-traffic "$SERVICE" \
+              --project="$PROJECT_ID" --region="$REGION" \
+              --to-revisions="$TO_REVISIONS" --set-tags="$SET_TAGS" --quiet
+          else
+            gcloud run services update-traffic "$SERVICE" \
+              --project="$PROJECT_ID" --region="$REGION" \
+              --to-revisions="$TO_REVISIONS" --clear-tags --quiet
+          fi
+          # Conferência SEMÂNTICA (conjuntos normalizados), nunca
+          # comparação de JSON cru: ordem e campos acrescentados pelo
+          # servidor podem diferir legitimamente.
+          gcloud run services describe "$SERVICE" --region="$REGION" --project="$PROJECT_ID" --format=json > /tmp/svc_restored.json
+          python - << 'EOF'
+          import json, os, sys
+          def norm(traffic):
+              pcts, tags = set(), set()
+              for t in traffic:
+                  name = "LATEST" if t.get("latestRevision") else t.get("revisionName")
+                  if t.get("percent"):
+                      pcts.add((name, t["percent"]))
+                  if t.get("tag"):
+                      tags.add((t["tag"], name))
+              return pcts, tags
+          esperado = norm(json.loads(os.environ["PRE_TRAFFIC_JSON"]))
+          obtido = norm(json.load(open("/tmp/svc_restored.json"))["status"].get("traffic", []))
+          if esperado != obtido:
+              print("ROLLBACK FALHOU: estado restaurado difere do snapshot pré-deploy.")
+              print("  esperado:", esperado)
+              print("  obtido:  ", obtido)
+              sys.exit(1)
+          print("Rollback confirmado — tráfego pré-deploy restaurado semanticamente.")
+          EOF
           {
             echo "### ROLLBACK executado"
             echo '```'
             echo "de:   $NEW_REVISION (digest $FULL_DIGEST)"
-            echo "para: $PREVIOUS_REVISION"
+            echo "para: $PRE_TRAFFIC_JSON"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: "ROLLBACK — reautenticar como ede-mcp-smoke para novo ede_health"
         id: auth-smoke-rollback
-        if: failure() && steps.deploy.outcome == 'success'
+        if: failure() && steps.traffic.outputs.changed == 'true'
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
@@ -419,17 +645,17 @@ jobs:
           id_token_audience: ${{ env.SERVICE_URL }}
 
       - name: Mascarar ID token pós-rollback
-        if: failure() && steps.deploy.outcome == 'success'
+        if: failure() && steps.traffic.outputs.changed == 'true'
         run: echo "::add-mask::${{ steps.auth-smoke-rollback.outputs.id_token }}"
 
       - name: "ROLLBACK — repetir ede_health na revision restaurada"
-        if: failure() && steps.deploy.outcome == 'success'
+        if: failure() && steps.traffic.outputs.changed == 'true'
         env:
           EDE_MCP_SMOKE_TOKEN: ${{ steps.auth-smoke-rollback.outputs.id_token }}
         run: |
           EXPECTED_VERSION=$(cat VERSION)
           {
-            echo "### ede_health após rollback (revision restaurada: $PREVIOUS_REVISION)"
+            echo "### ede_health após rollback (tráfego restaurado: $PRE_TRAFFIC_JSON)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           python .github/ci/smoke_remoto_mcp.py "${SERVICE_URL}/mcp" --expected-version "$EXPECTED_VERSION" | tee -a "$GITHUB_STEP_SUMMARY"

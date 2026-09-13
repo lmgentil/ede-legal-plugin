@@ -254,14 +254,41 @@ jobs:
       # ------------------------------------ negative test B — identidade deployer
       # ede-mcp-deployer nunca tem run.invoker — só serve para provar que
       # nem quem builda/deploya consegue invocar o serviço.
+      #
+      # O ID token vem desta action, nunca de `gcloud auth
+      # print-identity-token --audiences=...` (Etapa 6.2-C.4B.2P): aquele
+      # comando rejeita a credencial `external_account` produzida pelo WIF
+      # — `ValidIdTokenCredential` (command_lib/auth/auth_util.py) só
+      # aceita impersonation, chave de service account ou credencial do
+      # GCE. Não é falha de IAM: nenhuma requisição HTTP chegava a ser
+      # feita, e o teste negativo não provava nada. A action usa o caminho
+      # nativo do WIF (`iam.serviceAccounts.getOpenIdToken`, já contido em
+      # `roles/iam.workloadIdentityUser`, que ede-mcp-deployer possui no
+      # próprio recurso) — nenhuma role nova, nenhum Token Creator.
+      - name: "Auth (WIF) — ede-mcp-deployer (ID token, audience CORRETA — só para o NEGATIVE TEST B)"
+        id: auth-deployer-idtoken
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.DEPLOYER_SA }}
+          token_format: id_token
+          id_token_audience: ${{ env.SERVICE_URL }}
+
       - name: "NEGATIVE TEST B — ede-mcp-deployer tentando invocar, esperado 403"
+        env:
+          DEPLOYER_ID_TOKEN: ${{ steps.auth-deployer-idtoken.outputs.id_token }}
         run: |
-          DEPLOYER_ID_TOKEN=$(gcloud auth print-identity-token --audiences="$SERVICE_URL")
           echo "::add-mask::$DEPLOYER_ID_TOKEN"
+          if [ -z "$DEPLOYER_ID_TOKEN" ]; then
+            echo "TOKEN/AUTH SETUP FAILURE: ID token da identidade ede-mcp-deployer não foi emitido."
+            echo "O teste negativo NÃO foi executado — nenhuma conclusão sobre autorização pode ser tirada."
+            exit 1
+          fi
           STATUS=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${DEPLOYER_ID_TOKEN}" "${SERVICE_URL}/mcp")
           echo "HTTP com identidade ede-mcp-deployer: $STATUS"
           if [ "$STATUS" != "403" ]; then
-            echo "GATE FALHOU: ede-mcp-deployer conseguiu invocar o serviço (HTTP $STATUS), esperado 403."
+            echo "UNEXPECTED CLOUD RUN AUTHORIZATION RESULT: ede-mcp-deployer recebeu HTTP $STATUS, esperado 403."
+            echo "Token válido e audience correta — 2xx significaria que deploy capability virou invoke capability."
             exit 1
           fi
 
@@ -291,16 +318,50 @@ jobs:
           fi
 
       # --------------------------------------- negative test D — audience incorreta
-      - name: "NEGATIVE TEST D — audience incorreta, esperado rejeição (nunca 200)"
+      # Identidade DELIBERADAMENTE ede-mcp-smoke, não o deployer: smoke TEM
+      # run.invoker, então a única causa possível de rejeição é a audience.
+      # Usar uma identidade sem run.invoker introduziria uma segunda causa
+      # independente e destruiria o isolamento do teste. Token pela action,
+      # pelo mesmo motivo do NEGATIVE TEST B acima.
+      - name: "Auth (WIF) — ede-mcp-smoke (ID token, audience INCORRETA — só para o NEGATIVE TEST D)"
+        id: auth-smoke-wrong-audience
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SMOKE_SA }}
+          token_format: id_token
+          id_token_audience: "https://wrong-audience.invalid.example"
+
+      - name: "NEGATIVE TEST D — audience incorreta, esperado 401 (nunca 2xx)"
+        env:
+          WRONG_AUDIENCE_TOKEN: ${{ steps.auth-smoke-wrong-audience.outputs.id_token }}
         run: |
-          WRONG_AUDIENCE_TOKEN=$(gcloud auth print-identity-token --audiences="https://wrong-audience.invalid.example")
           echo "::add-mask::$WRONG_AUDIENCE_TOKEN"
-          STATUS=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${WRONG_AUDIENCE_TOKEN}" "${SERVICE_URL}/mcp")
-          echo "HTTP com audience incorreta: $STATUS"
-          if [ "$STATUS" = "200" ]; then
-            echo "GATE FALHOU: ID token com audience incorreta foi aceito (HTTP 200)."
+          if [ -z "$WRONG_AUDIENCE_TOKEN" ]; then
+            echo "TOKEN/AUTH SETUP FAILURE: ID token de audience incorreta não foi emitido."
+            echo "O teste negativo NÃO foi executado — nenhuma conclusão sobre validação de audience pode ser tirada."
             exit 1
           fi
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${WRONG_AUDIENCE_TOKEN}" "${SERVICE_URL}/mcp")
+          echo "HTTP com audience incorreta: $STATUS"
+          case "$STATUS" in
+            2??)
+              echo "SECURITY GATE FALHOU: ID token com audience incorreta foi ACEITO (HTTP $STATUS)."
+              exit 1
+              ;;
+            401)
+              echo "OK — Cloud Run rejeitou por falha de AUTENTICAÇÃO (audience inválida), como esperado."
+              ;;
+            403)
+              echo "SEMANTIC GATE FALHOU: rejeição veio como 403 (autorização), não 401 (audience)."
+              echo "ede-mcp-smoke TEM run.invoker, logo 403 indica que o isolamento da audience não foi demonstrado."
+              exit 1
+              ;;
+            *)
+              echo "GATE FALHOU: status inesperado $STATUS — esperado 401 (rejeição por audience)."
+              exit 1
+              ;;
+          esac
 
       # --------------------------------------- negative test C / smoke MCP real
       # O único uso do ID token correto (audience = URL real do serviço)

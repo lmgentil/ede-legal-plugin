@@ -7,6 +7,41 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Adicionado
+- **OAuth de aplicação no EDE MCP Server** (Gate 6.3-D2, ADR-0016). O EDE
+  passa a ser Resource Server OAuth 2.0; Descope é o Authorization
+  Server. Verificação RS256 com allowlist explícita de algoritmo,
+  cabeçalhos JOSE `jku`/`jwk`/`x5u` rejeitados, validação exata de
+  issuer e de audience (sem substring, prefixo, hostname ou curinga),
+  `exp`/`nbf` com tolerância de 60s, cache de JWKS com TTL e refresh
+  limitado, Protected Resource Metadata (RFC 9728) anunciando
+  EXATAMENTE UM Resource, `WWW-Authenticate` com `resource_metadata`,
+  exigência de escopo (`ede:health`, `ede:legal`) na camada HTTP e por
+  ferramenta, `tools/list` filtrado por escopo, Host canônico fixado e
+  política de Origin compatível com Claude e ChatGPT (ausente segue para
+  o OAuth; presente e inesperada é recusada).
+  Novos módulos: `mcp_server/auth_config.py`, `auth_logging.py`,
+  `token_verifier.py`, `scope_policy.py`, `http_telemetry.py`.
+- Telemetria de segurança somente-metadado, com allowlist FECHADA de
+  campos — JWT, `Authorization`, segredos e qualquer conteúdo jurídico
+  são estruturalmente incapazes de alcançar o log.
+- `tests/test_mcp_oauth.py` e `tests/oauth_harness.py`: 106 testes
+  determinísticos, sem rede e sem nenhum segredo real do Descope
+  (chaves RSA sintéticas geradas no processo, JWKS em app ASGI de
+  memória, issuer/Resource em domínios `.invalid`), incluindo prova de
+  DISPATCH ZERO para todo caso negativo de autenticação/autorização.
+
+### Notas
+- A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`). Desligada, o
+  comportamento é exatamente o das Etapas 6.1/6.2 e o startup declara
+  que não há autorização de aplicação. Configuração pela metade faz o
+  servidor recusar subir — nunca degrada para acesso anônimo.
+- Nenhum pacote novo no container: `pyjwt[crypto]` já era dependência
+  direta de `mcp==2.2.0`; passou apenas a ser declarada e pinada.
+- Sem mutação de infraestrutura: nenhum deploy, nenhum serviço `ede-mcp`
+  criado, `ede-mcp-staging` intocado, nenhum Resource Descope criado.
+  `VERSION` permanece 0.11.1 (ADR-0008 vincula o bump à release).
+
 ## [0.11.1] - 2026-09-10 — Fail-closed sem Modelo Oficial (hotfix)
 
 ### Corrigido

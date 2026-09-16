@@ -16,3 +16,36 @@
 # rank_bm25, sentence-transformers, pandas, numpy, joblib — RAG entra em
 # etapa posterior. O servidor mínimo só precisa responder ede_health.
 mcp==2.2.0
+
+# ---------------------------------------------------------------------
+# OAuth de aplicação (Gate 6.3-D2, ADR-0016).
+#
+# NENHUM PACOTE NOVO ENTRA NA IMAGEM POR CAUSA DESTA LINHA. `pyjwt[crypto]`
+# JÁ É dependência direta do próprio `mcp==2.2.0` (METADATA do pacote:
+# "Requires-Dist: pyjwt[crypto]>=2.10.1"), portanto já estava instalada e
+# já contava no tamanho do container desde a Etapa 6.1. O que muda aqui é
+# só a DECLARAÇÃO: mcp_server/token_verifier.py passou a importar `jwt`
+# diretamente, então ela deixou de ser transitiva e virou dependência
+# DIRETA — e a disciplina deste arquivo (ver cabeçalho) é pinar o que se
+# importa diretamente, deixando as transitivas a cargo da resolução do
+# `mcp`. Depender implicitamente da árvore de outro pacote para um módulo
+# de SEGURANÇA seria frágil: uma major do `mcp` poderia trocar de
+# biblioteca JWT e quebrar a verificação de token sem aviso.
+#
+# Por que PyJWT e não outra: é a biblioteca que o próprio SDK MCP já
+# escolheu (custo marginal zero), tem allowlist explícita de algoritmos
+# (`algorithms=[...]`, o que fecha `alg=none` e confusão de algoritmo),
+# validação nativa de exp/nbf/iss/aud com `leeway`, e o extra [crypto]
+# traz `cryptography` para RS256. Alternativas (python-jose, authlib)
+# acrescentariam pacote novo à imagem sem cobrir nada que esta não cubra.
+#
+# O cliente de JWKS NÃO é o `PyJWKClient` desta biblioteca: ele é
+# síncrono (urllib) e a política de cache exigida pelo gate (TTL, limite
+# de chaves, refresh limitado por `kid` desconhecido, sem fail-open além
+# do TTL) é implementada em mcp_server/token_verifier.py sobre `httpx2`,
+# que também já vem com o `mcp`. Nenhuma dependência adicional.
+#
+# Continuam deliberadamente ausentes: framework web próprio, pacote de
+# Authorization Server (o EDE é RESOURCE SERVER; Descope é o AS), SDK de
+# nuvem, RAG, DOCX.
+pyjwt[crypto]==2.13.0

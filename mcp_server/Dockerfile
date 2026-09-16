@@ -102,7 +102,19 @@ RUN pip install --no-cache-dir -r mcp_server/requirements.txt
 # --chown evita uma camada RUN chown separada; os pacotes instalados
 # acima continuam legíveis pelo usuário não-root pelas permissões
 # default do pip (site-packages world-readable em python:slim).
+# Gate 6.3-D2: server.py deixou de ser o unico modulo -- a camada OAuth
+# de aplicacao vive em modulos irmaos, importados por caminho plano
+# (`from auth_config import ...`), que funciona porque `python
+# mcp_server/server.py` coloca mcp_server/ como sys.path[0]. Os cinco sao
+# copiados explicitamente, no mesmo espirito do .dockerignore em
+# allowlist: nada de `COPY mcp_server/ mcp_server/`, que traria para a
+# imagem qualquer arquivo futuro do diretorio sem revisao.
 COPY --chown=10001:10001 mcp_server/server.py mcp_server/server.py
+COPY --chown=10001:10001 mcp_server/auth_config.py mcp_server/auth_config.py
+COPY --chown=10001:10001 mcp_server/auth_logging.py mcp_server/auth_logging.py
+COPY --chown=10001:10001 mcp_server/http_telemetry.py mcp_server/http_telemetry.py
+COPY --chown=10001:10001 mcp_server/scope_policy.py mcp_server/scope_policy.py
+COPY --chown=10001:10001 mcp_server/token_verifier.py mcp_server/token_verifier.py
 COPY --chown=10001:10001 VERSION VERSION
 
 # HOST=0.0.0.0 é decisão do AMBIENTE CONTAINERIZADO (main() em

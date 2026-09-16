@@ -35,8 +35,23 @@
 #     docker build -f - -o /tmp/ctx-dump "$(git rev-parse --show-toplevel)"
 # e então inspecionar /tmp/ctx-dump — deve conter exatamente
 # mcp_server/server.py, mcp_server/requirements.txt e VERSION.
+#
+# ATUALIZADO no Gate 6.3-D2: a camada OAuth de aplicacao acrescentou
+# quatro modulos ao lado de server.py (auth_config, auth_logging,
+# token_verifier, scope_policy, http_telemetry). Como a estrategia aqui
+# e ALLOWLIST, cada um precisa ser liberado NOMINALMENTE -- um modulo
+# novo esquecido nesta lista nao entra no contexto de build e o
+# container quebra no import, em vez de subir sem autenticacao. Esse
+# modo de falhar e o desejado (fail-closed, CLAUDE.md SS17): melhor o
+# container nao subir do que subir servindo rota protegida sem a camada
+# de auth que ele deveria carregar.
 *
 !mcp_server
 !mcp_server/server.py
+!mcp_server/auth_config.py
+!mcp_server/auth_logging.py
+!mcp_server/http_telemetry.py
+!mcp_server/scope_policy.py
+!mcp_server/token_verifier.py
 !mcp_server/requirements.txt
 !VERSION

@@ -100,6 +100,16 @@ jobs:
       - name: "TEST GATE — Streamable HTTP real (subprocess local — tests/test_mcp_streamable_http.py)"
         run: pytest tests/test_mcp_streamable_http.py -m mcp_transport -q
 
+      # Gate 6.3-D2: OAuth de aplicação. Mudança ESTRITAMENTE DE TESTE —
+      # nenhuma etapa de deploy, IAM, tráfego ou identidade é tocada por
+      # ela. Roda sem credencial: todo o material é sintético (chaves RSA
+      # geradas no processo, JWKS em app ASGI de memória, issuer/Resource
+      # em domínios .invalid). NENHUM segredo Descope e NENHUM acesso de
+      # rede são necessários — se um dia passarem a ser, isto aqui falha,
+      # que é o comportamento desejado.
+      - name: "TEST GATE — OAuth de aplicação (sintético — tests/test_mcp_oauth.py)"
+        run: pytest tests/test_mcp_oauth.py -q
+
       # ---------------------------------------------- auth: ede-mcp-deployer
       - name: "Auth (WIF) — ede-mcp-deployer"
         id: auth-deployer

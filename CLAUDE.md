@@ -861,6 +861,41 @@ Quando a geração do DOCX final for solicitada sem o template presente,
 interrompa somente essa etapa (Fail Closed — §17), nunca o restante do
 pipeline que não depende dele.
 
+**Clarificação (ADR-0017, Gate 6.3-D3.1) — não reabre a decisão
+acima.** "Fornecido separadamente aos usuários autorizados" nunca
+significou, e continua não significando, que o runtime pode ir buscar
+o arquivo por conta própria. Continua **proibido**, em qualquer
+ambiente, inclusive produção:
+
+* buscar, descobrir ou localizar automaticamente um Modelo Oficial
+  (internet, IA, varredura de caminho, heurística de nome de arquivo);
+* baixar um modelo arbitrário encontrado em tempo de execução;
+* reconstruir, sintetizar ou gerar um substituto do Modelo Oficial;
+* usar outro template como fallback quando o configurado estiver
+  ausente ou inválido;
+* contornar a verificação de hash ou de contrato para "fazer funcionar";
+* buscar um substituto público;
+* tratar a ausência do modelo como permissão para gerar a peça sem ele.
+
+O único mecanismo **permitido** é carregar, em produção, o Modelo
+Oficial já provisionado pelo próprio titular em um armazenamento
+privado, autenticado e explicitamente configurado (Arquitetura A′,
+ADR-0017) — nunca descoberto: o runtime só pode ler exatamente o
+objeto/geração configurados, nunca "o mais recente" ou "o que
+encontrar". Esse carregamento só é legítimo quando:
+
+* geração/versão do objeto está fixada na configuração (generation
+  pinning), nunca resolvida por convenção implícita;
+* o SHA-256 do conteúdo lido é verificado contra o valor configurado;
+* a validação determinística de contrato (`validar_contrato_modelo`)
+  passa antes de qualquer uso;
+* qualquer falha em qualquer um dos itens acima é Fail Closed (§17) —
+  nunca degradação silenciosa para "gerar mesmo assim".
+
+Fora dessas condições, a regra original desta seção permanece
+integralmente em vigor: sem o Modelo Oficial corretamente configurado e
+verificado, a etapa de geração do DOCX aborta.
+
 ---
 
 ## 14. Placeholders autorizados

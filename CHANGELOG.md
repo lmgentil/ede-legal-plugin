@@ -30,17 +30,54 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   (chaves RSA sintéticas geradas no processo, JWKS em app ASGI de
   memória, issuer/Resource em domínios `.invalid`), incluindo prova de
   DISPATCH ZERO para todo caso negativo de autenticação/autorização.
+- **Preparação de ativação de produção do MCP** (Gate 6.3-D3.1,
+  ADR-0017). Guard de fail-closed específico do serviço de produção:
+  quando `K_SERVICE` (variável injetada pela própria plataforma Cloud
+  Run) for exatamente `ede-mcp`, o processo recusa subir sem a camada
+  OAuth de aplicação explicitamente habilitada e validamente
+  configurada — fecha a lacuna em que, com toda variável `EDE_MCP_*`
+  ausente, a autenticação desligava por design (comportamento que
+  continua válido para `ede-mcp-staging`, desenvolvimento local e a
+  suíte de testes). Novo `mcp_server.auth_config.ProducaoSemAuthInvalida`
+  e `servico_de_producao()`, cobertos por 9 novos testes determinísticos
+  em `tests/test_mcp_oauth.py`.
+  Documentação nova: `docs/adr/ADR-0017-ativacao-producao-mcp.md`
+  (arquitetura de ativação de produção aprovada — serviço `ede-mcp`,
+  rede pública só após prova de OAuth de aplicação, isolamento total de
+  staging, e o desenho da Arquitetura A′ para o Modelo Oficial em
+  produção — armazenamento privado, geração fixada, SHA-256 verificado,
+  fail-closed, sem busca/reconstrução automática) e
+  `docs/mcp-producao-contrato.md` (contrato de variáveis de ambiente
+  não secretas do futuro serviço de produção — issuer/JWKS reais
+  permanecem pendentes de provisionamento no Descope).
+- Clarificação pontual de CLAUDE.md §13 (companheira de ADR-0017): a
+  proibição de buscar, baixar ou reconstruir automaticamente o Modelo
+  Oficial permanece integral e é explicitada como válida também em
+  produção; o único mecanismo futuro permitido é carregar o modelo
+  já provisionado pelo titular em armazenamento privado configurado
+  explicitamente, com geração/hash fixados e verificados — nunca
+  descoberto pelo runtime.
 
 ### Notas
-- A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`). Desligada, o
+- A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto
+  o de produção (`K_SERVICE=ede-mcp`, ver acima). Desligada, o
   comportamento é exatamente o das Etapas 6.1/6.2 e o startup declara
   que não há autorização de aplicação. Configuração pela metade faz o
   servidor recusar subir — nunca degrada para acesso anônimo.
 - Nenhum pacote novo no container: `pyjwt[crypto]` já era dependência
   direta de `mcp==2.2.0`; passou apenas a ser declarada e pinada.
-- Sem mutação de infraestrutura: nenhum deploy, nenhum serviço `ede-mcp`
-  criado, `ede-mcp-staging` intocado, nenhum Resource Descope criado.
-  `VERSION` permanece 0.11.1 (ADR-0008 vincula o bump à release).
+- Sem mutação de infraestrutura nesta rodada: nenhum deploy, nenhum
+  serviço `ede-mcp` criado, `ede-mcp-staging` intocado, nenhum Resource
+  Descope criado, nenhum bucket ou upload do Modelo Oficial. `VERSION`
+  passa a `0.12.0` (SemVer minor — Resource Server OAuth é uma
+  funcionalidade nova e retrocompatível), **sem tag e sem GitHub
+  Release** nesta etapa: a publicação formal fica para depois da prova
+  de OAuth de produção (Gate 6.3-D3.7).
+- **Nenhuma funcionalidade jurídica de produção é ativada por esta
+  entrada.** `contestacao` continua não exposta como ferramenta remota;
+  o Modelo Oficial em produção (Arquitetura A′) é desenho aprovado, não
+  implementado; nenhuma conexão de produção com Claude ou ChatGPT foi
+  estabelecida.
 
 ## [0.11.1] - 2026-09-10 — Fail-closed sem Modelo Oficial (hotfix)
 

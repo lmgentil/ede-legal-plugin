@@ -105,6 +105,18 @@ VAR_REQUIRED_SCOPES: Final = "EDE_MCP_REQUIRED_SCOPES"
 VAR_ALLOWED_ORIGINS: Final = "EDE_MCP_ALLOWED_ORIGINS"
 VAR_CANONICAL_HOST: Final = "EDE_MCP_CANONICAL_HOST"
 
+VAR_K_SERVICE: Final = "K_SERVICE"
+"""Injetada pela própria plataforma Cloud Run em todo serviço — nunca por
+configuração externa esquecível. Base do guard de produção abaixo."""
+
+NOME_SERVICO_PRODUCAO: Final = "ede-mcp"
+"""Nome do serviço Cloud Run de produção (Gate 6.3-D3.0/D3.1, ADR-0017).
+Amarrado deliberadamente a este único nome — nunca generalizado para
+qualquer `K_SERVICE`: `ede-mcp-staging`, o serviço de prova descartável,
+desenvolvimento local e a suíte de testes continuam podendo rodar com a
+camada OAuth desligada, exatamente como antes (ADR-0016). Só o serviço
+que se anuncia como `ede-mcp` fica sob a obrigação desta seção."""
+
 VARIAVEIS_DE_AUTH: Final = (
     VAR_RESOURCE,
     VAR_ISSUER,
@@ -130,6 +142,20 @@ class ConfiguracaoAuthInvalida(ValueError):
     """Configuração OAuth ausente, malformada ou internamente
     inconsistente. Sempre fatal: o servidor recusa subir (CLAUDE.md §17)
     em vez de servir rota protegida com identidade duvidosa."""
+
+
+class ProducaoSemAuthInvalida(ConfiguracaoAuthInvalida):
+    """INV-PRODUCAO-AUTH-OBRIGATORIA (Gate 6.3-D3.1, ADR-0017):
+    `K_SERVICE` identifica o serviço Cloud Run de produção
+    (`NOME_SERVICO_PRODUCAO`) mas a camada OAuth de aplicação não está
+    corretamente habilitada. Achado do Gate 6.3-D3.0: com toda variável
+    `EDE_MCP_*` ausente, a auth desliga por design — comportamento
+    aceitável para staging/local (ADR-0016), mas nunca para produção,
+    onde um deploy mal configurado seguido de `allUsers` exporia o
+    servidor sem autenticação alguma. Fail-closed específico e
+    intransferível: produção nunca alcança o dispatcher MCP com
+    autenticação desligada, mesmo que a omissão de
+    `EDE_MCP_AUTH_ENABLED` fosse tolerada em outro ambiente."""
 
 
 # ------------------------------------------------------------ validadores
@@ -396,19 +422,30 @@ def auth_habilitada(ambiente: Mapping[str, str] | None = None) -> bool:
     return _interpretar_booleano(env.get(VAR_AUTH_ENABLED), VAR_AUTH_ENABLED)
 
 
+def servico_de_producao(ambiente: Mapping[str, str] | None = None) -> bool:
+    """`True` quando `K_SERVICE` identifica exatamente o serviço Cloud Run
+    de produção (Gate 6.3-D3.1). Exposta à parte para que o guard seja
+    testável e auditável sem depender da leitura completa de
+    `carregar_config_do_ambiente`."""
+    env = os.environ if ambiente is None else ambiente
+    return (env.get(VAR_K_SERVICE) or "").strip() == NOME_SERVICO_PRODUCAO
+
+
 def carregar_config_do_ambiente(
     ambiente: Mapping[str, str] | None = None,
 ) -> EdeAuthConfig | None:
     """Resolve a configuração OAuth a partir do ambiente.
 
     Devolve `None` SOMENTE quando a camada OAuth de aplicação está
-    deliberadamente desligada E nenhuma variável de auth foi fornecida.
-    Qualquer outra combinação levanta `ConfiguracaoAuthInvalida` — nunca
-    devolve `None` por não ter conseguido montar a configuração, porque
-    isso viraria rota protegida servida anonimamente (Gate 6.3-D2,
-    condição de parada)."""
+    deliberadamente desligada E nenhuma variável de auth foi fornecida
+    E o processo não é o serviço de produção. Qualquer outra combinação
+    levanta `ConfiguracaoAuthInvalida` (ou, especificamente em produção,
+    `ProducaoSemAuthInvalida`) — nunca devolve `None` por não ter
+    conseguido montar a configuração, porque isso viraria rota protegida
+    servida anonimamente (Gate 6.3-D2, condição de parada)."""
     env = os.environ if ambiente is None else ambiente
     definidas = tuple(v for v in VARIAVEIS_DE_AUTH if (env.get(v) or "").strip())
+    producao = servico_de_producao(env)
 
     if not auth_habilitada(env):
         if definidas:
@@ -416,6 +453,14 @@ def carregar_config_do_ambiente(
                 f"configuração de auth pela metade: {list(definidas)} presente(s) sem "
                 f"{VAR_AUTH_ENABLED} ligada. Isto nunca degrada para acesso anônimo — "
                 f"ou ligue {VAR_AUTH_ENABLED}, ou remova essas variáveis."
+            )
+        if producao:
+            raise ProducaoSemAuthInvalida(
+                f"{VAR_K_SERVICE}={NOME_SERVICO_PRODUCAO!r}: a camada OAuth de "
+                f"aplicação é obrigatória em produção (INV-PRODUCAO-AUTH-"
+                f"OBRIGATORIA, ADR-0017) — ligue {VAR_AUTH_ENABLED} e configure "
+                f"Resource/issuer/JWKS. O serviço de produção nunca sobe com "
+                f"autenticação desligada."
             )
         return None
 

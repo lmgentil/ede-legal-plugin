@@ -46,8 +46,11 @@ import auth_logging as telemetria  # noqa: E402
 from auth_config import (  # noqa: E402
     ESCOPO_HEALTH,
     ESCOPO_LEGAL,
+    NOME_SERVICO_PRODUCAO,
+    VAR_K_SERVICE,
     ConfiguracaoAuthInvalida,
     EdeAuthConfig,
+    ProducaoSemAuthInvalida,
     carregar_config_do_ambiente,
     separar_escopos,
 )
@@ -1124,3 +1127,93 @@ def test_requirements_declara_a_dependencia_jwt_e_nada_de_bloat():
     )
     for proibida in proibidas:
         assert not any(proibida in linha.lower() for linha in ativas), proibida
+
+
+# =====================================================================
+# 9. GUARD DE PRODUÇÃO — K_SERVICE == "ede-mcp" (Gate 6.3-D3.1, ADR-0017)
+# =====================================================================
+#
+# Achado do Gate 6.3-D3.0: com toda variável EDE_MCP_* ausente, a auth
+# desliga por design (ADR-0016) — aceitável para staging/local, nunca
+# para o serviço de produção. `K_SERVICE` é injetada pela própria
+# plataforma Cloud Run, nunca por configuração externa esquecível.
+
+def test_A_sem_k_service_e_sem_config_preserva_compatibilidade():
+    """K_SERVICE ausente é o caso local/teste de sempre — nenhuma
+    mudança de comportamento."""
+    assert carregar_config_do_ambiente({}) is None
+
+
+def test_B_staging_sem_config_preserva_compatibilidade():
+    """K_SERVICE=ede-mcp-staging nunca aciona o guard — o nome é
+    comparado por igualdade exata, não por prefixo."""
+    assert carregar_config_do_ambiente({VAR_K_SERVICE: "ede-mcp-staging"}) is None
+
+
+def test_C_producao_sem_auth_enabled_recusa():
+    with pytest.raises(ProducaoSemAuthInvalida):
+        carregar_config_do_ambiente({VAR_K_SERVICE: NOME_SERVICO_PRODUCAO})
+
+
+def test_D_producao_com_auth_enabled_false_recusa():
+    with pytest.raises(ProducaoSemAuthInvalida):
+        carregar_config_do_ambiente({
+            VAR_K_SERVICE: NOME_SERVICO_PRODUCAO,
+            "EDE_MCP_AUTH_ENABLED": "false",
+        })
+
+
+def test_E_producao_habilitada_sem_variaveis_obrigatorias_recusa():
+    """O guard nunca substitui a validação existente de EdeAuthConfig —
+    ele só fecha a lacuna de "tudo ausente"."""
+    with pytest.raises(ConfiguracaoAuthInvalida) as excinfo:
+        carregar_config_do_ambiente({
+            VAR_K_SERVICE: NOME_SERVICO_PRODUCAO,
+            "EDE_MCP_AUTH_ENABLED": "true",
+        })
+    assert not isinstance(excinfo.value, ProducaoSemAuthInvalida)
+
+
+def test_F_producao_com_configuracao_completa_e_valida_sobe():
+    config = carregar_config_do_ambiente({
+        VAR_K_SERVICE: NOME_SERVICO_PRODUCAO,
+        "EDE_MCP_AUTH_ENABLED": "true",
+        "EDE_MCP_RESOURCE": h.RESOURCE_CANONICO,
+        "EDE_MCP_ISSUER": h.ISSUER,
+        "EDE_MCP_JWKS_URI": h.JWKS_URI,
+    })
+    assert config is not None
+    assert config.canonical_resource == h.RESOURCE_CANONICO
+
+
+def test_G_producao_com_configuracao_malformada_recusa():
+    with pytest.raises(ConfiguracaoAuthInvalida) as excinfo:
+        carregar_config_do_ambiente({
+            VAR_K_SERVICE: NOME_SERVICO_PRODUCAO,
+            "EDE_MCP_AUTH_ENABLED": "true",
+            "EDE_MCP_RESOURCE": "http://" + h.HOST_CANONICO + "/mcp",  # não-HTTPS
+            "EDE_MCP_ISSUER": h.ISSUER,
+            "EDE_MCP_JWKS_URI": h.JWKS_URI,
+        })
+    assert not isinstance(excinfo.value, ProducaoSemAuthInvalida)
+
+
+def test_guard_e_especifico_do_nome_de_producao_nao_generico():
+    """O guard não deve disparar para nenhum outro nome de serviço —
+    nem por semelhança textual, nem por conter o nome de produção como
+    substring."""
+    for nome in (
+        "ede-mcp-staging",
+        "ede-oauth-proof-disposable",
+        "ede-mcp-dev",
+        "outro-ede-mcp",
+        "",
+    ):
+        assert carregar_config_do_ambiente({VAR_K_SERVICE: nome}) is None, nome
+
+
+def test_producao_sem_auth_e_subclasse_de_configuracao_invalida():
+    """`ProducaoSemAuthInvalida` é sempre capturável por quem já trata
+    `ConfiguracaoAuthInvalida` — o guard não introduz um segundo
+    contrato de erro paralelo."""
+    assert issubclass(ProducaoSemAuthInvalida, ConfiguracaoAuthInvalida)

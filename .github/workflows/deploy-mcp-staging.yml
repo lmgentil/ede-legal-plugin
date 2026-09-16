@@ -24,15 +24,21 @@
 # nunca por uma única identidade acumulando os dois poderes.
 name: Deploy MCP Server (staging) — WIF, digest, smoke remoto
 
+# Gate 6.3-D2.2: gatilho automático `push` removido. Decisão explícita —
+# publicar código (`git push origin main`) e mutar infraestrutura de
+# staging (build + deploy Cloud Run) passam a ser dois eventos de
+# autorização SEPARADOS. Antes desta mudança, um push tocando
+# `mcp_server/**`, `VERSION` ou este próprio arquivo disparava o deploy
+# sozinho; a auditoria do Gate 6.3-D2.1 apontou isso como risco
+# (§8/§13) diante do commit de OAuth do Gate 6.3-D2, que toca
+# `mcp_server/**`.
+#
+# `workflow_dispatch` é o único gatilho: o deploy só roda quando um
+# humano o inicia explicitamente pela UI/CLI do GitHub Actions — nunca
+# implicitamente por um push. Nenhum outro comportamento do workflow
+# muda (build, digest, IAM, tráfego, smoke, rollback, concurrency
+# permanecem idênticos); só a forma de disparo.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "mcp_server/**"
-      - "VERSION"
-      - ".github/workflows/deploy-mcp-staging.yml"
-      - ".github/ci/smoke_remoto_mcp.py"
   workflow_dispatch: {}
 
 # Mínimas necessárias: contents:read para clonar, id-token:write para o

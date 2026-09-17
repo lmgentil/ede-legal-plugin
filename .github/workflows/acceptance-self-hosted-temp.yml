@@ -1,0 +1,354 @@
+# .github/workflows/acceptance-self-hosted-temp.yml — Gate 6.3-D3.3-G.
+#
+# ACEITAÇÃO PRIVADA DE PRODUÇÃO, DE UMA ÚNICA VEZ, ARQUIVO TEMPORÁRIO.
+#
+# Objetivo único: provar UMA requisição real contra a produção
+# (`ede-mcp`) carregando SIMULTANEAMENTE
+#
+#   X-Serverless-Authorization: Bearer <Google ID token>   (Cloud Run IAM)
+#   Authorization:               Bearer <Descope token>    (OAuth do EDE)
+#
+# usando um runner self-hosted TEMPORÁRIO na máquina do titular, porque
+# (Gate 6.3-D3.3-F/D3.3-D) nenhum ambiente interativo consegue impersonar
+# `ede-mcp-smoke` e nenhum runner hospedado pelo GitHub tem alcance
+# público para receber o callback OAuth do PKCE local — só uma máquina
+# onde navegador e listener de loopback coexistem resolve isso sem
+# infraestrutura nova nem segredo persistente.
+#
+# ESTE ARQUIVO É DESCARTÁVEL POR DESENHO: será removido do repositório
+# assim que a prova de aceitação for concluída (Gate 6.3-D3.3-G, etapa de
+# limpeza) — nunca deve virar workflow permanente. Nunca reutilize este
+# arquivo para outra finalidade.
+#
+# Alvo do runner: rótulo TRIPLO E LITERAL (nunca `self-hosted` sozinho,
+# nunca parametrizado por input) — casa exatamente com a única máquina
+# registrada para este gate. Nenhum outro workflow deste repositório
+# referencia este rótulo.
+#
+# O que este workflow NUNCA faz: build, push de imagem, deploy, update de
+# serviço, mutação de tráfego, mutação de IAM, `allUsers`,
+# `--allow-unauthenticated`, chamada à Management API da Descope, uso de
+# Management Key/Access Key/client secret, escrita de token em
+# GITHUB_OUTPUT/summary/artifact/arquivo do repositório. O único cliente
+# OAuth envolvido é um client público (`token_endpoint_auth_method=none`)
+# registrado via DCR só para esta prova.
+name: Aceitação privada de produção (runner self-hosted TEMPORÁRIO)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: acceptance-self-hosted-temp
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ede-legal-mcp-01
+  SERVICE_URL: https://ede-mcp-269134711029.southamerica-east1.run.app
+  SMOKE_SA: ede-mcp-smoke@ede-legal-mcp-01.iam.gserviceaccount.com
+  WORKLOAD_IDENTITY_PROVIDER: projects/269134711029/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+
+jobs:
+  acceptance:
+    name: Prova única de dupla autorização (Cloud Run IAM + OAuth EDE), runner temporário
+    runs-on: [self-hosted, Windows, ede-production-acceptance-temp]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Instalar dependências leves (mcp_server/requirements.txt)
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r mcp_server/requirements.txt
+
+      # ---------------------------------------------- auth: ede-mcp-smoke
+      # Única identidade usada por este workflow, do início ao fim —
+      # nunca ede-mcp-deployer/ede-mcp-runtime.
+      - name: "Auth (WIF) — ede-mcp-smoke (ID token, audience = URL real do serviço)"
+        id: auth-smoke
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SMOKE_SA }}
+          token_format: id_token
+          id_token_audience: ${{ env.SERVICE_URL }}
+
+      - name: Mascarar ID token da identidade smoke
+        shell: bash
+        run: echo "::add-mask::${{ steps.auth-smoke.outputs.id_token }}"
+
+      - name: "WIF PROOF — identidade do contexto de auth (esperado: ede-mcp-smoke)"
+        shell: bash
+        env:
+          EXPECTED_SA: ${{ env.SMOKE_SA }}
+        run: |
+          python - <<'PROOF'
+          import json, os, sys
+          esperado = os.environ["EXPECTED_SA"]
+          caminho = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") or ""
+          if not caminho or not os.path.exists(caminho):
+              print("GATE FALHOU: contexto de auth sem arquivo de credencial — identidade não comprovável.")
+              sys.exit(1)
+          with open(caminho, encoding="utf-8") as fh:
+              cfg = json.load(fh)
+          textos = []
+          def varrer(o):
+              if isinstance(o, dict):
+                  for v in o.values(): varrer(v)
+              elif isinstance(o, list):
+                  for v in o: varrer(v)
+              elif isinstance(o, str):
+                  textos.append(o)
+          varrer(cfg)
+          blob = "\n".join(textos)
+          if esperado not in blob:
+              print(f"GATE FALHOU: o contexto de auth não identifica {esperado}.")
+              sys.exit(1)
+          print(f"Identidade do contexto de auth confirmada: {esperado}")
+          PROOF
+
+      # ------------------------------------------------------------------
+      # PASSO ÚNICO: PKCE local (DCR -> authorize -> loopback -> token) +
+      # matriz de testes A-D + prova MCP SDK real + checagem cruzada de
+      # Resource — tudo no MESMO processo Python, para que o token
+      # Descope NUNCA cruze uma fronteira de step/arquivo/env do GitHub
+      # Actions. O ID token do Google entra só via variável de ambiente
+      # deste processo (já mascarada acima).
+      - name: "ACEITAÇÃO — PKCE local + matriz A-D + MCP SDK real (navegador abre NESTA máquina)"
+        id: acceptance
+        shell: bash
+        env:
+          GOOGLE_ID_TOKEN: ${{ steps.auth-smoke.outputs.id_token }}
+        timeout-minutes: 12
+        run: |
+          echo "::add-mask::$GOOGLE_ID_TOKEN"
+          python - <<'ACCEPT'
+          import base64, hashlib, json, os, secrets, sys, threading, webbrowser
+          import urllib.error, urllib.parse, urllib.request
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+
+          sys.path.insert(0, "mcp_server")
+
+          PROJECT_ID = "P3JJtIbHdYGjY2UYLFS04lMD23Ul"
+          PROD_APP_ID = "RS3JQLuyoWpX5cyGlHrCNJmgTtHBu"
+          ISSUER = f"https://api.descope.com/v1/apps/agentic/{PROJECT_ID}/{PROD_APP_ID}"
+          JWKS_URI = f"https://api.descope.com/{PROJECT_ID}/.well-known/jwks.json"
+          AUTHORIZE_URL = f"https://api.descope.com/oauth2/v1/apps/agentic/{PROJECT_ID}/{PROD_APP_ID}/authorize"
+          TOKEN_URL = f"https://api.descope.com/oauth2/v1/apps/agentic/{PROJECT_ID}/{PROD_APP_ID}/token"
+          RESOURCE = os.environ["SERVICE_URL"] + "/mcp"
+          REDIRECT_URI = "http://127.0.0.1:8737/callback"
+          SCOPE = "ede:health"
+
+          # Resource descartável — só para a checagem cruzada LOCAL de
+          # audience (nenhuma nova autorização de navegador para isto).
+          PROOF_APP_ID = "RS3JLQLr2aK7HfRczbUGiQ5y1dvgT"
+          PROOF_ISSUER = f"https://api.descope.com/v1/apps/agentic/{PROJECT_ID}/{PROOF_APP_ID}"
+          PROOF_RESOURCE = "https://ede-oauth-proof-disposable-269134711029.southamerica-east1.run.app/mcp"
+
+          GOOGLE_ID_TOKEN = os.environ["GOOGLE_ID_TOKEN"]
+          resultado = {}
+
+          def escrever(status, **campos):
+              resultado["status"] = status
+              resultado.update(campos)
+              print("RESULTADO::" + json.dumps(resultado, ensure_ascii=False))
+
+          def b64url(data):
+              return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+          # -------------------------------------------------- DCR (público)
+          corpo_dcr = json.dumps({
+              "client_name": "ede-d33g-temp-acceptance-client",
+              "redirect_uris": [REDIRECT_URI],
+              "token_endpoint_auth_method": "none",
+              "grant_types": ["authorization_code", "refresh_token"],
+              "response_types": ["code"],
+              "scope": SCOPE,
+          }).encode("utf-8")
+          req = urllib.request.Request(
+              f"https://api.descope.com/v1/mgmt/mcp/client/{PROJECT_ID}/{PROD_APP_ID}/register",
+              data=corpo_dcr, method="POST", headers={"Content-Type": "application/json"},
+          )
+          with urllib.request.urlopen(req, timeout=30) as resp:
+              dcr = json.loads(resp.read().decode("utf-8"))
+          CLIENT_ID = dcr["client_id"]
+          print(f"DCR OK — client_id registrado (público, sem secret), redirect_uri={REDIRECT_URI}")
+
+          # -------------------------------------------------- PKCE + loopback
+          code_verifier = b64url(secrets.token_bytes(40))
+          code_challenge = b64url(hashlib.sha256(code_verifier.encode("ascii")).digest())
+          state = secrets.token_urlsafe(24)
+
+          url_auth = AUTHORIZE_URL + "?" + urllib.parse.urlencode({
+              "response_type": "code", "client_id": CLIENT_ID, "redirect_uri": REDIRECT_URI,
+              "scope": SCOPE, "resource": RESOURCE, "state": state,
+              "code_challenge": code_challenge, "code_challenge_method": "S256",
+          })
+
+          capturado, evento = {}, threading.Event()
+
+          class Callback(BaseHTTPRequestHandler):
+              def log_message(self, *a): pass
+              def do_GET(self):
+                  qs = urllib.parse.urlparse(self.path)
+                  if qs.path == "/callback":
+                      p = urllib.parse.parse_qs(qs.query)
+                      capturado["code"] = p.get("code", [None])[0]
+                      capturado["state"] = p.get("state", [None])[0]
+                      capturado["error"] = p.get("error", [None])[0]
+                      corpo = b"<html><body><h3>EDE D3.3-G: autorizacao recebida. Pode fechar esta aba.</h3></body></html>"
+                      self.send_response(200)
+                      self.send_header("Content-Type", "text/html; charset=utf-8")
+                      self.send_header("Content-Length", str(len(corpo)))
+                      self.end_headers()
+                      self.wfile.write(corpo)
+                      evento.set()
+                  else:
+                      self.send_response(404); self.end_headers()
+
+          servidor = HTTPServer(("127.0.0.1", 8737), Callback)
+          threading.Thread(target=servidor.serve_forever, daemon=True).start()
+
+          print("HUMAN_BROWSER_AUTHORIZATION_REQUIRED — abrindo navegador local nesta máquina")
+          try:
+              webbrowser.open(url_auth)
+          except Exception as e:
+              print(f"AVISO: abertura automática falhou ({e}); URL não impressa por conter parâmetros de sessão.")
+
+          if not evento.wait(timeout=300):
+              escrever("TIMEOUT_SEM_CALLBACK"); servidor.shutdown(); sys.exit(1)
+          if capturado.get("error"):
+              escrever("AUTORIZACAO_NEGADA", erro=capturado["error"]); servidor.shutdown(); sys.exit(1)
+          if capturado.get("state") != state:
+              escrever("STATE_MISMATCH"); servidor.shutdown(); sys.exit(1)
+          code = capturado.get("code")
+          servidor.shutdown()
+          if not code:
+              escrever("CODE_AUSENTE"); sys.exit(1)
+
+          # -------------------------------------------------- token exchange
+          corpo_token = urllib.parse.urlencode({
+              "grant_type": "authorization_code", "code": code, "redirect_uri": REDIRECT_URI,
+              "client_id": CLIENT_ID, "code_verifier": code_verifier, "resource": RESOURCE,
+          }).encode("ascii")
+          req = urllib.request.Request(
+              TOKEN_URL, data=corpo_token, method="POST",
+              headers={
+                  "Content-Type": "application/x-www-form-urlencoded",
+                  "Accept": "application/json",
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                                "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+              },
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  token_resp = json.loads(resp.read().decode("utf-8"))
+          except urllib.error.HTTPError as e:
+              escrever("TOKEN_EXCHANGE_HTTP_ERROR", http_status=e.code); sys.exit(1)
+
+          descope_token = token_resp.get("access_token")
+          if not descope_token:
+              escrever("SEM_ACCESS_TOKEN"); sys.exit(1)
+          print("Descope access_token de PRODUÇÃO obtido (NUNCA será impresso/persistido).")
+
+          # -------------------------------------------------- Testes A-C (HTTP puro)
+          def requisitar(headers):
+              req = urllib.request.Request(
+                  RESOURCE, method="POST",
+                  data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}).encode("utf-8"),
+                  headers={"Content-Type": "application/json",
+                           "Accept": "application/json, text/event-stream", **headers},
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      return resp.status, dict(resp.headers), resp.read().decode("utf-8", "replace")
+              except urllib.error.HTTPError as e:
+                  return e.code, dict(e.headers), e.read().decode("utf-8", "replace")
+
+          status_a, _, corpo_a = requisitar({})
+          teste_a_ok = status_a == 403 and "jsonrpc" not in corpo_a
+
+          status_b, hdr_b, _ = requisitar({"X-Serverless-Authorization": f"Bearer {GOOGLE_ID_TOKEN}"})
+          desafio_b = hdr_b.get("www-authenticate", "")
+          teste_b_ok = status_b == 401 and 'error="invalid_token"' in desafio_b
+
+          status_c, hdr_c, _ = requisitar({
+              "X-Serverless-Authorization": f"Bearer {GOOGLE_ID_TOKEN}",
+              "Authorization": "Bearer token-deliberadamente-invalido.aaa.bbb",
+          })
+          desafio_c = hdr_c.get("www-authenticate", "")
+          teste_c_ok = status_c == 401 and 'error="invalid_token"' in desafio_c
+
+          # -------------------------------------------------- Teste D — MCP SDK real
+          import anyio
+          from mcp import Client
+          from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
+
+          async def prova_mcp_real():
+              http_client = create_mcp_http_client(headers={
+                  "X-Serverless-Authorization": f"Bearer {GOOGLE_ID_TOKEN}",
+                  "Authorization": f"Bearer {descope_token}",
+              })
+              transport = streamable_http_client(RESOURCE, http_client=http_client)
+              async with Client(transport, raise_exceptions=True) as client:
+                  tools = await client.list_tools()
+                  nomes = sorted(t.name for t in tools.tools)
+                  chamada = await client.call_tool("ede_health", {})
+                  dados = chamada.structured_content or {}
+                  return nomes, dados
+
+          try:
+              tools_list, health = anyio.run(prova_mcp_real)
+              teste_d_ok = True
+          except Exception as e:
+              tools_list, health, teste_d_ok = [], {}, False
+              erro_d = str(type(e).__name__)
+
+          # -------------------------------------------------- checagem cruzada local
+          from auth_config import EdeAuthConfig
+          from token_verifier import EdeTokenVerifier
+
+          cfg_cross = EdeAuthConfig(
+              canonical_resource=PROOF_RESOURCE, issuer=PROOF_ISSUER, jwks_uri=JWKS_URI,
+              accepted_audiences=(PROOF_RESOURCE,), required_scopes=("ede:health",),
+          )
+          verificador_cross = EdeTokenVerifier(cfg_cross)
+
+          async def verificar_cross():
+              return await verificador_cross.verify_token(descope_token)
+
+          cross_rejeitado = anyio.run(verificar_cross) is None
+
+          escrever(
+              "ACEITACAO_CONCLUIDA",
+              teste_a_403_sem_credencial=teste_a_ok,
+              teste_b_401_sem_authorization_app=teste_b_ok,
+              teste_c_401_bearer_invalido=teste_c_ok,
+              teste_d_mcp_sdk_real_ok=teste_d_ok,
+              teste_d_tools_list=tools_list,
+              teste_d_ede_health=health,
+              cross_resource_producao_rejeitado_por_verificador_disposable=cross_rejeitado,
+          )
+          if not all([teste_a_ok, teste_b_ok, teste_c_ok, teste_d_ok, cross_rejeitado]):
+              sys.exit(1)
+          ACCEPT
+
+      - name: Resumo (somente metadado — nenhum token/cabeçalho sensível)
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Aceitação privada de produção — runner self-hosted temporário"
+            echo '```'
+            echo "service_url: ${SERVICE_URL}"
+            echo "smoke_sa:    ${SMOKE_SA}"
+            echo "ver saída do passo ACEITAÇÃO para o resultado estruturado (RESULTADO::{...json...})"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

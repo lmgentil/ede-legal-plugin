@@ -63,7 +63,7 @@ jobs:
           persist-credentials: false
 
       - name: Instalar dependências leves (mcp_server/requirements.txt)
-        shell: bash
+        shell: 'C:\Program Files\Git\usr\bin\bash.exe -e -o pipefail {0}'
         run: |
           python -m pip install --upgrade pip
           pip install -r mcp_server/requirements.txt
@@ -81,11 +81,11 @@ jobs:
           id_token_audience: ${{ env.SERVICE_URL }}
 
       - name: Mascarar ID token da identidade smoke
-        shell: bash
+        shell: 'C:\Program Files\Git\usr\bin\bash.exe -e -o pipefail {0}'
         run: echo "::add-mask::${{ steps.auth-smoke.outputs.id_token }}"
 
       - name: "WIF PROOF — identidade do contexto de auth (esperado: ede-mcp-smoke)"
-        shell: bash
+        shell: 'C:\Program Files\Git\usr\bin\bash.exe -e -o pipefail {0}'
         env:
           EXPECTED_SA: ${{ env.SMOKE_SA }}
         run: |
@@ -123,7 +123,7 @@ jobs:
       # deste processo (já mascarada acima).
       - name: "ACEITAÇÃO — PKCE local + matriz A-D + MCP SDK real (navegador abre NESTA máquina)"
         id: acceptance
-        shell: bash
+        shell: 'C:\Program Files\Git\usr\bin\bash.exe -e -o pipefail {0}'
         env:
           GOOGLE_ID_TOKEN: ${{ steps.auth-smoke.outputs.id_token }}
         timeout-minutes: 12
@@ -342,7 +342,7 @@ jobs:
 
       - name: Resumo (somente metadado — nenhum token/cabeçalho sensível)
         if: always()
-        shell: bash
+        shell: 'C:\Program Files\Git\usr\bin\bash.exe -e -o pipefail {0}'
         run: |
           {
             echo "### Aceitação privada de produção — runner self-hosted temporário"

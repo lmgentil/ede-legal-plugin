@@ -1,0 +1,226 @@
+# .github/workflows/smoke-mcp-production.yml — Gate 6.3-D3.3-E.
+#
+# Smoke PRIVADO de PRODUÇÃO (`ede-mcp`), SOMENTE OBSERVAÇÃO/TESTE — nunca
+# build, nunca deploy, nunca mutação de tráfego, nunca mutação de IAM.
+#
+# Objetivo estrito deste workflow: provar, a partir de um runner do
+# GitHub Actions autenticado via WIF (sem chave JSON persistente), duas
+# metades SEGURAS da coreografia de dupla autorização do `ede-mcp`
+# (Gate 6.3-D3.3-D §11-§13, Gate 6.3-D3.3-E §9/§12) que NÃO dependem de
+# nenhum token Descope:
+#
+#   TESTE A — nenhuma credencial do Cloud Run
+#             -> rejeição na CAMADA DE INFRAESTRUTURA (403, sem corpo de
+#                aplicação).
+#   TESTE B — identidade Google válida via `X-Serverless-Authorization`
+#             (satisfaz o IAM do Cloud Run) e NENHUM cabeçalho
+#             `Authorization` de aplicação
+#             -> a requisição ATRAVESSA a camada de infraestrutura e é
+#                rejeitada pela CAMADA DE APLICAÇÃO (401 + desafio
+#                `WWW-Authenticate: Bearer ... error="invalid_token"`,
+#                contrato já provado por `tests/test_mcp_oauth.py::
+#                test_sem_authorization_401_com_www_authenticate`).
+#
+# O que este workflow DELIBERADAMENTE NÃO faz (Gate 6.3-D3.3-E §5/§19/
+# §20): não builda imagem, não publica imagem, não faz
+# `gcloud run deploy`/`services update`, não altera tráfego, não altera
+# IAM, não cria/apaga recurso do Cloud Run, não chama nenhuma API de
+# Management da Descope, não usa nem solicita Management Key, não
+# carrega nem manipula token Descope algum — a metade que exigiria um
+# token de produção real (Testes C/D/E/F/G da matriz de
+# 6.3-D3.3-D §13) permanece INTENCIONALMENTE fora deste workflow até que
+# um design seguro de handoff desse token exista (ver
+# docs/adr — pendente — e o relatório do Gate 6.3-D3.3-E).
+#
+# Identidade: SOMENTE `ede-mcp-smoke`. Este workflow nunca autentica como
+# `ede-mcp-deployer` nem `ede-mcp-runtime` — não builda, não deploya, não
+# impersona a identidade de runtime. `ede-mcp-smoke` já possui
+# `roles/run.invoker` em `ede-mcp` (Gate 6.3-D3.3-B) e já pode ser
+# impersonada pelo mesmo `github-pool`/`github-provider` que
+# `deploy-mcp-staging.yml` usa (verificado, Gate 6.3-D3.3-E — nenhuma
+# mudança de IAM/provider foi necessária ou feita para este workflow
+# existir).
+#
+# Gatilho: SOMENTE `workflow_dispatch`, sem `push`/`pull_request`/
+# `schedule` — mesma disciplina de autorização explícita e separada de
+# `deploy-mcp-staging.yml` (Gate 6.3-D2.2).
+name: Smoke MCP Server (produção) — WIF, somente observação/teste
+
+on:
+  workflow_dispatch: {}
+
+# Mínimas necessárias: contents:read para clonar (nenhum arquivo do
+# checkout é sequer executado — só existe para que a action de auth e o
+# runner tenham um workspace válido), id-token:write para o runner poder
+# solicitar o token OIDC do GitHub que a troca WIF consome. Nenhuma
+# outra permissão (sem contents:write, actions:write, packages:write,
+# deployments:write, issues:write, pull-requests:write).
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: smoke-mcp-production
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ede-legal-mcp-01
+  PROJECT_NUMBER: "269134711029"
+  REGION: southamerica-east1
+  SERVICE: ede-mcp
+  SERVICE_URL: https://ede-mcp-269134711029.southamerica-east1.run.app
+  SMOKE_SA: ede-mcp-smoke@ede-legal-mcp-01.iam.gserviceaccount.com
+  DEPLOYER_SA: ede-mcp-deployer@ede-legal-mcp-01.iam.gserviceaccount.com
+  RUNTIME_SA: ede-mcp-runtime@ede-legal-mcp-01.iam.gserviceaccount.com
+  WORKLOAD_IDENTITY_PROVIDER: projects/269134711029/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+
+jobs:
+  smoke:
+    name: Smoke privado de produção (2 metades seguras da coreografia, sem token Descope)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # ------------------------------------------------------ checkout
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # ---------------------------------------------------- TESTE A
+      # Nenhum cabeçalho de autorização de espécie alguma. Uma única
+      # requisição determinística — não há motivo para repetir.
+      - name: "TESTE A — sem credencial Cloud Run (esperado: 403 da CAMADA DE INFRAESTRUTURA)"
+        run: |
+          STATUS=$(curl -s -o /tmp/a_body.txt -w '%{http_code}' -X POST "${SERVICE_URL}/mcp" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/event-stream" \
+            -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')
+          echo "HTTP sem credencial: $STATUS"
+          if [ "$STATUS" != "403" ]; then
+            echo "RESULTADO INESPERADO: esperado 403 (rejeição de infraestrutura), obtido $STATUS."
+            cat /tmp/a_body.txt
+            exit 1
+          fi
+          if grep -q 'jsonrpc' /tmp/a_body.txt; then
+            echo "RESULTADO INESPERADO: corpo contém envelope JSON-RPC — a requisição alcançou a aplicação, não deveria."
+            exit 1
+          fi
+          if ! grep -qiE 'forbidden|does not have permission' /tmp/a_body.txt; then
+            echo "RESULTADO INESPERADO: 403 sem a assinatura de rejeição do Cloud Run — não é possível afirmar a camada."
+            exit 1
+          fi
+          echo "OK — rejeição na CAMADA DE INFRAESTRUTURA do Cloud Run (403, sem resposta da aplicação)."
+
+      # ---------------------------------------------- auth: ede-mcp-smoke
+      # Única identidade usada por este workflow, do início ao fim.
+      - name: "Auth (WIF) — ede-mcp-smoke (ID token, audience = URL real do serviço)"
+        id: auth-smoke
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SMOKE_SA }}
+          token_format: id_token
+          id_token_audience: ${{ env.SERVICE_URL }}
+
+      - name: Mascarar ID token da identidade smoke
+        run: echo "::add-mask::${{ steps.auth-smoke.outputs.id_token }}"
+
+      # Prova por CONTEXTO DE AUTH (nunca `gcloud auth list` — mesmo
+      # achado documentado em deploy-mcp-staging.yml): confirma que a
+      # credencial ativa é `ede-mcp-smoke` e SOMENTE ela — nunca
+      # deployer/runtime, mesmo por engano de configuração futura.
+      - name: "WIF PROOF — identidade do contexto de auth (esperado: ede-mcp-smoke, nunca deployer/runtime)"
+        env:
+          EXPECTED_SA: ${{ env.SMOKE_SA }}
+        run: |
+          python3 - <<'PROOF'
+          import json, os, sys
+          esperado = os.environ["EXPECTED_SA"]
+          caminho = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") or ""
+          if not caminho or not os.path.exists(caminho):
+              print("GATE FALHOU: contexto de auth sem arquivo de credencial — identidade não comprovável.")
+              sys.exit(1)
+          with open(caminho, encoding="utf-8") as fh:
+              cfg = json.load(fh)
+          textos = []
+          def varrer(o):
+              if isinstance(o, dict):
+                  for v in o.values(): varrer(v)
+              elif isinstance(o, list):
+                  for v in o: varrer(v)
+              elif isinstance(o, str):
+                  textos.append(o)
+          varrer(cfg)
+          blob = "\n".join(textos)
+          conhecidas = {os.environ[k] for k in ("DEPLOYER_SA", "SMOKE_SA", "RUNTIME_SA") if os.environ.get(k)}
+          presentes = {sa for sa in conhecidas if sa in blob}
+          if esperado not in presentes:
+              print(f"GATE FALHOU: o contexto de auth não identifica {esperado}.")
+              print(f"  identidades conhecidas encontradas no contexto: {sorted(presentes) or 'nenhuma'}")
+              sys.exit(1)
+          if presentes - {esperado}:
+              print(f"GATE FALHOU: contexto contaminado — identifica também {sorted(presentes - {esperado})}.")
+              sys.exit(1)
+          print(f"Identidade do contexto de auth confirmada: {esperado}")
+          PROOF
+
+      # ---------------------------------------------------- TESTE B
+      # `X-Serverless-Authorization` (não `Authorization`) carrega o ID
+      # token do Google: é o mecanismo documentado do Cloud Run para
+      # satisfazer o IAM de infraestrutura SEM consumir o cabeçalho
+      # `Authorization`, que fica livre para a aplicação. Aqui ele é
+      # deixado AUSENTE de propósito — nenhum token Descope existe neste
+      # workflow. Contrato de resposta (401 + WWW-Authenticate
+      # `error="invalid_token"`) é o mesmo já provado por
+      # tests/test_mcp_oauth.py::test_sem_authorization_401_com_www_authenticate
+      # — não inventado aqui.
+      - name: "TESTE B — identidade Google válida, SEM Authorization de aplicação (esperado: 401 da CAMADA DE APLICAÇÃO)"
+        env:
+          SMOKE_ID_TOKEN: ${{ steps.auth-smoke.outputs.id_token }}
+        run: |
+          echo "::add-mask::$SMOKE_ID_TOKEN"
+          if [ -z "$SMOKE_ID_TOKEN" ]; then
+            echo "TOKEN/AUTH SETUP FAILURE: ID token da identidade ede-mcp-smoke não foi emitido."
+            echo "O teste NÃO foi executado — nenhuma conclusão pode ser tirada."
+            exit 1
+          fi
+          STATUS=$(curl -s -D /tmp/b_headers.txt -o /tmp/b_body.txt -w '%{http_code}' \
+            -X POST "${SERVICE_URL}/mcp" \
+            -H "X-Serverless-Authorization: Bearer ${SMOKE_ID_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/event-stream" \
+            -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')
+          echo "HTTP com identidade Cloud Run válida, sem Authorization de aplicação: $STATUS"
+          if [ "$STATUS" = "403" ] && grep -qiE 'forbidden|does not have permission' /tmp/b_body.txt; then
+            echo "RESULTADO INESPERADO: ainda rejeitado na CAMADA DE INFRAESTRUTURA — X-Serverless-Authorization não teria sido aceito pelo Cloud Run IAM."
+            cat /tmp/b_body.txt
+            exit 1
+          fi
+          if [ "$STATUS" != "401" ]; then
+            echo "RESULTADO OBSERVADO (reportando sem fabricar expectativa): HTTP $STATUS"
+            cat /tmp/b_headers.txt
+            cat /tmp/b_body.txt
+            exit 1
+          fi
+          DESAFIO=$(grep -i '^www-authenticate:' /tmp/b_headers.txt || true)
+          if ! echo "$DESAFIO" | grep -q 'error="invalid_token"'; then
+            echo "RESULTADO INESPERADO: 401 sem o desafio invalid_token esperado do EdeTokenVerifier."
+            echo "$DESAFIO"
+            exit 1
+          fi
+          echo "OK — CAMADA DE INFRAESTRUTURA aceitou a identidade Google (não é 403 de Cloud Run); CAMADA DE APLICAÇÃO rejeitou por ausência de Authorization (401, invalid_token)."
+
+      - name: Resumo (somente metadado — nenhum token/cabeçalho sensível)
+        if: always()
+        run: |
+          {
+            echo "### Smoke privado de produção — ede-mcp"
+            echo '```'
+            echo "service:      ${SERVICE}"
+            echo "service_url:  ${SERVICE_URL}"
+            echo "smoke_sa:     ${SMOKE_SA}"
+            echo "teste A:      sem credencial -> 403 infraestrutura"
+            echo "teste B:      identidade Google (X-Serverless-Authorization) sem Authorization -> 401 aplicação"
+            echo "teste C-G:    NÃO executados — dependem de um design seguro de handoff de token Descope (pendente)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

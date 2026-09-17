@@ -172,9 +172,15 @@ jobs:
               "response_types": ["code"],
               "scope": SCOPE,
           }).encode("utf-8")
+          NAVEGADOR_UA = (
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+              "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+          )
           req = urllib.request.Request(
               f"https://api.descope.com/v1/mgmt/mcp/client/{PROJECT_ID}/{PROD_APP_ID}/register",
-              data=corpo_dcr, method="POST", headers={"Content-Type": "application/json"},
+              data=corpo_dcr, method="POST",
+              headers={"Content-Type": "application/json", "Accept": "application/json",
+                       "User-Agent": NAVEGADOR_UA},
           )
           with urllib.request.urlopen(req, timeout=30) as resp:
               dcr = json.loads(resp.read().decode("utf-8"))
@@ -243,8 +249,7 @@ jobs:
               headers={
                   "Content-Type": "application/x-www-form-urlencoded",
                   "Accept": "application/json",
-                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                                "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                  "User-Agent": NAVEGADOR_UA,
               },
           )
           try:
@@ -264,7 +269,8 @@ jobs:
                   RESOURCE, method="POST",
                   data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}).encode("utf-8"),
                   headers={"Content-Type": "application/json",
-                           "Accept": "application/json, text/event-stream", **headers},
+                           "Accept": "application/json, text/event-stream",
+                           "User-Agent": NAVEGADOR_UA, **headers},
               )
               try:
                   with urllib.request.urlopen(req, timeout=30) as resp:

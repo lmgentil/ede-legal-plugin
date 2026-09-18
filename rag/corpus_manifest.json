@@ -1,0 +1,31 @@
+{
+  "diplomas": {
+    "CPC": {
+      "arquivos": 130,
+      "sha256": "5082f4c5c5724264fd15a576d1eb25397a96422b9b17b5ae141cb30a2591a61a"
+    },
+    "CC": {
+      "arquivos": 198,
+      "sha256": "bcf6a4a5c3c433095e76e105a29e306723bb538d188a2c90ce08d20a64a1f43d"
+    },
+    "CDC": {
+      "arquivos": 18,
+      "sha256": "2e0e02d8fc61414dc8960d6065b1db69d6d4e4ca408fdb62af6b27caedcb4e4e"
+    },
+    "L8987": {
+      "arquivos": 13,
+      "sha256": "fc732f51fd9d06ca122f1b1056f4d8ec2af0e4acacc3e2ec89ac1b443c913ee1"
+    },
+    "L9427": {
+      "arquivos": 8,
+      "sha256": "a46df20803202f24b7d5040c51d4202f64f38a98e53f726bd28d7de28ca4ecca"
+    },
+    "REN1000": {
+      "arquivos": 67,
+      "sha256": "897fa3c97899b9730e49013421dadb9cc43c4f922c436adfdb861e2d701d79bb"
+    }
+  },
+  "versao": "v3 (2026-07-09)",
+  "total_chunks": 434,
+  "sha256_total": "75ffb1c849c67be7e20bcab7d665349dc1efa9af8b96377342b8055fa69d2c51"
+}

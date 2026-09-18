@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-tests/test_mcp_server.py — contrato do EDE MCP Server mínimo
-(Etapa 6.1, ADR-0015).
+tests/test_mcp_server.py — contrato do EDE MCP Server
+(Etapa 6.1, ADR-0015; readiness jurídica desde o Gate 6.4-A).
 
-Cobre exatamente o que a Etapa 6.1 promete e nada mais: o servidor
-inicializa, `ede_health` existe e responde conforme o schema, distingue
-`service_status` de `contestacao_status`, é fail-closed diante de erro
-interno, e não carrega nenhuma dependência reservada a etapas futuras
-(RAG) nem depende do host Claude (`CLAUDE_PLUGIN_ROOT`) ou do Modelo
-Oficial real.
+Cobre: o servidor inicializa, `ede_health` existe e responde conforme o
+schema, distingue `service_status` de `contestacao_status`, é
+fail-closed diante de erro interno, não depende do host Claude
+(`CLAUDE_PLUGIN_ROOT`), e não carrega dependência de análise/busca
+(pandas/numpy/pyarrow/rank_bm25/sentence-transformers) só para
+responder `ede_health` — mesmo sem RAG/Modelo Oficial serem mais
+stubs fixos desde o Gate 6.4-A (ver docstring de
+`scripts/legal_readiness.py`: a checagem de saúde do corpus usa só
+biblioteca padrão, nunca constrói o índice de busca).
 
 Usa o client MCP oficial in-memory do SDK (`mcp.Client`) para os testes
 de contrato via protocolo — nunca mock de protocolo (item 10 do pedido:
@@ -19,10 +22,11 @@ original sem envolvê-la (mcp/server/mcpserver/server.py, `MCPServer.tool`
 -> `decorator` -> `return fn`), então `ede_health` importado deste módulo
 já é a função de negócio, sem precisar do transporte para testá-la.
 
-Não depende de nenhum artefato de caso (fatos.json, tempestividade,
-Modelo Oficial) nem altera nada em scripts/, rag/ ou skills/ — suíte
-inteiramente isolada em mcp_server/.
-"""
+Não depende de nenhum artefato de CASO (fatos.json, tempestividade) —
+a matriz completa de prontidão do corpus RAG/Modelo Oficial é coberta à
+parte, em tests/test_legal_readiness.py (Core); esta suíte testa só a
+FIAÇÃO do adapter (server.py traduz fielmente o resultado do Core, nunca
+reimplementa a validação)."""
 import inspect
 import os
 import subprocess
@@ -95,16 +99,92 @@ def test_ede_health_versionamento():
     assert resposta.version == versao_arquivo
 
 
-def test_service_ready_separado_de_contestacao_ready():
-    """Prova central da Etapa 6.1 (itens 5/7 do pedido): o servidor pode
-    estar operacional (service_status=READY) sem estar apto a gerar uma
-    Contestação (contestacao_status=NOT_READY) — os dois nunca são
-    fundidos num único campo "status"."""
+def test_service_ready_separado_de_contestacao_ready(monkeypatch):
+    """Prova central da Etapa 6.1 (itens 5/7 do pedido), preservada no
+    Gate 6.4-A: o servidor pode estar operacional (service_status=READY)
+    sem estar apto a gerar uma Contestação (contestacao_status=NOT_READY)
+    — os dois nunca são fundidos num único campo "status". Sem
+    EDE_MODELO_OFICIAL_PATH/_SHA256 configurados (estado real de
+    produção hoje), `modelo_oficial` fica NOT_CONFIGURED e isso basta
+    para NOT_READY, independentemente do estado do corpus RAG."""
+    for var in (
+        "EDE_MODELO_OFICIAL_PATH", "EDE_MODELO_OFICIAL_SHA256",
+        "EDE_MODELO_OFICIAL_GCS_BUCKET", "EDE_MODELO_OFICIAL_GCS_OBJECT",
+        "EDE_MODELO_OFICIAL_GCS_GENERATION",
+    ):
+        monkeypatch.delenv(var, raising=False)
     resposta = ede_health()
     assert resposta.service_status == "READY"
     assert resposta.contestacao_status == "NOT_READY"
-    assert resposta.checks["rag"].status.value == "NOT_CONFIGURED"
     assert resposta.checks["modelo_oficial"].status.value == "NOT_CONFIGURED"
+
+
+def test_contestacao_ready_exige_todas_as_checagens(monkeypatch):
+    """`contestacao_status` só READY quando process/rag/modelo_oficial
+    estiverem todos READY — server.py nunca decide isso sozinho, só
+    agrega o que scripts/legal_readiness.py (Core) devolveu (ADR-0015:
+    adapter fino, nenhuma lógica de validação duplicada aqui)."""
+    import legal_readiness
+
+    monkeypatch.setattr(
+        legal_readiness, "avaliar_corpus_rag",
+        lambda: legal_readiness.ResultadoReadiness("READY", "sintético"),
+    )
+    monkeypatch.setattr(
+        legal_readiness, "avaliar_modelo_oficial",
+        lambda: legal_readiness.ResultadoReadiness("READY", "sintético"),
+    )
+    resposta = ede_health()
+    assert resposta.checks["rag"].status.value == "READY"
+    assert resposta.checks["modelo_oficial"].status.value == "READY"
+    assert resposta.contestacao_status == "READY"
+
+
+@pytest.mark.docx_real
+def test_contestacao_ready_via_gcs_fim_a_fim(monkeypatch):
+    """Gate 6.4-B: prova de ponta a ponta através do adapter real — só o
+    seam de baixo nível (`_baixar_modelo_oficial_gcs`, a fronteira de
+    rede/autenticação) é mockado; toda a orquestração
+    (`ede_health` -> `legal_readiness.avaliar_modelo_oficial` ->
+    `_validar_conteudo_modelo_oficial` -> SHA-256 -> Template Lock) roda
+    de verdade contra o CONTRATO REAL (schema.json/blocos.json, os
+    mesmos que `avaliar_modelo_oficial()` usa por default — por isso
+    precisa do Modelo Oficial real, não de um DOCX sintético), com o
+    corpus RAG real desta checkout (READY sem mock algum)."""
+    import hashlib
+    import sys
+    from unittest.mock import patch
+
+    sys.path.insert(0, str(BASE / "scripts"))
+    import legal_readiness
+
+    template_real = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
+    if not template_real.is_file():
+        pytest.skip(f"{template_real} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
+    conteudo = template_real.read_bytes()
+    sha = hashlib.sha256(conteudo).hexdigest()
+
+    for var in ("EDE_MODELO_OFICIAL_PATH",):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv(legal_readiness.ENV_GCS_BUCKET, "ede-modelo-oficial-privado")
+    monkeypatch.setenv(legal_readiness.ENV_GCS_OBJECT, "modelo-oficial/modelo-oficial.docx")
+    monkeypatch.setenv(legal_readiness.ENV_GCS_GENERATION, "1234567890123456")
+    monkeypatch.setenv(legal_readiness.ENV_MODELO_SHA256, sha)
+
+    with patch.object(legal_readiness, "_baixar_modelo_oficial_gcs", return_value=conteudo):
+        resposta = ede_health()
+
+    assert resposta.checks["modelo_oficial"].status.value == "READY", resposta.checks["modelo_oficial"].detail
+    assert resposta.checks["rag"].status.value == "READY"
+    assert resposta.contestacao_status == "READY"
+
+    monkeypatch.setattr(
+        legal_readiness, "avaliar_modelo_oficial",
+        lambda: legal_readiness.ResultadoReadiness("NOT_READY", "sintético"),
+    )
+    resposta2 = ede_health()
+    assert resposta2.contestacao_status == "NOT_READY"
 
 
 def test_erro_interno_nunca_vira_ready(monkeypatch):
@@ -130,13 +210,19 @@ def test_nenhum_dado_juridico_necessario():
     assert len(assinatura.parameters) == 0
 
 
-def test_nenhuma_referencia_a_modelo_oficial_real():
-    """Nem o texto-fonte nem a execução tocam o Modelo Oficial
-    (CLAUDE.md §13; ADR-0009) — o servidor mínimo nunca acessa
-    templates/contestacao/modelo-oficial.docx."""
+def test_nenhuma_referencia_a_modelo_oficial_real(monkeypatch):
+    """Nem o texto-fonte nem a execução tocam o Modelo Oficial real
+    (CLAUDE.md §13; ADR-0009) — server.py não referencia
+    "modelo-oficial.docx" (a leitura/validação vive em
+    scripts/legal_readiness.py + instalar_modelo_oficial.py, nunca
+    duplicada aqui) e, sem EDE_MODELO_OFICIAL_PATH/_SHA256 configurados
+    (estado real de produção hoje), a checagem nunca tenta acessar
+    arquivo algum."""
     codigo_fonte = (MCP_SERVER_DIR / "server.py").read_text(encoding="utf-8")
     assert "modelo-oficial.docx" not in codigo_fonte
 
+    monkeypatch.delenv("EDE_MODELO_OFICIAL_PATH", raising=False)
+    monkeypatch.delenv("EDE_MODELO_OFICIAL_SHA256", raising=False)
     resposta = ede_health()
     assert resposta.checks["modelo_oficial"].status.value == "NOT_CONFIGURED"
 

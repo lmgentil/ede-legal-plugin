@@ -23,13 +23,21 @@ Uso:
     python .github/ci/homologar_container_mcp.py http://127.0.0.1:9123/mcp
 
 Saída: exit(0) e resumo não sensível em stdout se todas as asserções
-baterem (as mesmas exigidas no gate: service_status=READY,
-contestacao_status=NOT_READY, checks.rag=NOT_CONFIGURED,
-checks.modelo_oficial=NOT_CONFIGURED); exit(1) com a asserção que
-falhou, caso contrário. Nunca imprime segredo, credencial ou conteúdo
-jurídico — só os campos estruturais de EdeHealthResponse
-(mcp_server/server.py), todos deterministicos/institucionais, nenhum
-dado de caso real.
+baterem; exit(1) com a asserção que falhou, caso contrário. Nunca
+imprime segredo, credencial ou conteúdo jurídico — só os campos
+estruturais de EdeHealthResponse (mcp_server/server.py), todos
+deterministicos/institucionais, nenhum dado de caso real.
+
+Atualizado no Gate 6.4-B: o container do candidato SEMPRE sobe aqui SEM
+nenhuma variável `EDE_MODELO_OFICIAL_*` no ambiente (nenhum segredo/
+config de produção chega a este runner efêmero) — por isso
+`checks.modelo_oficial` continua NOT_CONFIGURED, exatamente como antes.
+`checks.rag`, porém, deixou de ser NOT_CONFIGURED fixo desde o Gate
+6.4-A (ADR-0017 §6: o corpus RAG é asset público já embutido na imagem)
+— o valor esperado agora é READY, refletindo o corpus real que o
+Dockerfile copiou. `contestacao_status` continua NOT_READY (só
+`modelo_oficial` falta) — nunca READY neste gate, que não autoriza
+provisionar o Modelo Oficial dentro da imagem candidata (ADR-0009).
 """
 import asyncio
 import sys
@@ -65,10 +73,11 @@ async def _homologar(url: str) -> int:
                 return 1
 
         checks = dados.get("checks", {})
-        for chave in ("rag", "modelo_oficial"):
+        esperado_checks = {"rag": "READY", "modelo_oficial": "NOT_CONFIGURED"}
+        for chave, valor_esperado in esperado_checks.items():
             status = checks.get(chave, {}).get("status")
-            if status != "NOT_CONFIGURED":
-                print(f"FALHA: checks.{chave}.status = {status!r}, esperado 'NOT_CONFIGURED'")
+            if status != valor_esperado:
+                print(f"FALHA: checks.{chave}.status = {status!r}, esperado {valor_esperado!r}")
                 return 1
 
         resumo = (

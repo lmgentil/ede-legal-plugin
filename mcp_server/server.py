@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-mcp_server/server.py — EDE MCP Server (Etapa 6.1, ADR-0015).
+mcp_server/server.py — EDE MCP Server (Etapa 6.1, ADR-0015; readiness
+jurídica desde o Gate 6.4-A).
 
 Adapter remoto fino sobre o EDE Core, nos termos da Opção A aprovada no
 Gate da Etapa 6.0 e formalizada em ADR-0015: este servidor NUNCA chama a
 API Claude/qualquer LLM e NUNCA reimplementa o raciocínio de
 `estrategista-contestacao-ede`, `redator-peca-processual-elite` ou
-`humanizer-pt-br` — essas Skills continuam rodando no host Claude. Nesta
-primeira rodada (Etapa 6.1) o servidor expõe SOMENTE a tool `ede_health`:
-nenhuma geração de Contestação, nenhum RAG carregado, nenhum Modelo
-Oficial acessado, copiado ou referenciado (CLAUDE.md §13; ADR-0009 — o
-Modelo Oficial permanece inteiramente fora do MCP nesta etapa).
+`humanizer-pt-br` — essas Skills continuam rodando no host Claude. Este
+servidor ainda expõe SOMENTE a tool `ede_health`: nenhuma geração de
+Contestação é feita por este módulo. Desde o Gate 6.4-A, `ede_health`
+chama `scripts/legal_readiness.py` (Core) para reportar verdade sobre
+dois pré-requisitos determinísticos — corpus RAG (legislação já pública/
+versionada) e Modelo Oficial (asset privado, ADR-0009) — mas nenhum dos
+dois é lido/gerado/validado por lógica própria deste módulo; a validação
+inteira vive no Core, reaproveitada, nunca duplicada (ADR-0015). O Modelo
+Oficial continua nunca descoberto/reconstruído automaticamente — só lido
+de um caminho local explicitamente configurado via variável de ambiente
+(`EDE_MODELO_OFICIAL_PATH`/`_SHA256`); a aquisição a partir de
+armazenamento privado remoto (Arquitetura A′, ADR-0017) é matéria de um
+gate de implementação futuro, quando o bucket existir.
 
 Transporte: Streamable HTTP, conforme a especificação MCP 2026-07-28
 (núcleo do protocolo stateless; headers Mcp-Method/Mcp-Name resolvidos
@@ -26,14 +35,17 @@ nenhuma dependência de CLAUDE_PLUGIN_ROOT, SKILL.md, ~/.claude/~/.agents
 ou de qualquer estado específico do host Claude. `BASE` é resolvido só a
 partir da posição deste arquivo no repositório.
 
-SERVICE_READY vs CONTESTACAO_READY (Etapa 6.1, itens 5/6/14 do pedido):
+SERVICE_READY vs CONTESTACAO_READY:
   service_status      -> só diz se ESTE PROCESSO está de pé e conseguiu
                           calcular o diagnóstico sem exceção. Não depende
                           de RAG nem de Modelo Oficial.
   contestacao_status  -> diz se o pipeline determinístico da Contestação
-                          teria como rodar. Nesta etapa é SEMPRE
-                          NOT_READY, porque RAG e Modelo Oficial estão
-                          deliberadamente fora do escopo (ver `checks`).
+                          teria como rodar. Só READY quando `process`,
+                          `rag` e `modelo_oficial` estiverem todos READY
+                          (ver `checks`) — hoje isso ainda depende de
+                          `EDE_MODELO_OFICIAL_PATH`/`_SHA256` estarem
+                          configurados e apontarem para um Modelo Oficial
+                          provisionado e íntegro.
 Os dois nunca são fundidos num único campo "status" — um servidor pode
 estar operacional (service_status=READY) sem estar apto a gerar uma
 Contestação (contestacao_status=NOT_READY); ver ADR-0015 e SPEC-0001.
@@ -43,12 +55,16 @@ diagnóstico vira service_status="ERROR" estruturado — nunca "READY", e o
 detalhe exposto ao chamador nunca inclui stack trace ou mensagem bruta da
 exceção (mesma disciplina de log/segurança do restante do EDE Core).
 
-Dependências desta etapa: só o SDK MCP e o que ele já traz (pydantic,
-anyio, starlette, uvicorn). Deliberadamente ausentes: pyarrow, rank_bm25,
-sentence-transformers, pandas, numpy, joblib, parquet — RAG entra em
-etapa posterior (itens 8/14 do pedido da Etapa 6.1). Nenhum Modelo
-Oficial é lido, baixado, enviado ou referenciado por este módulo (item 13
-do pedido).
+Dependências desde o Gate 6.4-A: além do SDK MCP, `legal_readiness.py`
+importa `lxml` (contrato do Modelo Oficial — mesma dependência já usada
+pelo instalador local) e lê `rag/corpus_manifest.json` + `rag/chunks_*/`
+com a biblioteca padrão (hashlib/pathlib) — nenhuma dependência de
+análise/busca (pandas, numpy, pyarrow, scikit-learn, scipy, rank_bm25,
+joblib, sentence-transformers) entra neste servidor: a checagem de saúde
+verifica presença/integridade estrutural do corpus, nunca constrói o
+índice de busca híbrida (isso continua fora do escopo do MCP — nenhuma
+ferramenta de busca/geração é exposta por este gate, ver §16 do pedido
+do Gate 6.4-A).
 
 Não confundir com o healthcheck de container/Cloud Run: aquele verifica
 só "processo vivo" e não deve carregar nada deste módulo além do processo
@@ -103,6 +119,15 @@ from token_verifier import EdeTokenVerifier
 
 BASE = Path(__file__).resolve().parent.parent
 VERSION_FILE = BASE / "VERSION"
+
+# Gate 6.4-A (ADR-0015, ADR-0017): checagens determinísticas de
+# prontidão jurídica vivem em scripts/legal_readiness.py (Core) — este
+# módulo só importa e traduz o resultado, nunca reimplementa validação.
+# `scripts/` é adicionado ao sys.path aqui, no mesmo espírito do resto do
+# EDE Core: cada módulo resolve seu próprio caminho, sem depender de
+# CLAUDE_PLUGIN_ROOT nem de instalação via pip.
+sys.path.insert(0, str(BASE / "scripts"))
+import legal_readiness  # noqa: E402
 
 NOME_SERVIDOR = "EDE Legal Plugin — MCP Server"
 
@@ -164,36 +189,37 @@ def _runtime_info() -> str:
 def ede_health() -> EdeHealthResponse:
     """Diagnóstico funcional do EDE MCP Server.
 
-    Nesta etapa (6.1) verifica somente o que existe no protótipo: o
-    próprio processo. RAG e Modelo Oficial são reportados como
-    NOT_CONFIGURED (nunca como erro) porque estão deliberadamente fora do
-    escopo desta rodada — ADR-0015, itens 8/13/14 do pedido da
-    Etapa 6.1. `contestacao_status` só chega a READY quando TODAS as
-    checagens abaixo estiverem READY; hoje isso nunca acontece.
-    """
+    Desde o Gate 6.4-A (ADR-0015, ADR-0017), `rag` e `modelo_oficial`
+    deixaram de ser stubs fixos: cada um chama a checagem determinística
+    correspondente em `scripts/legal_readiness.py` (Core) — nenhuma
+    lógica de validação vive neste módulo. `contestacao_status` só chega
+    a READY quando TODAS as checagens abaixo estiverem READY; hoje isso
+    depende de provisionamento externo (corpus já pode ficar READY sem
+    nada adicional — é asset público já versionado; Modelo Oficial só
+    fica READY quando `EDE_MODELO_OFICIAL_PATH`/`_SHA256` apontarem para
+    um arquivo provisionado, íntegro e conforme o contrato — nunca
+    descoberto automaticamente, CLAUDE.md §13).
+
+    Uma exceção ao chamar `legal_readiness` (bug, schema/catálogo do
+    próprio plugin corrompido) nunca vira READY — cai no `except`
+    genérico da função e o diagnóstico inteiro vira `ERROR`, mesma
+    disciplina de fail-closed já aplicada ao restante desta função."""
     try:
+        rag_resultado = legal_readiness.avaliar_corpus_rag()
+        modelo_resultado = legal_readiness.avaliar_modelo_oficial()
+
         checks = {
             "process": HealthCheck(
                 status=CheckStatus.READY,
                 detail="Processo do EDE MCP Server ativo e respondendo.",
             ),
             "rag": HealthCheck(
-                status=CheckStatus.NOT_CONFIGURED,
-                detail=(
-                    "RAG jurídico (busca híbrida lexical+vetorial) não "
-                    "carregado nesta etapa (Etapa 6.1, ADR-0015) — "
-                    "previsto para etapa posterior, fora do escopo deste "
-                    "servidor mínimo."
-                ),
+                status=CheckStatus(rag_resultado.status),
+                detail=rag_resultado.detail,
             ),
             "modelo_oficial": HealthCheck(
-                status=CheckStatus.NOT_CONFIGURED,
-                detail=(
-                    "Modelo Oficial permanece inteiramente fora deste "
-                    "servidor nesta etapa (CLAUDE.md §13, ADR-0009) — "
-                    "nenhum asset institucional é acessado, referenciado "
-                    "ou provisionado por este MCP Server."
-                ),
+                status=CheckStatus(modelo_resultado.status),
+                detail=modelo_resultado.detail,
             ),
         }
 

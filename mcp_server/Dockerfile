@@ -86,29 +86,37 @@ RUN groupadd --gid 10001 ede \
 # de build.
 COPY mcp_server/requirements.txt mcp_server/requirements.txt
 
-# Só a dependência direta declarada em mcp_server/requirements.txt
-# (mcp==2.2.0) é instalada aqui — nunca scripts/requirements.txt,
-# rag/requirements.txt ou um requirements geral do projeto (nenhum dos
-# quais é sequer copiado para o contexto, ver .dockerignore).
-# Deliberadamente ausentes (mesma disciplina do requirements.txt):
+# Só as dependências diretas declaradas em mcp_server/requirements.txt
+# são instaladas aqui — nunca scripts/requirements.txt, rag/
+# requirements.txt ou um requirements geral do projeto (nenhum dos quais
+# é sequer copiado para o contexto, ver .dockerignore). Desde o Gate
+# 6.4-A isso inclui `lxml` (contrato do Modelo Oficial) e, desde o Gate
+# 6.4-B, `google-auth` (aquisição do Modelo Oficial via GCS, Arquitetura
+# A′ — só `google.auth.default()`; NUNCA `google-cloud-storage`, ver
+# comentário em mcp_server/requirements.txt). Deliberadamente ausentes:
 # pyarrow, rank_bm25, sentence-transformers, pandas, numpy, joblib,
-# lxml. Se alguma delas entrar TRANSITIVAMENTE via `mcp`, isso só pode
-# ser confirmado num build real (Etapa 6.2-B) — nenhuma alegação de
-# inventário de dependências instaladas é feita aqui.
+# scikit-learn, scipy, google-cloud-storage/google-api-core, `requests`
+# — a checagem de saúde do corpus RAG usa só biblioteca padrão, e a
+# leitura do objeto GCS usa `httpx2` (já transitivo via `mcp`), nunca uma
+# segunda pilha HTTP. Se alguma dependência não declarada entrar
+# TRANSITIVAMENTE, isso só pode ser confirmado num build real (ainda não
+# executado nesta máquina — sem runtime de container disponível) —
+# nenhuma alegação de inventário de
+# dependências instaladas é feita aqui.
 RUN pip install --no-cache-dir -r mcp_server/requirements.txt
 
-# Demais arquivos autorizados — nada além destes três (mcp_server/
-# requirements.txt já copiado acima, mcp_server/server.py e VERSION).
-# --chown evita uma camada RUN chown separada; os pacotes instalados
-# acima continuam legíveis pelo usuário não-root pelas permissões
-# default do pip (site-packages world-readable em python:slim).
+# Demais arquivos autorizados — mesmo espirito do .dockerignore em
+# allowlist: nada de `COPY mcp_server/ mcp_server/` nem `COPY scripts/
+# scripts/` nem `COPY rag/ rag/`, que trariam para a imagem qualquer
+# arquivo futuro do diretorio sem revisao. --chown evita uma camada RUN
+# chown separada; os pacotes instalados acima continuam legiveis pelo
+# usuario nao-root pelas permissoes default do pip (site-packages
+# world-readable em python:slim).
 # Gate 6.3-D2: server.py deixou de ser o unico modulo -- a camada OAuth
 # de aplicacao vive em modulos irmaos, importados por caminho plano
 # (`from auth_config import ...`), que funciona porque `python
 # mcp_server/server.py` coloca mcp_server/ como sys.path[0]. Os cinco sao
-# copiados explicitamente, no mesmo espirito do .dockerignore em
-# allowlist: nada de `COPY mcp_server/ mcp_server/`, que traria para a
-# imagem qualquer arquivo futuro do diretorio sem revisao.
+# copiados explicitamente.
 COPY --chown=10001:10001 mcp_server/server.py mcp_server/server.py
 COPY --chown=10001:10001 mcp_server/auth_config.py mcp_server/auth_config.py
 COPY --chown=10001:10001 mcp_server/auth_logging.py mcp_server/auth_logging.py
@@ -116,6 +124,44 @@ COPY --chown=10001:10001 mcp_server/http_telemetry.py mcp_server/http_telemetry.
 COPY --chown=10001:10001 mcp_server/scope_policy.py mcp_server/scope_policy.py
 COPY --chown=10001:10001 mcp_server/token_verifier.py mcp_server/token_verifier.py
 COPY --chown=10001:10001 VERSION VERSION
+
+# Gate 6.4-A (ADR-0015/ADR-0017): EDE Core mínimo necessário para
+# `scripts/legal_readiness.py` (chamado por server.py em `ede_health`) —
+# só os cinco módulos de manipulação/validação OOXML que ele importa
+# transitivamente, nunca o pipeline inteiro de geração da Contestação
+# (gerar_contestacao.py, datajud_client.py, validate_paragrafos.py etc.
+# NÃO entram nesta imagem: nenhuma ferramenta de geração é exposta por
+# este gate, só a checagem de saúde).
+COPY --chown=10001:10001 scripts/legal_readiness.py scripts/legal_readiness.py
+COPY --chown=10001:10001 scripts/docx_package.py scripts/docx_package.py
+COPY --chown=10001:10001 scripts/docx_template_engine.py scripts/docx_template_engine.py
+COPY --chown=10001:10001 scripts/docx_block_engine.py scripts/docx_block_engine.py
+COPY --chown=10001:10001 scripts/docx_numeracao_engine.py scripts/docx_numeracao_engine.py
+COPY --chown=10001:10001 scripts/instalar_modelo_oficial.py scripts/instalar_modelo_oficial.py
+
+# Contrato institucional (público, git-tracked — nunca o Modelo Oficial
+# .docx em si, que é asset privado externo, ADR-0009, e nunca entra
+# nesta imagem nem em nenhuma outra).
+COPY --chown=10001:10001 templates/contestacao/schema.json templates/contestacao/schema.json
+COPY --chown=10001:10001 templates/contestacao/blocos.json templates/contestacao/blocos.json
+
+# Corpus RAG institucional — legislação já pública/versionada no
+# repositório (CPC/CC/CDC/L8987/L9427/REN1000; nunca jurisprudência —
+# INV-CONTESTACAO-SEM-PESQUISA-JURISPRUDENCIAL, CLAUDE.md §10 — que
+# também nunca seria elegível: vive fora do repositório, em
+# C:\Dev\ede-private\rag\jurisprudencia, dado de caso real, nunca
+# versionado nem embutido em imagem alguma). Só os chunks de texto e o
+# manifesto entram — deliberadamente SEM rag/embeddings/ (~43 MiB,
+# exigiria pandas/numpy/pyarrow/scikit-learn só para a checagem de
+# saúde, que verifica presença/integridade estrutural, nunca constrói
+# índice de busca).
+COPY --chown=10001:10001 rag/corpus_manifest.json rag/corpus_manifest.json
+COPY --chown=10001:10001 rag/chunks_CPC rag/chunks_CPC
+COPY --chown=10001:10001 rag/chunks_CC rag/chunks_CC
+COPY --chown=10001:10001 rag/chunks_CDC rag/chunks_CDC
+COPY --chown=10001:10001 rag/chunks_L8987 rag/chunks_L8987
+COPY --chown=10001:10001 rag/chunks_L9427 rag/chunks_L9427
+COPY --chown=10001:10001 rag/chunks_REN1000 rag/chunks_REN1000
 
 # HOST=0.0.0.0 é decisão do AMBIENTE CONTAINERIZADO (main() em
 # mcp_server/server.py lê HOST do ambiente; sem esta variável, cairia no

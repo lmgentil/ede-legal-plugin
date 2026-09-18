@@ -49,3 +49,56 @@ mcp==2.2.0
 # Authorization Server (o EDE é RESOURCE SERVER; Descope é o AS), SDK de
 # nuvem, RAG, DOCX.
 pyjwt[crypto]==2.13.0
+
+# ---------------------------------------------------------------------
+# Readiness jurídica (Gate 6.4-A, ADR-0015/ADR-0017).
+#
+# `mcp_server/server.py` passou a importar `scripts/legal_readiness.py`
+# (Core) para preencher `checks.rag`/`checks.modelo_oficial` de
+# `ede_health` com verdade, em vez dos stubs NOT_CONFIGURED fixos da
+# Etapa 6.1. `legal_readiness.py` reaproveita
+# `scripts/instalar_modelo_oficial.validar_contrato_modelo`, que por sua
+# vez depende de `lxml` (mesma biblioteca já usada por
+# scripts/docx_package.py, docx_template_engine.py,
+# docx_numeracao_engine.py e docx_block_engine.py — ver
+# scripts/requirements.txt e o docstring de docx_package.py para a
+# decisão lxml × defusedxml, não repetida aqui).
+#
+# A checagem do corpus RAG (`avaliar_corpus_rag`) usa só a biblioteca
+# padrão (hashlib/pathlib) sobre os arquivos de texto já versionados em
+# rag/chunks_*/ — deliberadamente NÃO entram pandas, numpy, pyarrow,
+# scikit-learn, scipy, rank_bm25, joblib nem sentence-transformers: a
+# checagem de saúde verifica presença/integridade estrutural do corpus,
+# nunca constrói o índice de busca híbrida (rag/search_hybrid.py, fora
+# do escopo deste servidor — nenhuma ferramenta de busca/geração é
+# exposta por este gate).
+#
+# Versão pinada na mesma instalada/validada nesta rodada (não por
+# memória) — `python -c "import lxml; print(lxml.__version__)"`.
+lxml==6.1.3
+
+# ---------------------------------------------------------------------
+# Aquisição do Modelo Oficial via GCS (Gate 6.4-B, Arquitetura A′,
+# ADR-0017 §6).
+#
+# `google-auth` é usada SOMENTE para `google.auth.default()` — resolve
+# automaticamente a identidade da service account de runtime via
+# metadata server do Cloud Run (produção) ou ADC do titular (fora dele,
+# Gate 6.4-B §12); nenhuma chave de service account é lida de arquivo
+# por este código. Deliberadamente NÃO usamos `google-cloud-storage`
+# (SDK completo — puxaria google-api-core, google-cloud-core,
+# google-resumable-media, google-crc32c e, por padrão, `requests`, uma
+# SEGUNDA pilha HTTP): a única operação necessária é um GET autenticado
+# de um objeto por geração pinada na API REST/JSON do GCS
+# (`storage.googleapis.com/storage/v1/.../o/...?alt=media&generation=`),
+# feito com `httpx2` (já transitivo via `mcp`, ver acima) — mesma
+# disciplina de "não adicionar uma segunda pilha" já aplicada à decisão
+# lxml × defusedxml.
+#
+# Footprint medido nesta rodada (wheels, `pip download --no-deps`):
+# google-auth 262 KB + pyasn1-modules 181 KB + pyasn1 84 KB ≈ 527 KB,
+# todos pacotes puro-Python (sem extensão C). O único dependente C
+# (`cryptography`) NÃO é novo: já entra na imagem via `pyjwt[crypto]`
+# acima. Nenhum SDK de nuvem completo, nenhum framework web, nenhuma
+# dependência de `gcloud` CLI.
+google-auth==2.58.0

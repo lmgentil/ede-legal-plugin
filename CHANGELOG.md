@@ -57,6 +57,113 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   já provisionado pelo titular em armazenamento privado configurado
   explicitamente, com geração/hash fixados e verificados — nunca
   descoberto pelo runtime.
+- **Readiness jurídica determinística no EDE MCP Server** (Gate 6.4-A,
+  ADR-0015/ADR-0017). `checks.rag` e `checks.modelo_oficial` de
+  `ede_health` deixam de ser stubs `NOT_CONFIGURED` fixos: novo módulo
+  Core `scripts/legal_readiness.py` (`avaliar_corpus_rag`,
+  `avaliar_modelo_oficial`), reutilizado por `mcp_server/server.py`
+  (adapter fino, nenhuma lógica de validação duplicada).
+  - Corpus RAG: novo `rag/corpus_manifest.json` (fingerprint SHA-256
+    determinístico por diploma — CPC/CC/CDC/L8987/L9427/REN1000, 434
+    chunks, biblioteca padrão apenas, sem pandas/numpy/pyarrow/
+    scikit-learn/rank_bm25/sentence-transformers) — fica `READY` sem
+    nenhum provisionamento adicional, porque o corpus já é asset
+    público versionado no repositório (ADR-0017 §6). Jurisprudência
+    (`C:\Dev\ede-private\rag\jurisprudencia`, dado de caso real) nunca
+    entra no manifesto nem na imagem — INV-CONTESTACAO-SEM-PESQUISA-
+    JURISPRUDENCIAL permanece intocada.
+  - Modelo Oficial: reaproveita
+    `instalar_modelo_oficial.validar_contrato_modelo`. Fica `READY`
+    somente quando `EDE_MODELO_OFICIAL_PATH`/`EDE_MODELO_OFICIAL_SHA256`
+    apontarem para um arquivo já provisionado, com SHA-256 pinado
+    batendo e contrato institucional (placeholders/SDTs) conforme;
+    ausência das duas variáveis é `NOT_CONFIGURED` (estado real de
+    produção hoje — nenhum bucket/Arquitetura A′ foi criado nesta
+    rodada). Nunca busca, baixa ou reconstrói o arquivo (CLAUDE.md §13).
+  - `mcp_server/Dockerfile`/`.dockerignore`/`requirements.txt`
+    atualizados (allowlist nominal) para embutir os cinco módulos Core
+    necessários, o contrato institucional público
+    (`templates/contestacao/schema.json`/`blocos.json`) e os chunks do
+    corpus — nunca o Modelo Oficial `.docx` (privado, ADR-0009) nem
+    `rag/embeddings/` (não necessário para a checagem de saúde). Única
+    dependência nova: `lxml==6.1.3`.
+  - Novos testes: `tests/test_legal_readiness.py` (17 casos — matriz
+    completa de READY/NOT_READY/NOT_CONFIGURED/ERROR dos dois
+    pré-requisitos). `tests/test_mcp_server.py`,
+    `tests/test_mcp_oauth.py` e `tests/test_mcp_streamable_http.py`
+    atualizados para o novo baseline real (corpus RAG já íntegro nesta
+    checkout) — nenhuma assertion enfraquecida, só corrigida para
+    refletir o comportamento correto e intencional desta etapa.
+  - Sem mutação de infraestrutura: nenhum bucket GCS criado, nenhum
+    upload de asset privado, nenhum deploy de nova revisão de produção.
+    `contestacao_status` de produção permanece `NOT_READY` (Modelo
+    Oficial ainda não provisionado em runtime remoto).
+- **Provisionamento privado do Modelo Oficial via GCS + adapter Core**
+  (Gate 6.4-B, Arquitetura A′, ADR-0017 §6). Autorizado pelo Gate 6.4-A
+  (`PRIVATE ASSET UPLOAD READY FOR AUTHORIZATION`).
+  - Bucket privado `gs://ede-legal-mcp-01-modelo-oficial-privado`
+    (`southamerica-east1`, acesso uniforme, prevenção de acesso público
+    forçada, sem `allUsers`/`allAuthenticatedUsers`, sem hospedagem de
+    site, sem política de retenção/lifecycle). Objeto único
+    `modelo-oficial/modelo-oficial.docx`, geração `1789696822240267`,
+    SHA-256 idêntico ao relatado no Gate 6.4-A
+    (`53adf880cb35a016986f482d6d9bc609118951b9684b77d413fae12a611104d8`)
+    — confirmado por download real da geração pinada e validação
+    completa (estrutura OOXML + Template Lock) no próprio gate.
+  - IAM: `ede-mcp-runtime@ede-legal-mcp-01.iam.gserviceaccount.com`
+    recebeu `roles/storage.objectViewer` escopado só a este bucket —
+    nenhum papel de projeto, auditado após a concessão.
+  - `scripts/legal_readiness.py`: `avaliar_modelo_oficial` passa a ter
+    dois modos de aquisição — GCS (produção; ativa quando qualquer uma
+    de `EDE_MODELO_OFICIAL_GCS_{BUCKET,OBJECT,GENERATION}` está
+    definida, exigindo as três mais `EDE_MODELO_OFICIAL_SHA256` juntas)
+    e local (`EDE_MODELO_OFICIAL_PATH`, Gate 6.4-A, só desenvolvimento/
+    teste — nunca definida em produção). Novo adapter
+    `_baixar_modelo_oficial_gcs`: baixa exatamente a geração pinada via
+    REST/JSON do GCS (`httpx2`, já transitivo via `mcp`), autentica com
+    `google.auth.default()` (metadata server em produção; ADC do
+    titular fora dela — nenhuma chave de service account em arquivo),
+    confere o cabeçalho `x-goog-generation` da resposta contra a geração
+    pedida (defesa em profundidade) e nunca tenta outra geração/objeto.
+    Validação (SHA-256 + estrutura + Template Lock) extraída para
+    `_validar_conteudo_modelo_oficial`, compartilhada pelos dois modos —
+    zero duplicação. Único dependente novo: `google-auth==2.58.0`
+    (+ `pyasn1`/`pyasn1-modules`, transitivas puro-Python, ~527 KB no
+    total) — deliberadamente NÃO `google-cloud-storage` (SDK completo,
+    traria `google-api-core`/`google-cloud-core`/`google-resumable-
+    media`/`requests`, uma segunda pilha HTTP).
+  - Novos testes: 23 casos em `tests/test_legal_readiness.py` (matriz
+    completa do adapter GCS — configuração parcial, geração/objeto
+    ausentes, SHA divergente, bytes corrompidos, contrato inválido,
+    nunca cai para o modo local, limpeza de arquivo efêmero em sucesso e
+    falha, nenhum detalhe de baixo nível/conteúdo vaza em `detail`,
+    tudo com fakes — nenhum teste da suíte normal acessa GCS real) +
+    1 teste de ponta a ponta em `tests/test_mcp_server.py`
+    (`ede_health` → GCS → contrato real → READY) + prova real controlada
+    (fora da suíte, não commitada): download da geração pinada via
+    `gcloud storage cp` autenticado pela sessão já autorizada do
+    titular, sem materializar nenhuma credencial nova, confirmando bytes
+    → SHA-256 → estrutura → Template Lock → READY.
+  - `tests/test_docker_context.py` (novo, 11 testes): prova determinística
+    (sem build Docker real) de que toda instrução `COPY` do Dockerfile
+    tem liberação correspondente em `.dockerignore`, nenhum `.docx` é
+    liberável, nenhum caminho sensível (Modelo Oficial, backups,
+    jurisprudência, `ede-private`, credenciais) está na allowlist, e o
+    corpus real em disco bate exatamente com os seis diplomas do
+    manifesto.
+  - CI: `.github/workflows/homologar-mcp-container.yml` ganhou o input
+    opcional `publicar_candidato` (default `false`) — quando `true` e só
+    depois de todos os testes do gate passarem, publica a imagem
+    homologada no Artifact Registry (`ede-mcp/mcp-server`, tag
+    `<sha>-candidato`) reaproveitando integralmente a identidade/
+    infraestrutura já homologada em `deploy-mcp-staging.yml` (WIF,
+    `ede-mcp-deployer`/`ede-mcp-builder`, mesmo `cloudbuild.yaml`) —
+    nunca chama `gcloud run deploy`. Listas de dependência
+    proibida/esperada e a checagem de assets sensíveis dentro da imagem
+    real foram atualizadas para o novo baseline (RAG legítimo na
+    imagem, `lxml`/`google-auth` legítimas).
+  - Sem mutação de tráfego: nenhum deploy de produção, nenhuma alteração
+    de OAuth/rede pública, revisão `ede-mcp` corrente intocada.
 
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto

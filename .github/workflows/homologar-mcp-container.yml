@@ -1,34 +1,54 @@
-# .github/workflows/homologar-mcp-container.yml — Etapa 6.2-B.
+# .github/workflows/homologar-mcp-container.yml — Etapa 6.2-B; estendido
+# no Gate 6.4-B (§17) com publicação OPCIONAL do candidato imutável.
 #
 # Laboratório EFÊMERO em runner Linux padrão do GitHub Actions para
 # provar o container real do EDE MCP Server (mcp_server/Dockerfile +
-# .dockerignore, ambos já aprovados na Etapa 6.2-A) fora desta máquina —
-# sem instalar Docker/WSL localmente, sem tocar GCP, sem publicar a
-# imagem em lugar nenhum.
+# .dockerignore) fora desta máquina — sem instalar Docker/WSL localmente.
 #
 # Disparo: SOMENTE manual (workflow_dispatch). Deliberadamente sem
-# push/pull_request/schedule nesta primeira homologação — o usuário
-# aciona explicitamente quando quiser rodar este gate.
+# push/pull_request/schedule — o usuário aciona explicitamente quando
+# quiser rodar este gate.
 #
 # Nunca acessa: Modelo Oficial (templates/contestacao/modelo-oficial.docx
-# — nunca commitado, ADR-0009), rag/jurisprudencia/, documentos jurídicos
-# reais, secrets do EDE, credenciais GCP. Nunca publica a imagem (sem
-# login/push para Docker Hub, GHCR ou Artifact Registry) e nunca faz
-# upload da imagem/seu filesystem como artifact — só texto de evidência,
-# via $GITHUB_STEP_SUMMARY.
+# — nunca commitado, ADR-0009), rag/jurisprudencia/ (privado, fora do
+# repositório), documentos jurídicos reais de caso, secrets do EDE.
+#
+# `publicar_candidato` (default `false`): com o default, o comportamento
+# é EXATAMENTE o da Etapa 6.2-B — build+testes efêmeros, nenhum acesso a
+# GCP, nenhuma publicação, imagem descartada ao fim do job. Só quando
+# `true` (Gate 6.4-B) o job, DEPOIS de todos os testes acima já terem
+# passado, autentica via WIF (mesma identidade `ede-mcp-deployer` e o
+# mesmo `mcp_server/cloudbuild.yaml` já homologados em
+# .github/workflows/deploy-mcp-staging.yml — nenhuma infraestrutura/
+# identidade nova) e publica a imagem no MESMO repositório Artifact
+# Registry (`ede-mcp`), sob uma tag distinta (`-candidato`, nunca
+# colidindo com a tag `${GITHUB_SHA}` simples que o deploy de staging
+# usa). Este workflow NUNCA chama `gcloud run deploy` — publicar no
+# Artifact Registry é build/armazenamento, não é implantação; nenhuma
+# revisão do Cloud Run é criada, nenhum tráfego é roteado.
 #
 # Runner: ubuntu-latest, hospedado pelo GitHub (não self-hosted, não
 # "larger runner").
-name: Homologação do container EDE MCP (efêmera, sem GCP)
+name: Homologação do container EDE MCP (efêmera; publicação opcional no Artifact Registry)
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      publicar_candidato:
+        description: >-
+          Publicar a imagem homologada como candidato imutável no
+          Artifact Registry (gs/ede-mcp/mcp-server) após todos os
+          testes passarem. NUNCA implanta no Cloud Run.
+        type: boolean
+        default: false
 
-# contents:read é a única permissão necessária (clonar o repositório).
-# Sem packages/id-token/pull-requests/issues — nada é publicado, nenhuma
-# credencial de nuvem é assumida.
+# contents:read para clonar; id-token:write só é consumida quando
+# `publicar_candidato=true` (troca WIF) — presente sempre porque
+# `permissions:` é estático por workflow, mas inofensiva quando não
+# usada (nenhum outro step deste job solicita token OIDC).
 permissions:
   contents: read
+  id-token: write
 
 # Evita duas execuções concorrentes deste gate no mesmo runner lógico.
 concurrency:
@@ -37,9 +57,16 @@ concurrency:
 
 jobs:
   homologar:
-    name: Build real + testes reais do container (sem GCP, sem publicar imagem)
+    name: Build real + testes reais do container (publicação de candidato opcional)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
+    env:
+      PROJECT_ID: ede-legal-mcp-01
+      REGION: southamerica-east1
+      REPOSITORY: ede-mcp
+      IMAGE_NAME: mcp-server
+      DEPLOYER_SA: ede-mcp-deployer@ede-legal-mcp-01.iam.gserviceaccount.com
+      WORKLOAD_IDENTITY_PROVIDER: projects/269134711029/locations/global/workloadIdentityPools/github-pool/providers/github-provider
     steps:
       # ------------------------------------------------------ checkout
       - name: Checkout (clone limpo — sem modelo-oficial.docx, sem skills/docx/, ambos gitignored)
@@ -123,6 +150,15 @@ jobs:
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
       # ------------------------------------------------- inventário real
+      #
+      # Atualizado no Gate 6.4-B: `lxml` (Gate 6.4-A) e `google-auth` +
+      # `pyasn1`/`pyasn1-modules` (Gate 6.4-B, transitivas de
+      # `google-auth`) deixaram de ser proibidas — são dependências
+      # legítimas declaradas em mcp_server/requirements.txt (contrato do
+      # Modelo Oficial + aquisição via GCS, ver comentários lá). A lista
+      # de proibidas continua cobrindo tudo que RAG (análise/busca
+      # pesada) ou um SDK de nuvem completo trariam — nada disso deve
+      # aparecer mesmo transitivamente.
       - name: "Inventário de dependências da imagem (pip freeze) + checagem de proibidas"
         run: |
           docker run --rm ede-mcp:ci python -m pip freeze | tee pip-freeze-imagem.txt
@@ -133,17 +169,23 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           achado=0
-          for proibida in pyarrow rank_bm25 sentence-transformers sentence_transformers pandas numpy joblib lxml; do
+          for proibida in pyarrow rank_bm25 sentence-transformers sentence_transformers pandas numpy scikit-learn scipy joblib google-cloud requests grpcio protobuf; do
             if grep -iE "^${proibida}(==| )" pip-freeze-imagem.txt; then
               echo "GATE FALHOU: dependência proibida presente na imagem do container: $proibida"
               achado=1
             fi
           done
+          for esperada in lxml google-auth pyasn1 pyasn1-modules; do
+            if ! grep -iE "^${esperada}(==| )" pip-freeze-imagem.txt; then
+              echo "GATE FALHOU: dependência esperada ausente da imagem do container: $esperada"
+              achado=1
+            fi
+          done
           if [ "$achado" = "1" ]; then
-            echo "Ver acima qual(is) dependência(s) proibida(s) a imagem instalou e por qual linha de mcp_server/requirements.txt (transitiva de mcp==2.2.0) ela entrou."
+            echo "Ver acima qual(is) dependência(s) proibida(s) a imagem instalou (ou qual esperada faltou) e por qual linha de mcp_server/requirements.txt ela entrou/deveria entrar."
             exit 1
           fi
-          echo "OK — nenhuma dependência proibida na imagem." | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "OK — só as dependências esperadas (lxml, google-auth + transitivas puro-Python) estão na imagem." | tee -a "$GITHUB_STEP_SUMMARY"
 
       # ------------------------------------------------- usuário não-root
       - name: Prova de usuário não-root (UID/GID reais em runtime)
@@ -167,11 +209,27 @@ jobs:
           fi
 
       # -------------------------------------------------- testes negativos
+      #
+      # Atualizado no Gate 6.4-B: `templates/contestacao/{schema,blocos}.
+      # json`, `scripts/{legal_readiness,docx_package,docx_template_
+      # engine,docx_block_engine,docx_numeracao_engine,instalar_modelo_
+      # oficial}.py` e `rag/{corpus_manifest.json,chunks_*/}` PASSARAM A
+      # EXISTIR legitimamente na imagem desde o Gate 6.4-A (ADR-0017 §6)
+      # — a checagem de diretório inteiro ausente ficou obsoleta e
+      # falsearia neste gate. A prova de que NENHUM asset privado entrou
+      # continua sendo: (1) a busca por QUALQUER `.docx` na imagem
+      # inteira (mais forte que checar um diretório — pega o Modelo
+      # Oficial em qualquer nome/caminho), preservada sem alteração; (2)
+      # uma lista fechada de caminhos/nomes que NUNCA podem existir,
+      # mesmo parcialmente; (3) um allowlist FECHADO do que pode existir
+      # dentro de scripts/templates/rag — qualquer arquivo além dele já é
+      # achado indevido, mesmo sem ser sensível por natureza (mesma
+      # disciplina de fail-closed do .dockerignore).
       - name: "Testes negativos: ausência de assets sensíveis DENTRO da imagem real (não confia só no .dockerignore)"
         run: |
           docker run --rm ede-mcp:ci sh -c '
             set -e
-            for p in templates skills skills/docx rag scripts tests docs .git .claude .claude-plugin .env; do
+            for p in skills skills/docx tests docs .git .claude .claude-plugin .env ede-private jurisprudencia; do
               if [ -e "/app/$p" ] || [ -e "/$p" ]; then
                 echo "ENCONTRADO INDEVIDAMENTE NA IMAGEM: $p"
                 exit 1
@@ -182,7 +240,37 @@ jobs:
               echo "DOCX ENCONTRADO NA IMAGEM: $achados"
               exit 1
             fi
-            echo "OK — nenhum asset sensivel encontrado na imagem real."
+            if [ -d /app/rag/embeddings ]; then
+              echo "rag/embeddings/ ENCONTRADO INDEVIDAMENTE NA IMAGEM (não necessário para a checagem de saúde)"
+              exit 1
+            fi
+            achados_scripts=$(find /app/scripts -maxdepth 1 -type f ! -name "requirements.txt" \
+              ! -name "legal_readiness.py" ! -name "docx_package.py" \
+              ! -name "docx_template_engine.py" ! -name "docx_block_engine.py" \
+              ! -name "docx_numeracao_engine.py" ! -name "instalar_modelo_oficial.py" 2>/dev/null || true)
+            if [ -n "$achados_scripts" ]; then
+              echo "ARQUIVO INESPERADO EM /app/scripts NA IMAGEM: $achados_scripts"
+              exit 1
+            fi
+            achados_templates=$(find /app/templates -type f ! -path "*/contestacao/schema.json" \
+              ! -path "*/contestacao/blocos.json" 2>/dev/null || true)
+            if [ -n "$achados_templates" ]; then
+              echo "ARQUIVO INESPERADO EM /app/templates NA IMAGEM: $achados_templates"
+              exit 1
+            fi
+            achados_rag=$(find /app/rag -maxdepth 1 -type f ! -name "corpus_manifest.json" 2>/dev/null || true)
+            if [ -n "$achados_rag" ]; then
+              echo "ARQUIVO INESPERADO NA RAIZ DE /app/rag NA IMAGEM: $achados_rag"
+              exit 1
+            fi
+            for d in $(find /app/rag -maxdepth 1 -mindepth 1 -type d 2>/dev/null || true); do
+              base=$(basename "$d")
+              case "$base" in
+                chunks_CPC|chunks_CC|chunks_CDC|chunks_L8987|chunks_L9427|chunks_REN1000) ;;
+                *) echo "DIRETORIO INESPERADO EM /app/rag NA IMAGEM: $base"; exit 1 ;;
+              esac
+            done
+            echo "OK — nenhum asset sensivel encontrado na imagem real; scripts/templates/rag batem exatamente com o allowlist do Gate 6.4-A/6.4-B."
           '
 
       # ----------------------------------------------------- runtime real
@@ -294,3 +382,75 @@ jobs:
           codigo=$?
           set -e
           python .github/ci/analisar_docx_real.py docx_real_report.xml "$codigo"
+
+      # ============================================================
+      # PUBLICAÇÃO OPCIONAL DO CANDIDATO IMUTÁVEL (Gate 6.4-B §17)
+      # ============================================================
+      #
+      # Só roda com `publicar_candidato=true` E só depois de TODOS os
+      # steps acima (build real + testes reais + testes negativos +
+      # regressão completa + docx_real) já terem passado — uma falha em
+      # qualquer um deles impede o job de chegar aqui (comportamento
+      # padrão do GitHub Actions: step sem `if` só roda se os anteriores
+      # tiverem sucedido). Nenhuma imagem que falhou um teste chega a ser
+      # publicada.
+      #
+      # Reaproveita INTEGRALMENTE a identidade/infraestrutura já
+      # homologada em .github/workflows/deploy-mcp-staging.yml
+      # (ede-mcp-deployer via WIF, ede-mcp-builder via
+      # mcp_server/cloudbuild.yaml, repositório Artifact Registry
+      # `ede-mcp`) — nenhuma nova service account, nenhum novo
+      # repositório, nenhuma nova infraestrutura. A ÚNICA diferença é a
+      # TAG (`-candidato`, nunca a tag simples `${GITHUB_SHA}` que o
+      # deploy de staging usa) e que este workflow para no build/push —
+      # nunca chama `gcloud run deploy`, nunca toca tráfego, nunca cria
+      # revision.
+      - name: "Auth (WIF) — ede-mcp-deployer (só se publicar_candidato=true)"
+        if: ${{ inputs.publicar_candidato }}
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.DEPLOYER_SA }}
+
+      - name: "Instalar Cloud SDK (só se publicar_candidato=true)"
+        if: ${{ inputs.publicar_candidato }}
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      # Build determinístico via Cloud Build (nunca reaproveita a imagem
+      # `ede-mcp:ci` construída localmente no runner acima com `docker
+      # build` — mesma disciplina de deploy-mcp-staging.yml: quem
+      # publica no Artifact Registry é sempre Cloud Build, nunca um push
+      # direto do runner). Fonte: o MESMO commit já clonado e já testado
+      # nesta execução — `gcloud builds submit .` empacota o working
+      # directory atual do runner, que não foi modificado por nenhum
+      # step anterior.
+      - name: "Build (Cloud Build) — tag = ${{ github.sha }}-candidato (só se publicar_candidato=true)"
+        if: ${{ inputs.publicar_candidato }}
+        id: build_candidato
+        run: |
+          IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:${GITHUB_SHA}-candidato"
+          echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+          gcloud builds submit . \
+            --project="$PROJECT_ID" \
+            --config=mcp_server/cloudbuild.yaml \
+            --substitutions=_IMAGE_URI="$IMAGE_URI" \
+            --gcs-source-staging-dir=gs://ede-legal-mcp-01_cloudbuild/source
+
+      - name: "Resolver DIGEST imutável publicado (só se publicar_candidato=true)"
+        if: ${{ inputs.publicar_candidato }}
+        run: |
+          DIGEST=$(gcloud artifacts docker images describe "$IMAGE_URI" \
+            --project="$PROJECT_ID" --format='value(image_summary.digest)')
+          FULL_DIGEST="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}@${DIGEST}"
+          {
+            echo "### Candidato imutável publicado (Gate 6.4-B)"
+            echo '```'
+            echo "Tag:    $IMAGE_URI"
+            echo "Digest: $FULL_DIGEST"
+            echo '```'
+            echo ""
+            echo "**Este digest é o ÚNICO candidato elegível para um futuro gate de deploy de produção.**"
+            echo "Nenhum \`gcloud run deploy\` foi executado por este workflow — só build + push."
+          } | tee -a "$GITHUB_STEP_SUMMARY"

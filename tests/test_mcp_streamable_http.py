@@ -118,7 +118,12 @@ def servidor_http_real():
 async def test_streamable_http_real_ede_health(servidor_http_real):
     """CLIENTE MCP -> HTTP real -> servidor -> ede_health -> resposta
     estruturada. Client real (mcp.Client), transporte real (Streamable
-    HTTP sobre socket loopback), processo real — nada in-memory."""
+    HTTP sobre socket loopback), processo real — nada in-memory.
+
+    `checks.rag` deixou de ser NOT_CONFIGURED fixo a partir do Gate
+    6.4-A (ADR-0017 §6) — reflete o corpus real do checkout que sobe com
+    o processo filho; `modelo_oficial` continua NOT_CONFIGURED porque o
+    processo filho não recebe EDE_MODELO_OFICIAL_PATH/_SHA256."""
     from mcp import Client
 
     async with Client(servidor_http_real, raise_exceptions=True) as client:
@@ -132,5 +137,5 @@ async def test_streamable_http_real_ede_health(servidor_http_real):
         assert dados is not None
         assert dados["service_status"] == "READY"
         assert dados["contestacao_status"] == "NOT_READY"
-        assert dados["checks"]["rag"]["status"] == "NOT_CONFIGURED"
+        assert dados["checks"]["rag"]["status"] == "READY"
         assert dados["checks"]["modelo_oficial"]["status"] == "NOT_CONFIGURED"

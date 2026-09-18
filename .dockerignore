@@ -45,6 +45,16 @@
 # modo de falhar e o desejado (fail-closed, CLAUDE.md SS17): melhor o
 # container nao subir do que subir servindo rota protegida sem a camada
 # de auth que ele deveria carregar.
+#
+# ATUALIZADO no Gate 6.4-A: legal_readiness.py (chamado por
+# ede_health) acrescenta EDE Core minimo (5 modulos de scripts/),
+# contrato institucional publico (templates/contestacao/schema.json e
+# blocos.json) e o corpus RAG legislativo publico/versionado
+# (rag/corpus_manifest.json + rag/chunks_*/). Mesma disciplina nominal:
+# arquivo novo esquecido aqui quebra o import no container em vez de
+# subir com uma checagem incompleta -- fail-closed, nao fail-open.
+# rag/embeddings/ e rag/jurisprudencia/ (privado, fora do repositorio)
+# permanecem deliberadamente FORA desta lista.
 *
 !mcp_server
 !mcp_server/server.py
@@ -55,3 +65,28 @@
 !mcp_server/token_verifier.py
 !mcp_server/requirements.txt
 !VERSION
+!scripts
+!scripts/legal_readiness.py
+!scripts/docx_package.py
+!scripts/docx_template_engine.py
+!scripts/docx_block_engine.py
+!scripts/docx_numeracao_engine.py
+!scripts/instalar_modelo_oficial.py
+!templates
+!templates/contestacao
+!templates/contestacao/schema.json
+!templates/contestacao/blocos.json
+!rag
+!rag/corpus_manifest.json
+!rag/chunks_CPC
+!rag/chunks_CPC/**
+!rag/chunks_CC
+!rag/chunks_CC/**
+!rag/chunks_CDC
+!rag/chunks_CDC/**
+!rag/chunks_L8987
+!rag/chunks_L8987/**
+!rag/chunks_L9427
+!rag/chunks_L9427/**
+!rag/chunks_REN1000
+!rag/chunks_REN1000/**

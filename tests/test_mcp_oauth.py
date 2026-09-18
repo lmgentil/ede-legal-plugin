@@ -780,8 +780,16 @@ async def test_corpo_de_erro_nunca_vaza_o_token():
 
 @pytest.mark.anyio
 async def test_token_valido_alcanca_o_dispatch_da_health():
-    """Caminho POSITIVO com cliente MCP oficial: exatamente UM dispatch,
-    e o contrato de health permanece o baseline de produção/staging."""
+    """Caminho POSITIVO com cliente MCP oficial: exatamente UM dispatch.
+    O contrato de transporte/OAuth (service_status, exatamente um
+    dispatch) é o baseline imutável deste teste — `checks.rag` deixou de
+    ser NOT_CONFIGURED fixo a partir do Gate 6.4-A (ADR-0017 §6: corpus
+    RAG público/versionado pode ser embutido na imagem), então esta
+    checagem reflete o corpus real do checkout, não mais um stub.
+    `modelo_oficial` continua NOT_CONFIGURED aqui porque o processo de
+    teste não define EDE_MODELO_OFICIAL_PATH/_SHA256 — mesmo estado real
+    de produção hoje (ADR-0017 §6: Modelo Oficial não é embutido na
+    imagem, é asset privado externo, ADR-0009)."""
     async with app_autenticada() as (app, config):
         async with h.cliente_mcp_protocolo(app, config, h.emitir_token()) as cliente:
             resultado = await cliente.call_tool("ede_health", {})
@@ -790,7 +798,6 @@ async def test_token_valido_alcanca_o_dispatch_da_health():
     dados = resultado.structured_content
     assert dados["service_status"] == "READY"
     assert dados["contestacao_status"] == "NOT_READY"
-    assert dados["checks"]["rag"]["status"] == "NOT_CONFIGURED"
     assert dados["checks"]["modelo_oficial"]["status"] == "NOT_CONFIGURED"
     assert dados["version"] == (BASE / "VERSION").read_text(encoding="utf-8").strip()
     assert CONTADOR_DISPATCH.de("ede_health") == 1
@@ -1111,19 +1118,33 @@ def test_todo_modulo_do_servidor_entra_no_contexto_de_build():
 
 def test_requirements_declara_a_dependencia_jwt_e_nada_de_bloat():
     """A dependência JWT é declarada; nenhum framework web, Authorization
-    Server, SDK de nuvem, RAG ou DOCX entra no container."""
+    Server ou SDK de nuvem completo entra no container. `lxml` (Gate
+    6.4-A, ADR-0017 §6 — contrato do Modelo Oficial) e `google-auth`
+    (Gate 6.4-B, mesmo ADR — só `google.auth.default()` para obter a
+    identidade da service account de runtime; NUNCA
+    `google-cloud-storage`, o SDK completo, que traria google-api-core/
+    google-cloud-core/google-resumable-media/`requests` — a leitura do
+    objeto GCS em si usa `httpx2`, já transitivo via `mcp`) são as ÚNICAS
+    exceções à lista fixa anterior. RAG (análise/busca — pandas, numpy,
+    pyarrow, scikit-learn, scipy, rank_bm25, sentence-transformers) e
+    qualquer SDK de nuvem completo continuam proibidos: a checagem de
+    saúde do corpus usa só biblioteca padrão
+    (scripts/legal_readiness.py), nunca constrói índice de busca."""
     requirements = (MCP_SERVER_DIR / "requirements.txt").read_text(encoding="utf-8")
     ativas = [
         linha.strip()
         for linha in requirements.splitlines()
         if linha.strip() and not linha.strip().startswith("#")
     ]
-    assert ativas == ["mcp==2.2.0", "pyjwt[crypto]==2.13.0"]
+    assert ativas == [
+        "mcp==2.2.0", "pyjwt[crypto]==2.13.0", "lxml==6.1.3", "google-auth==2.58.0",
+    ]
 
     proibidas = (
         "flask", "django", "fastapi", "authlib", "python-jose", "oauthlib",
         "google-cloud", "boto3", "pyarrow", "rank_bm25", "sentence_transformers",
-        "pandas", "numpy", "joblib", "lxml", "python-docx",
+        "pandas", "numpy", "scikit-learn", "scipy", "joblib", "python-docx",
+        "requests", "grpc", "protobuf",
     )
     for proibida in proibidas:
         assert not any(proibida in linha.lower() for linha in ativas), proibida

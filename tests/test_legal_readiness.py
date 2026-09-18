@@ -549,6 +549,63 @@ def test_corpus_rag_real_integro():
     assert r.status == "READY", r.detail
 
 
+def test_fingerprint_diretorio_ordena_independente_de_windows_vs_posix(tmp_path):
+    """Regressão do achado real do Gate 6.4-B: `pathlib.Path.__lt__`
+    compara `WindowsPath` por `os.path.normcase` (minúsculas,
+    case-insensitive) mas `PosixPath` por string exata (case-sensitive)
+    — para um par como "TII_C01.md" / "TIII_P01.md", isso INVERTE a
+    ordem relativa entre Windows e Linux (posição do `_` vs `I`
+    maiúsculo ordena diferente de `_` vs `i` minúsculo), produzindo o
+    MESMO conjunto de arquivos e os MESMOS hashes por arquivo mas um
+    HASH AGREGADO diferente — passou em 3 métodos de reprodução local
+    (clone fresco, clone com LF forçado, extração de blob) e só
+    apareceu de verdade rodando em CI/Linux real (execuções
+    35299066194/35300119070/35300896877), porque nenhum deles força uma
+    ordem de sistema de arquivos diferente da do Windows local.
+
+    Este teste força exatamente esse par de nomes e prova, chamando
+    `_fingerprint_diretorio` duas vezes com a MESMA lista de arquivos
+    mas ORDENS DE ENTRADA diferentes (simulando o que `rglob` devolveria
+    em cada SO), que o fingerprint é determinístico e idêntico —
+    provando que a ordenação interna da função nunca mais depende da
+    ordem de entrada nem do `Path.__lt__` da plataforma."""
+    diretorio = tmp_path / "chunks_TESTE"
+    diretorio.mkdir()
+    (diretorio / "TII_C01_P01.md").write_text("conteudo A", encoding="utf-8")
+    (diretorio / "TIII_P01.md").write_text("conteudo B", encoding="utf-8")
+
+    fp1, n1 = lr._fingerprint_diretorio(diretorio, base=tmp_path)
+
+    # mesma pasta, recriada com os arquivos escritos na ORDEM INVERSA —
+    # rglob() de um SO/filesystem diferente poderia devolver as entradas
+    # em qualquer ordem física; a função precisa ordenar por conta
+    # própria de forma determinística, nunca confiar na ordem do disco.
+    diretorio2 = tmp_path / "chunks_TESTE_2"
+    diretorio2.mkdir()
+    (diretorio2 / "TIII_P01.md").write_text("conteudo B", encoding="utf-8")
+    (diretorio2 / "TII_C01_P01.md").write_text("conteudo A", encoding="utf-8")
+
+    fp2, n2 = lr._fingerprint_diretorio(diretorio2, base=tmp_path)
+
+    assert n1 == n2 == 2
+    assert fp1 != fp2  # nomes de diretório diferentes entram no hash (rel path)
+
+    # Referência independente: monta o hash agregado manualmente, na
+    # ordem imposta pela CHAVE STRING (as_posix()) — nunca pela ordem em
+    # que os arquivos foram criados nem por `Path.__lt__`. Se
+    # `_fingerprint_diretorio` alguma vez voltar a depender da ordem de
+    # entrada/`rglob()`/`Path.__lt__` da plataforma, esta referência
+    # deixa de bater e o teste falha em QUALQUER sistema operacional —
+    # não só no Windows onde o bug original apareceu.
+    esperado = hashlib.sha256()
+    for nome in sorted(("TII_C01_P01.md", "TIII_P01.md")):
+        rel = f"chunks_TESTE/{nome}"
+        conteudo = (diretorio / nome).read_bytes()
+        esperado.update(rel.encode("utf-8")); esperado.update(b"\x00")
+        esperado.update(lr._normalizar_quebras_de_linha(conteudo)); esperado.update(b"\x00")
+    assert fp1 == esperado.hexdigest()
+
+
 def test_corpus_rag_manifesto_real_nunca_declara_jurisprudencia():
     """Separação fato/proveniência (CLAUDE.md §8 do gate; INV-CONTESTACAO-
     SEM-PESQUISA-JURISPRUDENCIAL): o manifesto de corpus de produção nunca

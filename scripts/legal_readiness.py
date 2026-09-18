@@ -224,10 +224,27 @@ def _fingerprint_diretorio(diretorio: Path, base: Path | None = None) -> tuple[s
     é calculado (default: o pai de `diretorio` — o mesmo `rag_dir` que o
     chamador já resolveu); nunca a constante `RAG_DIR_PADRAO` fixa, para
     que a função funcione igual em produção e em corpus sintético de
-    teste apontando para outro diretório."""
+    teste apontando para outro diretório.
+
+    A ordenação usa EXPLICITAMENTE a string `as_posix()` (a mesma que
+    entra no hash) como chave — nunca `sorted(caminhos)` puro. Achado
+    real do Gate 6.4-B: `pathlib.Path.__lt__` compara `WindowsPath` por
+    `os.path.normcase` (minúsculas, case-INsensitive) mas `PosixPath`
+    por igualdade de string exata (case-SENSITIVE); para nomes como
+    "TII_C01_P01.md" vs "TIII_P01.md", isso INVERTE a ordem relativa
+    entre Windows e Linux (posição 4: `_` vs `I` maiúsculo ordena
+    `TIII` antes; `_` vs `i` minúsculo ordena `TII_` antes) — mesmo
+    conteúdo, mesmo hash por arquivo, HASH AGREGADO DIFERENTE, porque a
+    ordem de concatenação divergia. Corrigido ordenando pela chave
+    string explícita, que usa comparação de codepoint Unicode pura,
+    idêntica em qualquer SO — o manifesto gerado no Windows agora bate
+    byte a byte com a checagem rodando em produção (Linux)."""
     if base is None:
         base = diretorio.parent
-    arquivos = sorted(p for p in diretorio.rglob("*") if p.is_file())
+    arquivos = sorted(
+        (p for p in diretorio.rglob("*") if p.is_file()),
+        key=lambda p: p.relative_to(base).as_posix(),
+    )
     h = hashlib.sha256()
     for f in arquivos:
         rel = f.relative_to(base).as_posix()

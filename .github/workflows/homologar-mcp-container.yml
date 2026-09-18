@@ -79,36 +79,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      # DIAGNÓSTICO TEMPORÁRIO (Gate 6.4-B) — achado: checks.rag reporta
-      # NOT_READY especificamente para o diploma REN1000 em CI (Linux),
-      # de forma determinística (reproduzido 2x), mas 3 métodos locais
-      # de reprodução (clone fresco da origem, clone com LF forçado via
-      # core.autocrlf=false, extração de blob via git archive) não
-      # reproduzem a divergência. Este step imprime o hash por arquivo
-      # (após a mesma normalização de _fingerprint_diretorio) para
-      # comparação byte a byte contra o cálculo local — remover assim
-      # que a causa raiz for identificada e corrigida.
-      - name: "DIAGNÓSTICO — hash por arquivo de rag/chunks_REN1000 (temporário)"
-        run: |
-          python -c "
-          import hashlib
-          from pathlib import Path
-          def normalizar(c):
-              return c.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
-          d = Path('rag/chunks_REN1000').resolve()
-          for f in sorted(d.rglob('*')):
-              if f.is_file():
-                  raw = f.read_bytes()
-                  norm = normalizar(raw)
-                  print(f'{f.name} {len(raw)} {len(norm)} {hashlib.sha256(norm).hexdigest()[:16]} {hashlib.sha256(raw).hexdigest()[:16]}')
-          " | tee ren1000_hashes_ci.txt
-          {
-            echo "### DIAGNÓSTICO — hash por arquivo (rag/chunks_REN1000, CI/Linux)"
-            echo '```'
-            cat ren1000_hashes_ci.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
       # ----------------------------------------- dependências LEVES
       # Só o necessário para os testes MCP existentes e para o cliente
       # MCP auxiliar deste workflow — instalado ANTES do build/testes do

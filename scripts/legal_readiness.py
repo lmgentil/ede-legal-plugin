@@ -195,13 +195,30 @@ class ResultadoReadiness:
     detail: str
 
 
+def _normalizar_quebras_de_linha(conteudo: bytes) -> bytes:
+    """Normaliza CRLF/CR isolado para LF antes do hash — achado real do
+    Gate 6.4-B: `core.autocrlf=true` no ambiente de desenvolvimento
+    Windows expande as quebras de linha LF do blob Git (canônico) para
+    CRLF na árvore de trabalho local; um manifesto gerado a partir dessa
+    árvore de trabalho local diverge do checkout Linux real (CI, Cloud
+    Run em produção — sempre LF), fazendo `avaliar_corpus_rag` reportar
+    `NOT_READY` para um corpus estruturalmente idêntico. A integridade
+    que interessa aqui é a do CONTEÚDO do corpus legislativo, nunca a
+    convenção de quebra de linha de um checkout específico — normalizar
+    torna o fingerprint invariante ao sistema operacional/configuração
+    Git de quem gerou o manifesto ou de quem roda a checagem."""
+    return conteudo.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
 def _fingerprint_diretorio(diretorio: Path, base: Path | None = None) -> tuple[str, int]:
-    """SHA-256 determinístico sobre (caminho relativo, bytes) de todo
-    arquivo em `diretorio`, ordenado por caminho — mesmo mecanismo usado
-    para gerar `rag/corpus_manifest.json`. Não é um índice de busca, só um
-    fingerprint estrutural: existência + integridade byte a byte do
-    corpus declarado, nada de tokenização/embeddings (aquilo é
-    `rag/search_hybrid.py`, fora do escopo de uma checagem de saúde).
+    """SHA-256 determinístico sobre (caminho relativo, bytes normalizados)
+    de todo arquivo em `diretorio`, ordenado por caminho — mesmo
+    mecanismo usado para gerar `rag/corpus_manifest.json`. Não é um
+    índice de busca, só um fingerprint estrutural: existência +
+    integridade do CONTEÚDO do corpus declarado (quebra de linha
+    normalizada, ver `_normalizar_quebras_de_linha`), nada de
+    tokenização/embeddings (aquilo é `rag/search_hybrid.py`, fora do
+    escopo de uma checagem de saúde).
 
     `base` é o diretório contra o qual o caminho relativo de cada arquivo
     é calculado (default: o pai de `diretorio` — o mesmo `rag_dir` que o
@@ -216,7 +233,7 @@ def _fingerprint_diretorio(diretorio: Path, base: Path | None = None) -> tuple[s
         rel = f.relative_to(base).as_posix()
         h.update(rel.encode("utf-8"))
         h.update(b"\x00")
-        h.update(f.read_bytes())
+        h.update(_normalizar_quebras_de_linha(f.read_bytes()))
         h.update(b"\x00")
     return h.hexdigest(), len(arquivos)
 

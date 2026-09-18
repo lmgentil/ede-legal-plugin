@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -539,13 +540,31 @@ def test_matriz_de_escopos_por_ferramenta():
     )
 
 
-def test_mapa_do_produto_nao_contem_ferramenta_legal():
-    """Trava de escopo do gate: nenhuma tool `ede:legal` é implementada
-    aqui. Se uma aparecer, este teste obriga a revisitar o escopo de base
-    do transporte junto — não deixa passar por acidente."""
-    from scope_policy import MAPA_ESCOPO_POR_FERRAMENTA
+def test_mapa_do_produto_reflete_exatamente_as_duas_ferramentas_atuais():
+    """Trava de escopo (atualizada no Gate 6.5-A: `ede_preparar_
+    contestacao` passou a existir, exigindo `ede:legal`). O mapa nunca
+    pode conter uma terceira entrada por acidente, e as duas ferramentas
+    conhecidas devem apontar para escopos DIFERENTES — nenhuma delas
+    implica a outra (item central do Gate 6.5-A §4/§18)."""
+    from scope_policy import FERRAMENTA_CONTESTACAO, FERRAMENTA_HEALTH, MAPA_ESCOPO_POR_FERRAMENTA
 
-    assert dict(MAPA_ESCOPO_POR_FERRAMENTA) == {"ede_health": ESCOPO_HEALTH}
+    assert dict(MAPA_ESCOPO_POR_FERRAMENTA) == {
+        FERRAMENTA_HEALTH: ESCOPO_HEALTH,
+        FERRAMENTA_CONTESTACAO: ESCOPO_LEGAL,
+    }
+
+
+def test_escopo_de_base_do_transporte_permanece_so_health():
+    """Gate 6.5-A §5: a existência de `ede_preparar_contestacao` no mapa
+    por-ferramenta NUNCA amplia o escopo de base exigido pela CAMADA
+    HTTP (`AuthSettings.required_scopes`) — só `ede:health` continua
+    necessário para qualquer dispatch alcançar o servidor MCP. Sem isso,
+    um token só-`ede:legal` sem `ede:health` seria barrado na camada
+    HTTP antes mesmo de a política por-ferramenta entrar em jogo — a
+    mesma garantia dupla já documentada em scope_policy.py."""
+    from auth_config import ESCOPOS_EXIGIDOS_PADRAO
+
+    assert ESCOPOS_EXIGIDOS_PADRAO == (ESCOPO_HEALTH,)
 
 
 # =====================================================================
@@ -829,6 +848,105 @@ async def test_health_nao_descobre_nem_alcanca_ferramenta_legal():
             assert "insufficient_scope" in str(excecao.value)
 
     assert CONTADOR_DISPATCH.de(FERRAMENTA_LEGAL_SINTETICA) == 0
+
+
+# =====================================================================
+# 5. ede_preparar_contestacao — Gate 6.5-A (servidor REAL, não sintético)
+# =====================================================================
+#
+# Testes 6-9 da matriz do gate. Diferente do bloco acima (que usa um
+# servidor sintético só para provar o MECANISMO do middleware antes de
+# qualquer tool ede:legal existir de verdade), estes testes usam
+# `app_autenticada()` sem override — o MESMO servidor real que produção
+# serve, com a tool `ede_preparar_contestacao` de verdade registrada.
+
+FATO_MINIMO_SINTETICO = {
+    "fatos": [{"fact": "Fato sintético de teste.", "source_document": "doc-teste.pdf"}],
+}
+
+
+@pytest.mark.anyio
+async def test_health_only_nao_descobre_ferramenta_legal_real():
+    """6: escopo só-health não lista `ede_preparar_contestacao`."""
+    async with app_autenticada() as (app, config):
+        async with h.cliente_mcp_protocolo(app, config, h.emitir_token()) as cliente:
+            listagem = await cliente.list_tools()
+    assert {t.name for t in listagem.tools} == {"ede_health"}
+
+
+@pytest.mark.anyio
+async def test_health_only_chamada_direta_a_ferramenta_legal_e_negada():
+    """7: escopo só-health chamando `ede_preparar_contestacao` diretamente
+    (mesmo sem descobri-la) é negado ANTES do dispatch — contador
+    inalterado."""
+    async with app_autenticada() as (app, config):
+        async with h.cliente_mcp_protocolo(app, config, h.emitir_token()) as cliente:
+            with pytest.raises(Exception) as excecao:
+                await cliente.call_tool("ede_preparar_contestacao", {"entrada": FATO_MINIMO_SINTETICO})
+            assert "insufficient_scope" in str(excecao.value)
+    assert CONTADOR_DISPATCH.de("ede_preparar_contestacao") == 0
+
+
+@pytest.mark.anyio
+async def test_escopo_legal_descobre_ferramenta_legal_real():
+    """8: escopo `ede:legal` (+ `ede:health`, exigido pela camada de
+    transporte — ver test_escopo_de_base_do_transporte_permanece_so_
+    health) lista as DUAS ferramentas."""
+    token = h.emitir_token(escopo=f"{ESCOPO_HEALTH} {ESCOPO_LEGAL}")
+    async with app_autenticada() as (app, config):
+        async with h.cliente_mcp_protocolo(app, config, token) as cliente:
+            listagem = await cliente.list_tools()
+    assert {t.name for t in listagem.tools} == {"ede_health", "ede_preparar_contestacao"}
+
+
+@pytest.mark.anyio
+async def test_escopo_apenas_legal_nao_alcanca_camada_de_transporte():
+    """Direção oposta (scope_policy.py, "as duas direções são
+    independentes"): um token só `ede:legal`, SEM `ede:health` (o escopo
+    de BASE do transporte), é recusado pela camada HTTP do SDK antes de
+    qualquer coisa — nunca alcança nem `ede_health` nem `ede_preparar_
+    contestacao`."""
+    token = h.emitir_token(escopo=ESCOPO_LEGAL)
+    async with app_autenticada() as (app, config):
+        with pytest.raises(Exception):
+            async with h.cliente_mcp_protocolo(app, config, token) as cliente:
+                await cliente.list_tools()
+    assert CONTADOR_DISPATCH.total() == 0
+
+
+@pytest.mark.anyio
+@pytest.mark.docx_real
+async def test_escopo_legal_chamada_autorizada_tem_sucesso():
+    """9: escopo `ede:legal` chamando `ede_preparar_contestacao` com
+    entrada válida tem sucesso e despacha exatamente uma vez. Requer o
+    Modelo Oficial real (mesmo padrão docx_real do resto da suíte) —
+    sem ele, `contestacao_status` nunca fica READY e a ferramenta
+    recusa com PIPELINE_ABORTED (comportamento fail-closed, não um erro
+    de autorização — testado à parte em test_preparar_contestacao.py)."""
+    template_real = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
+    if not template_real.is_file():
+        pytest.skip(f"{template_real} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
+    import hashlib
+    sha = hashlib.sha256(template_real.read_bytes()).hexdigest()
+    os.environ["EDE_MODELO_OFICIAL_PATH"] = str(template_real)
+    os.environ["EDE_MODELO_OFICIAL_SHA256"] = sha
+    try:
+        token = h.emitir_token(escopo=f"{ESCOPO_HEALTH} {ESCOPO_LEGAL}")
+        async with app_autenticada() as (app, config):
+            async with h.cliente_mcp_protocolo(app, config, token) as cliente:
+                resultado = await cliente.call_tool(
+                    "ede_preparar_contestacao", {"entrada": FATO_MINIMO_SINTETICO}
+                )
+    finally:
+        os.environ.pop("EDE_MODELO_OFICIAL_PATH", None)
+        os.environ.pop("EDE_MODELO_OFICIAL_SHA256", None)
+
+    assert resultado.is_error is not True
+    dados = resultado.structured_content
+    assert dados["status"] == "OK"
+    assert dados["pacote"]["readiness"]["contestacao_status"] == "READY"
+    assert CONTADOR_DISPATCH.de("ede_preparar_contestacao") == 1
 
 
 @pytest.mark.anyio

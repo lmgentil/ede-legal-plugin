@@ -60,22 +60,29 @@ from mcp.server.context import CallNext, HandlerResult, ServerRequestContext
 from mcp.shared.exceptions import MCPError
 from mcp_types import INVALID_REQUEST
 
-from auth_config import ESCOPO_HEALTH
+from auth_config import ESCOPO_HEALTH, ESCOPO_LEGAL
 import auth_logging as telemetria
 
 FERRAMENTA_HEALTH: Final = "ede_health"
+FERRAMENTA_CONTESTACAO: Final = "ede_preparar_contestacao"
 
 MAPA_ESCOPO_POR_FERRAMENTA: Final[Mapping[str, str]] = {
     FERRAMENTA_HEALTH: ESCOPO_HEALTH,
+    FERRAMENTA_CONTESTACAO: ESCOPO_LEGAL,
 }
 """Mapa EXPLÍCITO tool -> escopo exigido. Uma tool ausente deste mapa não
 é "livre": `escopo_exigido_por` devolve `None` e o middleware NEGA — uma
 ferramenta nova sem política declarada nunca nasce acessível por
 omissão (fail-closed, CLAUDE.md §17).
 
-Nenhuma tool `ede:legal` existe neste gate. Acrescentar uma é trabalho de
-gate posterior e exige, junto, reavaliar o escopo de base do transporte
-(auth_config.ESCOPOS_EXIGIDOS_PADRAO)."""
+Gate 6.5-A: `ede_preparar_contestacao` exige `ede:legal` — NUNCA
+`ede:health` (que continua bastando só para `ede_health`) e nunca o
+inverso (`ede:legal` sozinho não alcança `ede_health`, que também exige
+o escopo de base do transporte, `auth_config.ESCOPOS_EXIGIDOS_PADRAO`,
+inalterado — ainda só `ede:health`). A política humana de produção
+concede ede:legal é decisão de um gate de autorização separado (Gate
+6.5-A §5): a mera existência desta entrada no mapa não torna a tool
+alcançável por ninguém que não tenha o escopo de verdade."""
 
 
 def escopo_exigido_por(ferramenta: str) -> str | None:

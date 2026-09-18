@@ -189,6 +189,79 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   (`sha256:ae983d27013116d93ed863fc66908af9c21424fa569876fb8494341819ea3133`)
   descartado — nunca mais reutilizado. Sem mutação de produção nesta
   correção: `ede-mcp-00002-c2f` permanece servindo 100% do tráfego.
+- **Primeira ferramenta jurídica real do EDE MCP: `ede_preparar_
+  contestacao`** (Gate 6.5-A, escopo `ede:legal`, ADR-0015). Prepara um
+  Pacote de Contexto determinístico da Contestação para o HOST
+  (Claude/ChatGPT) raciocinar e redigir — esta ferramenta nunca redige,
+  nunca decide teses/preliminares/Reconvenção, nunca pesquisa
+  jurisprudência e nunca consulta DataJud automaticamente. Fronteira
+  Host/Core preservada integralmente: todo raciocínio jurídico continua
+  no host; o MCP só oferece regras institucionais, corpus legal
+  autoritativo, recuperação determinística, contrato de template/schema
+  e proveniência.
+  - Novo Core `scripts/preparar_contestacao.py`: valida `fatos` (reaproveita
+    o contrato de `fatos.json`/REQ-030 sem alteração), expõe o catálogo
+    de blocos/zonas condicionais com o estado de gate fático (nunca
+    decide inclusão/exclusão), extrai contexto institucional (título +
+    texto fixo ao redor, truncado) só dos placeholders efetivamente
+    redigíveis, e recupera fontes legais do corpus institucional com
+    proveniência completa (`rag/legal_validation/models.py::
+    fonte_juridica`, reaproveitado como módulo solto — nunca via
+    `legal_validation/__init__.py`, que importaria `rag/search_hybrid.py`
+    inteiro).
+  - **Nota de produto explícita:** a recuperação de fontes legais desta
+    v1 é uma camada de **retrieval lexical determinístico e limitado**
+    (pontuação por sobreposição de palavras-chave sobre os chunks já
+    embutidos na imagem) — **não é** equivalente ao pipeline híbrido
+    BM25 + semântico completo de `rag/search_hybrid.py` (que exigiria
+    pandas/numpy/scikit-learn/pyarrow/rank_bm25 na imagem do MCP,
+    incompatível com RNF-CUSTO-001 e com o footprint mínimo mantido
+    desde o Gate 6.4-A). Distinção mantida explícita no código
+    (docstrings de `_buscar_fontes_para_questao`/`_montar_fontes_
+    legais`) e nos testes — nunca descrita como "RAG completo".
+  - Escopo `ede:legal` (já existente em `auth_config.py` desde o Gate
+    6.3-D2, nunca antes usado): `mcp_server/scope_policy.py` mapeia
+    `ede_preparar_contestacao -> ede:legal`; `ede_health` continua exigindo
+    só `ede:health`; nenhum dos dois escopos implica o outro (verificado
+    nas duas direções, contra o servidor real, não um stand-in
+    sintético). Escopo de base do transporte permanece só `ede:health`.
+  - Entrada estruturada e minimizada: `fatos` (obrigatório),
+    `questoes_juridicas`/`estado_processual` (opcionais) — nenhum nome de
+    parte, número de processo, CPF/RG/endereço/telefone/email é aceito
+    ou necessário. Entrada é efêmera por requisição: nunca gravada em
+    disco, nunca adicionada ao RAG, nunca cacheada, nunca logada
+    (verificado por teste). Limites explícitos (máx. 30 fatos, 5 questões
+    jurídicas, 10 fontes totais) — nunca um dump irrestrito do corpus.
+  - Fail-closed: recusa com `PIPELINE_ABORTED` (nunca um pacote parcial
+    apresentado como completo) se `contestacao_status` não estiver READY,
+    entrada inválida/superdimensionada, ou schema/catálogo institucional
+    do próprio plugin corrompido.
+  - Refatoração mínima em `scripts/legal_readiness.py`: aquisição pura do
+    Modelo Oficial (GCS ou local) extraída para
+    `adquirir_bytes_modelo_oficial()`, reaproveitada tanto por
+    `avaliar_modelo_oficial()` quanto pelo novo Core — nenhuma duplicação
+    da lógica de despacho GCS-vs-local.
+  - Novos testes: 23 em `tests/test_preparar_contestacao.py` (Core) + 6
+    integrações OAuth reais em `tests/test_mcp_oauth.py` (contra o
+    servidor de produção, não sintético) cobrindo a matriz completa do
+    gate — entrada válida/inválida/superdimensionada, NOT_READY fail-
+    closed, filtragem de escopo nas duas direções, chamada autorizada de
+    ponta a ponta, proveniência, retrieval limitado, determinismo,
+    ausência de vazamento de log/modelo/jurisprudência.
+  - Dependência nova: **nenhuma** (`docx_context_engine.py` e
+    `validate_fatos.py` só precisam de `lxml`/biblioteca padrão, já
+    presentes). `mcp_server/Dockerfile`/`.dockerignore`/workflow de
+    homologação atualizados para incluir os três novos arquivos Core +
+    `rag/legal_validation/models.py` (nunca `__init__.py` do pacote).
+  - **`ede:legal` implementado e homologado, mas NÃO autorizado a nenhum
+    usuário humano em produção nesta rodada** — a política Descope de
+    produção continua concedendo só `ede:health`; um gate de autorização
+    separado, explícito, é necessário antes de qualquer advogado poder
+    chamar esta ferramenta. Produção permanece na revisão do Legal Core
+    do Gate 6.4-C Retry, sem nenhuma mutação.
+  - `VERSION` passa a `0.13.0` (SemVer minor — nova ferramenta MCP,
+    retrocompatível, escopo `ede:legal` nunca exigido de `ede_health`),
+    **sem tag e sem GitHub Release** nesta etapa.
 
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto

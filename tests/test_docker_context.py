@@ -147,17 +147,49 @@ def test_rag_config_yaml_nao_e_necessario_e_nao_e_liberado():
 
 def test_diretorios_de_corpus_nao_elegiveis_ausentes():
     """Diplomas fora do manifesto de produção (nenhum hoje) e diretórios
-    auxiliares do RAG (`_originais_pre_split`, `legal_validation`,
-    `embeddings`) nunca aparecem na allowlist — só os seis `chunks_*`
-    do manifesto."""
+    auxiliares do RAG (`_originais_pre_split`, `embeddings`) nunca
+    aparecem na allowlist — só os seis `chunks_*` do manifesto e, desde
+    o Gate 6.5-A, `rag/legal_validation` (só `models.py`, ver teste
+    dedicado abaixo — nunca o pacote inteiro)."""
     diretorios_rag_liberados = {
         c for c in DOCKERIGNORE_PERMITIDOS
         if c.startswith("rag/") and c not in ("rag/corpus_manifest.json",)
     }
     diretorios_rag_liberados = {c.split("/**")[0] for c in diretorios_rag_liberados}
-    assert diretorios_rag_liberados == {
-        f"rag/chunks_{d}" for d in ("CPC", "CC", "CDC", "L8987", "L9427", "REN1000")
+    esperado = {f"rag/chunks_{d}" for d in ("CPC", "CC", "CDC", "L8987", "L9427", "REN1000")}
+    esperado |= {"rag/legal_validation", "rag/legal_validation/models.py"}
+    assert diretorios_rag_liberados == esperado
+
+
+def test_legal_validation_so_libera_models_py():
+    """Gate 6.5-A: `rag/legal_validation/__init__.py` nunca é liberado —
+    importaria `citation_parser.py` -> `rag/search_hybrid.py` inteiro
+    (pandas/numpy/scikit-learn/pyarrow/rank_bm25), o oposto do footprint
+    mínimo que este servidor mantém desde o Gate 6.4-A."""
+    liberados_legal_validation = {
+        c for c in DOCKERIGNORE_PERMITIDOS if c.startswith("rag/legal_validation/")
     }
+    assert liberados_legal_validation == {"rag/legal_validation/models.py"}
+    assert "rag/legal_validation/__init__.py" not in DOCKERIGNORE_PERMITIDOS
+    assert "rag/legal_validation/citation_parser.py" not in DOCKERIGNORE_PERMITIDOS
+
+
+def test_modulos_core_do_gate_6_5_a_liberados():
+    """`scripts/preparar_contestacao.py` e seus dois módulos Core novos
+    (`docx_context_engine.py`, `validate_fatos.py`) — nunca `gerar_
+    contestacao.py`/`datajud_client.py` inteiros (este gate não expõe
+    geração de DOCX nem consulta DataJud, Gate 6.5-A §11)."""
+    esperados = {
+        "scripts/preparar_contestacao.py",
+        "scripts/docx_context_engine.py",
+        "scripts/validate_fatos.py",
+    }
+    origens_copiadas = {origem for origem, _ in _linhas_copy()}
+    for caminho in esperados:
+        assert caminho in DOCKERIGNORE_PERMITIDOS
+        assert caminho in origens_copiadas
+    for proibido in ("scripts/gerar_contestacao.py", "scripts/datajud_client.py"):
+        assert proibido not in DOCKERIGNORE_PERMITIDOS
 
 
 # ------------------------------------------------ corpus real no disco

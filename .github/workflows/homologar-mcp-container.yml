@@ -259,9 +259,11 @@ jobs:
               exit 1
             fi
             achados_scripts=$(find /app/scripts -maxdepth 1 -type f ! -name "requirements.txt" \
-              ! -name "legal_readiness.py" ! -name "docx_package.py" \
-              ! -name "docx_template_engine.py" ! -name "docx_block_engine.py" \
-              ! -name "docx_numeracao_engine.py" ! -name "instalar_modelo_oficial.py" 2>/dev/null || true)
+              ! -name "legal_readiness.py" ! -name "preparar_contestacao.py" \
+              ! -name "docx_package.py" ! -name "docx_template_engine.py" \
+              ! -name "docx_block_engine.py" ! -name "docx_numeracao_engine.py" \
+              ! -name "docx_context_engine.py" ! -name "instalar_modelo_oficial.py" \
+              ! -name "validate_fatos.py" 2>/dev/null || true)
             if [ -n "$achados_scripts" ]; then
               echo "ARQUIVO INESPERADO EM /app/scripts NA IMAGEM: $achados_scripts"
               exit 1
@@ -277,14 +279,24 @@ jobs:
               echo "ARQUIVO INESPERADO NA RAIZ DE /app/rag NA IMAGEM: $achados_rag"
               exit 1
             fi
+            achados_legal_validation=$(find /app/rag/legal_validation -maxdepth 1 -type f \
+              ! -name "models.py" 2>/dev/null || true)
+            if [ -n "$achados_legal_validation" ]; then
+              echo "ARQUIVO INESPERADO EM /app/rag/legal_validation NA IMAGEM: $achados_legal_validation"
+              exit 1
+            fi
+            if [ -f /app/rag/legal_validation/__init__.py ]; then
+              echo "rag/legal_validation/__init__.py ENCONTRADO INDEVIDAMENTE NA IMAGEM (importaria a pilha pesada de search_hybrid.py)"
+              exit 1
+            fi
             for d in $(find /app/rag -maxdepth 1 -mindepth 1 -type d 2>/dev/null || true); do
               base=$(basename "$d")
               case "$base" in
-                chunks_CPC|chunks_CC|chunks_CDC|chunks_L8987|chunks_L9427|chunks_REN1000) ;;
+                chunks_CPC|chunks_CC|chunks_CDC|chunks_L8987|chunks_L9427|chunks_REN1000|legal_validation) ;;
                 *) echo "DIRETORIO INESPERADO EM /app/rag NA IMAGEM: $base"; exit 1 ;;
               esac
             done
-            echo "OK — nenhum asset sensivel encontrado na imagem real; scripts/templates/rag batem exatamente com o allowlist do Gate 6.4-A/6.4-B."
+            echo "OK — nenhum asset sensivel encontrado na imagem real; scripts/templates/rag batem exatamente com o allowlist do Gate 6.4-A/6.4-B/6.5-A."
           '
 
       # ----------------------------------------------------- runtime real

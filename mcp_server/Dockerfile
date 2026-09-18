@@ -134,23 +134,40 @@ COPY --chown=10001:10001 VERSION VERSION
 
 # Gate 6.4-A (ADR-0015/ADR-0017): EDE Core mínimo necessário para
 # `scripts/legal_readiness.py` (chamado por server.py em `ede_health`) —
-# só os cinco módulos de manipulação/validação OOXML que ele importa
+# só os módulos de manipulação/validação OOXML que ele importa
 # transitivamente, nunca o pipeline inteiro de geração da Contestação
 # (gerar_contestacao.py, datajud_client.py, validate_paragrafos.py etc.
-# NÃO entram nesta imagem: nenhuma ferramenta de geração é exposta por
-# este gate, só a checagem de saúde).
+# continuam FORA — nenhuma ferramenta de GERAÇÃO DE DOCX é exposta por
+# este gate, só readiness e preparação de contexto).
+#
+# Gate 6.5-A acrescenta `docx_context_engine.py` (contexto institucional
+# ao redor dos placeholders — mesma disciplina lxml-only das demais) e
+# `validate_fatos.py` (validação estrutural de fatos.json, biblioteca
+# padrão, sem lxml sequer) para `scripts/preparar_contestacao.py`
+# (`ede_preparar_contestacao`, escopo `ede:legal`).
 COPY --chown=10001:10001 scripts/legal_readiness.py scripts/legal_readiness.py
+COPY --chown=10001:10001 scripts/preparar_contestacao.py scripts/preparar_contestacao.py
 COPY --chown=10001:10001 scripts/docx_package.py scripts/docx_package.py
 COPY --chown=10001:10001 scripts/docx_template_engine.py scripts/docx_template_engine.py
 COPY --chown=10001:10001 scripts/docx_block_engine.py scripts/docx_block_engine.py
 COPY --chown=10001:10001 scripts/docx_numeracao_engine.py scripts/docx_numeracao_engine.py
+COPY --chown=10001:10001 scripts/docx_context_engine.py scripts/docx_context_engine.py
 COPY --chown=10001:10001 scripts/instalar_modelo_oficial.py scripts/instalar_modelo_oficial.py
+COPY --chown=10001:10001 scripts/validate_fatos.py scripts/validate_fatos.py
 
 # Contrato institucional (público, git-tracked — nunca o Modelo Oficial
 # .docx em si, que é asset privado externo, ADR-0009, e nunca entra
 # nesta imagem nem em nenhuma outra).
 COPY --chown=10001:10001 templates/contestacao/schema.json templates/contestacao/schema.json
 COPY --chown=10001:10001 templates/contestacao/blocos.json templates/contestacao/blocos.json
+
+# Gate 6.5-A: só `models.py` de rag/legal_validation/ (o construtor
+# `fonte_juridica()`, puro dict, sem import algum) — nunca o pacote
+# `legal_validation` inteiro, cujo `__init__.py` importa `citation_
+# parser.py` -> `rag/search_hybrid.py` -> pandas/numpy/scikit-learn/
+# pyarrow/rank_bm25 (RNF-CUSTO-001; ver comentário em
+# scripts/preparar_contestacao.py para o detalhe completo).
+COPY --chown=10001:10001 rag/legal_validation/models.py rag/legal_validation/models.py
 
 # Corpus RAG institucional — legislação já pública/versionada no
 # repositório (CPC/CC/CDC/L8987/L9427/REN1000; nunca jurisprudência —

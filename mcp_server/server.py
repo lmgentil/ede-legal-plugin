@@ -111,6 +111,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from auth_config import EdeAuthConfig, carregar_config_do_ambiente
 from http_telemetry import TelemetriaSegurancaMiddleware, registrar_startup
 from scope_policy import (
+    FERRAMENTA_CONTESTACAO,
     FERRAMENTA_HEALTH,
     EscopoFerramentaMiddleware,
     contar_dispatch,
@@ -128,6 +129,14 @@ VERSION_FILE = BASE / "VERSION"
 # CLAUDE_PLUGIN_ROOT nem de instalação via pip.
 sys.path.insert(0, str(BASE / "scripts"))
 import legal_readiness  # noqa: E402
+
+# Gate 6.5-A (ADR-0015): primeira ferramenta jurídica real (`ede:legal`,
+# não `ede:health`) — scripts/preparar_contestacao.py é CORE puro
+# (nenhum raciocínio jurídico, nenhuma redação, nenhum LLM); este módulo
+# só traduz entrada/saída MCP, mesma disciplina de `legal_readiness`
+# acima. Escopo de acesso é decidido só por scope_policy.py; registrar a
+# tool aqui não a torna alcançável por um principal sem `ede:legal`.
+import preparar_contestacao  # noqa: E402
 
 NOME_SERVIDOR = "EDE Legal Plugin — MCP Server"
 
@@ -256,6 +265,90 @@ def ede_health() -> EdeHealthResponse:
         )
 
 
+# ===================================================================
+# ede_preparar_contestacao — Gate 6.5-A (escopo ede:legal)
+# ===================================================================
+
+class FatoEntrada(BaseModel):
+    """Um fato do caso, com proveniência — mesmo contrato de fatos.json
+    (REQ-030, scripts/validate_fatos.py), reaproveitado sem alteração."""
+
+    fact: str
+    source_document: str
+    page: int | None = None
+    confidence: float | None = None
+    tipo: Literal[
+        "FATO_DOCUMENTADO", "ALEGACAO_AUTORAL", "INFERENCIA", "DADO_NAO_INFORMADO"
+    ] | None = None
+
+
+class PrepararContestacaoEntrada(BaseModel):
+    """Entrada estruturada — nunca um campo "prompt" livre (Gate 6.5-A
+    §6). Nenhum dado pessoal (CPF/RG/endereço/telefone/email) é aceito;
+    nenhum nome de parte é exigido (o pacote não preenche placeholders,
+    só prepara contexto para o host redigir)."""
+
+    fatos: list[FatoEntrada]
+    questoes_juridicas: list[str] = []
+    estado_processual: dict[str, bool | Literal["INDETERMINADO"]] = {}
+
+
+class PrepararContestacaoResposta(BaseModel):
+    """Pacote de Contexto da Contestação — nunca prosa jurídica pronta,
+    nunca bytes/XML do Modelo Oficial, nunca dado sensível de terceiro.
+    Campos livres (`dict`/`list[dict]`) refletem exatamente
+    scripts/preparar_contestacao.py — nenhuma lógica de negócio duplicada
+    aqui, só o contrato de schema MCP."""
+
+    status: Literal["OK", "PIPELINE_ABORTED"]
+    stage: str | None = None
+    motivo: str | None = None
+    pacote: dict | None = None
+
+
+@contar_dispatch(FERRAMENTA_CONTESTACAO)
+def ede_preparar_contestacao(entrada: PrepararContestacaoEntrada) -> PrepararContestacaoResposta:
+    """Prepara o Pacote de Contexto autoritativo da Contestação — fatos
+    normalizados, fontes legais do corpus institucional (com
+    proveniência), catálogo de blocos/zonas condicionais, contexto
+    institucional dos placeholders redigíveis e as regras/invariantes
+    que a redação deve respeitar.
+
+    Esta ferramenta NÃO redige a peça, NÃO decide teses/preliminares/
+    Reconvenção, NÃO pesquisa jurisprudência e NÃO consulta DataJud. O
+    HOST (Claude/ChatGPT) usa o pacote devolvido para raciocinar e
+    redigir; a geração do DOCX final é etapa posterior, fora deste gate.
+
+    Fail-closed: recusa com `PIPELINE_ABORTED` (nunca um pacote parcial
+    apresentado como completo) se `contestacao_status` não estiver
+    READY, se a entrada for inválida/exceder limites, ou se o
+    schema/catálogo institucional do próprio plugin estiver corrompido.
+
+    Privacidade: a entrada (fatos, questões jurídicas) é efêmera por
+    requisição — nunca gravada em disco, nunca adicionada ao RAG, nunca
+    logada."""
+    try:
+        resultado = preparar_contestacao.preparar_contexto_contestacao(
+            entrada.model_dump(exclude_none=False)
+        )
+    except Exception:
+        # Fail-closed (CLAUDE.md §17): mesma disciplina de ede_health —
+        # exceção genuína nunca vira um pacote parcial nem expõe
+        # stack trace/detalhe interno ao chamador.
+        return PrepararContestacaoResposta(
+            status="PIPELINE_ABORTED",
+            stage="internal_error",
+            motivo="Falha interna ao preparar o contexto da Contestação.",
+        )
+
+    return PrepararContestacaoResposta(
+        status=resultado.status,
+        stage=resultado.stage,
+        motivo=resultado.motivo,
+        pacote=resultado.pacote,
+    )
+
+
 def criar_servidor(
     config: EdeAuthConfig | None, verificador: TokenVerifier | None = None
 ) -> MCPServer:
@@ -281,6 +374,7 @@ def criar_servidor(
     if config is None:
         servidor = MCPServer(NOME_SERVIDOR)
         servidor.add_tool(ede_health)
+        servidor.add_tool(ede_preparar_contestacao)
         return servidor
 
     servidor = MCPServer(
@@ -306,6 +400,7 @@ def criar_servidor(
         middleware=[EscopoFerramentaMiddleware()],
     )
     servidor.add_tool(ede_health)
+    servidor.add_tool(ede_preparar_contestacao)
     return servidor
 
 

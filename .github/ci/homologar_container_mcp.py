@@ -52,6 +52,15 @@ async def _homologar(url: str) -> int:
         if "ede_health" not in nomes:
             print(f"FALHA: ede_health não anunciada pelo servidor. Tools: {sorted(nomes)}")
             return 1
+        # Gate 6.5-A: este container sobe SEM camada OAuth de aplicação
+        # (config=None) — não há filtragem de escopo por ferramenta neste
+        # modo, então `ede_preparar_contestacao` (escopo ede:legal em
+        # produção) aparece aqui também; isso é esperado e correto para
+        # este smoke test específico, nunca para produção real (OAuth
+        # obrigatória, ver mcp_server/auth_config.py).
+        if "ede_preparar_contestacao" not in nomes:
+            print(f"FALHA: ede_preparar_contestacao não anunciada pelo servidor. Tools: {sorted(nomes)}")
+            return 1
 
         resultado = await client.call_tool("ede_health", {})
         if resultado.is_error:

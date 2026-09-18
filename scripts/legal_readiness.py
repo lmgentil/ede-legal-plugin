@@ -408,36 +408,28 @@ def _validar_conteudo_modelo_oficial(
     )
 
 
-def avaliar_modelo_oficial(
-    schema_path: Path = SCHEMA_PADRAO,
-    catalogo_path: Path = CATALOGO_PADRAO,
-) -> ResultadoReadiness:
-    """Modelo Oficial da Contestação (asset privado externo, ADR-0009)
-    está provisionado, íntegro (SHA-256 pinado) e estruturalmente
-    conforme o contrato institucional. Dois modos de aquisição,
-    mutuamente exclusivos (ver docstring do módulo):
+class ModeloOficialIndisponivel(Exception):
+    """Levantada por `adquirir_bytes_modelo_oficial()` — `status` é um dos
+    valores de `Status` (nunca `READY`, que exige validação de conteúdo,
+    fora do escopo desta função) e `detail` é sempre seguro para aparecer
+    num `ResultadoReadiness`/log de auditoria (nunca inclui caminho local,
+    bytes, ou motivo interno de `ErroAquisicaoGCS`)."""
 
-    MODO GCS (produção, Gate 6.4-B, Arquitetura A′) — ativa quando
-    QUALQUER uma de `EDE_MODELO_OFICIAL_GCS_{BUCKET,OBJECT,GENERATION}`
-    está definida; nesse caso as três MAIS `EDE_MODELO_OFICIAL_SHA256`
-    são exigidas juntas — configuração parcial nunca tenta baixar,
-    sempre `NOT_CONFIGURED`. Baixa exatamente a geração pinada
-    (`_baixar_modelo_oficial_gcs`) e cai em `NOT_READY` para objeto
-    ausente, geração não encontrada/divergente, ou qualquer falha de
-    aquisição (`ErroAquisicaoGCS`) — nunca tenta outra geração, nunca cai
-    para o modo local.
+    def __init__(self, status: Status, detail: str):
+        self.status = status
+        self.detail = detail
+        super().__init__(detail)
 
-    MODO LOCAL (desenvolvimento/teste, Gate 6.4-A) — só quando NENHUMA
-    variável GCS está definida: `EDE_MODELO_OFICIAL_PATH` (caminho já
-    provisionado por fora deste processo) + `EDE_MODELO_OFICIAL_SHA256`.
 
-    READY          — bytes adquiridos (de onde for), SHA-256 bate,
-                      contrato válido.
-    NOT_READY       — configurado mas aquisição falhou, hash divergente,
-                      pacote OOXML corrompido ou contrato desatualizado.
-    NOT_CONFIGURED  — nem GCS nem local configurados, ou GCS
-                      parcialmente configurado (nenhuma tentativa de
-                      adivinhar/descobrir o arquivo — CLAUDE.md §13)."""
+def adquirir_bytes_modelo_oficial() -> bytes:
+    """Aquisição PURA do Modelo Oficial (GCS ou local) — sem validar
+    SHA-256/estrutura/contrato (isso é `_validar_conteudo_modelo_oficial`,
+    chamada por `avaliar_modelo_oficial` logo abaixo). Extraída para que
+    outro consumidor Core (`scripts/preparar_contestacao.py`, Gate 6.5-A)
+    obtenha os MESMOS bytes que a checagem de saúde já validou, sem
+    duplicar a lógica de despacho GCS-vs-local. Levanta
+    `ModeloOficialIndisponivel` em toda condição não-READY — nunca
+    devolve bytes parciais/de outra geração."""
     gcs_bucket = os.environ.get(ENV_GCS_BUCKET)
     gcs_objeto = os.environ.get(ENV_GCS_OBJECT)
     gcs_generation = os.environ.get(ENV_GCS_GENERATION)
@@ -447,7 +439,7 @@ def avaliar_modelo_oficial(
 
     if modo_gcs_sinalizado:
         if not (gcs_bucket and gcs_objeto and gcs_generation and sha_esperado):
-            return ResultadoReadiness(
+            raise ModeloOficialIndisponivel(
                 "NOT_CONFIGURED",
                 f"Configuração GCS do Modelo Oficial incompleta — "
                 f"{ENV_GCS_BUCKET}/{ENV_GCS_OBJECT}/{ENV_GCS_GENERATION}/"
@@ -455,22 +447,19 @@ def avaliar_modelo_oficial(
                 f"nunca tenta adquirir com configuração parcial.",
             )
         try:
-            conteudo = _baixar_modelo_oficial_gcs(gcs_bucket, gcs_objeto, gcs_generation)
+            return _baixar_modelo_oficial_gcs(gcs_bucket, gcs_objeto, gcs_generation)
         except ErroAquisicaoGCS:
-            return ResultadoReadiness(
+            raise ModeloOficialIndisponivel(
                 "NOT_READY",
                 "Modelo Oficial não pôde ser adquirido do armazenamento "
                 "privado configurado (objeto/geração ausente, falha de "
                 "autenticação/rede, ou geração servida divergente da "
                 "pinada) — nenhuma outra geração é tentada.",
             )
-        return _validar_conteudo_modelo_oficial(
-            conteudo, sha_esperado, schema_path, catalogo_path
-        )
 
     caminho_env = os.environ.get(ENV_MODELO_PATH)
     if not caminho_env or not sha_esperado:
-        return ResultadoReadiness(
+        raise ModeloOficialIndisponivel(
             "NOT_CONFIGURED",
             f"Nem {ENV_GCS_BUCKET}/{ENV_GCS_OBJECT}/{ENV_GCS_GENERATION} "
             f"(produção) nem {ENV_MODELO_PATH}/{ENV_MODELO_SHA256} "
@@ -480,12 +469,38 @@ def avaliar_modelo_oficial(
 
     caminho = Path(caminho_env)
     if not caminho.is_file():
-        return ResultadoReadiness(
+        raise ModeloOficialIndisponivel(
             "NOT_READY",
             "Modelo Oficial configurado (modo local), mas o arquivo não "
             "foi encontrado no caminho provisionado.",
         )
+    return caminho.read_bytes()
+
+
+def avaliar_modelo_oficial(
+    schema_path: Path = SCHEMA_PADRAO,
+    catalogo_path: Path = CATALOGO_PADRAO,
+) -> ResultadoReadiness:
+    """Modelo Oficial da Contestação (asset privado externo, ADR-0009)
+    está provisionado, íntegro (SHA-256 pinado) e estruturalmente
+    conforme o contrato institucional. Aquisição delegada a
+    `adquirir_bytes_modelo_oficial()` (dois modos, mutuamente exclusivos
+    — GCS em produção, local em desenvolvimento/teste; ver docstring
+    dela); esta função só cuida de SHA-256 + estrutura + contrato.
+
+    READY          — bytes adquiridos (de onde for), SHA-256 bate,
+                      contrato válido.
+    NOT_READY       — configurado mas aquisição falhou, hash divergente,
+                      pacote OOXML corrompido ou contrato desatualizado.
+    NOT_CONFIGURED  — nem GCS nem local configurados, ou GCS
+                      parcialmente configurado (nenhuma tentativa de
+                      adivinhar/descobrir o arquivo — CLAUDE.md §13)."""
+    sha_esperado = os.environ.get(ENV_MODELO_SHA256)
+    try:
+        conteudo = adquirir_bytes_modelo_oficial()
+    except ModeloOficialIndisponivel as e:
+        return ResultadoReadiness(e.status, e.detail)
 
     return _validar_conteudo_modelo_oficial(
-        caminho.read_bytes(), sha_esperado, schema_path, catalogo_path
+        conteudo, sha_esperado, schema_path, catalogo_path
     )

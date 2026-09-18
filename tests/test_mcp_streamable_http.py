@@ -137,5 +137,13 @@ async def test_streamable_http_real_ede_health(servidor_http_real):
         assert dados is not None
         assert dados["service_status"] == "READY"
         assert dados["contestacao_status"] == "NOT_READY"
-        assert dados["checks"]["rag"]["status"] == "READY"
-        assert dados["checks"]["modelo_oficial"]["status"] == "NOT_CONFIGURED"
+        # Mensagens com o `detail` completo (Gate 6.4-B, achado real das
+        # execuções 35299066194/35300119070: falha em CI não reproduzida
+        # localmente por nenhum dos métodos tentados — clone fresco da
+        # origem, clone com LF forçado, extração direta de blob. Sem o
+        # `detail`, a asserção nua não dizia PORQUE `checks.rag` divergia
+        # em CI; isto existe para nunca mais precisar de um commit
+        # diagnóstico à parte só para ver essa string).
+        assert dados["checks"]["rag"]["status"] == "READY", dados["checks"]["rag"]
+        assert dados["checks"]["modelo_oficial"]["status"] == "NOT_CONFIGURED", \
+            dados["checks"]["modelo_oficial"]

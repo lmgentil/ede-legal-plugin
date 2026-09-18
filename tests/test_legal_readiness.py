@@ -484,6 +484,34 @@ def test_nenhum_teste_deste_arquivo_acessa_gcs_real():
     assert 'patch("httpx2.get"' in codigo_fonte
 
 
+# ------------------------------------------------------- Gate 6.4-C1 (requests)
+
+def test_requests_esta_instalado_no_ambiente_de_dependencias():
+    """A: `requirements.txt` declara `requests` compatível; B/C: o
+    import que causou o rollback de produção real do Gate 6.4-C
+    (`google.auth.compute_engine` -> `google.auth.compute_engine.
+    _metadata` -> `import requests` incondicional) agora resolve sem
+    exceção neste ambiente de dependências. Sem este teste, uma
+    regressão futura (ex.: alguém remover `requests` de
+    mcp_server/requirements.txt achando-a redundante com `httpx2`) só
+    apareceria de novo num rollback de produção real, como aconteceu."""
+    import requests  # noqa: F401 — a asserção real é o import não falhar
+
+    from google.auth import compute_engine  # noqa: F401
+    from google.auth.compute_engine import _metadata  # noqa: F401
+
+
+def test_requests_pinada_em_mcp_server_requirements():
+    requirements = (BASE / "mcp_server" / "requirements.txt").read_text(encoding="utf-8")
+    ativas = [
+        linha.strip()
+        for linha in requirements.splitlines()
+        if linha.strip() and not linha.strip().startswith("#")
+    ]
+    assert any(linha.startswith("requests==") for linha in ativas)
+    assert not any(linha.startswith("google-cloud") for linha in ativas)
+
+
 # ------------------------------------------------------------------ Corpus RAG
 
 def test_corpus_rag_manifesto_ausente(tmp_path):

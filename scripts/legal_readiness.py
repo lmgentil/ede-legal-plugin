@@ -40,9 +40,11 @@ desenvolvimento/teste; a produção real nunca define
 `EDE_MODELO_OFICIAL_PATH` (só as variáveis GCS), então os dois modos
 nunca colidem em runtime real. Autenticação via `google.auth.default()`
 (metadata server do Cloud Run em produção; ADC do titular fora dele) —
-nenhuma chave de service account é lida de arquivo por este módulo, e
-`google-auth` é a única dependência nova (ver mcp_server/requirements.txt
-para a análise de footprint).
+nenhuma chave de service account é lida de arquivo por este módulo.
+`google-auth` + `requests` são as dependências novas (ver
+mcp_server/requirements.txt para a análise de footprint e para o achado
+real do Gate 6.4-C que tornou `requests` necessária — não opcional —
+para a detecção de ambiente Cloud Run/GCE do próprio `google-auth`).
 """
 from __future__ import annotations
 
@@ -132,11 +134,21 @@ class _RespostaHttpx:
 
 class _RequisicaoHttpx:
     """Adapta `httpx2` à interface `google.auth.transport.Request`
-    (callable) — evita depender de `google-auth[requests]`/`urllib3`
-    (uma SEGUNDA pilha HTTP no processo): `httpx2` já é dependência
-    transitiva de `mcp` (ver mcp_server/requirements.txt). Usada só para
-    `Credentials.refresh()` (obter o token de acesso); a leitura do
-    objeto GCS em si usa `httpx2` diretamente em `_baixar_modelo_oficial_gcs`."""
+    (callable), usada só para `Credentials.refresh()` (a chamada
+    EXPLÍCITA que busca o token de acesso) — a leitura do objeto GCS em
+    si usa `httpx2` diretamente em `_baixar_modelo_oficial_gcs`.
+
+    Gate 6.4-C1 (achado do Gate 6.4-C, rollback de produção real):
+    `requests` passou a ser dependência do projeto de qualquer forma —
+    `google.auth.compute_engine._metadata` (a DETECÇÃO do ambiente
+    Cloud Run/GCE, interna ao `google.auth.default()`, que roda ANTES
+    desta classe ser chamada) tem `import requests` incondicional,
+    nunca opcional. Esta classe continua existindo porque evita que a
+    chamada explícita de refresh do token dependa de `requests`/
+    `urllib3` também — não elimina `requests` da árvore de dependências
+    do processo, só limita onde ele é efetivamente exercitado pelo
+    código do EDE (nenhuma linha própria importa `requests`
+    diretamente; ver mcp_server/requirements.txt)."""
 
     def __call__(self, url, method="GET", body=None, headers=None, timeout=None, **kwargs):
         import httpx2

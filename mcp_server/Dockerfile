@@ -93,14 +93,21 @@ COPY mcp_server/requirements.txt mcp_server/requirements.txt
 # 6.4-A isso inclui `lxml` (contrato do Modelo Oficial) e, desde o Gate
 # 6.4-B, `google-auth` (aquisição do Modelo Oficial via GCS, Arquitetura
 # A′ — só `google.auth.default()`; NUNCA `google-cloud-storage`, ver
-# comentário em mcp_server/requirements.txt). Deliberadamente ausentes:
-# pyarrow, rank_bm25, sentence-transformers, pandas, numpy, joblib,
-# scikit-learn, scipy, google-cloud-storage/google-api-core, `requests`
-# — a checagem de saúde do corpus RAG usa só biblioteca padrão, e a
-# leitura do objeto GCS usa `httpx2` (já transitivo via `mcp`), nunca uma
-# segunda pilha HTTP. Se alguma dependência não declarada entrar
-# TRANSITIVAMENTE, isso só pode ser confirmado num build real (ainda não
-# executado nesta máquina — sem runtime de container disponível) —
+# comentário em mcp_server/requirements.txt). Desde o Gate 6.4-C1,
+# `requests` também: achado real de um rollback de produção
+# (`google.auth.compute_engine._metadata` — a detecção de ambiente
+# Cloud Run/GCE usada por `google.auth.default()` — tem `import
+# requests` incondicional; sem ela a detecção falha e o Modelo Oficial
+# nunca fica READY). A leitura do objeto GCS em si continua usando só
+# `httpx2` (já transitivo via `mcp`) — `requests` entra somente pela
+# árvore de `google-auth`, nenhuma linha do EDE a importa diretamente.
+# Deliberadamente ausentes: pyarrow, rank_bm25, sentence-transformers,
+# pandas, numpy, joblib, scikit-learn, scipy,
+# google-cloud-storage/google-api-core — a checagem de saúde do corpus
+# RAG usa só biblioteca padrão. Se alguma dependência não declarada
+# entrar TRANSITIVAMENTE, isso só pode ser confirmado num build real
+# (ainda não executado nesta máquina — sem runtime de container
+# disponível) —
 # nenhuma alegação de inventário de
 # dependências instaladas é feita aqui.
 RUN pip install --no-cache-dir -r mcp_server/requirements.txt

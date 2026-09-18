@@ -1119,13 +1119,20 @@ def test_todo_modulo_do_servidor_entra_no_contexto_de_build():
 def test_requirements_declara_a_dependencia_jwt_e_nada_de_bloat():
     """A dependência JWT é declarada; nenhum framework web, Authorization
     Server ou SDK de nuvem completo entra no container. `lxml` (Gate
-    6.4-A, ADR-0017 §6 — contrato do Modelo Oficial) e `google-auth`
+    6.4-A, ADR-0017 §6 — contrato do Modelo Oficial), `google-auth`
     (Gate 6.4-B, mesmo ADR — só `google.auth.default()` para obter a
-    identidade da service account de runtime; NUNCA
-    `google-cloud-storage`, o SDK completo, que traria google-api-core/
-    google-cloud-core/google-resumable-media/`requests` — a leitura do
-    objeto GCS em si usa `httpx2`, já transitivo via `mcp`) são as ÚNICAS
-    exceções à lista fixa anterior. RAG (análise/busca — pandas, numpy,
+    identidade da service account de runtime) e `requests` (Gate 6.4-C1
+    — achado real de um rollback de produção: `google.auth.
+    compute_engine._metadata`, a detecção de ambiente Cloud Run/GCE
+    usada internamente por `google.auth.default()`, tem `import
+    requests` incondicional, não opcional; sem ela a identidade da
+    service account nunca é detectada e o Modelo Oficial nunca fica
+    READY) são as ÚNICAS exceções à lista fixa anterior. `requests`
+    entra só pela árvore de `google-auth` — nenhuma linha do EDE a
+    importa diretamente; a leitura do objeto GCS em si continua usando
+    `httpx2`, já transitivo via `mcp`. NUNCA `google-cloud-storage` (o
+    SDK completo, que traria google-api-core/google-cloud-core/
+    google-resumable-media). RAG (análise/busca — pandas, numpy,
     pyarrow, scikit-learn, scipy, rank_bm25, sentence-transformers) e
     qualquer SDK de nuvem completo continuam proibidos: a checagem de
     saúde do corpus usa só biblioteca padrão
@@ -1138,13 +1145,14 @@ def test_requirements_declara_a_dependencia_jwt_e_nada_de_bloat():
     ]
     assert ativas == [
         "mcp==2.2.0", "pyjwt[crypto]==2.13.0", "lxml==6.1.3", "google-auth==2.58.0",
+        "requests==2.34.2",
     ]
 
     proibidas = (
         "flask", "django", "fastapi", "authlib", "python-jose", "oauthlib",
         "google-cloud", "boto3", "pyarrow", "rank_bm25", "sentence_transformers",
         "pandas", "numpy", "scikit-learn", "scipy", "joblib", "python-docx",
-        "requests", "grpc", "protobuf",
+        "grpc", "protobuf",
     )
     for proibida in proibidas:
         assert not any(proibida in linha.lower() for linha in ativas), proibida

@@ -164,6 +164,31 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
     imagem, `lxml`/`google-auth` legítimas).
   - Sem mutação de tráfego: nenhum deploy de produção, nenhuma alteração
     de OAuth/rede pública, revisão `ede-mcp` corrente intocada.
+- **Correção de dependência do adapter GCS** (Gate 6.4-C1, achado real do
+  Gate 6.4-C: primeira tentativa de ativação em produção, revertida em
+  segundos por `checks.modelo_oficial=NOT_READY`). Causa raiz confirmada
+  nos logs reais do Cloud Run ("Import of Compute Engine auth library
+  failed.") e por leitura direta do código-fonte instalado:
+  `google.auth.compute_engine._metadata` — o submódulo que
+  `google.auth.default()` usa para detectar o ambiente Cloud Run/GCE via
+  metadata server — tem `import requests` incondicional, não opcional.
+  Sem `requests` instalado, a detecção de ambiente falhava silenciosamente
+  (o `except Exception` de `_baixar_modelo_oficial_gcs` mascarava isso
+  como `autenticacao_falhou`, comportamento fail-closed correto, mas
+  escondendo a causa real do usuário por design de segurança). Adiciona
+  `requests==2.34.2` a `mcp_server/requirements.txt` (faixa compatível
+  `requests<3.0.0,>=2.30.0` conforme o próprio METADATA de
+  `google-auth==2.58.0`) — entra só pela árvore de `google-auth`; nenhuma
+  linha do EDE a importa diretamente, `httpx2` continua sendo o único
+  cliente HTTP usado explicitamente pelo código do projeto. Novos testes
+  (`tests/test_legal_readiness.py`) provam que o import que causou o
+  rollback real resolve sem exceção; `tests/test_mcp_oauth.py` e o
+  workflow de homologação atualizados para tratar `requests` como
+  dependência legítima (nunca `google-cloud-*`/`grpcio`/`protobuf`, que
+  continuam proibidos). Candidato anterior
+  (`sha256:ae983d27013116d93ed863fc66908af9c21424fa569876fb8494341819ea3133`)
+  descartado — nunca mais reutilizado. Sem mutação de produção nesta
+  correção: `ede-mcp-00002-c2f` permanece servindo 100% do tráfego.
 
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto

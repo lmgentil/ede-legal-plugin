@@ -87,13 +87,12 @@ lxml==6.1.3
 # Gate 6.4-B §12); nenhuma chave de service account é lida de arquivo
 # por este código. Deliberadamente NÃO usamos `google-cloud-storage`
 # (SDK completo — puxaria google-api-core, google-cloud-core,
-# google-resumable-media, google-crc32c e, por padrão, `requests`, uma
-# SEGUNDA pilha HTTP): a única operação necessária é um GET autenticado
-# de um objeto por geração pinada na API REST/JSON do GCS
-# (`storage.googleapis.com/storage/v1/.../o/...?alt=media&generation=`),
-# feito com `httpx2` (já transitivo via `mcp`, ver acima) — mesma
-# disciplina de "não adicionar uma segunda pilha" já aplicada à decisão
-# lxml × defusedxml.
+# google-resumable-media, google-crc32c): a única operação necessária é
+# um GET autenticado de um objeto por geração pinada na API REST/JSON
+# do GCS (`storage.googleapis.com/storage/v1/.../o/...?alt=media&
+# generation=`), feito com `httpx2` (já transitivo via `mcp`, ver
+# acima) — mesma disciplina de "não adicionar uma segunda pilha" já
+# aplicada à decisão lxml × defusedxml.
 #
 # Footprint medido nesta rodada (wheels, `pip download --no-deps`):
 # google-auth 262 KB + pyasn1-modules 181 KB + pyasn1 84 KB ≈ 527 KB,
@@ -102,3 +101,40 @@ lxml==6.1.3
 # acima. Nenhum SDK de nuvem completo, nenhum framework web, nenhuma
 # dependência de `gcloud` CLI.
 google-auth==2.58.0
+
+# ---------------------------------------------------------------------
+# Correção do Gate 6.4-C1 — achado real do Gate 6.4-C (rollback de
+# produção, execução real em Cloud Run): `google.auth.compute_engine.
+# _metadata` (o submódulo que `google.auth.default()` usa para DETECTAR
+# o ambiente Cloud Run/GCE via metadata server) tem `import requests`
+# INCONDICIONAL no próprio topo do arquivo — não é opcional, não está
+# atrás de nenhum try/except na versão instalada (verificado por leitura
+# direta do arquivo, não por suposição). Sem `requests` instalado,
+# `from google.auth import compute_engine` levanta `ImportError`
+# ("Import of Compute Engine auth library failed." — mensagem própria do
+# google-auth, vista nos logs reais do Cloud Run), `google.auth.
+# default()` nunca detecta a identidade da service account de runtime, e
+# a aquisição do Modelo Oficial falha fechado (`ErroAquisicaoGCS
+# ("autenticacao_falhou")` → `modelo_oficial=NOT_READY`) — o fail-closed
+# em si funcionou como projetado; a suposição de dependência abaixo dele
+# é que estava errada.
+#
+# A suposição original (comentário acima, já corrigido: "não adicionar
+# uma segunda pilha HTTP") não se sustenta: `requests` não é opcional
+# para o caminho de CREDENCIAL de `google-auth` em Cloud Run/GCE, só a
+# LEITURA do objeto GCS em si (via `httpx2`, mantida sem alteração)
+# permanece fora dessa pilha. Tradeoff aceito explicitamente no Gate
+# 6.4-C1: `requests` entra SOMENTE como dependência transitiva de
+# `google-auth` para a detecção de ambiente — nenhuma linha do código do
+# EDE importa `requests` diretamente.
+#
+# Faixa compatível conforme o próprio METADATA de
+# `google-auth==2.58.0` (extra "requests"): `requests<3.0.0,>=2.30.0`.
+# Versão pinada na mais recente publicada nesta faixa (`pip index`,
+# não por memória). Transitivas do próprio `requests`: `urllib3`,
+# `certifi`, `charset-normalizer` (novas); `idna` já era transitiva de
+# `httpx2`. Footprint medido (wheels, `pip download --no-deps`):
+# requests 73 KB + urllib3 136 KB + certifi 137 KB + charset-normalizer
+# 200 KB ≈ 546 KB, líquido de `idna`. Nenhuma delas traz `google-cloud-
+# storage`, framework web, ou dependência de `gcloud` CLI.
+requests==2.34.2

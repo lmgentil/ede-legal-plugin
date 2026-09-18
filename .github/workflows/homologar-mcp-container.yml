@@ -155,10 +155,19 @@ jobs:
       # `pyasn1`/`pyasn1-modules` (Gate 6.4-B, transitivas de
       # `google-auth`) deixaram de ser proibidas — são dependências
       # legítimas declaradas em mcp_server/requirements.txt (contrato do
-      # Modelo Oficial + aquisição via GCS, ver comentários lá). A lista
-      # de proibidas continua cobrindo tudo que RAG (análise/busca
-      # pesada) ou um SDK de nuvem completo trariam — nada disso deve
-      # aparecer mesmo transitivamente.
+      # Modelo Oficial + aquisição via GCS, ver comentários lá).
+      #
+      # Atualizado no Gate 6.4-C1: `requests` (+ suas transitivas
+      # `urllib3`/`certifi`/`charset-normalizer`) saiu da lista de
+      # proibidas — achado real de um rollback de produção:
+      # `google.auth.compute_engine._metadata` tem `import requests`
+      # incondicional, sem ela `google.auth.default()` nunca detecta a
+      # identidade da service account em Cloud Run e o Modelo Oficial
+      # nunca fica READY (ver mcp_server/requirements.txt para o relato
+      # completo). A remoção é ESTREITA: só `requests` sai da lista de
+      # proibidas — `google-cloud`/`grpcio`/`protobuf` (SDK de nuvem
+      # completo) continuam proibidos, RAG (análise/busca pesada)
+      # continua proibido, nada mais muda.
       - name: "Inventário de dependências da imagem (pip freeze) + checagem de proibidas"
         run: |
           docker run --rm ede-mcp:ci python -m pip freeze | tee pip-freeze-imagem.txt
@@ -169,7 +178,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           achado=0
-          for proibida in pyarrow rank_bm25 sentence-transformers sentence_transformers pandas numpy scikit-learn scipy joblib google-cloud requests grpcio protobuf; do
+          for proibida in pyarrow rank_bm25 sentence-transformers sentence_transformers pandas numpy scikit-learn scipy joblib google-cloud grpcio protobuf; do
             if grep -iE "^${proibida}(==| )" pip-freeze-imagem.txt; then
               echo "GATE FALHOU: dependência proibida presente na imagem do container: $proibida"
               achado=1
@@ -179,7 +188,7 @@ jobs:
           # entre pacotes (PEP 503 trata os dois como equivalentes) —
           # "pyasn1-modules" aparece como "pyasn1_modules==...". O padrão
           # aceita qualquer um dos dois separadores, nunca hardcoda um só.
-          for esperada in lxml google-auth pyasn1 pyasn1-modules; do
+          for esperada in lxml google-auth pyasn1 pyasn1-modules requests; do
             padrao=$(echo "$esperada" | sed 's/-/[-_]/g')
             if ! grep -iE "^${padrao}(==| )" pip-freeze-imagem.txt; then
               echo "GATE FALHOU: dependência esperada ausente da imagem do container: $esperada"

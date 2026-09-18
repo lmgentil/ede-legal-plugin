@@ -175,8 +175,13 @@ jobs:
               achado=1
             fi
           done
+          # `pip freeze` normaliza hífen/underscore de forma inconsistente
+          # entre pacotes (PEP 503 trata os dois como equivalentes) —
+          # "pyasn1-modules" aparece como "pyasn1_modules==...". O padrão
+          # aceita qualquer um dos dois separadores, nunca hardcoda um só.
           for esperada in lxml google-auth pyasn1 pyasn1-modules; do
-            if ! grep -iE "^${esperada}(==| )" pip-freeze-imagem.txt; then
+            padrao=$(echo "$esperada" | sed 's/-/[-_]/g')
+            if ! grep -iE "^${padrao}(==| )" pip-freeze-imagem.txt; then
               echo "GATE FALHOU: dependência esperada ausente da imagem do container: $esperada"
               achado=1
             fi

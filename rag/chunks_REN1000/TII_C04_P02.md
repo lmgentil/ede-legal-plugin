@@ -53,7 +53,7 @@ III - as informações do art. 540 e, quando for o caso, do § 2 o do art. 518.
 
 Art. 540. A distribuidora deve reavaliar o período diário reduzido na localidade atendida por meio de MIGDI, caso haja pedido de conexão para unidade consumidora prestadora de serviço essencial ou de interesse da coletividade.
 
-Art. 541. O registro do MIGDI como central geradora com capacidade instalada reduzida deve ser acompanhado das seguintes informações: Uso Interno CPFL
+Art. 541. O registro do MIGDI como central geradora com capacidade instalada reduzida deve ser acompanhado das seguintes informações:
 
 I - identificação geográfica da localidade em relação à rede de distribuição de energia elétrica convencional mais próxima, incluindo suas coordenadas;
 
@@ -87,9 +87,7 @@ III - regularizar o nível de tensão em até 60 (sessenta) dias contados a part
 
 IV - comprovar a regularização por meio de pelo menos duas medições instantâneas do valor eficaz no ponto de conexão em um intervalo mínimo de 5 (cinco) minutos; e
 
-V - organizar os registros das reclamações sobre não-conformidade de tensão em arquivos individualizados, incluindo número de protocolo, data da Uso Interno CPFL
-
-reclamação, data e horário das medições instantâneas com os valores registrados, providências para a normalização e data de conclusão.
+V - organizar os registros das reclamações sobre não-conformidade de tensão em arquivos individualizados, incluindo número de protocolo, data da reclamação, data e horário das medições instantâneas com os valores registrados, providências para a normalização e data de conclusão.
 
 Parágrafo único. Para atendimento em corrente alternada, consideram-se valores inadequados de tensão aqueles situados na faixa precária ou crítica, conforme regulação da ANEEL ou, para atendimento em corrente contínua, aqueles que ultrapassem os limites definidos nas normas aplicáveis da ABNT.
 
@@ -123,9 +121,7 @@ V - suspensão por inadimplemento do consumidor; e
 
 VI - suspensão por motivo de deficiência técnica ou de segurança da unidade consumidora que não provoque interrupção em instalações de terceiros.
 
-Art. 547. O indicador de continuidade individual em sistemas MIGDI ou SIGFI deve ser apurado por meio de procedimentos auditáveis e que contemplem desde Uso Interno CPFL
-
-o processo de coleta de dados das interrupções até a transformação desses dados em indicador.
+Art. 547. O indicador de continuidade individual em sistemas MIGDI ou SIGFI deve ser apurado por meio de procedimentos auditáveis e que contemplem desde o processo de coleta de dados das interrupções até a transformação desses dados em indicador.
 
 § 1 o A distribuidora deve registrar para cada interrupção ocorrida na
 
@@ -173,6 +169,6 @@ II - número de reclamações procedentes e improcedentes recebidas no período 
 
 III - quantidade e duração das interrupções agrupadas por fato gerador;
 
-IV - duração mínima, média e máxima das interrupções; e Uso Interno CPFL
+IV - duração mínima, média e máxima das interrupções; e
 
 V - prazo mínimo, médio e máximo de regularização dos níveis de tensão.

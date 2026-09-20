@@ -57,7 +57,7 @@ ouvidoria da DISTRIBUIDORA, se existente;
 
 - na Agência Estadual Conveniada: ( colocar nome e telefone se existente ) ou, na inexistência desta,
 
-- na ANEEL, pelo aplicativo, telefone 167 ou na página https://www.aneel.gov.br Uso Interno CPFL
+- na ANEEL, pelo aplicativo, telefone 167 ou na página https://www.aneel.gov.br
 
 8.6. As reclamações do CONSUMIDOR sobre danos em equipamentos devem ser realizadas diretamente à DISTRIBUIDORA, em até 5 anos da ocorrência.
 
@@ -95,7 +95,7 @@ NOME DA EMPRESA_____________________________________ DATA ___.___.______
 
 NOME DA OBRA
 
-______________________________________________________________ Uso Interno CPFL
+______________________________________________________________
 
 1 – FINALIDADE
 
@@ -127,7 +127,7 @@ Caso afirmativo, anexar comprovação de concordância/autorização dos proprie
 
 3.3 Os cabos contrapesos são do tipo cordoalha de aço galvanizado ______ seção _____ mm2, carga de ruptura _____ kgf, com peso próprio de _____ kg/m.
 
-4 – CONSIDERAÇÕES GERAIS Uso Interno CPFL
+4 – CONSIDERAÇÕES GERAIS
 
 NOME DO ENGENHEIRO
 
@@ -149,7 +149,7 @@ _____________________________________________________________
 
 N° DO CREA ______________________ REGIÃO ____________________
 
-ASSINATURA _________________________________________________ Uso Interno CPFL
+ASSINATURA _________________________________________________
 
 ANEXO IV – PRAZOS PARA COMPENSAÇÃO EM CASO DE VIOLAÇÃO
 

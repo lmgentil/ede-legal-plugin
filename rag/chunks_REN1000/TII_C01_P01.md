@@ -37,7 +37,7 @@ Seção I
 
 Das Disposições Gerais
 
-Art. 450. O disposto neste Capítulo aplica-se ao fornecimento de energia elétrica para o serviço público de iluminação pública, de responsabilidade do poder público municipal, e: Uso Interno CPFL
+Art. 450. O disposto neste Capítulo aplica-se ao fornecimento de energia elétrica para o serviço público de iluminação pública, de responsabilidade do poder público municipal, e:
 
 I - a quem tenha recebido a delegação para prestar o serviço público de iluminação pública; e
 
@@ -71,7 +71,7 @@ Art. 453. É vedado à distribuidora cobrar pela ocupação de postes e estrutur
 
 I - instalação dos ativos destinados à prestação do serviço público de iluminação pública em infraestrutura da distribuidora, tais como braços e suportes de fixação das luminárias e circuitos exclusivos; e
 
-II - instalação de equipamentos para a prestação de serviços associados ao serviço de iluminação pública nos ativos de iluminação pública do inciso I. Uso Interno CPFL
+II - instalação de equipamentos para a prestação de serviços associados ao serviço de iluminação pública nos ativos de iluminação pública do inciso I.
 
 § 1º No caso da necessidade da instalação pelo poder público municipal de outros ativos de iluminação pública em infraestrutura da distribuidora, não contemplados nos incisos do caput , deve ser observada a regulação da ANEEL sobre o compartilhamento de infraestrutura.
 
@@ -107,7 +107,7 @@ Parágrafo único. É vedado à distribuidora estabelecer em sua norma técnica 
 
 Art. 455. O poder público municipal deve observar a norma técnica de iluminação pública estabelecida pela distribuidora, naquilo que não dispuser contrariamente à regulação da ANEEL e às normas dos órgãos oficiais competentes.
 
-Art. 456. A distribuidora e o poder público municipal devem estabelecer os canais de comunicação e/ou pessoas responsáveis para tratar das questões envolvendo a instalação, operação e manutenção das instalações de iluminação pública. Uso Interno CPFL
+Art. 456. A distribuidora e o poder público municipal devem estabelecer os canais de comunicação e/ou pessoas responsáveis para tratar das questões envolvendo a instalação, operação e manutenção das instalações de iluminação pública.
 
 Art. 457. No caso de necessidade de incorporação de ativos de iluminação pública para o atendimento de outras cargas, a distribuidora deve ressarcir o poder público municipal, conforme art. 649.
 
@@ -137,9 +137,7 @@ IV - obras e intervenções em caráter de urgência ou emergência.
 
 Parágrafo único. Nas situações dispostas nos incisos do caput , adistribuidora não pode exigir a apresentação de projeto de acordo com o que foi construído após a execução das obras, observado o art. 462.
 
-Art. 460. A distribuidora deve calcular o encargo de responsabilidade da distribuidora e a participação financeira do poder público municipal para as obras Uso Interno CPFL
-
-necessárias no sistema de distribuição para conexão das instalações de iluminação pública, conforme art. 106 e seguintes desta Resolução, não se aplicando as condições para o atendimento gratuito dispostas no art. 104 e no art. 105.
+Art. 460. A distribuidora deve calcular o encargo de responsabilidade da distribuidora e a participação financeira do poder público municipal para as obras necessárias no sistema de distribuição para conexão das instalações de iluminação pública, conforme art. 106 e seguintes desta Resolução, não se aplicando as condições para o atendimento gratuito dispostas no art. 104 e no art. 105.
 
 Parágrafo único. A conexão de instalações de iluminação pública de caráter temporário deve observar as disposições do art. 494 e seguintes.
 

@@ -57,7 +57,7 @@ IV - agente exportador; e
 
 V - agente importador.
 
-§ 2º A aplicação desta Resolução é complementada pelos Procedimentos de Distribuição de Energia Elétrica no Sistema Elétrico Nacional – PRODIST e pelos Procedimentos de Regulação Tarifária - PRORET. Uso Interno CPFL
+§ 2º A aplicação desta Resolução é complementada pelos Procedimentos de Distribuição de Energia Elétrica no Sistema Elétrico Nacional – PRODIST e pelos Procedimentos de Regulação Tarifária - PRORET.
 
 § 3º A aplicação desta Resolução não afasta a necessidade de cumprimento do disposto na regulação da ANEEL e na legislação, em especial:
 
@@ -89,7 +89,7 @@ V - ciclo de faturamento: intervalo de tempo correspondente ao faturamento de de
 
 VI - concessionária: agente titular de concessão federal para prestar o serviço público de distribuição de energia elétrica, de agora em diante denominado distribuidora;
 
-VII - consumidor: pessoa física ou jurídica que solicite o fornecimento do serviço à distribuidora, assumindo as obrigações decorrentes desta prestação à sua unidade consumidora; Uso Interno CPFL
+VII - consumidor: pessoa física ou jurídica que solicite o fornecimento do serviço à distribuidora, assumindo as obrigações decorrentes desta prestação à sua unidade consumidora;
 
 VIII - consumidor especial: consumidor livre ou o conjunto de consumidores livres reunidos por comunhão de interesses de fato ou de direito, cuja carga seja maior ou igual a 500 kW e que tenha adquirido energia elétrica na forma estabelecida no § 5º do art. 26 da Lei nº 9.427, de 26 de dezembro de 1996;
 
@@ -115,7 +115,7 @@ XVIII - exportador: agente titular de autorização federal para exportar energi
 
 XIX - fator de carga: razão entre a demanda média e a demanda máxima da unidade consumidora, ocorridas no mesmo intervalo de tempo;
 
-XX - fator de demanda: razão entre a demanda máxima num intervalo de tempo e a carga instalada na unidade consumidora; Uso Interno CPFL
+XX - fator de demanda: razão entre a demanda máxima num intervalo de tempo e a carga instalada na unidade consumidora;
 
 XXI - fator de potência: razão entre a energia elétrica ativa e a raiz quadrada da soma dos quadrados das energias elétricas ativa e reativa, consumidas num mesmo período;
 
@@ -149,7 +149,7 @@ XXV - importador: agente titular de autorização federal para importar energia 
 
 XXVI - infraestrutura local: infraestrutura necessária à administração e operação da central geradora, tais como sistemas e edificações diversos (almoxarifado, oficinas, iluminação externa etc.), não incluindo serviços auxiliares;
 
-XXVII - inspeção: fiscalização posterior à conexão para verificar a adequação aos padrões técnicos e de segurança da distribuidora, o funcionamento do sistema de medição e a confirmação dos dados cadastrais; Uso Interno CPFL
+XXVII - inspeção: fiscalização posterior à conexão para verificar a adequação aos padrões técnicos e de segurança da distribuidora, o funcionamento do sistema de medição e a confirmação dos dados cadastrais;
 
 XXVIII - instalações de interesse restrito: instalações de central geradora, exportador ou importador de energia, que tenham a finalidade de interligação até o ponto de conexão, podendo ser denominadas de instalações de uso exclusivo;
 
@@ -171,7 +171,7 @@ XXXVI - pós-pagamento eletrônico: modalidade de faturamento em que as informa�
 
 XXXVII - posto de transformação: compreende o transformador de distribuição e seus acessórios, tais como os dispositivos de manobra, controle, proteção e demais materiais necessários para as obras civis e estruturas de montagem;
 
-XXXVIII - posto tarifário: período em horas para aplicação das tarifas de forma diferenciada ao longo do dia, considerando a seguinte divisão: Uso Interno CPFL
+XXXVIII - posto tarifário: período em horas para aplicação das tarifas de forma diferenciada ao longo do dia, considerando a seguinte divisão:
 
 a) posto tarifário ponta: período composto por 3 horas diárias consecutivas definidas pela distribuidora considerando a curva de carga de seu sistema elétrico, aprovado pela ANEEL para toda a área de concessão ou permissão, não se aplicando aos sábados, domingos, terça-feira de carnaval, sexta-feira da Paixão, Corpus Christi e aos feriados nacionais dos dias 1º de janeiro, 21 de abril, 1º de maio, 7 de setembro, 12 de outubro, 2 de novembro, 15 de novembro e 25 de dezembro;
 
@@ -209,7 +209,7 @@ h) unidade operacional de serviço público de telecomunicações;
 
 i) guarda, uso e controle de substâncias radioativas, equipamentos e materiais nucleares;
 
-j) processamento de dados ligados a serviços essenciais; Uso Interno CPFL
+j) processamento de dados ligados a serviços essenciais;
 
 k) centro de controle público de tráfego aéreo, marítimo e urbano;
 
@@ -243,7 +243,7 @@ b) medição individualizada;
 
 c) pertencente a um único consumidor; e
 
-d) localizado em um mesmo imóvel ou em imóveis contíguos; Uso Interno CPFL
+d) localizado em um mesmo imóvel ou em imóveis contíguos;
 
 LI - usuário: pessoa física ou jurídica que se beneficia ou utiliza, efetiva ou potencialmente, do serviço público de distribuição de energia elétrica, a exemplo de consumidor, gerador, produtor independente, autoprodutor, outra distribuidora e agente importador ou exportador.
 

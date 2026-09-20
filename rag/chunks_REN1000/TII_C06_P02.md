@@ -49,7 +49,7 @@ Seção V
 
 Dos Requisitos Mínimos do Sistema de Medição
 
-Art. 578. A distribuidora pode definir a tecnologia do sistema de medição utilizado nas modalidades de faturamento de pré-pagamento e pós-pagamento eletrônico, observados os critérios estabelecidos na regulação metrológica. Uso Interno CPFL
+Art. 578. A distribuidora pode definir a tecnologia do sistema de medição utilizado nas modalidades de faturamento de pré-pagamento e pós-pagamento eletrônico, observados os critérios estabelecidos na regulação metrológica.
 
 Art. 579. O sistema de pré-pagamento deve permitir, no mínimo, a visualização da quantidade de créditos disponíveis, em kWh, e possuir alarme visual e sonoro que informe ao consumidor a proximidade dos créditos acabarem.
 
@@ -75,7 +75,7 @@ Art. 581. Na modalidade de pré-pagamento, o consumidor fica sujeito à suspens�
 
 § 3 o O valor do crédito de emergência pode ser descontado na compra subsequente ou por meio de recarga quando houver o registro negativo da energia consumida no medidor.
 
-§ 4 o O fornecimento deve ser restabelecido logo após a recarga de créditos no sistema de medição que resulte em saldo positivo. Uso Interno CPFL
+§ 4 o O fornecimento deve ser restabelecido logo após a recarga de créditos no sistema de medição que resulte em saldo positivo.
 
 Art. 582. No caso de pós-pagamento eletrônico, a distribuidora pode suspender o fornecimento de energia elétrica a partir de 15 (quinze) dias após a data de vencimento da fatura escolhida pelo consumidor, caso não ocorra o pagamento do consumo de energia elétrica do ciclo de faturamento anterior.
 
@@ -103,7 +103,7 @@ V - utilização do maior valor mensal de créditos comprados nos 3 (três) cicl
 
 § 2º Caso o procedimento irregular tenha se iniciado antes da migração para a modalidade de pré-pagamento, a distribuidora dever observar os critérios dispostos no art. 595.
 
-Art. 584. Na modalidade de pós-pagamento eletrônico, comprovado o procedimento irregular nos termos do art.590, a recuperação da energia consumida e não faturada deve observar os critérios dispostos no art. 595. Uso Interno CPFL
+Art. 584. Na modalidade de pós-pagamento eletrônico, comprovado o procedimento irregular nos termos do art.590, a recuperação da energia consumida e não faturada deve observar os critérios dispostos no art. 595.
 
 Seção VIII
 
@@ -143,4 +143,4 @@ II - na falta ou inconsistência da informação do inciso I, considerar a difer
 
 III - a estimativa de consumo do inciso II deve ser calculada pela média diária de consumo das compras de crédito realizadas dos últimos 12 (doze) meses, e, se o histórico de compras for menor que 12 (doze) meses , pela média de compras dos meses disponíveis.
 
-Art. 588. A distribuidora deve fornecer ao consumidor as informações necessárias à operação do sistema de pré-pagamento ou de pós-pagamento eletrônico, e sobre as formas e locais de aquisição de créditos e de pagamento. Uso Interno CPFL
+Art. 588. A distribuidora deve fornecer ao consumidor as informações necessárias à operação do sistema de pré-pagamento ou de pós-pagamento eletrônico, e sobre as formas e locais de aquisição de créditos e de pagamento.

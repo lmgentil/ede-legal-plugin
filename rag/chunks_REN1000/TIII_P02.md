@@ -36,7 +36,7 @@ II - ano de 2022: deve ser realizada a revisão cadastral de pelo menos metade d
 
 III - ano de 2023: deve ser realizada a revisão cadastral do restante das unidades consumidoras do Grupo B que recebam benefícios tarifários das atividades de irrigação e de aquicultura.
 
-§ 1º No primeiro período de revisão cadastral, de 2021 a 2023, para comprovação do disposto no §7º do 0 será aceita a autodeclaração do consumidor, conforme modelo disponibilizado pela ANEEL. Uso Interno CPFL
+§ 1º No primeiro período de revisão cadastral, de 2021 a 2023, para comprovação do disposto no §7º do 0 será aceita a autodeclaração do consumidor, conforme modelo disponibilizado pela ANEEL.
 
 § 2º Para o consumidor que apresentar a autodeclaração no primeiro período de revisão cadastral a ausência de documentação para comprovação do disposto no §7º do art. 186 na revisão cadastral subsequente implicará:
 
@@ -70,7 +70,7 @@ I - coletar informações que permitam associar o cadastro da família no CadÚn
 
 II - realizar ampla campanha de divulgação voltada à classe residencial que ainda não receba a TSEE, de modo a esclarecer que em caso de cadastramento no CadÚnico e/ou no BPC a família deve entrar em contato com a distribuidora.
 
-§ 3º A distribuidora deve realizar a campanha do § 2º em sua página na internet, nas redes sociais, por meio de mensagens eletrônicas e outros meios de comunicação. Uso Interno CPFL
+§ 3º A distribuidora deve realizar a campanha do § 2º em sua página na internet, nas redes sociais, por meio de mensagens eletrônicas e outros meios de comunicação.
 
 § 4º A distribuidora deve entregar à ANEEL, conforme instruções, o resultado da busca realizada, até o último dia útil do mês subsequente ao término do prazo do § 1º.
 
@@ -112,7 +112,7 @@ n) novo relatório da apuração do cumprimento dos prazos e das suspensões ind
 
 o) novo relatório sobre as chamadas e funcionamento do atendimento telefônico do Módulo 8 do PRODIST;
 
-p) nova tipologia de classificação de demandas do Módulo 8 do PRODIST; Uso Interno CPFL
+p) nova tipologia de classificação de demandas do Módulo 8 do PRODIST;
 
 q) novo relatório mensal de demandas na distribuidora do Módulo 8 do PRODIST;
 
@@ -152,7 +152,7 @@ IV - até 31 de março de 2022, para as demais alterações.
 
 § 1º As disposições desta Resolução relativas à devolução em dobro, de que tratam os §§ 2º e 3º do art. 323, não se aplicam aos faturamentos a maior emitidos antes do prazo disposto no inciso IV do caput .
 
-§ 2º A distribuidora pode manter a cobrança pela arrecadação da contribuição para o custeio do serviço público de iluminação pública, no percentual de até 1% (um por cento) ou no percentual praticado em 9 de julho de 2020, data da publicação da Resolução Normativa ANEEL nº 888, de 30 de junho de 2020, o que for menor, até a data de homologação de próxima revisão tarifária periódica ocorrida após essa publicação, devendo a partir dessa revisão cessar tal cobrança. Uso Interno CPFL
+§ 2º A distribuidora pode manter a cobrança pela arrecadação da contribuição para o custeio do serviço público de iluminação pública, no percentual de até 1% (um por cento) ou no percentual praticado em 9 de julho de 2020, data da publicação da Resolução Normativa ANEEL nº 888, de 30 de junho de 2020, o que for menor, até a data de homologação de próxima revisão tarifária periódica ocorrida após essa publicação, devendo a partir dessa revisão cessar tal cobrança.
 
 § 3º Enquanto for mantida pela distribuidora a cobrança do § 2º, deve ser realizada a reversão parcial das receitas obtidas para propiciar a modicidade das tarifas do serviço de energia elétrica.
 

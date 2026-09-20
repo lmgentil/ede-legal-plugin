@@ -49,7 +49,7 @@ II - a cláusula compromissória dispondo que eventuais litígios devem ser reso
 
 III - ao aporte de garantias, provido por particular ou por pessoa jurídica de direito público internacional competente; e
 
-IV - a dispensa de registro. Uso Interno CPFL
+IV - a dispensa de registro.
 
 § 3º As condições para a realização dos atendimentos dispostos neste artigo, incluídos os padrões técnicos e comerciais, podem ser pactuadas livremente entre os contratantes, observadas as seguintes condições:
 
@@ -83,7 +83,7 @@ Seção VI
 
 Da Repercussão Tarifária
 
-Art. 645. As receitas obtidas pela distribuidora com as atividades dispostas neste Capítulo serão consideradas no cálculo das tarifas com o objetivo de contribuir para a modicidade das tarifas, conforme metodologia estabelecida pela ANEEL. Uso Interno CPFL
+Art. 645. As receitas obtidas pela distribuidora com as atividades dispostas neste Capítulo serão consideradas no cálculo das tarifas com o objetivo de contribuir para a modicidade das tarifas, conforme metodologia estabelecida pela ANEEL.
 
 Art. 646. A contratação de energia elétrica temporária com desconto na tarifa e a exportação de energia elétrica para pequenos mercados em região de fronteira devem ser informadas à ANEEL.
 

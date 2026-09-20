@@ -80,7 +80,7 @@ c) implantação de sistema de medição que permita a leitura remota;
 
 d) implantação de medição externa; e
 
-e) serviço de transferência do padrão de medição para o limite com a via pública. Uso Interno CPFL
+e) serviço de transferência do padrão de medição para o limite com a via pública.
 
 § 1º A distribuidora deve oferecer os serviços dispostos no caput em toda a sua área de atuação, com exceção dos seguintes serviços:
 
@@ -110,7 +110,7 @@ III - demais serviços do art. 623: conforme orçamento específico elaborado pe
 
 § 4º A cobrança do §3º não pode ser feita se ficar caracterizado que a distribuidora não informou previamente todos os motivos da reprovação em vistoria ou comissionamento anterior.
 
-§ 5º As cobranças dispostas neste artigo não se aplicam nos casos de autoatendimento, de que trata o art. 626. Uso Interno CPFL
+§ 5º As cobranças dispostas neste artigo não se aplicam nos casos de autoatendimento, de que trata o art. 626.
 
 § 6º A cobrança pela verificação da conformidade da tensão de conexão somente pode ser feita nas situações dispostas no PRODIST.
 
@@ -140,7 +140,7 @@ II - atividade atípica: atividade de natureza econômica cujo exercício seja e
 
 Art. 629. A distribuidora pode oferecer e prestar as atividades acessórias constantes neste artigo, observado o art. 663.
 
-§ 1º São consideradas atividades acessórias próprias: Uso Interno CPFL
+§ 1º São consideradas atividades acessórias próprias:
 
 I - arrecadação de convênios ou valores por meio da fatura de energia elétrica;
 
@@ -186,7 +186,7 @@ III - serviço de comunicação de dados; e
 
 IV - serviço de consultoria relacionado com as atividades acessórias dispostas nesta Resolução.
 
-§ 3º As atividades deste artigo caracterizam-se como atividades acessórias somente quando os custos decorrentes forem de responsabilidade do consumidor ou dos demais usuários ou do terceiro interessado. Uso Interno CPFL
+§ 3º As atividades deste artigo caracterizam-se como atividades acessórias somente quando os custos decorrentes forem de responsabilidade do consumidor ou dos demais usuários ou do terceiro interessado.
 
 § 4º A veiculação de propaganda ou publicidade na fatura de energia elétrica não deve interferir na clareza e no conteúdo das informações obrigatórias, sendo vedada a veiculação de mensagens com conteúdo político-partidário.
 

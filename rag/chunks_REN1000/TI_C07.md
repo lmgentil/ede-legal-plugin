@@ -47,7 +47,7 @@ III – 1 (uma) tarifa para o posto tarifário fora de ponta.
 
 Art. 213. A modalidade tarifária horária verde é caracterizada por:
 
-I -1 (uma) tarifa para a demanda, sem segmentação horária; Uso Interno CPFL
+I -1 (uma) tarifa para a demanda, sem segmentação horária;
 
 II - 1 (uma) tarifa para o consumo de energia elétrica para o posto tarifário ponta; e
 
@@ -89,7 +89,7 @@ a) das subclasses baixa renda da classe residencial;
 
 b) da classe iluminação pública; e
 
-c) faturada pela modalidade de pré-pagamento. Uso Interno CPFL
+c) faturada pela modalidade de pré-pagamento.
 
 Art. 220. A unidade consumidora do grupo A deve ser enquadrada nas seguintes modalidades tarifárias:
 
@@ -121,7 +121,7 @@ II - os prazos e procedimentos para conexão dispostos no Capítulo II, no caso 
 
 § 2º A adesão à tarifa branca de unidade consumidora do grupo A com opção de faturamento pelo grupo B deve ser feita por meio de aditivo contratual.
 
-Art. 223. O consumidor que aderiu à modalidade tarifária horária branca pode solicitar o retorno à modalidade tarifária convencional a qualquer tempo, devendo a distribuidora providenciá-lo em até 30 (trinta) dias. Uso Interno CPFL
+Art. 223. O consumidor que aderiu à modalidade tarifária horária branca pode solicitar o retorno à modalidade tarifária convencional a qualquer tempo, devendo a distribuidora providenciá-lo em até 30 (trinta) dias.
 
 Parágrafo único. Exercido o direito disposto no caput , nova adesão à tarifa branca só pode ocorrer após o prazo de 180 (cento e oitenta) dias ou, a critério da distribuidora, em prazo menor.
 
@@ -155,4 +155,4 @@ I - existência de acordo com o consumidor;
 
 II - aprovação prévia da ANEEL para cada unidade consumidora, desde que os benefícios sistêmicos sejam evidenciados em estudos elaborados pela distribuidora; e
 
-III - o posto tarifário ponta deve ter duração de 3 (três) horas consecutivas e ser aplicado em 5 (cinco) dias da semana. Uso Interno CPFL
+III - o posto tarifário ponta deve ter duração de 3 (três) horas consecutivas e ser aplicado em 5 (cinco) dias da semana.

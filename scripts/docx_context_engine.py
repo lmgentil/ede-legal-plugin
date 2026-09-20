@@ -52,6 +52,7 @@ from docx_package import PacoteDocxAbortada, extrair_pacote_docx
 from docx_template_engine import _PLACEHOLDER_RE
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+MC = "http://schemas.openxmlformats.org/markup-compatibility/2006"
 NS = {"w": W}
 
 # Mesmo critério estrutural já auditado/usado por docx_numeracao_engine.py
@@ -80,8 +81,28 @@ class ContextoAbortada(Exception):
         super().__init__(f"stage={stage} — {motivo}")
 
 
+def _dentro_de_fallback(t) -> bool:
+    """`True` se `t` (um `<w:t>`) descende de um `<mc:Fallback>` — o ramo
+    de compatibilidade legada (VML) que qualquer forma/textbox ancorada
+    moderna (`<mc:AlternateContent>`) carrega ao lado do `<mc:Choice>`
+    real, só para permitir abrir em versões antigas do Word. O Word
+    moderno NUNCA renderiza o `mc:Fallback` quando o `mc:Choice` é
+    suportado — mas `p.iter(...)` soma as duas representações do MESMO
+    texto, dobrando qualquer título/texto que viva dentro de uma forma
+    ancorada. Achado real (Gate 6.5-B3): o título de seção "PRELIMINARES"
+    do Modelo Oficial vive numa dessas formas e saía como
+    "PRELIMINARESPRELIMINARES" — o Modelo Oficial está correto; o defeito
+    era desta extração, nunca do template."""
+    for ancestral in t.iterancestors():
+        if ancestral.tag == f"{{{MC}}}Fallback":
+            return True
+    return False
+
+
 def _texto_paragrafo(p) -> str:
-    return "".join(t.text or "" for t in p.iter(_qn("t")))
+    return "".join(
+        (t.text or "") for t in p.iter(_qn("t")) if not _dentro_de_fallback(t)
+    )
 
 
 def _eh_titulo_nivel1(p) -> bool:

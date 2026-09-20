@@ -45,7 +45,7 @@ Seção III
 
 Das Condições para a Prestação e Cobrança de Atividades Acessórias ou Atípicas
 
-Art. 633. A prestação e a cobrança de atividades acessórias e atípicas estão condicionadas à prévia solicitação do consumidor ou dos demais usuários, formalizada por escrito ou por outro meio que possibilite comprovação. Uso Interno CPFL
+Art. 633. A prestação e a cobrança de atividades acessórias e atípicas estão condicionadas à prévia solicitação do consumidor ou dos demais usuários, formalizada por escrito ou por outro meio que possibilite comprovação.
 
 § 1º A distribuidora é responsável pela comprovação da solicitação disposta no caput , ainda que se trate de serviços ou produtos de terceiros que possuam convênio de arrecadação na fatura.
 
@@ -69,7 +69,7 @@ Art. 635. O consumidor e demais usuários podem solicitar à distribuidora, a qu
 
 § 2º O disposto no § 1º não se aplica ao caso de fatura que já tenha sido emitida antes da solicitação de cancelamento.
 
-§ 3º Caso a fatura reclamada não tenha sido paga até a solicitação de cancelamento, a distribuidora deve emitir nova fatura com o prazo para vencimento de pelo menos 5 (cinco) dias úteis contados da data da apresentação. Uso Interno CPFL
+§ 3º Caso a fatura reclamada não tenha sido paga até a solicitação de cancelamento, a distribuidora deve emitir nova fatura com o prazo para vencimento de pelo menos 5 (cinco) dias úteis contados da data da apresentação.
 
 § 4º Os custos decorrentes do procedimento definido no § 3º não devem ser imputados ao consumidor e demais usuários.
 
@@ -93,9 +93,7 @@ Art. 640. A distribuidora não pode fazer uso compartilhado de recursos humanos 
 
 Parágrafo único. O compartilhamento de materiais deve se dar de forma onerosa, sem prejuízo para a concessão ou permissão do serviço público de energia elétrica.
 
-Art. 641. A distribuidora não pode utilizar os canais de atendimento ao consumidor e demais usuários para oferecer ou para comercializar serviço ou produto Uso Interno CPFL
-
-de terceiros, mas deve disponibilizá-los para o atendimento da solicitação de cancelamento do art. 635, ou para o recebimento de reclamações de cobranças indevidas.
+Art. 641. A distribuidora não pode utilizar os canais de atendimento ao consumidor e demais usuários para oferecer ou para comercializar serviço ou produto de terceiros, mas deve disponibilizá-los para o atendimento da solicitação de cancelamento do art. 635, ou para o recebimento de reclamações de cobranças indevidas.
 
 Parágrafo único. No caso de recebimento de reclamação ou solicitação de informação sobre a prestação de serviço ou produto de terceiros, o consumidor e demais usuários devem ser orientados a contatar o terceiro responsável pelo serviço ou produto.
 
@@ -125,7 +123,7 @@ V - demais condições relacionadas com as especificidades do fornecimento dispo
 
 § 4º A distribuidora pode interromper o fornecimento de energia elétrica temporária com desconto na tarifa, desde que informado ao consumidor com pelo menos 30 (trinta) dias de antecedência.
 
-§ 5º Caso haja restrições técnicas ao montante de energia solicitado pelo consumidor, a distribuidora deve informá-lo por escrito e indicar, se for o caso, a possibilidade de atendimento parcial. Uso Interno CPFL
+§ 5º Caso haja restrições técnicas ao montante de energia solicitado pelo consumidor, a distribuidora deve informá-lo por escrito e indicar, se for o caso, a possibilidade de atendimento parcial.
 
 § 6º Quando o montante de energia solicitado for maior que a oferta da distribuidora, o atendimento deve ser priorizado aos interessados que primeiro formalizarem a sua solicitação.
 

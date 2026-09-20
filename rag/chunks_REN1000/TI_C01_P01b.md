@@ -37,7 +37,7 @@ XXXVI - pós-pagamento eletrônico: modalidade de faturamento em que as informa�
 
 XXXVII - posto de transformação: compreende o transformador de distribuição e seus acessórios, tais como os dispositivos de manobra, controle, proteção e demais materiais necessários para as obras civis e estruturas de montagem;
 
-XXXVIII - posto tarifário: período em horas para aplicação das tarifas de forma diferenciada ao longo do dia, considerando a seguinte divisão: Uso Interno CPFL
+XXXVIII - posto tarifário: período em horas para aplicação das tarifas de forma diferenciada ao longo do dia, considerando a seguinte divisão:
 
 a) posto tarifário ponta: período composto por 3 horas diárias consecutivas definidas pela distribuidora considerando a curva de carga de seu sistema elétrico, aprovado pela ANEEL para toda a área de concessão ou permissão, não se aplicando aos sábados, domingos, terça-feira de carnaval, sexta-feira da Paixão, Corpus Christi e aos feriados nacionais dos dias 1º de janeiro, 21 de abril, 1º de maio, 7 de setembro, 12 de outubro, 2 de novembro, 15 de novembro e 25 de dezembro;
 
@@ -75,7 +75,7 @@ h) unidade operacional de serviço público de telecomunicações;
 
 i) guarda, uso e controle de substâncias radioativas, equipamentos e materiais nucleares;
 
-j) processamento de dados ligados a serviços essenciais; Uso Interno CPFL
+j) processamento de dados ligados a serviços essenciais;
 
 k) centro de controle público de tráfego aéreo, marítimo e urbano;
 
@@ -109,7 +109,7 @@ b) medição individualizada;
 
 c) pertencente a um único consumidor; e
 
-d) localizado em um mesmo imóvel ou em imóveis contíguos; Uso Interno CPFL
+d) localizado em um mesmo imóvel ou em imóveis contíguos;
 
 LI - usuário: pessoa física ou jurídica que se beneficia ou utiliza, efetiva ou potencialmente, do serviço público de distribuição de energia elétrica, a exemplo de consumidor, gerador, produtor independente, autoprodutor, outra distribuidora e agente importador ou exportador.
 

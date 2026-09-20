@@ -59,7 +59,7 @@ IV - agente exportador; e
 
 V - agente importador.
 
-§ 2º A aplicação desta Resolução é complementada pelos Procedimentos de Distribuição de Energia Elétrica no Sistema Elétrico Nacional – PRODIST e pelos Procedimentos de Regulação Tarifária - PRORET. Uso Interno CPFL
+§ 2º A aplicação desta Resolução é complementada pelos Procedimentos de Distribuição de Energia Elétrica no Sistema Elétrico Nacional – PRODIST e pelos Procedimentos de Regulação Tarifária - PRORET.
 
 § 3º A aplicação desta Resolução não afasta a necessidade de cumprimento do disposto na regulação da ANEEL e na legislação, em especial:
 
@@ -87,7 +87,7 @@ V - ciclo de faturamento: intervalo de tempo correspondente ao faturamento de de
 
 VI - concessionária: agente titular de concessão federal para prestar o serviço público de distribuição de energia elétrica, de agora em diante denominado distribuidora;
 
-VII - consumidor: pessoa física ou jurídica que solicite o fornecimento do serviço à distribuidora, assumindo as obrigações decorrentes desta prestação à sua unidade consumidora; Uso Interno CPFL
+VII - consumidor: pessoa física ou jurídica que solicite o fornecimento do serviço à distribuidora, assumindo as obrigações decorrentes desta prestação à sua unidade consumidora;
 
 VIII - consumidor especial: consumidor livre ou o conjunto de consumidores livres reunidos por comunhão de interesses de fato ou de direito, cuja carga seja maior ou igual a 500 kW e que tenha adquirido energia elétrica na forma estabelecida no § 5º do art. 26 da Lei nº 9.427, de 26 de dezembro de 1996;
 
@@ -113,7 +113,7 @@ XVIII - exportador: agente titular de autorização federal para exportar energi
 
 XIX - fator de carga: razão entre a demanda média e a demanda máxima da unidade consumidora, ocorridas no mesmo intervalo de tempo;
 
-XX - fator de demanda: razão entre a demanda máxima num intervalo de tempo e a carga instalada na unidade consumidora; Uso Interno CPFL
+XX - fator de demanda: razão entre a demanda máxima num intervalo de tempo e a carga instalada na unidade consumidora;
 
 XXI - fator de potência: razão entre a energia elétrica ativa e a raiz quadrada da soma dos quadrados das energias elétricas ativa e reativa, consumidas num mesmo período;
 
@@ -147,7 +147,7 @@ XXV - importador: agente titular de autorização federal para importar energia 
 
 XXVI - infraestrutura local: infraestrutura necessária à administração e operação da central geradora, tais como sistemas e edificações diversos (almoxarifado, oficinas, iluminação externa etc.), não incluindo serviços auxiliares;
 
-XXVII - inspeção: fiscalização posterior à conexão para verificar a adequação aos padrões técnicos e de segurança da distribuidora, o funcionamento do sistema de medição e a confirmação dos dados cadastrais; Uso Interno CPFL
+XXVII - inspeção: fiscalização posterior à conexão para verificar a adequação aos padrões técnicos e de segurança da distribuidora, o funcionamento do sistema de medição e a confirmação dos dados cadastrais;
 
 XXVIII - instalações de interesse restrito: instalações de central geradora, exportador ou importador de energia, que tenham a finalidade de interligação até o ponto de conexão, podendo ser denominadas de instalações de uso exclusivo;
 

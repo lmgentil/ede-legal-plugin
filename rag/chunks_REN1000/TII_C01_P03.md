@@ -46,7 +46,7 @@ Art. 471. Para realização do faturamento mensal, a distribuidora deve atualiza
 
 § 5º A distribuidora não pode aplicar penalidades por falhas no funcionamento do sistema de iluminação pública, exceto as expressamente dispostas nesta Resolução.
 
-§ 6º Em caso de violação dos limites de continuidade individuais das unidades consumidoras da classe iluminação pública, a distribuidora deve calcular e creditar a compensação na fatura, conforme Módulo 8 do PRODIST. Uso Interno CPFL
+§ 6º Em caso de violação dos limites de continuidade individuais das unidades consumidoras da classe iluminação pública, a distribuidora deve calcular e creditar a compensação na fatura, conforme Módulo 8 do PRODIST.
 
 Art. 472. O faturamento dos pontos de iluminação pública sem medição da distribuidora deve ser realizado em uma única fatura, considerando o consumo apurado para a unidade consumidora que agrega todos os pontos.
 
@@ -74,9 +74,7 @@ Seção VI
 
 Dos Contratos
 
-Art. 475. A contratação do serviço de distribuição de energia elétrica pelo poder público municipal para o serviço de iluminação pública deve observar as Uso Interno CPFL
-
-disposições aplicáveis às unidades consumidoras dos grupos A e B, de que tratam o art. 123 e seguintes desta Resolução.
+Art. 475. A contratação do serviço de distribuição de energia elétrica pelo poder público municipal para o serviço de iluminação pública deve observar as disposições aplicáveis às unidades consumidoras dos grupos A e B, de que tratam o art. 123 e seguintes desta Resolução.
 
 § 1º Deve ser celebrado um único contrato do grupo B para a unidade consumidora que agrega os pontos de iluminação pública sem medição da distribuidora, conforme modelo de adesão constante do Anexo I.
 
@@ -98,9 +96,7 @@ Art. 476. A contribuição para o custeio do serviço de iluminação pública, 
 
 Art. 477. A distribuidora deve fornecer ao poder público municipal as informações necessárias para gestão tributária e operacionalização da cobrança da contribuição para o custeio do serviço de iluminação pública na fatura de energia.
 
-§ 1º O disposto no caput inclui as informações de identificação do consumidor e demais usuários, conforme incisos I e II do art. 67 e as informações de Uso Interno CPFL
-
-consumo ou outros itens do faturamento utilizados no cálculo e cobrança da contribuição.
+§ 1º O disposto no caput inclui as informações de identificação do consumidor e demais usuários, conforme incisos I e II do art. 67 e as informações de consumo ou outros itens do faturamento utilizados no cálculo e cobrança da contribuição.
 
 § 2º O prazo para o encaminhamento das informações solicitadas é de até 30 (trinta) dias a partir da solicitação, exceto se houver prazo diferente na legislação e demais atos normativos do poder municipal.
 

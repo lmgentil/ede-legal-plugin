@@ -47,7 +47,7 @@ Art. 649. A distribuidora deve ressarcir os proprietários das instalações pel
 
 § 2º As redes sem identificação dos proprietários devem ser incorporadas de forma gratuita.
 
-§ 3º Caso não se disponha da documentação comprobatória da data de entrada em serviço das redes, a distribuidora deve adotar a data de início do fornecimento à unidade consumidora constante do cadastro. Uso Interno CPFL
+§ 3º Caso não se disponha da documentação comprobatória da data de entrada em serviço das redes, a distribuidora deve adotar a data de início do fornecimento à unidade consumidora constante do cadastro.
 
 Art. 650. A distribuidora deve enviar o contrato de incorporação para o proprietário de redes particulares, informando o valor do ressarcimento, calculado nos termos deste Capítulo, objetivando resguardar os direitos e as obrigações recíprocas envolvidas.
 
@@ -73,4 +73,4 @@ Parágrafo único. A ANEEL analisará a documentação apresentada e, se cumprid
 
 Art. 654. No caso de redes instaladas e que obtiverem autorização do poder concedente, o proprietário deve, obrigatoriamente, atender ao estabelecido nas normas da Associação Brasileira de Normas Técnicas – ABNT e na Norma Regulamentadora nº 10 – Segurança em Instalações e Serviços de Eletricidade, aprovada pela Portaria do Ministério do Trabalho e Emprego nº 598, de 7 de dezembro de 2004.
 
-Art. 655. Compete ao detentor de redes particulares, quando solicitado, a comprovação documental, junto à distribuidora, da propriedade dos ativos envolvidos e do ato autorizativo do poder concedente. Uso Interno CPFL
+Art. 655. Compete ao detentor de redes particulares, quando solicitado, a comprovação documental, junto à distribuidora, da propriedade dos ativos envolvidos e do ato autorizativo do poder concedente.

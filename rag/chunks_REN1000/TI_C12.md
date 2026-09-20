@@ -28,7 +28,7 @@ DO INADIMPLEMENTO
 
 Seção I
 
-Dos Acréscimos Moratórios Uso Interno CPFL
+Dos Acréscimos Moratórios
 
 Art. 343. No caso de atraso no pagamento da fatura, a distribuidora pode cobrar multa, atualização monetária pelo Índice Nacional de Preços ao Consumidor Amplo - IPCA e juros de mora de 1% (um por cento) ao mês calculados pro rata die .
 
@@ -72,7 +72,7 @@ acréscimos.
 
 Seção III
 
-Das Garantias Uso Interno CPFL
+Das Garantias
 
 Art. 345. A distribuidora pode exigir o oferecimento de garantias, limitadas ao valor do débito, quando houver inadimplemento de mais de uma fatura mensal durante um período de 12 (doze) meses.
 
@@ -108,7 +108,7 @@ Das Restrições pelo Inadimplemento
 
 Art. 346. Quando o consumidor e demais usuários solicitarem os serviços dispostos nesta Resolução, a exemplo de conexão nova, alteração de titularidade, religação, aumento de carga e a contratação de fornecimentos especiais, a distribuidora não pode exigir ou condicionar a execução:
 
-I - ao pagamento de débito não autorizado pelo consumidor e demais usuários ou de débito de titularidade de terceiros; Uso Interno CPFL
+I - ao pagamento de débito não autorizado pelo consumidor e demais usuários ou de débito de titularidade de terceiros;
 
 II - à assinatura de qualquer termo em que o consumidor e demais usuários assumam a responsabilidade por débito de titularidade de terceiros, a exemplo de termo de aceite, de assunção, de responsabilidade ou de confissão de dívida; ou
 
@@ -136,7 +136,7 @@ Seção V
 
 Da Declaração de Quitação Anual
 
-Art. 349. A distribuidora deve encaminhar a declaração de quitação anual de débitos ao consumidor e demais usuários, sem custos, até o mês de maio do ano seguinte, podendo ser emitida em espaço da própria fatura. Uso Interno CPFL
+Art. 349. A distribuidora deve encaminhar a declaração de quitação anual de débitos ao consumidor e demais usuários, sem custos, até o mês de maio do ano seguinte, podendo ser emitida em espaço da própria fatura.
 
 § 1 o A declaração de quitação anual de débitos compreende as faturas do
 

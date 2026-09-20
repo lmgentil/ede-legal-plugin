@@ -53,7 +53,7 @@ IX - impostos e contribuições incidentes; e
 
 X - código para pagamento e linha numérica digitável ou, caso aplicável, mensagem indicativa de que o pagamento será realizado por meio de débito automático.
 
-§ 1º A distribuidora pode disponibilizar gratuitamente códigos de pagamento de resposta rápida alternativos ( QR Code ou outro), endereço digital ou informação equivalente e, em caso de substituição do código usual, mediante prévio consentimento. Uso Interno CPFL
+§ 1º A distribuidora pode disponibilizar gratuitamente códigos de pagamento de resposta rápida alternativos ( QR Code ou outro), endereço digital ou informação equivalente e, em caso de substituição do código usual, mediante prévio consentimento.
 
 § 2º A distribuidora deve discriminar na fatura os valores da energia faturada na modalidade tarifária horária branca por posto tarifário, informando a tarifa aplicada.
 
@@ -83,7 +83,7 @@ II - a inclusão deve ser comprovadamente autorizada, mediante manifestação vo
 
 III - o consumidor e demais usuários podem, a qualquer tempo, solicitar a exclusão das cobranças à distribuidora.
 
-Art. 332. A distribuidora pode incluir na fatura publicidade, propaganda e outras informações de interesse do consumidor e demais usuários, observadas as seguintes condições: Uso Interno CPFL
+Art. 332. A distribuidora pode incluir na fatura publicidade, propaganda e outras informações de interesse do consumidor e demais usuários, observadas as seguintes condições:
 
 I - não pode interferir ou prejudicar as informações obrigatórias; e
 
@@ -115,7 +115,7 @@ Art. 335. No caso de instalações localizadas em área não atendida pelo servi
 
 I - a distribuidora, após prévia informação ao consumidor e demais usuários, pode disponibilizar a fatura, as correspondências e as notificações no posto de atendimento presencial mais próximo; ou
 
-II - o consumidor e demais usuários podem indicar outro endereço atendido pelo serviço postal, sem a cobrança de despesas adicionais. Uso Interno CPFL
+II - o consumidor e demais usuários podem indicar outro endereço atendido pelo serviço postal, sem a cobrança de despesas adicionais.
 
 Art. 336. As comunicações que exigem entrega comprovada somente podem ser realizadas por meio eletrônico nos casos em que a solução tecnológica utilizada assegure o monitoramento da entrega e a rastreabilidade.
 
@@ -151,7 +151,7 @@ II - a consolidação dos valores faturados das instalações de um mesmo titula
 
 III - outros meios de pagamento.
 
-§ 1º A implementação do disposto nos incisos I a III deve ser precedida de autorização expressa de cada titular, que pode cancelá-la a qualquer tempo. Uso Interno CPFL
+§ 1º A implementação do disposto nos incisos I a III deve ser precedida de autorização expressa de cada titular, que pode cancelá-la a qualquer tempo.
 
 § 2º No caso do inciso II, a distribuidora deve emitir as faturas correspondentes a cada instalação sempre que solicitado pelo consumidor e demais usuários.
 

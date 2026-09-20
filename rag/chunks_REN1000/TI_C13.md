@@ -37,7 +37,7 @@ Art. 350. A distribuidora deve interromper imediatamente a conexão com o sistem
 
 Art. 351. A distribuidora deve interromper imediatamente a interligação se constatar o fornecimento de energia elétrica a terceiros por aquele que não possua outorga federal para distribuição de energia elétrica.
 
-Parágrafo único. Havendo impossibilidade técnica para interromper ainterligação, a distribuidora deve suspender o fornecimento de energia elétrica à instalação da qual provenha a interligação. Uso Interno CPFL
+Parágrafo único. Havendo impossibilidade técnica para interromper ainterligação, a distribuidora deve suspender o fornecimento de energia elétrica à instalação da qual provenha a interligação.
 
 Art. 352. A distribuidora deve suspender o fornecimento de energia elétrica quando inexistir contrato vigente por responsabilidade exclusiva do consumidor, observadas as condições estabelecidas no art. 144.
 
@@ -73,7 +73,7 @@ Da Suspensão Precedida de Notificação
 
 Art. 355. A distribuidora pode suspender o fornecimento de energia elétrica por razões de ordem técnica ou de segurança nas instalações do consumidor e demais usuários, precedida da notificação do art. 360, nos seguintes casos:
 
-I - impedimento de acesso para fins de leitura, substituição de medidor e inspeções; Uso Interno CPFL
+I - impedimento de acesso para fins de leitura, substituição de medidor e inspeções;
 
 II - inexecução das correções indicadas no prazo informado pela distribuidora, no caso de constatação de deficiência não emergencial nas instalações do consumidor e demais usuários; ou
 
@@ -99,7 +99,7 @@ Art. 357. É vedada a suspensão do fornecimento após o decurso do prazo de 90 
 
 Parágrafo único. Na situação de impedimento de execução disposta no caput , a contagem do prazo deve ser suspensa pelo período do impedimento.
 
-Art. 358. A suspensão por inadimplemento para a unidade consumidora classificada nas subclasses residencial baixa renda deve ocorrer com intervalo de pelo menos 30 (trinta) dias entre a data de vencimento da fatura e a data da efetiva suspensão. Uso Interno CPFL
+Art. 358. A suspensão por inadimplemento para a unidade consumidora classificada nas subclasses residencial baixa renda deve ocorrer com intervalo de pelo menos 30 (trinta) dias entre a data de vencimento da fatura e a data da efetiva suspensão.
 
 Art. 359. A distribuidora deve adotar o horário das 8 (oito) horas às 18 (dezoito) horas para a execução da suspensão do fornecimento por inadimplemento, sendo vedada às sextas-feiras, sábados, domingos, vésperas de feriados e nos feriados.
 
@@ -141,7 +141,7 @@ Seção VI
 
 Da Suspensão Indevida
 
-Art. 361. A suspensão do fornecimento de energia elétrica é considerada indevida se: Uso Interno CPFL
+Art. 361. A suspensão do fornecimento de energia elétrica é considerada indevida se:
 
 I - o pagamento da fatura tiver sido realizado até a data limite contida na notificação para suspensão do fornecimento; ou
 
@@ -177,7 +177,7 @@ II - o consumidor e demais usuários devem comprovar a quitação dos débitos s
 
 Art. 363. A implantação do serviço de religação de urgência é opcional para a distribuidora, devendo abranger a totalidade das áreas urbanas ou rurais dos municípios onde for implantada.
 
-Art. 364. A distribuidora deve informar ao consumidor e demais usuários os valores, prazos e período do dia em que serão realizados os serviços de religação normal e de urgência. Uso Interno CPFL
+Art. 364. A distribuidora deve informar ao consumidor e demais usuários os valores, prazos e período do dia em que serão realizados os serviços de religação normal e de urgência.
 
 Art. 365. A realização da religação normal ou de urgência implica cobrança do serviço, conforme valores homologados pela ANEEL.
 
@@ -209,7 +209,7 @@ Art. 367. A religação das instalações do consumidor e demais usuários à re
 
 I - nova suspensão do fornecimento de energia elétrica de forma imediata;
 
-II - possibilidade de cobrança do custo administrativo de inspeção, conforme valores homologados pela ANEEL; e Uso Interno CPFL
+II - possibilidade de cobrança do custo administrativo de inspeção, conforme valores homologados pela ANEEL; e
 
 III - faturamento de eventuais valores registrados e demais cobranças dispostas nesta Resolução.
 

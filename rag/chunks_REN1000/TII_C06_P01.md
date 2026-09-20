@@ -52,7 +52,7 @@ V - seja enquadrada na modalidade tarifária horária branca; ou
 
 VI - possua descontos tarifários em virtude de atividade destinada à irrigação e aquicultura.
 
-§ 2º No atendimento de comunidades e povoados isolados que utilizem sistemas coletivos ou individuais de geração, a distribuidora pode oferecer as modalidades de faturamento dispostas neste Capítulo por localidade. Uso Interno CPFL
+§ 2º No atendimento de comunidades e povoados isolados que utilizem sistemas coletivos ou individuais de geração, a distribuidora pode oferecer as modalidades de faturamento dispostas neste Capítulo por localidade.
 
 § 3º A distribuidora deve comunicar à ANEEL, com pelo menos 30 (trinta) dias de antecedência, a data de início da implantação das modalidades de faturamento dispostas neste Capítulo.
 
@@ -82,7 +82,7 @@ Art. 564. A distribuidora deve atender gratuitamente ao consumidor que solicitar
 
 § 3 o Para novas solicitações de fornecimento, a distribuidora deve observar os procedimentos e prazos dispostos no Capítulo II do Título I.
 
-§ 4 o Na modalidade de pré-pagamento, a distribuidora deve disponibilizar ao consumidor um crédito inicial de 20 kWh, o qual deve ser pago pelo consumidor quando da sua primeira compra de créditos. Uso Interno CPFL
+§ 4 o Na modalidade de pré-pagamento, a distribuidora deve disponibilizar ao consumidor um crédito inicial de 20 kWh, o qual deve ser pago pelo consumidor quando da sua primeira compra de créditos.
 
 § 5o A distribuidora pode condicionar a adesão do consumidor às modalidades de faturamento à quitação de débito existente.
 
@@ -112,9 +112,7 @@ Art. 570. A distribuidora pode, mediante concordância do consumidor, compensar 
 
 Art. 571. A distribuidora deve observar, na aplicação da tarifa nas modalidades de faturamento de pré-pagamento e pós-pagamento eletrônico, os descontos aos quais o consumidor tenha direito.
 
-Parágrafo único. Na modalidade de pré-pagamento, a aplicação dos descontos deve considerar a totalidade dos créditos adquiridos no decorrer do mês civil, Uso Interno CPFL
-
-não sendo o crédito de meses anteriores objeto da aplicação de novos descontos em meses subsequentes.
+Parágrafo único. Na modalidade de pré-pagamento, a aplicação dos descontos deve considerar a totalidade dos créditos adquiridos no decorrer do mês civil, não sendo o crédito de meses anteriores objeto da aplicação de novos descontos em meses subsequentes.
 
 Art. 572. Nas modalidades de faturamento de pré-pagamento e pós-pagamento eletrônico, a distribuidora deve fornecer ao consumidor, no ato da compra de créditos ou do pagamento, comprovante em meio físico ou eletrônico contendo, no mínimo, as seguintes informações:
 
@@ -148,7 +146,7 @@ X - valor da compra ou do pagamento, em Real (R$).
 
 § 5 o No caso de perda ou extravio de comprovante de compra que não tenha sido utilizado, a distribuidora deve disponibilizar, mediante solicitação do consumidor, as informações necessárias à realização da recarga de créditos no sistema de medição.
 
-Art. 573. O valor da compensação a que o consumidor atendido na modalidade de pré-pagamento tenha direito deve ser incluído na primeira compra realizada a partir do segundo mês subsequente ao período de apuração. Uso Interno CPFL
+Art. 573. O valor da compensação a que o consumidor atendido na modalidade de pré-pagamento tenha direito deve ser incluído na primeira compra realizada a partir do segundo mês subsequente ao período de apuração.
 
 Parágrafo único. O encargo de uso do sistema de distribuição deve considerar a média de créditos mensais comprados nos últimos 12 (doze) meses ou, no caso de unidade consumidora com histórico de compras menor, a média para os meses disponíveis.
 

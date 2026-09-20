@@ -47,9 +47,7 @@ III - autorizar o consumidor a consertar o equipamento, sem que isso represente 
 
 § 6º A distribuidora não pode cobrar pela realização da verificação local.
 
-Art. 615. Após o vencimento do prazo do art. 613 ou após a realização da verificação local, o consumidor pode alterar as características do equipamento objeto Uso Interno CPFL
-
-do pedido de ressarcimento, ou consertá-lo, independentemente de autorização da distribuidora.
+Art. 615. Após o vencimento do prazo do art. 613 ou após a realização da verificação local, o consumidor pode alterar as características do equipamento objeto do pedido de ressarcimento, ou consertá-lo, independentemente de autorização da distribuidora.
 
 Art. 616. A distribuidora pode solicitar ao consumidor, no máximo, 2 (dois) laudos e orçamentos de oficina não credenciada, ou um laudo e orçamento de oficina credenciada, sem que isso represente compromisso em ressarcir, observando que:
 
@@ -81,7 +79,7 @@ I - identificação da unidade consumidora e de seu titular;
 
 II - data da solicitação, do seu número ou do processo específico;
 
-III - esclarecimento sobre o direito do consumidor registrar reclamação na Ouvidoria da distribuidora, com o telefone, endereço e demais canais de atendimento disponibilizados para contato; Uso Interno CPFL
+III - esclarecimento sobre o direito do consumidor registrar reclamação na Ouvidoria da distribuidora, com o telefone, endereço e demais canais de atendimento disponibilizados para contato;
 
 IV - no caso de indeferimento, indicação de um dos motivos listados no Módulo 9 do PRODIST, e a transcrição do dispositivo normativo que fundamentou o indeferimento; e
 
@@ -115,7 +113,7 @@ VI - é vedada a redução do valor do ressarcimento em função da idade do equ
 
 distribuidora pode condicionar o ressarcimento à entrega das peças danificadas ou do equipamento substituído, na unidade consumidora ou nas oficinas credenciadas.
 
-§ 3º Não é considerado ressarcimento: Uso Interno CPFL
+§ 3º Não é considerado ressarcimento:
 
 I - o conserto parcial do bem danificado, de modo que este não retorne à condição anterior ao dano;
 
@@ -153,6 +151,6 @@ VI - comprovar a ocorrência de procedimento irregular que tenha causado o dano 
 
 VII - comprovar a ocorrência de religação da unidade consumidora à revelia;
 
-VIII - comprovar que o dano foi ocasionado por interrupções associadas à situação de emergência ou de calamidade pública decretada por órgão competente, desde que comprovadas por meio documental ao consumidor; ou Uso Interno CPFL
+VIII - comprovar que o dano foi ocasionado por interrupções associadas à situação de emergência ou de calamidade pública decretada por órgão competente, desde que comprovadas por meio documental ao consumidor; ou
 
 IX - o solicitante manifestar a desistência do processo de ressarcimento antes da resposta da distribuidora.

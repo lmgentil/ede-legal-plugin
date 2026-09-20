@@ -50,7 +50,7 @@ II - casos que tenham decisão judicial transitada em julgado.
 
 Seção II
 
-Das Condições para a Solicitação de Ressarcimento Uso Interno CPFL
+Das Condições para a Solicitação de Ressarcimento
 
 Art. 600. A distribuidora deve disponibilizar pelo menos os seguintes canais para o consumidor solicitar o ressarcimento:
 
@@ -88,7 +88,7 @@ IX - o laudo emitido por profissional qualificado, quando o equipamento já tive
 
 § 1º Para solicitação de ressarcimento feita em até 90 (noventa) dias da data provável da ocorrência do dano elétrico, é vedado à distribuidora exigir os elementos indicados nos incisos VI, VII e IX do caput .
 
-§ 2º A distribuidora pode dispensar a apresentação de nota fiscal ou outro documento que comprove a aquisição, de que trata o inciso VI do caput , nos casos em que o equipamento conste da relação de carga do cadastro do consumidor, desde que a última atualização da carga tenha sido realizada antes da data provável da ocorrência do dano. Uso Interno CPFL
+§ 2º A distribuidora pode dispensar a apresentação de nota fiscal ou outro documento que comprove a aquisição, de que trata o inciso VI do caput , nos casos em que o equipamento conste da relação de carga do cadastro do consumidor, desde que a última atualização da carga tenha sido realizada antes da data provável da ocorrência do dano.
 
 § 3º Podem ser objeto de pedido de ressarcimento equipamentos alimentados por energia elétrica conectados na unidade consumidora, sendo vedada a exigência de comprovação da propriedade do consumidor sobre o equipamento.
 
@@ -116,7 +116,7 @@ II - a obrigação de permitir o acesso aos equipamentos objeto da solicitação
 
 III - o número do protocolo da solicitação ou do processo; e
 
-IV - os prazos para verificação, resposta e ressarcimento. Uso Interno CPFL
+IV - os prazos para verificação, resposta e ressarcimento.
 
 Seção III
 
@@ -160,7 +160,7 @@ I - fazer verificação do equipamento danificado no local;
 
 II - retirar o equipamento para análise; ou
 
-III - solicitar que o consumidor encaminhe o equipamento para oficina credenciada pela distribuidora. Uso Interno CPFL
+III - solicitar que o consumidor encaminhe o equipamento para oficina credenciada pela distribuidora.
 
 Parágrafo único. O impedimento de acesso às instalações da unidade consumidora ou aos equipamentos objeto da solicitação é motivo para a distribuidora indeferir o ressarcimento, devendo a comprovação do impedimento ser juntada ao processo.
 

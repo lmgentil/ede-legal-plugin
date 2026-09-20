@@ -44,7 +44,7 @@ III - por meio da autoleitura efetuada pelo consumidor.
 
 Seção II
 
-Do Período de Leitura Uso Interno CPFL
+Do Período de Leitura
 
 Art. 260. A leitura do sistema de medição para o grupo B deve ser realizada em intervalos de aproximadamente 30 (trinta) dias, observados o mínimo de 27 (vinte e sete) e o máximo de 33 (trinta e três) dias, de acordo com o calendário de leitura.
 
@@ -76,7 +76,7 @@ Art. 267. A distribuidora deve orientar o consumidor sobre a realização da aut
 
 Parágrafo único. O não envio dos dados pelo consumidor ou a recusa de uso das informações recebidas no âmbito da autoleitura não eximem a distribuidora da obrigação de efetuar a leitura.
 
-Art. 268. O sistema comercial da distribuidora deve registrar os ciclos em que o faturamento foi realizado com informação de autoleitura. Uso Interno CPFL
+Art. 268. O sistema comercial da distribuidora deve registrar os ciclos em que o faturamento foi realizado com informação de autoleitura.
 
 Art. 269. Caso a autoleitura resulte em faturamento incorreto, deve-se observar o disposto no art. 323.
 
@@ -108,7 +108,7 @@ Art. 277. O impedimento de acesso para fins de leitura é caracterizado pela oco
 
 I - o medidor se encontra em ambiente interno ao imóvel da unidade consumidora, sem livre acesso ao leiturista; e
 
-II - a leitura local não é realizada por responsabilidade do consumidor. Uso Interno CPFL
+II - a leitura local não é realizada por responsabilidade do consumidor.
 
 Parágrafo Único. A leitura frustrada em medidores localizados no limite da via pública não se caracteriza como impedimento de acesso para fins de leitura.
 
@@ -156,7 +156,7 @@ VII - outras soluções consideradas viáveis para a execução pela distribuido
 
 § 2º A distribuidora deve estabelecer previamente os valores dos serviços dos incisos II e IV, não podendo ser cobrado o custo do sistema de comunicação.
 
-§ 3º A distribuidora deve orçar o valor dos serviços dos incisos V e VII. Uso Interno CPFL
+§ 3º A distribuidora deve orçar o valor dos serviços dos incisos V e VII.
 
 § 4º A distribuidora pode cobrar os serviços previstos neste artigo no faturamento regular, após a sua prestação.
 

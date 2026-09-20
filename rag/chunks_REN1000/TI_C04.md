@@ -27,7 +27,7 @@ DO CONTRATO DE USO DO SISTEMA DE DISTRIBUIÇÃO
 
 Seção I
 
-Das Cláusulas Gerais Uso Interno CPFL
+Das Cláusulas Gerais
 
 Art. 145. O Contrato de Uso do Sistema de Distribuição - CUSD deve conter, além das cláusulas consideradas essenciais, outras relacionadas a:
 
@@ -87,7 +87,7 @@ XII - critérios de inclusão no subgrupo AS, quando pertinente.
 
 I - data de conexão e datas de entrada em operação em teste e comercial; e
 
-II - datas de entrada em operação em teste e comercial de cada unidade de central geradora ou etapa de importação ou exportação, caso não ocorram de forma simultânea. Uso Interno CPFL
+II - datas de entrada em operação em teste e comercial de cada unidade de central geradora ou etapa de importação ou exportação, caso não ocorram de forma simultânea.
 
 Art. 147. O CUSD deve conter disposição sobre a obrigação do consumidor ressarcir à distribuidora os investimentos realizados e não amortizados relativos ao cálculo do encargo de responsabilidade da distribuidora, observadas as seguintes disposições:
 
@@ -121,7 +121,7 @@ III - para os demais consumidores do grupo A, inclusive cada unidade consumidora
 
 § 1º A contratação de demanda não se aplica à unidade consumidora do grupo A que opta pela aplicação de tarifas do grupo B.
 
-§ 2º Para unidade consumidora com minigeração distribuída, deve ser observado o disposto em regulação específica. Uso Interno CPFL
+§ 2º Para unidade consumidora com minigeração distribuída, deve ser observado o disposto em regulação específica.
 
 Art. 149. A demanda contratada por central geradora deve ser o valor por ela declarado de sua máxima potência injetável no sistema, a qual deve ter valor maior ou igual à diferença entre a potência instalada e a carga própria.
 
@@ -151,9 +151,7 @@ I - se a entrada em operação das etapas de importação ou exportação não o
 
 II - o importador ou exportador pode optar pela contratação do uso por meio das regras aplicáveis à conexão de caráter permanente de central geradora ou de consumidor livre ou especial, inclusive em termos da tarifa aplicável, devendo tal opção constar do CUSD celebrado.
 
-Art. 151. A demanda contratada, no caso de usuário ser distribuidora, deve ser informada por ponto de conexão e corresponder ao valor máximo de potência Uso Interno CPFL
-
-demandável no ponto de conexão, considerando as demandas dos consumidores e demais usuários de seu sistema de distribuição.
+Art. 151. A demanda contratada, no caso de usuário ser distribuidora, deve ser informada por ponto de conexão e corresponder ao valor máximo de potência demandável no ponto de conexão, considerando as demandas dos consumidores e demais usuários de seu sistema de distribuição.
 
 Art. 152. A demanda contratada por posto tarifário deve ser única durante a vigência do contrato, exceto no caso de unidade consumidora da classe rural e daquela com sazonalidade reconhecida, para as quais a demanda pode ser contratada mediante cronograma mensal.
 
@@ -181,7 +179,7 @@ Art. 157. No caso de conexão de central geradora, outra distribuidora, agente e
 
 I - acordo entre as partes, quando não houver impedimento na regulação ou na legislação;
 
-II - alteração do cronograma de implantação realizada pela ANEEL, caso aplicável; ou Uso Interno CPFL
+II - alteração do cronograma de implantação realizada pela ANEEL, caso aplicável; ou
 
 III - atraso decorrente de circunstâncias caracterizadas como excludente de responsabilidade, desde que comprovada a ausência de responsabilidade do usuário e o nexo de causalidade entre a ocorrência e o atraso.
 

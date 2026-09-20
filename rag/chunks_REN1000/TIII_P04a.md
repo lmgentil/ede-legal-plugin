@@ -48,7 +48,7 @@ Art. 675. A Resolução Normativa ANEEL nº 876, de 10 de março de 2020, passa 
 
 2.2. A Informação de Acesso de que trata o item 2 deve ser apresentada à ANEEL em até 60 (sessenta) dias após sua emissão.
 
-...........................................................................” (NR) Uso Interno CPFL
+...........................................................................” (NR)
 
 Art. 676. Esta Resolução será objeto de Avaliação de Resultado Regulatório – ARR nas questões tratadas na Análise de Impacto Regulatório – AIR após 5 (cinco) anos de vigência.
 
@@ -134,7 +134,7 @@ XXXVI - Resolução Normativa ANEEL nº  671 , de 14 de julho de 2015;
 
 XXXVII - Resolução Normativa ANEEL nº  694 , de 15 de dezembro de 2015;
 
-XXXVIII - Resolução Normativa ANEEL nº  714 , de 10 de maio de 2016; Uso Interno CPFL
+XXXVIII - Resolução Normativa ANEEL nº  714 , de 10 de maio de 2016;
 
 XXXIX - Resolução Normativa ANEEL nº  717 , de 10 de maio de 2016;
 
@@ -197,7 +197,7 @@ Este texto não substitui o publicado no D.O. de 20.12.2021, seção 1, p. 206, 
 ANEXO I – CONTRATO DE ADESÃO - GRUPO B
 
 > CONTRATO DE PRESTAÇÃO DE SERVIÇO PÚBLICO DE DISTRIBUIÇAO DE ENERGIA ELÉTRICA
-> A ( nome da DISTRIBUIDORA ), CNPJ no ( 00.000.000/0000-00 ), com sede (endereço completo), doravante denominada DISTRIBUIDORA, e ( nome do CONSUMIDOR ), ( documento de identificação e Uso Interno CPFL
+> A ( nome da DISTRIBUIDORA ), CNPJ no ( 00.000.000/0000-00 ), com sede (endereço completo), doravante denominada DISTRIBUIDORA, e ( nome do CONSUMIDOR ), ( documento de identificação e
 
 número ), (CPF ou CNPJ ), doravante denominado CONSUMIDOR, responsável pela unidade consumidora nº ( número de referência ), situada na ( endereço completo da unidade consumidora ), aderem, de forma integral, a este Contrato de Prestação de Serviço Público de Energia Elétrica para unidade consumidora do grupo B.
 

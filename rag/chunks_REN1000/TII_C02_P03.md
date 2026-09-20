@@ -26,7 +26,7 @@ chunk_pai: TII_C02.md
 # CAPÍTULO II — DOS EMPREENDIMENTOS DE MÚLTIPLAS UNIDADES — Parte 3/3
 > Arts. 486-493
 
-Art. 486. Nos empreendimentos do Programa Casa Verde e Amarela, de que trata a Lei nº 14.118, de 12 de janeiro de 2021, operacionalizados com recursos do Fundo de Arrendamento Residencial - FAR ou do Fundo de Desenvolvimento Social — FDS, devem ser observadas as seguintes disposições: Uso Interno CPFL
+Art. 486. Nos empreendimentos do Programa Casa Verde e Amarela, de que trata a Lei nº 14.118, de 12 de janeiro de 2021, operacionalizados com recursos do Fundo de Arrendamento Residencial - FAR ou do Fundo de Desenvolvimento Social — FDS, devem ser observadas as seguintes disposições:
 
 I - a responsabilidade pelo custeio da infraestrutura básica de redes de distribuição de energia elétrica internas ao empreendimento, inclusive postos de transformação, será, sucessivamente:
 
@@ -60,7 +60,7 @@ VI - projeto da infraestrutura interna relacionada das redes de distribuição d
 
 VII - cronograma de entrega do empreendimento, com o detalhamento das etapas, se houver.
 
-§ 5º Para o enquadramento na alínea “c” do inciso I do caput , oempreendedor deve encaminhar à distribuidora: Uso Interno CPFL
+§ 5º Para o enquadramento na alínea “c” do inciso I do caput , oempreendedor deve encaminhar à distribuidora:
 
 I - comprovação de que o empreendimento utiliza recursos do Fundo de Arrendamento Residencial - FAR ou do Fundo de Desenvolvimento Social - FDS;
 
@@ -92,7 +92,7 @@ VII - outras informações julgadas necessárias.
 
 § 8º A contagem do prazo para a implementação das obras de responsabilidade da distribuidora somente se iniciará após a apresentação, pelo empreendedor, de cópia do instrumento que assegure que a contratação do empreendimento foi realizada, observados os demais prazos e condições dispostos nesta Resolução.
 
-§ 9º A distribuidora pode ser contratada para construir as obras de infraestrutura interna de redes de distribuição de energia elétrica do empreendimento, desde que tal serviço seja oferecido nos termos do Capítulo IX do Título II. Uso Interno CPFL
+§ 9º A distribuidora pode ser contratada para construir as obras de infraestrutura interna de redes de distribuição de energia elétrica do empreendimento, desde que tal serviço seja oferecido nos termos do Capítulo IX do Título II.
 
 § 10. Para a restituição das obras de infraestrutura interna de redes de distribuição de energia elétrica enquadradas na alínea “c” do inciso I do caput , devem ser observadas as seguintes disposições:
 
@@ -122,7 +122,7 @@ Seção V
 
 Da Incorporação das Obras de Infraestrutura
 
-Art. 487. As redes de energia elétrica implantadas pelos responsáveis pelos empreendimentos de múltiplas unidades consumidoras ou regularização fundiária devem ser incorporadas ao patrimônio da concessão ou permissão. Uso Interno CPFL
+Art. 487. As redes de energia elétrica implantadas pelos responsáveis pelos empreendimentos de múltiplas unidades consumidoras ou regularização fundiária devem ser incorporadas ao patrimônio da concessão ou permissão.
 
 § 1º A incorporação ou as providências para viabilizar a incorporação dispostas nesta Resolução devem ser realizadas antes da conexão ao sistema de distribuição da distribuidora.
 
@@ -144,7 +144,7 @@ Art. 490. A distribuidora não deve incorporar as instalações destinadas à il
 
 Art. 491. A incorporação disposta no art. 487 deve ser feita a título de doação, sem indenização ao responsável pelo empreendimento ou aos adquirentes das unidades individuais, exceto quando houver previsão expressa de restituição.
 
-Art. 492. No caso de recusa do responsável pela implantação ou dos adquirentes das unidades do empreendimento em permitir a incorporação, compete à distribuidora adotar as medidas legais para garantir o direito à incorporação das instalações. Uso Interno CPFL
+Art. 492. No caso de recusa do responsável pela implantação ou dos adquirentes das unidades do empreendimento em permitir a incorporação, compete à distribuidora adotar as medidas legais para garantir o direito à incorporação das instalações.
 
 Art. 493. Aplica-se imediatamente o disposto no art. 487 às redes dos empreendimentos em que já existam unidades consumidoras conectadas ao sistema da distribuidora e ainda não incorporadas ao patrimônio desta.
 

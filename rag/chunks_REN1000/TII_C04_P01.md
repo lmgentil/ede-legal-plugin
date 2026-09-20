@@ -62,7 +62,7 @@ Do Atendimento com Microssistemas ou Sistemas Individuais
 
 Art. 517. A distribuidora deve instalar os sistemas do tipo MIGDI ou SIGFI observando, caso aplicáveis, as disposições da Lei n o 12.111, de 2009.
 
-Art. 518. O fornecimento de energia elétrica por meio de MIGDI ou SIGFI deve ser realizado em corrente alternada, observando os níveis de tensão predominantes no município onde estiver localizada a unidade consumidora. Uso Interno CPFL
+Art. 518. O fornecimento de energia elétrica por meio de MIGDI ou SIGFI deve ser realizado em corrente alternada, observando os níveis de tensão predominantes no município onde estiver localizada a unidade consumidora.
 
 § 1 o No caso de fornecimento por meio de SIGFI, a partir das características
 
@@ -102,7 +102,7 @@ Parágrafo único. A distribuidora deve observar a potência definida para o sis
 
 Art. 521. A distribuidora deve atender gratuitamente à solicitação de aumento de carga nos sistemas do tipo MIGDI ou SIGFI que possa ser efetivada com a utilização de sistemas com disponibilidade mensal menor ou igual a 80 kWh/UC, desde que decorrido pelo menos um ano desde a data da conexão inicial ou desde o último aumento de carga.
 
-Art. 522. Os sistemas do tipo MIGDI ou SIGFI devem possuir autonomia de pelo menos 36 (trinta e seis) horas para fonte solar e de 48 (quarenta e oito) horas para as demais fontes, considerando a situação de ausência total da fonte primária. Uso Interno CPFL
+Art. 522. Os sistemas do tipo MIGDI ou SIGFI devem possuir autonomia de pelo menos 36 (trinta e seis) horas para fonte solar e de 48 (quarenta e oito) horas para as demais fontes, considerando a situação de ausência total da fonte primária.
 
 Parágrafo único. Para sistemas com fonte solar, a autonomia pode ser avaliada considerando a menor radiação solar diária da séria histórica dos últimos 3 (três) anos do local em que o sistema será instalado.
 
@@ -130,7 +130,7 @@ distribuidora deve informar ao consumidor e demais usuários, no ato da vistoria
 
 § 2 o No caso do § 1 o , a distribuidora deve realizar nova vistoria na unidade
 
-consumidora no prazo disposto no caput , após solicitação do consumidor ou dos demais usuários. Uso Interno CPFL
+consumidora no prazo disposto no caput , após solicitação do consumidor ou dos demais usuários.
 
 Art. 528. A conexão da unidade consumidora em sistemas do tipo MIGDI ou SIGFI deve ser efetuada em até 10 (dez) dias úteis, contados a partir da data da aprovação das instalações e do cumprimento das demais condições regulamentares.
 
@@ -160,4 +160,4 @@ Art. 534. No caso de suspensão indevida do fornecimento de energia elétrica em
 
 Seção V
 
-Do Fornecimento em Período Diário Reduzido Uso Interno CPFL
+Do Fornecimento em Período Diário Reduzido

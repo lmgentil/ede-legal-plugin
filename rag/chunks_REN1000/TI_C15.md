@@ -36,7 +36,7 @@ Da Continuidade
 
 Art. 433. A qualidade do serviço prestado pela distribuidora é avaliada, quanto à sua continuidade, por indicadores coletivos e individuais relacionados à duração e frequência das interrupções do serviço, conforme Módulo 8 do PRODIST.
 
-§ 1º O consumidor e demais usuários têm o direito de receber compensação financeira em sua fatura de energia no caso da distribuidora violar os limites de continuidade individuais relativos às suas instalações. Uso Interno CPFL
+§ 1º O consumidor e demais usuários têm o direito de receber compensação financeira em sua fatura de energia no caso da distribuidora violar os limites de continuidade individuais relativos às suas instalações.
 
 § 2º A distribuidora pode deduzir da compensação a que se refere o § 1º os débitos vencidos do consumidor e demais usuários que não sejam objeto de contestação administrativa ou judicial.
 
@@ -70,7 +70,7 @@ I - 5 (cinco) dias úteis no caso de:
 
 a) unidade consumidora onde existam pessoas usuárias de equipamentos de autonomia limitada, vitais à preservação da vida humana e dependentes de energia elétrica, desde que efetuado o prévio cadastro da unidade consumidora na distribuidora para recebimento desse tipo de serviço;
 
-b) unidade consumidora que preste serviço essencial; e Uso Interno CPFL
+b) unidade consumidora que preste serviço essencial; e
 
 c) unidade consumidora do grupo A, com demanda contratada maior ou igual a 500 kW; e
 
@@ -102,7 +102,7 @@ II - regime transitório: variações de tensão de curta duração – VTCD.
 
 § 1º A avaliação da tensão em regime permanente é realizada por meio de um conjunto de leituras obtidas por medição apropriada, que devem ser classificadas em adequadas, precárias ou críticas, de acordo com as variações percentuais em relação à tensão nominal ou contratada.
 
-§ 2º O consumidor tem o direito de ser atendido em tensão adequada, sendo permitido, na realização de medição, a ocorrência de até 3% (três por cento) das medições na faixa precária e até 0,5% (cinco décimos percentuais) das medições na faixa crítica. Uso Interno CPFL
+§ 2º O consumidor tem o direito de ser atendido em tensão adequada, sendo permitido, na realização de medição, a ocorrência de até 3% (três por cento) das medições na faixa precária e até 0,5% (cinco décimos percentuais) das medições na faixa crítica.
 
 § 3º No caso da distribuidora não entregar tensão em regime permanente considerada adequada, o consumidor tem o direito de receber compensação financeira em sua fatura de energia.
 
@@ -132,7 +132,7 @@ II - a medição do inciso I será cobrada caso o resultado não apresente valor
 
 Seção III
 
-Do Cumprimento de Prazos Uso Interno CPFL
+Do Cumprimento de Prazos
 
 Art. 439. A qualidade do serviço prestado pela distribuidora é avaliada pela verificação do cumprimento dos prazos relacionados no Anexo IV.
 
@@ -168,7 +168,7 @@ II - a contabilização do prazo verificado do atendimento comercial “Pv” de
 
 a) prazo regulatório; e
 
-b) dias corridos a partir do dia imediatamente subsequente ao do vencimento do prazo até o dia da efetiva execução do atendimento. Uso Interno CPFL
+b) dias corridos a partir do dia imediatamente subsequente ao do vencimento do prazo até o dia da efetiva execução do atendimento.
 
 Art. 441. No caso de suspensão indevida do fornecimento de energia elétrica, de que trata o 0, a distribuidora deve creditar ao consumidor e demais usuários a seguinte compensação:
 
@@ -196,7 +196,7 @@ Art. 443. Para o cálculo da compensação ao consumidor e demais usuários nos 
 
 I - em caso de consumidor ou demais usuários não conectados, acompensação deve ser efetuada no primeiro faturamento subsequente;
 
-II - no caso dos serviços dispostos no art. 63, no art. 88 e no art. 111, a compensação deve ser calculada e disponibilizada ao titular das instalações; Uso Interno CPFL
+II - no caso dos serviços dispostos no art. 63, no art. 88 e no art. 111, a compensação deve ser calculada e disponibilizada ao titular das instalações;
 
 III - no caso de empreendimentos de múltiplas unidades, o cálculo e a compensação devem ser realizados para cada unidade consumidora;
 
@@ -240,7 +240,7 @@ Art. 445. A qualidade do atendimento telefônico é mensurada pela ANEEL por mei
 
 Art. 446. Em caso de ultrapassagem dos limites anuais para os indicadores de qualidade do atendimento telefônico definidos Módulo 8 do PRODIST, a distribuidora pode ser submetida à fiscalização da ANEEL.
 
-Seção V Uso Interno CPFL
+Seção V
 
 Do Tratamento das Demandas
 

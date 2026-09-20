@@ -40,6 +40,7 @@ nunca cacheada, nunca logada. Este módulo não grava arquivo algum.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -55,7 +56,7 @@ from docx_block_engine import ComposicaoAbortada, carregar_catalogo, validar_cat
 from docx_context_engine import ContextoAbortada, extrair_contexto  # noqa: E402
 from docx_package import PacoteDocxAbortada, extrair_pacote_docx  # noqa: E402
 from docx_template_engine import carregar_schema  # noqa: E402
-from validate_fatos import validar_fatos  # noqa: E402
+from validate_fatos import tipo_de, validar_fatos  # noqa: E402
 
 import legal_readiness as lr  # noqa: E402
 
@@ -213,11 +214,19 @@ def _validar_entrada(entrada: dict) -> ResultadoPreparacao | None:
         return _abortado("input_validation",
                           f"'questoes_juridicas' excede o limite de "
                           f"{MAX_QUESTOES_JURIDICAS} itens por requisição")
-    for q in questoes:
-        if not q.strip() or len(q) > MAX_QUESTAO_CHARS:
+    for i, q in enumerate(questoes):
+        if not q.strip():
             return _abortado("input_validation",
-                              f"questão jurídica inválida ou excede "
-                              f"{MAX_QUESTAO_CHARS} caracteres: {q[:40]!r}...")
+                              f"questoes_juridicas[{i}] está vazia")
+        if len(q) > MAX_QUESTAO_CHARS:
+            # Gate 6.5-B3 §16: metadado estrutural (índice, limite,
+            # tamanho recebido) — nunca o conteúdo da questão em si. O
+            # texto da questão jurídica é conteúdo de requisição, nunca
+            # pertence a uma mensagem de erro (mesma disciplina de
+            # auth_logging.py, aplicada aqui à validação de entrada).
+            return _abortado("input_validation",
+                              f"questoes_juridicas[{i}] excede "
+                              f"{MAX_QUESTAO_CHARS} caracteres (recebeu {len(q)})")
 
     estado = entrada.get("estado_processual", {})
     if estado is None:
@@ -237,9 +246,72 @@ def _validar_entrada(entrada: dict) -> ResultadoPreparacao | None:
 
 _PALAVRA_RE = re.compile(r"[a-zà-ú0-9]+", re.IGNORECASE)
 
+# Gate 6.5-B3 §4/§5: lista fechada de palavras gramaticais (artigos,
+# preposições, conjunções, pronomes) e de termos processuais tão
+# genéricos que aparecem em praticamente todo chunk do corpus,
+# independente do assunto — nenhuma delas carrega poder discriminativo
+# de relevância. Achado real (diagnóstico do Gate 6.5-B3): a pontuação
+# original (sobreposição bruta, sem filtro) dava peso IDÊNTICO a "de"/
+# "da"/"em" e a "irregularidade"/"faturamento", fazendo capítulos longos
+# e genéricos (conexão, pré-pagamento, prazos administrativos) superarem
+# o capítulo central de Procedimentos Irregulares só por serem mais
+# extensos — nunca por serem mais relevantes. Nunca remove palavra de
+# conteúdo (substantivo/verbo/adjetivo do domínio) — só função
+# gramatical e meta-vocabulário estrutural.
+STOPWORDS_LEXICAS = frozenset({
+    "de", "da", "do", "das", "dos", "em", "no", "na", "nos", "nas", "por",
+    "para", "com", "sem", "e", "ou", "a", "o", "as", "os", "um", "uma",
+    "uns", "umas", "que", "se", "ao", "aos", "seu", "sua", "seus", "suas",
+    "este", "esta", "esse", "essa", "isso", "isto", "aquele", "aquela",
+    "quando", "como", "mais", "menos", "muito", "tambem", "ja", "nao",
+    "nem", "entre", "sobre", "ate", "apos", "antes", "deve", "devera",
+    "pode", "podera", "ser", "estar", "ter", "seja", "sejam", "ela", "ele",
+    "eles", "elas", "cujo", "cuja", "tal", "qual", "quais", "outro",
+    "outra", "outros", "outras", "mesmo", "mesma", "caso", "casos",
+    "forma", "conforme", "respectivo", "respectiva", "art", "artigo",
+    "paragrafo", "inciso", "alinea", "lei", "resolucao", "referida",
+    "referido", "presente", "assim", "dessa", "desse", "nesta", "neste",
+    "nessa", "nesse", "sao", "eh", "foi", "foram", "tem", "tinha",
+    "havia", "houve", "onde",
+})
+
+BONUS_TITULO_POR_TERMO = 2
+"""Peso do termo da questão que também aparece no título/capítulo do
+chunk (frontmatter `titulo`/`capitulo`) — sinal de relevância mais forte
+que ocorrência solta no corpo (Gate 6.5-B3 §5, "title/article-heading
+weighting")."""
+
+BONUS_FRASE_POR_BIGRAMA = 2
+"""Peso por bigrama da questão (dois termos de conteúdo consecutivos no
+texto original, nunca atravessando uma stopword) que aparece verbatim no
+corpo do chunk — sinal de correspondência de expressão, não só de
+palavra solta (Gate 6.5-B3 §5, "exact-phrase bonuses")."""
+
+_RE_ARTIGO = re.compile(r"\bArt\.?\s*(\d+)", re.IGNORECASE)
+
 
 def _tokens(texto: str) -> set:
     return set(_PALAVRA_RE.findall(texto.lower()))
+
+
+def _tokens_uteis(texto: str) -> set:
+    """Mesma tokenização de `_tokens`, descontadas as stopwords léxicas
+    e tokens de um único caractere (nunca discriminativos)."""
+    return {t for t in _tokens(texto) if t not in STOPWORDS_LEXICAS and len(t) > 1}
+
+
+def _bigramas_uteis(texto: str) -> set:
+    """Pares de palavras CONSECUTIVAS no texto original onde NENHUMA das
+    duas é stopword — nunca uma stopword ponte (ex.: "de consumo" não
+    vira bigrama; "unidade consumidora" vira). Bigrama formado a partir
+    de palavras que uma stopword intermediária separava no texto
+    original NUNCA é gerado (não há como formá-lo sem inventar
+    adjacência que o texto não tem)."""
+    palavras = _PALAVRA_RE.findall(texto.lower())
+    return {
+        f"{a} {b}" for a, b in zip(palavras, palavras[1:])
+        if a not in STOPWORDS_LEXICAS and b not in STOPWORDS_LEXICAS
+    }
 
 
 def _ler_frontmatter(texto: str) -> dict:
@@ -264,17 +336,82 @@ def _ler_frontmatter(texto: str) -> dict:
     return dados
 
 
-def _buscar_fontes_para_questao(questao: str, rag_dir: Path) -> list:
-    """Recuperação lexical determinística e limitada (Gate 6.5-A §12):
-    pontua cada chunk pela sobreposição de palavras com a questão
-    jurídica (contagem simples, sem embeddings/BM25 — aquilo é
+_CACHE_VERSAO_CORPUS: dict = {}
+
+
+def _versao_corpus(rag_dir: Path) -> str | None:
+    """Versão declarada em rag/corpus_manifest.json (Gate 6.5-B3 §10) —
+    lida uma vez e cacheada em memória por diretório; nunca falha o
+    pacote inteiro se o manifesto estiver ausente/malformado (a
+    checagem de READY já validou isso em `avaliar_corpus_rag`; aqui só
+    se quer o texto da versão para proveniência, não revalidar)."""
+    chave = str(rag_dir)
+    if chave not in _CACHE_VERSAO_CORPUS:
+        try:
+            manifesto = json.loads((rag_dir / "corpus_manifest.json").read_text(encoding="utf-8"))
+            _CACHE_VERSAO_CORPUS[chave] = manifesto.get("versao")
+        except (OSError, ValueError):
+            _CACHE_VERSAO_CORPUS[chave] = None
+    return _CACHE_VERSAO_CORPUS[chave]
+
+
+def _truncar_com_limite_de_frase(texto: str, limite: int) -> tuple:
+    """Corta em até `limite` caracteres preferindo o último fim de frase
+    (. ; : ! ?) dentro do limite — nunca no meio de uma frase quando um
+    ponto de corte melhor existir (Gate 6.5-B3 §8). Devolve
+    `(excerto, truncado)`; `truncado=True` sempre que o texto original
+    for maior que o excerto devolvido, mesmo quando o corte caiu num
+    fim de frase — o host precisa saber que o corpo integral do chunk
+    continua além do que foi devolvido."""
+    if len(texto) <= limite:
+        return texto, False
+    bruto = texto[:limite]
+    ultimo_fim = -1
+    for m in re.finditer(r"[.;:!?](?=\s|$)", bruto):
+        ultimo_fim = m.end()
+    if ultimo_fim > 0:
+        return bruto[:ultimo_fim].rstrip(), True
+    corte_palavra = bruto.rfind(" ")
+    if corte_palavra > 0:
+        return bruto[:corte_palavra].rstrip(), True
+    return bruto.rstrip(), True
+
+
+def _artigo_preciso(excerto: str) -> str | None:
+    """Primeiro "Art. N" literal encontrado no EXCERTO efetivamente
+    devolvido (Gate 6.5-B3 §7) — nunca inventado, nunca extrapolado do
+    range do chunk (`arts_range`, que continua disponível em `artigo`
+    como piso menos preciso). `None` quando o excerto não abre nem
+    contém um marcador de artigo determinável (ex.: começa num
+    parágrafo/inciso que dá sequência a um artigo de um chunk anterior)
+    — a limitação fica explícita pela ausência do campo, nunca por um
+    número chutado."""
+    m = _RE_ARTIGO.search(excerto)
+    return m.group(1) if m else None
+
+
+def _buscar_fontes_para_questao(questao: str, rag_dir: Path, indice_questao: int) -> list:
+    """Recuperação lexical determinística e limitada (Gate 6.5-A §12,
+    recalibrada no Gate 6.5-B3): pontua cada chunk por três sinais,
+    todos determinísticos e sem embeddings/BM25 (aquilo é
     rag/search_hybrid.py, fora do escopo deste MCP por footprint,
-    RNF-CUSTO-001) e devolve os `MAX_FONTES_POR_QUESTAO` melhores.
-    Nenhum corpus fora dos 6 diplomas institucionais é tocado; nenhuma
-    jurisprudência, nenhuma busca externa."""
-    termos_questao = _tokens(questao)
+    RNF-CUSTO-001):
+
+      1. sobreposição lexical ÚTIL (termos de conteúdo, stopwords fora);
+      2. bônus por termo que também aparece no título/capítulo do chunk;
+      3. bônus por bigrama de conteúdo da questão citado verbatim no chunk.
+
+    Devolve os `MAX_FONTES_POR_QUESTAO` melhores. Nenhum corpus fora dos
+    6 diplomas institucionais é tocado; nenhuma jurisprudência, nenhuma
+    busca externa. `indice_questao` semeia `questoes_relacionadas` — a
+    fusão entre questões que recuperam a MESMA fonte acontece em
+    `_montar_fontes_legais`, nunca aqui."""
+    termos_questao = _tokens_uteis(questao)
     if not termos_questao:
         return []
+    bigramas_questao = _bigramas_uteis(questao)
+
+    corpus_versao = _versao_corpus(rag_dir)
 
     candidatos = []
     for diploma in DIPLOMAS:
@@ -283,25 +420,34 @@ def _buscar_fontes_para_questao(questao: str, rag_dir: Path) -> list:
             continue
         for arquivo in sorted(dirp.glob("*.md")):
             texto = arquivo.read_text(encoding="utf-8")
+            meta = _ler_frontmatter(texto)
             # `chunk_mestre` é o índice/mapa sistemático do diploma, não
             # dispositivo legal — nunca uma fonte citável (achado do
             # smoke test deste gate: seu texto de nota genérica competia
             # em score com dispositivos reais por pura extensão).
-            if _ler_frontmatter(texto).get("tipo") == "chunk_mestre":
+            if meta.get("tipo") == "chunk_mestre":
                 continue
-            score = len(termos_questao & _tokens(texto))
-            if score > 0:
-                candidatos.append((score, diploma, arquivo, texto))
+            score_lexico = len(termos_questao & _tokens_uteis(texto))
+            titulo_texto = f"{meta.get('titulo', '')} {meta.get('capitulo', '')}"
+            bonus_titulo = BONUS_TITULO_POR_TERMO * len(termos_questao & _tokens_uteis(titulo_texto))
+            texto_lower = texto.lower()
+            bonus_frase = BONUS_FRASE_POR_BIGRAMA * sum(
+                1 for bg in bigramas_questao if bg in texto_lower
+            )
+            score_total = score_lexico + bonus_titulo + bonus_frase
+            if score_total > 0:
+                candidatos.append((score_total, score_lexico, diploma, arquivo, texto, meta))
 
-    candidatos.sort(key=lambda c: (-c[0], c[1], c[2].name))
+    candidatos.sort(key=lambda c: (-c[0], c[2], c[3].name))
 
     fontes = []
-    for score, diploma, arquivo, texto in candidatos[:MAX_FONTES_POR_QUESTAO]:
-        meta = _ler_frontmatter(texto)
+    for score_total, score_lexico, diploma, arquivo, texto, meta in candidatos[:MAX_FONTES_POR_QUESTAO]:
         corpo = texto.split("\n---", 1)
         corpo_sem_frontmatter = corpo[1] if len(corpo) > 1 and texto.startswith("---") else texto
-        excerto = corpo_sem_frontmatter.strip()[:MAX_EXCERPT_CHARS]
-        fontes.append(fonte_juridica(
+        excerto, truncado = _truncar_com_limite_de_frase(
+            corpo_sem_frontmatter.strip(), MAX_EXCERPT_CHARS
+        )
+        fonte = fonte_juridica(
             source_id=f"{diploma}/{arquivo.name}",
             tipo="dispositivo_legal",
             diploma=meta.get("lei", diploma),
@@ -310,23 +456,47 @@ def _buscar_fontes_para_questao(questao: str, rag_dir: Path) -> list:
             fonte="corpus institucional EDE (compilado oficial)",
             authority_level=AUTORIDADE_POR_DIPLOMA.get(diploma, "NAO_VERIFICADA"),
             validation_status="NAO_VALIDADA",
-            score_lexical=float(score),
-        ))
+            score_lexical=float(score_lexico),
+            score_final=float(score_total),
+        )
+        # Campos além do modelo canônico compartilhado (rag/legal_validation/
+        # models.py) — adicionados aqui, nunca no modelo canônico em si:
+        # `fonte_juridica()` é contrato COMPARTILHADO com
+        # citation_validator.py/outros consumidores (Fase 5, SPEC-0001 §9);
+        # estender o dict já construído mantém este pacote (Gate 6.5-A/B3)
+        # sem alterar um contrato de fora do seu próprio escopo de
+        # autoridade (Gate 6.5-B3 §7/§10).
+        fonte["capitulo"] = meta.get("capitulo")
+        fonte["artigo_preciso"] = _artigo_preciso(excerto)
+        fonte["corpus_versao"] = corpus_versao
+        fonte["truncado"] = truncado
+        fonte["questoes_relacionadas"] = [indice_questao]
+        fontes.append(fonte)
     return fontes
 
 
 def _montar_fontes_legais(questoes: list) -> list:
-    todas = []
-    vistos = set()
-    for questao in questoes:
-        for fonte in _buscar_fontes_para_questao(questao, RAG_DIR_PADRAO):
-            if fonte["source_id"] in vistos:
+    """Agrega fontes de todas as questões, deduplicando por `source_id`
+    — mas, ao contrário da versão anterior (Gate 6.5-A), uma fonte que
+    responde a MAIS de uma questão não é silenciosamente descartada na
+    segunda ocorrência: seu índice é ACRESCENTADO a
+    `questoes_relacionadas` (Gate 6.5-B3 §6) — o host precisa saber que
+    aquela fonte foi recuperada por mais de um motivo, sem duplicar o
+    objeto inteiro por questão."""
+    por_source_id: dict = {}
+    ordem = []
+    for indice, questao in enumerate(questoes):
+        for fonte in _buscar_fontes_para_questao(questao, RAG_DIR_PADRAO, indice):
+            existente = por_source_id.get(fonte["source_id"])
+            if existente is not None:
+                if indice not in existente["questoes_relacionadas"]:
+                    existente["questoes_relacionadas"].append(indice)
                 continue
-            vistos.add(fonte["source_id"])
-            todas.append(fonte)
-            if len(todas) >= MAX_FONTES_TOTAL:
-                return todas
-    return todas
+            por_source_id[fonte["source_id"]] = fonte
+            ordem.append(fonte)
+            if len(ordem) >= MAX_FONTES_TOTAL:
+                return ordem
+    return ordem
 
 
 # --------------------------------------------------------- catálogo de blocos
@@ -476,7 +646,14 @@ def preparar_contexto_contestacao(
             "source_document": f["source_document"],
             "page": f.get("page"),
             "confidence": f.get("confidence"),
-            "tipo": f.get("tipo") or "FATO_DOCUMENTADO",
+            # Gate 6.5-B3 §14: auditada contra o contrato canônico de
+            # fatos.json (scripts/validate_fatos.py, Fase 7/SPEC-0001
+            # §9) — "tipo" omitido já é EXPLICITAMENTE, e desde antes
+            # deste gate, definido como FATO_DOCUMENTADO por
+            # `validate_fatos.tipo_de()`. Não é uma classificação nova
+            # inventada aqui; é reúso do MESMO helper canônico, em vez
+            # de reimplementar a mesma regra inline pela segunda vez.
+            "tipo": tipo_de(f),
         }
         for f in fatos
     ]
@@ -497,11 +674,32 @@ def preparar_contexto_contestacao(
         alertas.append("Contexto institucional (texto fixo ao redor dos "
                         "placeholders) não pôde ser extraído nesta chamada — "
                         "o pacote permanece válido sem ele.")
-    tipos_presentes = {f.get("tipo") or "FATO_DOCUMENTADO" for f in fatos}
+    tipos_presentes = {tipo_de(f) for f in fatos}
     if tipos_presentes <= {"ALEGACAO_AUTORAL"}:
         alertas.append("Todos os fatos fornecidos são ALEGACAO_AUTORAL (nenhum "
                         "FATO_DOCUMENTADO) — a defesa terá base fática "
                         "predominantemente contestável, não comprovada.")
+    # Gate 6.5-B3 §9: propagação determinística de alerta quando alguma
+    # fonte legal selecionada não está com a citação validada ou a
+    # vigência confirmada. Nunca eleva silenciosamente o status (a
+    # fonte continua NAO_VALIDADA/NAO_VERIFICADA nela mesma) — só torna
+    # a incerteza visível no nível do pacote, onde o host efetivamente
+    # decide se cita a fonte.
+    fontes_nao_validadas = [f["source_id"] for f in fontes_legais
+                             if f.get("validation_status") != "VALIDADA"]
+    if fontes_nao_validadas:
+        alertas.append(
+            "As seguintes fontes legais recuperadas ainda não têm a citação "
+            "validada (validation_status != VALIDADA) — confirme o dispositivo "
+            f"antes de citá-lo como definitivo: {fontes_nao_validadas}."
+        )
+    fontes_vigencia_incerta = [f["source_id"] for f in fontes_legais
+                                if f.get("vigencia") != "VIGENTE"]
+    if fontes_vigencia_incerta:
+        alertas.append(
+            "As seguintes fontes legais recuperadas não têm vigência confirmada "
+            f"(vigencia != VIGENTE): {fontes_vigencia_incerta}."
+        )
 
     pacote = {
         "readiness": {
@@ -524,6 +722,7 @@ def preparar_contexto_contestacao(
         "alertas": alertas,
         "proveniencia": {
             "corpus_diplomas": list(DIPLOMAS),
+            "corpus_versao": _versao_corpus(RAG_DIR_PADRAO),
             "modelo_oficial_sha256": os.environ.get(lr.ENV_MODELO_SHA256),
         },
     }

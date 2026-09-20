@@ -58,7 +58,7 @@ II - o orçamento e o cronograma físico de implantação da infraestrutura esse
 
 III - outras informações julgadas necessárias.
 
-§ 3º A distribuidora deve arcar com o custo adicional caso opte por obras com dimensões maiores do que as necessárias para o atendimento. Uso Interno CPFL
+§ 3º A distribuidora deve arcar com o custo adicional caso opte por obras com dimensões maiores do que as necessárias para o atendimento.
 
 § 4º Cabe ao poder público competente custear ou executar a obra para implantação da infraestrutura essencial relacionada à rede de distribuição interna da Reurb-S e implantação da obra de conexão, e, caso não o faça, deve notificar formalmente e justificadamente a distribuidora para que esta custeie e execute tais obras, ressalvado o disposto no § 6º.
 

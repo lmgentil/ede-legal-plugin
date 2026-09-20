@@ -99,9 +99,9 @@ import os
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from mcp.server import MCPServer
 from mcp.server.auth.provider import TokenVerifier
@@ -193,7 +193,7 @@ def _runtime_info() -> str:
         mcp_version = importlib.metadata.version("mcp")
     except importlib.metadata.PackageNotFoundError:
         mcp_version = "desconhecida"
-    return f"python {py} / mcp {mcp_version} / EDE MCP Server (Etapa 6.1)"
+    return f"python {py} / mcp {mcp_version} / EDE MCP Server"
 
 
 @contar_dispatch(FERRAMENTA_HEALTH)
@@ -273,12 +273,21 @@ def ede_health() -> EdeHealthResponse:
 
 class FatoEntrada(BaseModel):
     """Um fato do caso, com proveniência — mesmo contrato de fatos.json
-    (REQ-030, scripts/validate_fatos.py), reaproveitado sem alteração."""
+    (REQ-030, scripts/validate_fatos.py), reaproveitado sem alteração.
 
-    fact: str
-    source_document: str
+    Gate 6.5-B3 §15: os limites abaixo (`max_length`/`ge`/`le`) fazem o
+    JSON Schema PUBLICADO desta tool (o que `tools/list` expõe) refletir
+    os MESMOS limites que `scripts/preparar_contestacao.py` já exigia em
+    runtime (`MAX_FACT_CHARS`/`MAX_SOURCE_DOCUMENT_CHARS`) — lidos
+    daquele módulo, nunca redeclarados como um segundo número solto que
+    poderia divergir. Antes deste gate, um cliente só descobria esses
+    limites por tentativa e erro (uma chamada rejeitada); agora o
+    schema já os declara."""
+
+    fact: str = Field(..., max_length=preparar_contestacao.MAX_FACT_CHARS)
+    source_document: str = Field(..., max_length=preparar_contestacao.MAX_SOURCE_DOCUMENT_CHARS)
     page: int | None = None
-    confidence: float | None = None
+    confidence: float | None = Field(None, ge=0.0, le=1.0)
     tipo: Literal[
         "FATO_DOCUMENTADO", "ALEGACAO_AUTORAL", "INFERENCIA", "DADO_NAO_INFORMADO"
     ] | None = None
@@ -290,8 +299,13 @@ class PrepararContestacaoEntrada(BaseModel):
     nenhum nome de parte é exigido (o pacote não preenche placeholders,
     só prepara contexto para o host redigir)."""
 
-    fatos: list[FatoEntrada]
-    questoes_juridicas: list[str] = []
+    fatos: Annotated[
+        list[FatoEntrada], Field(min_length=1, max_length=preparar_contestacao.MAX_FATOS)
+    ]
+    questoes_juridicas: Annotated[
+        list[Annotated[str, Field(max_length=preparar_contestacao.MAX_QUESTAO_CHARS)]],
+        Field(max_length=preparar_contestacao.MAX_QUESTOES_JURIDICAS),
+    ] = []
     estado_processual: dict[str, bool | Literal["INDETERMINADO"]] = {}
 
 

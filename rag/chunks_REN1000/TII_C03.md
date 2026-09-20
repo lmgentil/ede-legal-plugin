@@ -59,7 +59,7 @@ Seção II
 
 Dos Contratos e dos Prazos
 
-Art. 496. A contratação de conexão temporária, incluindo os casos de prorrogação contratual, deve observar as etapas e prazos da conexão em caráter permanente dispostas no Capítulo II do Título I e as disposições deste Capítulo. Uso Interno CPFL
+Art. 496. A contratação de conexão temporária, incluindo os casos de prorrogação contratual, deve observar as etapas e prazos da conexão em caráter permanente dispostas no Capítulo II do Título I e as disposições deste Capítulo.
 
 § 1º Os contratos a serem celebrados devem observar as disposições dos Capítulos III a V do Título I, e devem conter a indicação do caráter temporário da contratação.
 
@@ -89,7 +89,7 @@ III - os condicionantes e penalidades associados aos incisos I e II.
 
 Art. 499. Para a contratação da conexão temporária de central geradora, exceto na modalidade de reserva de capacidade, deve-se observar os seguintes requisitos:
 
-I - a central geradora não deve possuir contrato de venda de energia elétrica ou, caso possua, a disponibilização da energia contratada não pode ter iniciado; Uso Interno CPFL
+I - a central geradora não deve possuir contrato de venda de energia elétrica ou, caso possua, a disponibilização da energia contratada não pode ter iniciado;
 
 II - a central geradora não deve possuir CUSD em caráter permanente ou, caso possua, a data inicial de contratação do uso do sistema não pode ter transcorrido; e
 
@@ -123,7 +123,7 @@ Art. 502. A distribuidora deve aplicar para a conexão temporária as disposiç�
 
 Art. 503. No caso de atendimentos temporários em prazo menor que 90 (noventa) dias, a instalação da medição é opcional para a distribuidora.
 
-Parágrafo único. Caso a medição não seja instalada, o consumo de energia elétrica e a demanda de potência devem ser estimados para fins de faturamento considerando o período de utilização, a carga instalada e os fatores de carga e de demanda típicos da atividade. Uso Interno CPFL
+Parágrafo único. Caso a medição não seja instalada, o consumo de energia elétrica e a demanda de potência devem ser estimados para fins de faturamento considerando o período de utilização, a carga instalada e os fatores de carga e de demanda típicos da atividade.
 
 Art. 504. Na conexão temporária de unidade consumidora a distribuidora pode exigir, a título de garantia, o pagamento antecipado do consumo de energia elétrica ou da demanda de potência prevista, por até 3 (três) ciclos completos de faturamento.
 
@@ -157,7 +157,7 @@ Seção VI
 
 Da Reserva de Capacidade
 
-Art. 509. A contratação temporária de reserva de capacidade é opcional e realizada por central geradora para atendimento à carga conectada à sua usina. Uso Interno CPFL
+Art. 509. A contratação temporária de reserva de capacidade é opcional e realizada por central geradora para atendimento à carga conectada à sua usina.
 
 § 1º A reserva de capacidade somente pode ser utilizada quando de interrupções ou reduções temporárias na geração em caráter emergencial, ou devido a manutenções programadas.
 
@@ -187,7 +187,7 @@ II - o encargo é devido apenas pelo período de uso, devendo ser calculado prop
 
 I - duas vezes a TUSD especificada no inciso I do caput, para o número acumulado de dias em que houve uso da reserva de capacidade entre 61 (sessenta e um) e 120 (cento e vinte) dias; e
 
-II - quatro vezes a TUSD especificada no inciso I do caput , para o número acumulado de dias em que houve uso da reserva de capacidade acima de 120 (cento e vinte) dias. Uso Interno CPFL
+II - quatro vezes a TUSD especificada no inciso I do caput , para o número acumulado de dias em que houve uso da reserva de capacidade acima de 120 (cento e vinte) dias.
 
 § 2º No ciclo de faturamento em que ocorrer a superação do § 1º, o encargo de uso deve ser calculado em 2 (duas) parcelas, observados os 2 (dois) valores de TUSD aplicáveis a cada 1 (um) dos dias de utilização da reserva de capacidade no ciclo.
 
@@ -215,4 +215,4 @@ I - para fins de demanda contratada deve ser considerada a soma dos valores cont
 
 II - não deve ser aplicada a proporcionalidade de número de dias de utilização disposta no inciso II do 0; e
 
-III - a TUSD aplicável na verificação da ultrapassagem deve ser a aplicável na conexão permanente, independentemente do número acumulado de dias em que houve uso da reserva de capacidade. Uso Interno CPFL
+III - a TUSD aplicável na verificação da ultrapassagem deve ser a aplicável na conexão permanente, independentemente do número acumulado de dias em que houve uso da reserva de capacidade.

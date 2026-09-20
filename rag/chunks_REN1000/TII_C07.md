@@ -60,7 +60,7 @@ Art. 591. Ao emitir o TOI, a distribuidora deve:
 
 I - entregar cópia legível ao consumidor ou àquele que acompanhar a inspeção, mediante recibo com assinatura do consumidor ou do acompanhante; e
 
-II - informar: Uso Interno CPFL
+II - informar:
 
 a) a possibilidade de solicitação de verificação ou de perícia metrológica junto ao INMETRO ou ao órgão metrológico delegado; e
 
@@ -88,7 +88,7 @@ II - lacrar o invólucro no ato da retirada, mediante entrega de comprovante des
 
 III - encaminhar o medidor e demais equipamentos para realização da avaliação técnica; e
 
-IV - comunicar ao consumidor por escrito, mediante comprovação e com pelo menos 10 (dez) dias de antecedência, o local, data e horário da realização da avaliação técnica, para que ele possa acompanhá-la caso deseje. Uso Interno CPFL
+IV - comunicar ao consumidor por escrito, mediante comprovação e com pelo menos 10 (dez) dias de antecedência, o local, data e horário da realização da avaliação técnica, para que ele possa acompanhá-la caso deseje.
 
 § 1º O consumidor pode solicitar um novo agendamento para realização da avaliação técnica uma única vez, desde que antes da data previamente informada pela distribuidora.
 
@@ -114,7 +114,7 @@ II - aplicação do fator de correção obtido por meio de inspeção do medidor
 
 III - utilização da média dos três maiores valores disponíveis de consumo de energia elétrica, proporcionalizados em 30 (trinta) dias, e de demanda de potências ativas e reativas excedentes, ocorridos em até 12 (doze) ciclos completos de medição regular imediatamente anteriores ao início da irregularidade;
 
-IV - determinação dos consumos de energia elétrica e das demandas de potências ativas e reativas excedentes por meio da carga desviada, quando identificada, ou por meio da carga instalada, verificada na constatação da irregularidade; ou Uso Interno CPFL
+IV - determinação dos consumos de energia elétrica e das demandas de potências ativas e reativas excedentes por meio da carga desviada, quando identificada, ou por meio da carga instalada, verificada na constatação da irregularidade; ou
 
 V - utilização dos valores máximos de consumo de energia elétrica, proporcionalizado em 30 (trinta) dias, e das demandas de potência ativa e reativa excedente, dentre os ocorridos nos 3 (três) ciclos imediatamente posteriores à regularização da medição.
 
@@ -142,9 +142,7 @@ no caput fica restrita à última inspeção nos equipamentos de medição da di
 
 das diferenças não faturadas a intervenção da distribuidora realizada em equipamento distinto daquele no qual se constatou a irregularidade.
 
-§ 4º Caso se comprove que o início da irregularidade ocorreu em período não atribuível ao atual titular da unidade consumidora, a este somente devem ser faturadas as diferenças apuradas no período de sua titularidade, sem a cobrança do Uso Interno CPFL
-
-custo administrativo do art. 597, exceto nos casos de sucessão dispostos no § 1º do art. 346.
+§ 4º Caso se comprove que o início da irregularidade ocorreu em período não atribuível ao atual titular da unidade consumidora, a este somente devem ser faturadas as diferenças apuradas no período de sua titularidade, sem a cobrança do custo administrativo do art. 597, exceto nos casos de sucessão dispostos no § 1º do art. 346.
 
 § 5 o O prazo de cobrança retroativa é de até 36 (trinta e seis) meses.
 
@@ -188,9 +186,7 @@ X - critério utilizado para a recuperação de receita, conforme art. 595, e a 
 
 XI - valor do custo administrativo cobrado e o motivo, conforme art. 597;
 
-XII - critério utilizado para a determinação do período de duração, conforme art. 596, e a memória descritiva da avaliação realizada, de modo que permita a sua Uso Interno CPFL
-
-reprodução e, quando for o caso, as justificativas pela não adoção dos demais critérios dispostos no artigo;
+XII - critério utilizado para a determinação do período de duração, conforme art. 596, e a memória descritiva da avaliação realizada, de modo que permita a sua reprodução e, quando for o caso, as justificativas pela não adoção dos demais critérios dispostos no artigo;
 
 XIII - data da última inspeção que antecedeu a inspeção que originou a notificação;
 

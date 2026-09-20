@@ -53,7 +53,7 @@ II - as unidades consumidoras devem pertencer ao mesmo condomínio edilício.
 
 § 3º A administração do empreendimento, regularmente instituída, deve se responsabilizar pelas obrigações decorrentes do atendimento.
 
-§ 4º O valor da fatura, sem qualquer acréscimo, deve ser rateado entre todos os integrantes, conforme acordo entre as partes. Uso Interno CPFL
+§ 4º O valor da fatura, sem qualquer acréscimo, deve ser rateado entre todos os integrantes, conforme acordo entre as partes.
 
 § 5º Para efeito do que trata este artigo, é vedada a utilização de vias públicas, de passagem aérea ou subterrânea e de imóveis de terceiros.
 
@@ -85,7 +85,7 @@ I - obras do sistema de iluminação pública ou de iluminação das vias intern
 
 II - obras necessárias para a conexão à rede da distribuidora, observadas as condições estabelecidas no art. 482; e
 
-III - postos de transformação necessários para o atendimento, ainda que em via pública, abrangendo os materiais necessários e a mão de obra, observados os critérios de mínimo dimensionamento técnico possível e menor custo global. Uso Interno CPFL
+III - postos de transformação necessários para o atendimento, ainda que em via pública, abrangendo os materiais necessários e a mão de obra, observados os critérios de mínimo dimensionamento técnico possível e menor custo global.
 
 § 2º A distribuidora pode ser contratada para executar as obras de infraestrutura básica das redes de distribuição de energia elétrica dispostas neste artigo.
 
@@ -113,6 +113,6 @@ Art. 483. O atendimento de nova solicitação de conexão em empreendimentos que
 
 Art. 484. A responsabilidade pela infraestrutura para viabilizar oatendimento das solicitações de fornecimento de energia elétrica nas parcelas não concluídas do empreendimento é do responsável pela implantação.
 
-Seção III Uso Interno CPFL
+Seção III
 
 Da Regularização Fundiária Urbana de Interesse Social – Reurb-S

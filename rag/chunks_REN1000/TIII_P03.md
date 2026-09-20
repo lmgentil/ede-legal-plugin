@@ -46,7 +46,7 @@ Art. 672. A Resolução Normativa ANEEL nº 482, de 17 de abril de 2012, passa a
 
 “Art. 7º...............................................................
 
-................................................................................... Uso Interno CPFL
+...................................................................................
 
 XIV – adicionalmente às informações obrigatórias, a fatura dos consumidores que possuem microgeração ou minigeração distribuída deve conter, a cada ciclo de faturamento:
 
@@ -80,7 +80,7 @@ Art. 673. A Resolução Normativa ANEEL nº 583, de 22 de outubro de 2013, passa
 
 III - declaração emitida pelo agente de distribuição a cujo sistema estiver conectado, atestando o atendimento aos requisitos para operação em teste ou informando a inexistência de relacionamento.” (NR)
 
-“Art. 5º............................................................... Uso Interno CPFL
+“Art. 5º...............................................................
 
 ...................................................................................
 

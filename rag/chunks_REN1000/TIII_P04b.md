@@ -29,7 +29,7 @@ chunk_pai: TIII_P04.md
 
 4.1.4. ter gratuidade para o aumento de carga, desde que a carga instalada não ultrapasse 50 kW;
 
-4.1.4.1. a gratuidade não se aplica para iluminação pública, obras com acréscimo de fases de rede em tensão até 2,3 kV e atendimento por sistemas isolados, que devem observar a regulação da ANEEL; Uso Interno CPFL
+4.1.4.1. a gratuidade não se aplica para iluminação pública, obras com acréscimo de fases de rede em tensão até 2,3 kV e atendimento por sistemas isolados, que devem observar a regulação da ANEEL;
 
 4.1.5. alterar a modalidade tarifária, desde que previsto na regulação da ANEEL, no prazo de até 30 (trinta) dias;
 
@@ -71,7 +71,7 @@ chunk_pai: TIII_P04.md
 
 4.3.5. poder solicitar crédito de emergência, em qualquer dia da semana e horário;
 
-4.3.6. receber, sempre que solicitado, demonstrativo de faturamento com informações consolidadas do valor total comprado, quantidade de créditos, datas e os valores das compras realizadas no mês de referência; Uso Interno CPFL
+4.3.6. receber, sempre que solicitado, demonstrativo de faturamento com informações consolidadas do valor total comprado, quantidade de créditos, datas e os valores das compras realizadas no mês de referência;
 
 4.3.7. ter os créditos transferidos para outra unidade consumidora de sua titularidade ou a devolução desses créditos por meio de crédito em conta corrente ou ordem de pagamento nos casos de encerramento contratual.
 
@@ -113,7 +113,7 @@ CLÁUSULA SEXTA: DA INTERRUPÇÃO DO SERVIÇO
 
 6.1.1. deficiência técnica ou de segurança em instalações da unidade consumidora, que causem risco iminente de danos a pessoas, bens ou ao sistema elétrico;
 
-6.1.2. fornecimento de energia elétrica a terceiros. Uso Interno CPFL
+6.1.2. fornecimento de energia elétrica a terceiros.
 
 6.2. A DISTRIBUIDORA pode suspender o fornecimento de energia elétrica, com aviso prévio ao CONSUMIDOR, quando for constatado:
 
@@ -159,7 +159,7 @@ CLÁUSULA SÉTIMA: DE OUTROS SERVIÇOS
 
 7.1. A DISTRIBUIDORA pode executar serviços vinculados à prestação do serviço público, desde que o CONSUMIDOR, por sua livre escolha, opte por contratar.
 
-7.2. A DISTRIBUIDORA pode incluir na fatura ou, quando for o caso, no pagamento do consumo ou da compra de créditos, contribuições de caráter social, desde que autorizadas antecipadamente pelo CONSUMIDOR. Uso Interno CPFL
+7.2. A DISTRIBUIDORA pode incluir na fatura ou, quando for o caso, no pagamento do consumo ou da compra de créditos, contribuições de caráter social, desde que autorizadas antecipadamente pelo CONSUMIDOR.
 
 7.3. O CONSUMIDOR pode cancelar, a qualquer tempo, a cobrança na fatura de contribuições e doações ou outros serviços por ele autorizados.
 

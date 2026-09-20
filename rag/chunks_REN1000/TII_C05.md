@@ -59,7 +59,7 @@ Art. 554. É permitida a recarga de veículos elétricos que não sejam do titul
 
 Art. 555. É vedada a injeção de energia elétrica na rede de distribuição a partir dos veículos elétricos e a participação no sistema de compensação de energia elétrica de microgeração e minigeração distribuída.
 
-Parágrafo único. O disposto no caput não se aplica ao fluxo bidirecional restrito à mesma unidade consumidora. Uso Interno CPFL
+Parágrafo único. O disposto no caput não se aplica ao fluxo bidirecional restrito à mesma unidade consumidora.
 
 Art. 556. A distribuidora deve ressarcir os danos elétricos em veículo elétrico, observadas as condições estabelecidas nesta Resolução, podendo estabelecer norma específica de segurança elétrica para as instalações de recarga.
 

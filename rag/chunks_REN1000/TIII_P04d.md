@@ -95,7 +95,7 @@ informar o resultado da análise de reconhecimento
 
 de sazonalidade, caso haja necessidade de visita
 
-técnica Uso Interno CPFL
+técnica
 
 2 0, §3º  15 (quinze) dias  solucionar reclamação de compensação de
 
@@ -205,7 +205,7 @@ sessenta e cinco) dias
 
 concluir as obras de conexão, obras até 69 kV, acima
 
-de 1km Uso Interno CPFL
+de 1km
 
 3 0, §1º  Cronograma  concluir demais obras não previstas nos critérios
 

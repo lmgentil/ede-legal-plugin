@@ -71,7 +71,7 @@ Seção IV
 
 Do Cadastro
 
-Art. 659. A distribuidora deve organizar e manter atualizado o cadastro de todos os consumidores e demais usuários do serviço público de distribuição de energia elétrica, que deve conter, no mínimo, as seguintes informações: Uso Interno CPFL
+Art. 659. A distribuidora deve organizar e manter atualizado o cadastro de todos os consumidores e demais usuários do serviço público de distribuição de energia elétrica, que deve conter, no mínimo, as seguintes informações:
 
 I - informações do Cadastro Nacional da Distribuição – CND, estabelecidas nos Procedimentos de Regulação Tarifária – PRORET;
 
@@ -113,7 +113,7 @@ XIX - processos individualizados de irregularidade, de que trata o art. 598;
 
 XX - processos de ressarcimento de danos elétricos em registro eletrônico ou impresso, de forma organizada e auditável;
 
-XXI - registros dos créditos efetuados na fatura em função de violação dos indicadores, prazos e demais previsões regulatórias; Uso Interno CPFL
+XXI - registros dos créditos efetuados na fatura em função de violação dos indicadores, prazos e demais previsões regulatórias;
 
 XXII - registros do valor cobrado dos serviços e atividades dispostos nesta Resolução, com o horário e data da execução;
 
@@ -147,7 +147,7 @@ Art. 662. Sem prejuízo das sanções cabíveis, a não realização pela distri
 
 Parágrafo único. A comprovação da realização da revisão cadastral no primeiro período de revisão e, a critério da ANEEL, nos períodos posteriores, deverá ser realizada anualmente pela distribuidora, até 31 de janeiro do ano subsequente, por meio de envio de relatório e informações conforme instruções da ANEEL.
 
-Art. 663. A distribuidora não tem direito à recuperação do equilíbrio econômico-financeiro do contrato caso o desequilíbrio tenha sido causado por: Uso Interno CPFL
+Art. 663. A distribuidora não tem direito à recuperação do equilíbrio econômico-financeiro do contrato caso o desequilíbrio tenha sido causado por:
 
 I - cobrança de tarifas menores que as homologadas, de que trata o art. 173;
 

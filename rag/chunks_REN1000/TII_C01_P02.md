@@ -42,7 +42,7 @@ II - recebidas após o 15º (décimo quinto) dia do mês: até o segundo ciclo s
 
 Art. 463. A distribuidora pode atualizar as informações dos pontos de iluminação pública por meio de levantamentos periódicos em campo.
 
-§ 1º O levantamento deve ser agendado com o poder público municipal com pelo menos 10 (dez) dias de antecedência. Uso Interno CPFL
+§ 1º O levantamento deve ser agendado com o poder público municipal com pelo menos 10 (dez) dias de antecedência.
 
 § 2º Caso o poder público municipal não compareça na data previamente agendada, a distribuidora pode seguir cronograma próprio.
 
@@ -80,7 +80,7 @@ II - data de aprovação do projeto, quando existir; ou
 
 III - data do último levantamento realizado.
 
-§ 10. A distribuidora deve proceder conforme o § 3º e seguintes caso identifique instalação de iluminação pública não comunicada pelo poder público municipal em período distinto do levantamento periódico. Uso Interno CPFL
+§ 10. A distribuidora deve proceder conforme o § 3º e seguintes caso identifique instalação de iluminação pública não comunicada pelo poder público municipal em período distinto do levantamento periódico.
 
 Art. 464. A distribuidora deve disponibilizar ao poder público municipal, em até 30 (trinta) dias da solicitação, as informações contidas em seu sistema de informação geográfica relacionadas aos pontos de iluminação pública e às unidades consumidoras da classe iluminação pública da área geográfica do solicitante.
 
@@ -106,7 +106,7 @@ Parágrafo único. O tamanho da amostra, por tipo de ponto de iluminação, deve
 
 Art. 467. Para fins de apuração do consumo de energia elétrica, emissão de fatura, cobrança, pagamento, apuração dos indicadores de continuidade e demais direitos e obrigações, os pontos de iluminação pública sem medição da distribuidora devem ser agregados e considerados como uma única unidade consumidora.
 
-§ 1º Caso haja solicitação do poder público municipal, a distribuidora deve estabelecer uma unidade consumidora agregada específica para os pontos de iluminação pública que fizerem parte do sistema de gestão, de que trata o art. 474. Uso Interno CPFL
+§ 1º Caso haja solicitação do poder público municipal, a distribuidora deve estabelecer uma unidade consumidora agregada específica para os pontos de iluminação pública que fizerem parte do sistema de gestão, de que trata o art. 474.
 
 § 2º Aplicam-se à unidade consumidora que agrega os pontos de iluminação pública as disposições do art. 599 e seguintes desta Resolução em caso de dano elétrico causado aos equipamentos de iluminação pública.
 
@@ -136,4 +136,4 @@ DIC = Duração de Interrupção Individual da unidade consumidora que agrega os
 
 n = número de dias do mês ou o número de dias decorridos desde a instalação ou alteração do ponto de iluminação.
 
-Art. 469. O intervalo de leitura considerado para fins de faturamento dos pontos de iluminação sem medição da distribuidora deve corresponder ao mês civil. Uso Interno CPFL
+Art. 469. O intervalo de leitura considerado para fins de faturamento dos pontos de iluminação sem medição da distribuidora deve corresponder ao mês civil.

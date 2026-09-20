@@ -22,10 +22,10 @@
     },
     "REN1000": {
       "arquivos": 67,
-      "sha256": "63997c3bc53c1e1ef9a3c47b0137d1825660ab05a0c7656925487159df5941da"
+      "sha256": "05a3bfdd9067e3b3e5525f6e43622e3d57277a7aae22189f9bd86af1bdc9362f"
     }
   },
-  "versao": "v3 (2026-07-09)",
+  "versao": "v4 (2026-09-20) — REN1000: remoção determinística da marca d'água 'Uso Interno CPFL' (Gate 6.5-B3, scripts/limpar_contaminacao_corpus.py); nenhum outro diploma alterado; contagem de arquivos inalterada",
   "total_chunks": 434,
   "sha256_total": "372dd0c722e93e12a3d54383fd6c7d9ef6b06af3813244bfabb5fdaf8e895ec4"
 }

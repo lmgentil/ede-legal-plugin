@@ -47,7 +47,7 @@ Seção II
 
 Do Enquadramento como Consumidor Livre
 
-Art. 160. O consumidor atendido em qualquer tensão pode optar pela compra de energia elétrica no ACL, desde que a contratação da demanda observe, no mínimo, o seguinte valor em um dos postos tarifários, conforme disposto na Portaria MME nº 514, de 27 de dezembro de 2018: Uso Interno CPFL
+Art. 160. O consumidor atendido em qualquer tensão pode optar pela compra de energia elétrica no ACL, desde que a contratação da demanda observe, no mínimo, o seguinte valor em um dos postos tarifários, conforme disposto na Portaria MME nº 514, de 27 de dezembro de 2018:
 
 I - a partir de 1º de julho de 2019: 2.500 kW;
 
@@ -83,7 +83,7 @@ I - para o consumidor livre e especial cujo atendimento se dê parcialmente em c
 
 II - para os demais consumidores: conforme o montante de energia elétrica medido.
 
-Parágrafo único. A distribuidora deve atender ao aumento do montante de energia elétrica contratado disposto no inciso I desde que efetuado por escrito e com a antecedência de pelo menos 5 anos, ou em prazo menor a critério da distribuidora. Uso Interno CPFL
+Parágrafo único. A distribuidora deve atender ao aumento do montante de energia elétrica contratado disposto no inciso I desde que efetuado por escrito e com a antecedência de pelo menos 5 anos, ou em prazo menor a critério da distribuidora.
 
 Art. 164. A solicitação de redução do montante de energia elétrica contratado por consumidor livre e especial, com aplicação a partir do início da vigência subsequente, deve ser realizada com a antecedência em relação ao término da vigência contratual de pelo menos:
 
@@ -111,7 +111,7 @@ Art. 165. Considera-se consumidor parcialmente livre o consumidor livre que exer
 
 § 7 o Os montantes de energia elétrica contratada nos termos do CCER,
 
-observados os valores de energia medida, deverão ser registrados na CCEE conforme Procedimentos de Comercialização, sendo esses montantes tratados como carga da distribuidora para fins de contabilização das operações de compra e venda de energia elétrica realizadas no mercado de curto prazo. Uso Interno CPFL
+observados os valores de energia medida, deverão ser registrados na CCEE conforme Procedimentos de Comercialização, sendo esses montantes tratados como carga da distribuidora para fins de contabilização das operações de compra e venda de energia elétrica realizadas no mercado de curto prazo.
 
 § 8o Caso o consumidor parcialmente livre, responsável por unidade
 
@@ -143,9 +143,7 @@ II - adequar, quando necessário, o sistema de medição do consumidor e mapear 
 
 § 4º Para fins de migração, a distribuidora somente pode exigir do consumidor as providências dispostas nesta Resolução, no PRODIST e nos Procedimentos de Comercialização.
 
-Art. 167. Durante o período compreendido entre a formalização da denúncia do CCER e a efetiva migração para o ACL, o consumidor potencialmente livre deve solicitar a adesão à CCEE nos termos da Convenção de Comercialização, Uso Interno CPFL
-
-observados os prazos e as condições estabelecidos nos Procedimentos de Comercialização.
+Art. 167. Durante o período compreendido entre a formalização da denúncia do CCER e a efetiva migração para o ACL, o consumidor potencialmente livre deve solicitar a adesão à CCEE nos termos da Convenção de Comercialização, observados os prazos e as condições estabelecidos nos Procedimentos de Comercialização.
 
 Art. 168. Caso o processo de migração do consumidor potencialmente livre para o ACL não se conclua por motivo não atribuível à distribuidora, devem ser observadas as seguintes disposições:
 
@@ -169,7 +167,7 @@ Da Retorno do Consumidor ao Ambiente de Contratação Regulada
 
 Art. 170. O consumidor livre ou especial, tendo permanecido nesta condição pelo prazo de pelo menos 5 (cinco) anos, pode retornar à categoria de consumidor atendido em condições reguladas mediante a formalização, junto à distribuidora, de seu interesse em adquirir energia elétrica da distribuidora para cobertura, total ou parcial, das necessidades de energia e potência das unidades consumidoras de sua responsabilidade.
 
-§ 1º O prazo para retorno disposto no caput pode ser reduzido, a critério da distribuidora. Uso Interno CPFL
+§ 1º O prazo para retorno disposto no caput pode ser reduzido, a critério da distribuidora.
 
 § 2º Caso haja concordância do consumidor em relação ao prazo de retorno ao ACR estabelecido pela distribuidora, deve ser celebrado o CCER para início na data pactuada.
 

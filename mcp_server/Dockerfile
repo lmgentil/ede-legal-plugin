@@ -129,6 +129,7 @@ COPY --chown=10001:10001 mcp_server/auth_config.py mcp_server/auth_config.py
 COPY --chown=10001:10001 mcp_server/auth_logging.py mcp_server/auth_logging.py
 COPY --chown=10001:10001 mcp_server/http_telemetry.py mcp_server/http_telemetry.py
 COPY --chown=10001:10001 mcp_server/scope_policy.py mcp_server/scope_policy.py
+COPY --chown=10001:10001 mcp_server/prm_override.py mcp_server/prm_override.py
 COPY --chown=10001:10001 mcp_server/token_verifier.py mcp_server/token_verifier.py
 COPY --chown=10001:10001 VERSION VERSION
 

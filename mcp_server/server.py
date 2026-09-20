@@ -110,11 +110,13 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 from auth_config import EdeAuthConfig, carregar_config_do_ambiente
 from http_telemetry import TelemetriaSegurancaMiddleware, registrar_startup
+from prm_override import MetadadosRecursoProtegidoMiddleware
 from scope_policy import (
     FERRAMENTA_CONTESTACAO,
     FERRAMENTA_HEALTH,
     EscopoFerramentaMiddleware,
     contar_dispatch,
+    escopos_anunciaveis,
 )
 from token_verifier import EdeTokenVerifier
 
@@ -431,10 +433,21 @@ def construir_app_http(servidor: MCPServer, config: EdeAuthConfig):
     os 401/403 que o `RequireAuthMiddleware` do SDK devolve antes de
     qualquer dispatch. Envolver o app (em vez de `add_middleware`) mantém
     o lifespan do Starlette intacto: escopos que não são `http` passam
-    direto."""
+    direto.
+
+    `MetadadosRecursoProtegidoMiddleware` (Gate 6.5-B2) fica IMEDIATAMENTE
+    por dentro da telemetria (que continua, literalmente, a camada mais
+    externa) e por fora de toda a app do SDK: ele só substitui a resposta
+    do Protected Resource Metadata pelo catálogo completo de escopos
+    (`scope_policy.escopos_anunciaveis`) — `config.required_scopes`
+    (base do transporte, `AuthSettings.required_scopes`) permanece
+    inalterado, só `ede:health`."""
     app = servidor.streamable_http_app(
         streamable_http_path=config.caminho_mcp,
         transport_security=seguranca_de_transporte(config),
+    )
+    app = MetadadosRecursoProtegidoMiddleware(
+        app, config, escopos_anunciaveis(config.required_scopes)
     )
     return TelemetriaSegurancaMiddleware(app, config)
 

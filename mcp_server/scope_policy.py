@@ -91,6 +91,32 @@ def escopo_exigido_por(ferramenta: str) -> str | None:
     return MAPA_ESCOPO_POR_FERRAMENTA.get(ferramenta)
 
 
+def escopos_anunciaveis(escopos_base: tuple[str, ...]) -> tuple[str, ...]:
+    """Catálogo COMPLETO de escopos deste servidor para fins de
+    DESCOBERTA (Protected Resource Metadata, RFC 9728) — nunca para
+    exigência de BASE do transporte, que continua sendo só
+    `escopos_base`/`AuthSettings.required_scopes`, inalterada.
+
+    Gate 6.5-B1 (diagnóstico) provou a causa raiz: o SDK MCP 2.2.0 usa o
+    MESMO valor de `AuthSettings.required_scopes` tanto para a exigência
+    de escopo de base quanto para `scopes_supported` do PRM — então,
+    mantendo `EDE_MCP_REQUIRED_SCOPES` só com `ede:health` (correto para
+    a base), o PRM nunca anunciava `ede:legal`, e um cliente OAuth
+    conforme ao protocolo nunca pede um escopo que não viu anunciado
+    (mcp.client.auth.utils.get_client_metadata_scopes) — mesmo com a
+    política do Authorization Server (Descope) já concedendo-o. Esta
+    função (Gate 6.5-B2) é a fonte ÚNICA do catálogo anunciado:
+    determinística, sem duplicata, ordem estável (base primeiro, depois
+    cada escopo distinto do mapa por-ferramenta, na ordem do mapa).
+    Nunca duplicar esta lista à mão em outro lugar (ver
+    mcp_server/prm_override.py, único consumidor)."""
+    vistos: list[str] = list(escopos_base)
+    for escopo in MAPA_ESCOPO_POR_FERRAMENTA.values():
+        if escopo not in vistos:
+            vistos.append(escopo)
+    return tuple(vistos)
+
+
 # ------------------------------------------------------- contador de dispatch
 
 class ContadorDispatch:

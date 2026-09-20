@@ -622,7 +622,13 @@ def _servidor_com_tool_legal(config, verificador):
 async def test_prm_disponivel_e_anuncia_exatamente_um_resource():
     """RFC 9728: o PRM existe, é anônimo (o cliente precisa lê-lo para
     descobrir onde se autenticar) e anuncia UM Resource — nunca o
-    hostname alternativo, nem a lista de audiences."""
+    hostname alternativo, nem a lista de audiences.
+
+    Gate 6.5-B2: `scopes_supported` passou a anunciar `ede:health` E
+    `ede:legal` (catálogo completo, via `MetadadosRecursoProtegidoMiddleware`
+    / `scope_policy.escopos_anunciaveis`) — a correção exata do bloqueio
+    root-caused no Gate 6.5-B1 (cliente conforme ao protocolo nunca pedia
+    `ede:legal` porque o PRM nunca o anunciava)."""
     async with app_autenticada() as (app, config):
         async with h.cliente_mcp(app, config) as cliente:
             r = await cliente.get("/.well-known/oauth-protected-resource/mcp")
@@ -630,8 +636,71 @@ async def test_prm_disponivel_e_anuncia_exatamente_um_resource():
     corpo = r.json()
     assert corpo["resource"] == h.RESOURCE_CANONICO
     assert corpo["authorization_servers"] == [h.ISSUER]
-    assert corpo["scopes_supported"] == [ESCOPO_HEALTH]
+    assert corpo["scopes_supported"] == [ESCOPO_HEALTH, ESCOPO_LEGAL]
     assert h.HOST_ALTERNATIVO not in json.dumps(corpo)
+
+
+def test_escopos_anunciaveis_deriva_do_mapa_sem_duplicata():
+    """Gate 6.5-B2: o catálogo anunciado no PRM é SEMPRE base + todo
+    escopo distinto do mapa por-ferramenta — determinístico, sem
+    duplicata, nunca um escopo extra inventado nem um esquecido. Fonte
+    única (scope_policy.escopos_anunciaveis); nenhuma lista paralela."""
+    from scope_policy import escopos_anunciaveis
+
+    assert escopos_anunciaveis((ESCOPO_HEALTH,)) == (ESCOPO_HEALTH, ESCOPO_LEGAL)
+    # sem duplicata mesmo se a base já contivesse o escopo da tool.
+    assert escopos_anunciaveis((ESCOPO_HEALTH, ESCOPO_LEGAL)) == (ESCOPO_HEALTH, ESCOPO_LEGAL)
+
+
+def test_nenhum_escopo_desconhecido_e_anunciado():
+    """O catálogo anunciado nunca extrapola o vocabulário fechado de
+    escopos que este servidor realmente reconhece (auth_config.
+    ESCOPOS_CONHECIDOS) — anunciar um escopo inexistente seria oferecer
+    ao cliente algo que o servidor nunca saberia autorizar."""
+    from scope_policy import escopos_anunciaveis
+    from auth_config import ESCOPOS_CONHECIDOS
+
+    assert set(escopos_anunciaveis((ESCOPO_HEALTH,))) <= set(ESCOPOS_CONHECIDOS)
+
+
+@pytest.mark.anyio
+async def test_prm_nao_amplia_o_escopo_de_base_do_transporte_de_verdade():
+    """Complementa test_escopo_de_base_do_transporte_permanece_so_health
+    (que só verifica a CONSTANTE de configuração): aqui é o objeto
+    `AuthSettings` de verdade, dentro do servidor REAL construído por
+    `criar_servidor`, que precisa continuar exigindo só `ede:health` —
+    mesmo depois de o PRM passar a anunciar `ede:legal` também. Anunciar
+    (descoberta) e exigir (camada HTTP) são coisas diferentes por
+    construção, nunca só por coincidência de teste."""
+    async with app_autenticada() as (app, config):
+        pass
+    assert config.required_scopes == (ESCOPO_HEALTH,)
+
+
+@pytest.mark.anyio
+async def test_descoberta_de_cliente_conforme_agora_seleciona_ede_legal():
+    """Gate 6.5-B1 (diagnóstico) provou a causa raiz reproduzindo o
+    algoritmo real de seleção de escopo de um cliente OAuth conforme ao
+    protocolo (`mcp.client.auth.utils.get_client_metadata_scopes`): ele
+    escolhe o que pedir na autorização A PARTIR do PRM, nunca pedindo um
+    escopo que não viu anunciado ali. Este teste roda o MESMO algoritmo
+    do SDK cliente contra o PRM real deste servidor, pós Gate 6.5-B2, e
+    prova que ele agora seleciona `ede:health ede:legal` — a causa raiz
+    do bloqueio do Gate 6.5-B1 deixou de existir."""
+    from mcp.client.auth.utils import get_client_metadata_scopes
+    from mcp.shared.auth import ProtectedResourceMetadata
+
+    async with app_autenticada() as (app, config):
+        async with h.cliente_mcp(app, config) as cliente:
+            r = await cliente.get("/.well-known/oauth-protected-resource/mcp")
+    prm = ProtectedResourceMetadata.model_validate(r.json())
+
+    escopo_selecionado = get_client_metadata_scopes(
+        www_authenticate_scope=None,
+        protected_resource_metadata=prm,
+    )
+    assert escopo_selecionado is not None
+    assert set(escopo_selecionado.split()) == {ESCOPO_HEALTH, ESCOPO_LEGAL}
 
 
 @pytest.mark.anyio

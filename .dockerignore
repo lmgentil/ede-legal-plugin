@@ -62,6 +62,7 @@
 !mcp_server/auth_logging.py
 !mcp_server/http_telemetry.py
 !mcp_server/scope_policy.py
+!mcp_server/prm_override.py
 !mcp_server/token_verifier.py
 !mcp_server/requirements.txt
 !VERSION

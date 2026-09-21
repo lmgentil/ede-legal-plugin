@@ -293,6 +293,47 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
     `truncado`, `alertas`). `score_lexical`/`score_final` passam de inteiro
     a decimal ponderado. Dependência nova: **nenhuma**; `VERSION`
     permanece `0.13.0`.
+- **Precisão da recuperação jurídica e profundidade de dispositivos**
+  (Gate 6.5-C3, `scripts/preparar_contestacao.py`). Achados do Gate 6.5-C2
+  (produção, fixture exata SHA-256 `d9059ef3…292ef`): a questão de
+  exigibilidade da cobrança de recuperação de consumo recuperava capítulos do
+  CPC sobre *cumprimento de sentença* (a REN1000 não entrava no top-3); a de
+  proteção do consumidor perdia vagas para capítulos genéricos do setor; e o
+  excerto de 400 caracteres do capítulo central (arts. 589-598) cobria só o
+  art. 589. Causas medidas: bônus de título com IDF² (27,2 para UMA palavra
+  rara num título de ~10 termos); a própria referência normativa
+  ("000", "2021", "aneel") pontuada como conteúdo; "à luz da" pontuada como
+  assunto; e vocabulário de setor vencendo o conceito jurídico.
+  - Título por **cobertura** (quanto do título a questão explica), no lugar
+    de IDF²; expressões de enquadramento ("à luz da", "nos termos da") fora
+    do conteúdo; **referência normativa explícita** (`Resolução Normativa
+    ANEEL nº 1.000/2021`, `REN 1000`, `CDC`, `Lei nº 8.078/1990`...)
+    reconhecida por tabela explícita e revisável: identificadores numéricos
+    saem do texto de conteúdo e o diploma citado recebe um impulso
+    multiplicativo **apenas sobre pontuação de conteúdo já existente** (uma
+    questão que só cita o diploma não recupera nada). Termos que ativam um
+    conceito jurídico ganham peso próprio (`PESO_TERMO_GATILHO`); o conceito
+    de responsabilidade civil e dano foi reintroduzido com evidência (teste
+    do 6.5-B3). Parâmetros calibrados sobre 31 checagens (fixture exata,
+    paráfrases e contraexemplos reais de CPC) num platô, não numa ponta.
+  - **`dispositivos_relevantes`** por fonte: parser determinístico de
+    artigos (`Art. N` no início de linha, com `-A`, milhar e cabeçalhos
+    estruturais aparados por posição), validado por contiguidade contra
+    `art_inicio`/`art_fim` do chunk. Devolve até
+    `MAX_DISPOSITIVOS_POR_FONTE` (3) artigos, escolhidos pela mesma
+    intenção da questão, em ordem do diploma, com `score`, `truncado` e
+    `questoes_relacionadas` (por que foi escolhido). Texto é sempre
+    **prefixo literal** do corpus, verificado nos 3.926 artigos parseáveis.
+    Chunks com estrutura não confiável (typo `At. 245.`, lacuna de
+    numeração, artigos só com letra) caem em `modo_extrato: "trecho"` com
+    `motivo_modo_trecho`; nada é corrigido ou reconstruído. `texto`,
+    `artigo_preciso` e `truncado` continuam descrevendo o trecho inicial.
+  - `validation_status` e `vigencia` inalterados: precisão do texto não
+    eleva validação jurídica. Novo campo `score_componentes` (corpo, título,
+    frase, diploma_explicito) para auditoria.
+  - Pacote da fixture exata: 27,2 KB -> 50,9 KB. Dependência nova:
+    **nenhuma**; `VERSION` permanece `0.13.0`. **Não implantado em
+    produção neste gate.**
 
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto

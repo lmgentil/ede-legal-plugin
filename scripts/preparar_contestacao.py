@@ -247,7 +247,6 @@ def _validar_entrada(entrada: dict) -> ResultadoPreparacao | None:
 
 # ---------------------------------------------------------- fontes legais
 
-_PALAVRA_RE = re.compile(r"[a-zà-ú0-9]+", re.IGNORECASE)
 
 # Gate 6.5-B3 §4/§5: lista fechada de palavras gramaticais (artigos,
 # preposições, conjunções, pronomes) e de termos processuais tão
@@ -283,7 +282,7 @@ STOPWORDS_LEXICAS = frozenset({
     "havia", "houve", "onde",
 })
 
-BONUS_TITULO_POR_TERMO = 2
+BONUS_TITULO_POR_TERMO = 4
 """Peso do termo da questão que também aparece no título/capítulo do
 chunk (frontmatter `titulo`/`capitulo`) — sinal de relevância mais forte
 que ocorrência solta no corpo (Gate 6.5-B3 §5, "title/article-heading
@@ -405,9 +404,14 @@ def _bigramas_radicais(texto: str) -> set:
 #     moral): sem tabela nenhuma, 17/17 ainda recuperam a fonte esperada;
 #     só "proteção do consumidor" mostrou ganho mensurável (a fonte do CDC
 #     sobe de 2º para 1º e o ruído da REN1000 sai do top-3 da questão
-#     abstrata). Conceitos de "procedimento irregular" e de
-#     "responsabilidade civil/dano" foram avaliados e DESCARTADOS por
-#     ganho zero — não reintroduzir sem nova evidência.
+#     abstrata). Conceito de "procedimento irregular": avaliado e
+#     DESCARTADO por ganho zero. Conceito de "responsabilidade civil e
+#     dano": descartado no 6.5-C1 e REINTRODUZIDO no 6.5-C3 com evidência
+#     nova: sem ele, a questão do 6.5-B3 "dano moral por cobrança indevida de
+#     consumo de energia" perdia CC/CDC para capítulos da REN1000, cujo
+#     vocabulário de setor ("cobrança", "consumo", "energia") vence o par
+#     "dano moral" quando este pesa 1 (tests/test_preparar_contestacao.py::
+#     test_C_cobertura_cdc_cc_para_questoes_de_dano_e_prova).
 CONCEITOS_JURIDICOS = (
     {
         "id": "PROTECAO_DO_CONSUMIDOR",
@@ -416,6 +420,14 @@ CONCEITOS_JURIDICOS = (
                      ("relacoes", "consumo")),
         "expansao": ("fornecedor", "servico", "vulnerabilidade",
                      "direitos basicos", "politica nacional", "relacoes consumo"),
+    },
+    {
+        "id": "RESPONSABILIDADE_CIVIL_E_DANO",
+        "gatilhos": (("dano", "moral"), ("danos", "morais"),
+                     ("responsabilidade", "civil"), ("indenizacao",),
+                     ("reparacao", "dano")),
+        "expansao": ("responsabilidade civil", "ato ilicito", "obrigacao indenizar",
+                     "reparacao", "culpa", "nexo causal"),
     },
 )
 
@@ -439,22 +451,122 @@ def _conceitos_compilados() -> tuple:
 _CONCEITOS = _conceitos_compilados()
 
 
-def _termos_da_consulta(questao: str) -> tuple:
-    """Devolve `(pesos, bigramas, conceitos_ativos)`: `pesos` mapeia radical
-    -> peso (1 para o que o advogado escreveu; `PESO_TERMO_EXPANDIDO` para
-    termo trazido por conceito ativo, e nunca sobrescrevendo um termo
-    direto)."""
-    diretos = _radicais_uteis(questao)
+# ------------------------------------------------ pré-processamento da questão
+# Gate 6.5-C3. Duas transformações determinísticas ANTES de extrair termos:
+#
+# 1. Expressões de enquadramento de redação jurídica ("à luz da", "nos
+#    termos da") não carregam assunto algum. Achado do Gate 6.5-C2: "luz"
+#    é raro no corpus (IDF 5,4) e por isso pesava mais que "cobrança" ou
+#    "recuperação" numa questão que só dizia "à luz da Resolução ...".
+#    Lista FECHADA e explícita — nunca uma stopword solta: "termos" e
+#    "base" continuam sendo palavras de conteúdo fora dessas locuções.
+# 2. Referência normativa explícita ("Resolução Normativa ANEEL nº
+#    1.000/2021", "REN 1000", "Código de Defesa do Consumidor", "CPC")
+#    identifica QUAL instrumento o advogado pediu; não é assunto. Achado
+#    do Gate 6.5-C2: os tokens da própria referência ("000", "2021",
+#    "aneel", "normativa") eram pontuados como termos de conteúdo e
+#    davam bônus de bigrama justamente aos capítulos de Disposições Finais
+#    e Transitórias, que citam a resolução o tempo todo. Agora o trecho é
+#    removido do texto de conteúdo e vira SINAL DE DIPLOMA: só impulsiona
+#    (BONUS_DIPLOMA_EXPLICITO) candidatos daquele diploma que já tenham
+#    pontuação de conteúdo. Nunca inclui chunk algum por si só: uma questão
+#    que só cita o diploma, sem conteúdo, não recupera nada.
+_ENQUADRAMENTOS = (
+    re.compile(r"\ba luz d[aeo]s?\b"),
+    re.compile(r"\bnos termos d[aeo]s?\b"),
+    re.compile(r"\bem face d[aeo]s?\b"),
+    re.compile(r"\bde acordo com\b"),
+)
+
+_NUM = r"(?:\s+n(?:o|umero)?[°\.]?)?"  # "nº", "no", "numero" (opcional)
+
+
+def _ref(numero: str, ano: str) -> str:
+    return rf"\blei(?:\s+federal)?{_NUM}\s*{numero}(?:\s*/\s*{ano})?\b"
+
+
+# Cada diploma: (padrões REMOVIDOS do texto de conteúdo, padrões que só
+# SINALIZAM o diploma). Identificador numérico ("Resolução Normativa nº
+# 1.000/2021", "Lei nº 8.078/1990") e sigla ("REN 1000", "CDC") são só
+# endereço do instrumento e saem do texto. O NOME temático ("Código de
+# Defesa do Consumidor", "Código de Processo Civil") fica: "consumidor" e
+# "processo" continuam sendo assunto da questão, e o nome também sinaliza o
+# diploma.
+REFERENCIAS_NORMATIVAS = (
+    ("REN1000", (
+        rf"\b(?:resolucao|res)\.?\s+normativa(?:\s+aneel)?{_NUM}\s*1\.?000(?:\s*/\s*2021)?(?:\s+da\s+aneel)?",
+        rf"\bren(?:\s+aneel)?{_NUM}\s*1\.?000(?:\s*/\s*2021)?",
+    ), ()),
+    ("CPC", (r"\bcpc\b", _ref(r"13\.?105", "2015")), (r"\bcodigo\s+de\s+processo\s+civil\b",)),
+    ("CC", (_ref(r"10\.?406", "2002"),), (r"\bcodigo\s+civil\b",)),
+    ("CDC", (r"\bcdc\b", _ref(r"8\.?078", "1990")), (r"\bcodigo\s+de\s+defesa\s+do\s+consumidor\b",)),
+    ("L8987", (_ref(r"8\.?987", "1995"),), (r"\blei\s+das\s+concessoes\b",)),
+    ("L9427", (_ref(r"9\.?427", "1996"),), (r"\blei\s+da\s+aneel\b",)),
+)
+_REFERENCIAS_COMPILADAS = tuple(
+    (diploma, tuple(re.compile(p) for p in remover), tuple(re.compile(p) for p in sinalizar))
+    for diploma, remover, sinalizar in REFERENCIAS_NORMATIVAS
+)
+
+BONUS_DIPLOMA_EXPLICITO = 0.35
+"""Fator multiplicativo (1 + bônus) sobre a pontuação de um chunk do diploma
+citado explicitamente na questão. Só multiplica pontuação de conteúdo que já
+existe: pontuação zero continua zero (Gate 6.5-C3 §7)."""
+
+
+def _preprocessar_questao(questao: str) -> tuple:
+    """`(texto_de_conteudo, diplomas_explicitos)`. O texto devolvido já está
+    normalizado (sem acento, minúsculo); cada trecho removido é substituído
+    por " de " — uma stopword — para que a remoção não crie adjacência falsa
+    entre as palavras que ficaram de cada lado (bigramas)."""
+    texto = _normalizar(questao)
+    diplomas = set()
+    for diploma, remover, sinalizar in _REFERENCIAS_COMPILADAS:
+        for padrao in sinalizar:
+            if padrao.search(texto):
+                diplomas.add(diploma)
+        for padrao in remover:
+            texto, n = padrao.subn(" de ", texto)
+            if n:
+                diplomas.add(diploma)
+    for padrao in _ENQUADRAMENTOS:
+        texto = padrao.sub(" de ", texto)
+    return texto, frozenset(diplomas)
+
+
+def _consulta(questao: str) -> dict:
+    """Intenção da questão, já reduzida: `pesos` (radical -> peso), `bigramas`,
+    `conceitos` ativos e `diplomas` citados explicitamente.
+
+    Peso 1 = termo escrito pelo advogado; `PESO_TERMO_GATILHO` = termo que
+    ativou um conceito jurídico (a expressão "proteção do consumidor" carrega
+    mais intenção que os substantivos do setor que a acompanham);
+    `PESO_TERMO_EXPANDIDO` = termo trazido pelo conceito, nunca sobrescrevendo
+    um termo direto."""
+    texto, diplomas = _preprocessar_questao(questao)
+    diretos = _radicais_uteis(texto)
     pesos = {r: 1.0 for r in diretos}
     ativos = []
     for conceito in _CONCEITOS:
-        if any(g and g <= diretos for g in conceito["gatilhos"]):
-            ativos.append(conceito["id"])
-            for frase in conceito["expansao"]:
-                for r in frase:
-                    if r and len(r) > 1 and r not in pesos:
-                        pesos[r] = PESO_TERMO_EXPANDIDO
-    return pesos, _bigramas_radicais(questao), ativos
+        satisfeitos = [g for g in conceito["gatilhos"] if g and g <= diretos]
+        if not satisfeitos:
+            continue
+        ativos.append(conceito["id"])
+        for gatilho in satisfeitos:
+            for r in gatilho:
+                pesos[r] = max(pesos[r], PESO_TERMO_GATILHO)
+        for frase in conceito["expansao"]:
+            for r in frase:
+                if r and len(r) > 1 and r not in pesos:
+                    pesos[r] = PESO_TERMO_EXPANDIDO
+    return {"pesos": pesos, "bigramas": _bigramas_radicais(texto),
+            "conceitos": ativos, "diplomas": diplomas}
+
+
+def _termos_da_consulta(questao: str) -> tuple:
+    """Compatibilidade: `(pesos, bigramas, conceitos_ativos)`."""
+    c = _consulta(questao)
+    return c["pesos"], c["bigramas"], c["conceitos"]
 
 
 def _ler_frontmatter(texto: str) -> dict:
@@ -533,13 +645,60 @@ def _artigo_preciso(excerto: str) -> str | None:
     return m.group(1) if m else None
 
 
+PESO_TERMO_GATILHO = 2.0
+"""Peso de um termo que ATIVOU um conceito jurídico (`CONCEITOS_JURIDICOS`).
+Calibrado no Gate 6.5-C3 sobre 31 checagens (fixture exata do 6.5-C2 +
+paráfrases de exigibilidade, consumidor, irregularidade e dano moral +
+contraexemplos reais de CPC): 2,0 fica no interior de um platô (1,5 a 3,0
+passam), não numa ponta ajustada à fixture."""
+
+TF_SATURACAO_K1 = 2.0
+"""Parâmetro de saturação da frequência do termo no corpo do chunk (mesma
+família do `k1` do BM25). Um chunk que REPETE o termo trata do assunto; um
+que o menciona uma vez apenas o cita — mas a repetição satura, então um
+capítulo enorme não vence só por extensão (o achado original do Gate
+6.5-B3)."""
+
+MAX_DISPOSITIVOS_POR_FONTE = 3
+"""Teto de artigos devolvidos em `dispositivos_relevantes` por fonte (Gate
+6.5-C3 §12): o host recebe o(s) artigo(s) que respondem à questão, nunca o
+capítulo inteiro."""
+
+MAX_DISPOSITIVO_CHARS = 1200
+"""Teto de caracteres do texto de UM artigo devolvido. Corte sempre num fim
+de frase quando possível e sempre sinalizado em `truncado`."""
+
+FRACAO_MIN_DISPOSITIVO = 0.5
+"""Um artigo só é devolvido se pontuar pelo menos esta fração do melhor
+artigo do mesmo chunk para a mesma questão — evita completar o teto com
+artigos fracos só porque o teto existe."""
+
+# Cabeçalhos estruturais que não dizem nada sobre o assunto do chunk.
+_RE_ESTRUTURA_TITULO = re.compile(
+    r"\b(?:t[íi]tulo|cap[íi]tulo|livro|se[çc][ãa]o|subse[çc][ãa]o)\s+(?-i:[IVXLCDM]+)\b"
+    r"|\bparte\s+(?:geral|especial)\b", re.IGNORECASE)
+
+
+def _texto_de_titulo(meta: dict) -> str:
+    """Título + capítulo do chunk sem a estrutura numérica ("TÍTULO II",
+    "PARTE ESPECIAL", "CAPÍTULO VII"), que só diluiria a cobertura."""
+    bruto = f"{meta.get('titulo', '')} {meta.get('capitulo', '')}"
+    return _RE_ESTRUTURA_TITULO.sub(" ", bruto)
+
+
 _CACHE_INDICE_CORPUS: dict = {}
+
+
+def _corpo_sem_frontmatter(texto: str) -> str:
+    partes = texto.split("\n---", 1)
+    return partes[1] if len(partes) > 1 and texto.startswith("---") else texto
 
 
 def _indice_corpus(rag_dir: Path) -> dict:
     """Índice lexical em memória do corpus (Gate 6.5-C1), construído uma
-    vez por diretório: por chunk, os radicais do texto, do título/capítulo
-    e os bigramas; e o IDF de cada radical sobre o corpus inteiro.
+    vez por diretório: por chunk, a frequência dos radicais do texto, os
+    radicais do título/capítulo e os bigramas; e o IDF de cada radical sobre
+    o corpus inteiro.
 
     O IDF (`ln(1 + N/df)`) é o que impede vocabulário genérico do SETOR
     ("energia", "elétrica", "distribuidora", presentes em centenas de
@@ -575,9 +734,9 @@ def _indice_corpus(rag_dir: Path) -> dict:
                 "texto": texto,
                 "meta": meta,
                 "frequencias": frequencias,
-                "radicais_titulo": _radicais_uteis(
-                    f"{meta.get('titulo', '')} {meta.get('capitulo', '')}"),
+                "radicais_titulo": _radicais_uteis(_texto_de_titulo(meta)),
                 "bigramas": _bigramas_radicais(texto),
+                "unidades": None,  # preenchido sob demanda (`_unidades_do_chunk`)
             })
     total = max(len(chunks), 1)
     idf = {r: math.log(1 + total / n) for r, n in df.items()}
@@ -586,63 +745,206 @@ def _indice_corpus(rag_dir: Path) -> dict:
     return indice
 
 
-TF_SATURACAO_K1 = 2.0
-"""Parâmetro de saturação da frequência do termo no corpo do chunk (mesma
-família do `k1` do BM25). Um chunk que REPETE o termo trata do assunto; um
-que o menciona uma vez apenas o cita — mas a repetição satura, então um
-capítulo enorme não vence só por extensão (o achado original do Gate
-6.5-B3)."""
-
-
 def _saturar(tf: int) -> float:
     return tf * (TF_SATURACAO_K1 + 1) / (tf + TF_SATURACAO_K1)
 
 
-def _ranquear_candidatos(questao: str, rag_dir: Path) -> list:
-    """Candidatos da questão em ordem decrescente de relevância, cada um
-    `(score_total, score_lexico, chunk)`. Determinístico: a soma percorre
-    os radicais em ordem alfabética e o desempate é (diploma, nome do
-    arquivo) — nunca a ordem de inserção de um `set`."""
-    pesos, bigramas_questao, _ = _termos_da_consulta(questao)
-    if not pesos:
+def _pontuar_chunk(chunk: dict, consulta: dict, idf: dict, termos: list) -> tuple:
+    """`(total, lexico, componentes)` — todos arredondados, para que a
+    ordenação e a saída sejam idênticas entre execuções."""
+    pesos = consulta["pesos"]
+    freq = chunk["frequencias"]
+    lexico = sum(pesos[r] * idf[r] * _saturar(freq[r]) for r in termos if r in freq)
+
+    # Título por COBERTURA (Gate 6.5-C3 §8): quanto do título é explicado pela
+    # questão. "Dos Procedimentos Irregulares" (2 termos, 2 casados) vale muito;
+    # "Do Cumprimento Definitivo da Sentença que Reconhece a Exigibilidade de
+    # Obrigação de Pagar Quantia Certa" (~10 termos, 1 casado) quase nada,
+    # por mais rara que seja a palavra isolada. Substitui o IDF² do 6.5-C1,
+    # que amplificava justamente a palavra rara isolada num título alheio.
+    titulo_termos = chunk["radicais_titulo"]
+    casados = [r for r in termos if r in titulo_termos]
+    cobertura = len(casados) / len(titulo_termos) if titulo_termos else 0.0
+    titulo = BONUS_TITULO_POR_TERMO * sum(pesos[r] * idf[r] for r in casados) * cobertura
+
+    frase = BONUS_FRASE_POR_BIGRAMA * sum(
+        (idf.get(a, 0.0) + idf.get(b, 0.0)) / 2
+        for a, b in (bg.split(" ") for bg in sorted(consulta["bigramas"]))
+        if f"{a} {b}" in chunk["bigramas"])
+
+    base = lexico + titulo + frase
+    explicito = base > 0 and chunk["diploma"] in consulta["diplomas"]
+    total = base * (1 + BONUS_DIPLOMA_EXPLICITO) if explicito else base
+    componentes = {"corpo": round(lexico, 6), "titulo": round(titulo, 6),
+                   "frase": round(frase, 6), "diploma_explicito": explicito}
+    return round(total, 6), round(lexico, 6), componentes
+
+
+def _ranquear_com_consulta(consulta: dict, rag_dir: Path) -> list:
+    """Candidatos em ordem decrescente de relevância, cada um
+    `(score_total, score_lexico, chunk, componentes)`. Determinístico: os
+    termos são percorridos em ordem alfabética e o desempate é (diploma,
+    nome do arquivo) — nunca a ordem de inserção de um `set`."""
+    if not consulta["pesos"]:
         return []
     indice = _indice_corpus(rag_dir)
     idf = indice["idf"]
-    termos = sorted(r for r in pesos if r in idf)
+    termos = sorted(r for r in consulta["pesos"] if r in idf)
     if not termos:
         return []
-
     candidatos = []
     for chunk in indice["chunks"]:
-        freq = chunk["frequencias"]
-        lexico = sum(pesos[r] * idf[r] * _saturar(freq[r]) for r in termos if r in freq)
-        # Título: IDF ao QUADRADO. Um título é a declaração mais forte do
-        # assunto do chunk, mas só quando o termo identifica assunto: "energia
-        # elétrica" no título do capítulo de pré-pagamento é vocabulário do
-        # domínio inteiro e não deve valer quase o mesmo que "procedimentos
-        # irregulares" (achado do Gate 6.5-C1). Sem limiar/corte: a raridade
-        # simplesmente pesa duas vezes, então termo comum ainda conta, pouco.
-        titulo = BONUS_TITULO_POR_TERMO * sum(
-            pesos[r] * idf[r] * idf[r] for r in termos if r in chunk["radicais_titulo"])
-        frase = BONUS_FRASE_POR_BIGRAMA * sum(
-            (idf.get(a, 0.0) + idf.get(b, 0.0)) / 2
-            for a, b in (bg.split(" ") for bg in sorted(bigramas_questao))
-            if f"{a} {b}" in chunk["bigramas"])
-        total = round(lexico + titulo + frase, 6)
+        total, lexico, componentes = _pontuar_chunk(chunk, consulta, idf, termos)
         if total > 0:
-            candidatos.append((total, round(lexico, 6), chunk))
+            candidatos.append((total, lexico, chunk, componentes))
     candidatos.sort(key=lambda c: (-c[0], c[2]["diploma"], c[2]["arquivo"].name))
     return candidatos[:MAX_FONTES_POR_QUESTAO]
 
 
+def _ranquear_candidatos(questao: str, rag_dir: Path) -> list:
+    return _ranquear_com_consulta(_consulta(questao), rag_dir)
+
+
+# ------------------------------------------------ dispositivos (artigos)
+# Gate 6.5-C3 §10-13. O corpus formata cada artigo numa linha que começa
+# com "Art. N" (`Art. 589.`, `Art. 6º`, ` Art. 523.`, `Art. 1.045.`), com
+# parágrafos/incisos nas linhas seguintes. Uma referência cruzada no meio
+# do texto ("conforme o art. 589") nunca começa linha; mas uma quebra de
+# linha da extração pode fazê-lo — por isso um marcador só vira fronteira
+# de artigo se for o PRÓXIMO da sequência (N+1, ou N-A/N-B para artigos
+# inseridos) e se a cadeia inteira fechar exatamente em `art_inicio ..
+# art_fim` do frontmatter do chunk. Qualquer irregularidade (typo do corpus
+# como "At. 245.", artigo ausente, numeração fora de ordem) faz o chunk
+# INTEIRO cair no modo "trecho": o parser nunca adivinha, corrige ou
+# reconstrói texto ou número de artigo.
+_RE_INICIO_ARTIGO = re.compile(
+    r"^[ \t]*Art\.[ \t]*(\d{1,3}(?:\.\d{3})+|\d+)[ \t]*[ºo°]?[ \t]*"
+    r"(?:-[ \t]*([A-Z]))?(?=[\s\.\-,:;]|$)", re.MULTILINE)
+_RE_CABECALHO_ESTRUTURAL = re.compile(
+    r"^(?:cap[íi]tulo|se[çc][ãa]o|subse[çc][ãa]o|t[íi]tulo|livro)\s+[IVXLCDM\d]+", re.IGNORECASE)
+
+
+def _sem_cabecalho_final(texto: str) -> str:
+    """Remove do FIM da unidade o cabeçalho ("Seção II" + título) que
+    precede o artigo seguinte no texto do corpus mas não pertence a este
+    artigo. Só corta quando TODO o trecho final é cabeçalho: começa com
+    palavra estrutural e é (junto com o que vem depois) composto só de
+    linhas curtas SEM pontuação final — uma frase completa que apenas
+    comece com "Seção..." é texto do artigo e nunca é aparada.
+
+    O corte é por POSIÇÃO: o resultado é sempre um PREFIXO literal do texto
+    recebido (nunca parágrafos reunidos de novo), para que a garantia de
+    procedência literal do dispositivo valha byte a byte."""
+    paragrafos = [(m.start(), m.group(0)) for m in re.finditer(r"\S[^\n]*(?:\n(?!\s*\n)[^\n]*)*", texto)]
+    for j in range(len(paragrafos) - 1, 0, -1):
+        inicio, conteudo = paragrafos[j]
+        eh_titulo = lambda c: len(c.strip()) <= 150 and not c.strip().endswith((".", ";", ":"))  # noqa: E731
+        if _RE_CABECALHO_ESTRUTURAL.match(conteudo.strip()) and eh_titulo(conteudo):
+            resto = [c for _, c in paragrafos[j + 1:]]
+            if all(eh_titulo(c) for c in resto):
+                return texto[:inicio].rstrip()
+            break
+    return texto
+
+
+def _unidades_do_chunk(chunk: dict) -> list | None:
+    """Unidades de artigo do chunk, na ordem original, ou `None` quando a
+    estrutura não é confiável (modo "trecho")."""
+    if chunk["unidades"] is not None:
+        return chunk["unidades"] or None
+    unidades = _extrair_unidades(chunk)
+    chunk["unidades"] = unidades if unidades else []
+    return unidades or None
+
+
+def _extrair_unidades(chunk: dict) -> list:
+    meta = chunk["meta"]
+    try:
+        inicio, fim = int(meta["art_inicio"]), int(meta["art_fim"])
+    except (KeyError, ValueError):
+        return []
+    corpo = _corpo_sem_frontmatter(chunk["texto"])
+    fronteiras = []  # (numero, sufixo, rotulo, posicao)
+    anterior = None
+    for m in _RE_INICIO_ARTIGO.finditer(corpo):
+        numero, sufixo = int(m.group(1).replace(".", "")), m.group(2)
+        if anterior is None:
+            valido = numero == inicio and sufixo is None
+        else:
+            pn, ps = anterior
+            valido = ((numero == pn + 1 and sufixo is None)
+                      or (numero == pn and sufixo is not None
+                          and ord(sufixo) == (ord(ps) + 1 if ps else ord("A"))))
+        if valido:
+            rotulo = m.group(1) + (f"-{sufixo}" if sufixo else "")
+            fronteiras.append((numero, sufixo, rotulo, m.start()))
+            anterior = (numero, sufixo)
+    if not fronteiras or anterior[0] != fim:
+        return []
+    unidades = []
+    for i, (numero, sufixo, rotulo, pos) in enumerate(fronteiras):
+        fim_pos = fronteiras[i + 1][3] if i + 1 < len(fronteiras) else len(corpo)
+        texto = _sem_cabecalho_final(corpo[pos:fim_pos].strip())
+        unidades.append({
+            "artigo": rotulo, "texto": texto,
+            "freq": Counter(r for r in _sequencia_radicais(texto) if r),
+            "bigramas": _bigramas_radicais(texto),
+        })
+    return unidades
+
+
+def _pontuar_unidade(unidade: dict, consulta: dict, idf: dict) -> float:
+    pesos = consulta["pesos"]
+    freq = unidade["freq"]
+    lexico = sum(pesos[r] * idf[r] * _saturar(freq[r])
+                 for r in sorted(pesos) if r in idf and r in freq)
+    frase = BONUS_FRASE_POR_BIGRAMA * sum(
+        (idf.get(a, 0.0) + idf.get(b, 0.0)) / 2
+        for a, b in (bg.split(" ") for bg in sorted(consulta["bigramas"]))
+        if f"{a} {b}" in unidade["bigramas"])
+    return round(lexico + frase, 6)
+
+
+def _dispositivos_relevantes(chunk: dict, consultas: dict, idf: dict) -> tuple:
+    """`(modo_extrato, dispositivos, motivo)`. `consultas` mapeia índice da
+    questão -> consulta. Para cada questão vinculada à fonte, escolhe os
+    artigos de maior pontuação (piso relativo `FRACAO_MIN_DISPOSITIVO`);
+    depois limita o total a `MAX_DISPOSITIVOS_POR_FONTE` e devolve na ORDEM
+    do diploma. Texto sempre é prefixo literal do artigo no corpus."""
+    unidades = _unidades_do_chunk(chunk)
+    if unidades is None:
+        return "trecho", [], "estrutura_de_artigos_nao_confiavel"
+    escolhidos: dict = {}  # rotulo -> {"score", "questoes"}
+    for indice, consulta in sorted(consultas.items()):
+        pontuadas = [(_pontuar_unidade(u, consulta, idf), i) for i, u in enumerate(unidades)]
+        melhor = max((s for s, _ in pontuadas), default=0.0)
+        if melhor <= 0:
+            continue
+        aptas = sorted((p for p in pontuadas if p[0] >= FRACAO_MIN_DISPOSITIVO * melhor),
+                       key=lambda p: (-p[0], p[1]))[:MAX_DISPOSITIVOS_POR_FONTE]
+        for score, i in aptas:
+            e = escolhidos.setdefault(i, {"score": 0.0, "questoes": []})
+            e["score"] = max(e["score"], score)
+            e["questoes"].append(indice)
+    if not escolhidos:
+        return "trecho", [], "nenhum_artigo_relevante"
+    finais = sorted(escolhidos.items(), key=lambda kv: (-kv[1]["score"], kv[0]))[:MAX_DISPOSITIVOS_POR_FONTE]
+    dispositivos = []
+    for i, e in sorted(finais, key=lambda kv: kv[0]):
+        texto, truncado = _truncar_com_limite_de_frase(unidades[i]["texto"], MAX_DISPOSITIVO_CHARS)
+        dispositivos.append({
+            "artigo": unidades[i]["artigo"], "texto": texto, "truncado": truncado,
+            "score": e["score"], "questoes_relacionadas": sorted(set(e["questoes"])),
+        })
+    return "dispositivo", dispositivos, None
+
+
 def _fonte_de_candidato(candidato: tuple, corpus_versao: str | None, indice_questao: int) -> dict:
-    score_total, score_lexico, chunk = candidato
+    score_total, score_lexico, chunk, componentes = candidato
     diploma, arquivo, texto, meta = (chunk["diploma"], chunk["arquivo"],
                                      chunk["texto"], chunk["meta"])
-    corpo = texto.split("\n---", 1)
-    corpo_sem_frontmatter = corpo[1] if len(corpo) > 1 and texto.startswith("---") else texto
     excerto, truncado = _truncar_com_limite_de_frase(
-        corpo_sem_frontmatter.strip(), MAX_EXCERPT_CHARS
+        _corpo_sem_frontmatter(texto).strip(), MAX_EXCERPT_CHARS
     )
     fonte = fonte_juridica(
         source_id=f"{diploma}/{arquivo.name}",
@@ -660,37 +962,58 @@ def _fonte_de_candidato(candidato: tuple, corpus_versao: str | None, indice_ques
     # models.py) — adicionados aqui, nunca no modelo canônico em si:
     # `fonte_juridica()` é contrato COMPARTILHADO com
     # citation_validator.py/outros consumidores (Fase 5, SPEC-0001 §9);
-    # estender o dict já construído mantém este pacote (Gate 6.5-A/B3)
+    # estender o dict já construído mantém este pacote (Gate 6.5-A/B3/C3)
     # sem alterar um contrato de fora do seu próprio escopo de
     # autoridade (Gate 6.5-B3 §7/§10).
     fonte["capitulo"] = meta.get("capitulo")
-    fonte["artigo_preciso"] = _artigo_preciso(excerto)
+    fonte["artigo_preciso"] = _artigo_preciso(excerto)  # do TRECHO `texto`, não dos dispositivos
     fonte["corpus_versao"] = corpus_versao
-    fonte["truncado"] = truncado
+    fonte["truncado"] = truncado  # do TRECHO `texto`; cada dispositivo tem o seu
     fonte["questoes_relacionadas"] = [indice_questao]
+    fonte["score_componentes"] = componentes
     return fonte
+
+
+def _anexar_dispositivos(fonte: dict, chunk: dict, consultas: dict, idf: dict) -> None:
+    """Preenche `modo_extrato`/`dispositivos_relevantes` (Gate 6.5-C3 §10).
+    Nunca altera `validation_status`/`vigencia`: precisão do TEXTO e
+    validação jurídica externa são conceitos separados (§15)."""
+    modo, dispositivos, motivo = _dispositivos_relevantes(chunk, consultas, idf)
+    fonte["modo_extrato"] = modo
+    fonte["dispositivos_relevantes"] = dispositivos
+    if motivo:
+        fonte["motivo_modo_trecho"] = motivo
 
 
 def _buscar_fontes_para_questao(questao: str, rag_dir: Path, indice_questao: int) -> list:
     """Recuperação lexical determinística e limitada (Gate 6.5-A §12,
-    recalibrada nos Gates 6.5-B3 e 6.5-C1). Três sinais, todos
+    recalibrada nos Gates 6.5-B3, 6.5-C1 e 6.5-C3). Sinais, todos
     determinísticos e sem embeddings/BM25 (aquilo é rag/search_hybrid.py,
     fora do escopo deste MCP por footprint, RNF-CUSTO-001):
 
       1. sobreposição lexical ponderada por IDF, sobre radicais (acento,
          caixa, plural e derivação `-idade`/`-ção` normalizados);
-      2. bônus por termo que também aparece no título/capítulo do chunk;
-      3. bônus por bigrama de conteúdo da questão presente no chunk.
+      2. bônus de título por COBERTURA do título pela questão;
+      3. bônus por bigrama de conteúdo da questão presente no chunk;
+      4. impulso multiplicativo ao diploma citado explicitamente na questão
+         (só sobre pontuação de conteúdo já existente).
 
-    Termos vindos de `CONCEITOS_JURIDICOS` entram com peso reduzido.
-    Devolve os `MAX_FONTES_POR_QUESTAO` melhores. Nenhum corpus fora dos
-    6 diplomas institucionais é tocado; nenhuma jurisprudência, nenhuma
+    Termos vindos de `CONCEITOS_JURIDICOS` entram com peso próprio. Devolve
+    as `MAX_FONTES_POR_QUESTAO` melhores, cada uma com os artigos relevantes
+    (`dispositivos_relevantes`) quando o corpus permite. Nenhum corpus fora
+    dos 6 diplomas institucionais é tocado; nenhuma jurisprudência, nenhuma
     busca externa. `indice_questao` semeia `questoes_relacionadas` — a
     fusão entre questões que recuperam a MESMA fonte acontece em
     `_montar_fontes_legais`, nunca aqui."""
     corpus_versao = _versao_corpus(rag_dir)
-    return [_fonte_de_candidato(c, corpus_versao, indice_questao)
-            for c in _ranquear_candidatos(questao, rag_dir)]
+    consulta = _consulta(questao)
+    idf = _indice_corpus(rag_dir)["idf"]
+    fontes = []
+    for candidato in _ranquear_com_consulta(consulta, rag_dir):
+        fonte = _fonte_de_candidato(candidato, corpus_versao, indice_questao)
+        _anexar_dispositivos(fonte, candidato[2], {indice_questao: consulta}, idf)
+        fontes.append(fonte)
+    return fontes
 
 
 def _montar_fontes_legais(questoes: list) -> list:
@@ -705,11 +1028,16 @@ def _montar_fontes_legais(questoes: list) -> list:
     ordem e o teto global era consumido pelas primeiras (achado real do
     Gate 6.5-C: com 5 questões, a 4ª recebia 1 fonte e a 5ª nenhuma). Uma
     fonte já selecionada por outra questão só ganha o vínculo e não
-    consome vaga."""
+    consome vaga.
+
+    Gate 6.5-C3 — os dispositivos relevantes de cada fonte são escolhidos
+    DEPOIS de fechada a seleção, contra TODAS as questões vinculadas a ela."""
     corpus_versao = _versao_corpus(RAG_DIR_PADRAO)
-    ranking = [_ranquear_candidatos(q, RAG_DIR_PADRAO) for q in questoes]
+    consultas = [_consulta(q) for q in questoes]
+    ranking = [_ranquear_com_consulta(c, RAG_DIR_PADRAO) for c in consultas]
     por_source_id: dict = {}
     ordem = []
+    chunks: dict = {}
     for rodada in range(MAX_FONTES_POR_QUESTAO):
         for indice, candidatos in enumerate(ranking):
             if rodada >= len(candidatos):
@@ -725,7 +1053,13 @@ def _montar_fontes_legais(questoes: list) -> list:
                 continue
             fonte = _fonte_de_candidato(candidatos[rodada], corpus_versao, indice)
             por_source_id[source_id] = fonte
+            chunks[source_id] = chunk
             ordem.append(fonte)
+    idf = _indice_corpus(RAG_DIR_PADRAO)["idf"]
+    for fonte in ordem:
+        fonte["questoes_relacionadas"].sort()
+        vinculadas = {i: consultas[i] for i in sorted(fonte["questoes_relacionadas"])}
+        _anexar_dispositivos(fonte, chunks[fonte["source_id"]], vinculadas, idf)
     return ordem
 
 

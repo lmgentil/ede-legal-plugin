@@ -1,0 +1,53 @@
+{
+  "entrada": {
+    "fatos": [
+      {
+        "fact": "O consumidor afirma que recebeu cobrança de recuperação de consumo após procedimento de inspeção realizado pela distribuidora de energia elétrica.",
+        "source_document": "synthetic_initial_petition.pdf",
+        "tipo": "ALEGACAO_AUTORAL",
+        "page": 2,
+        "confidence": 1.0
+      },
+      {
+        "fact": "O consumidor afirma que não praticou qualquer intervenção no equipamento de medição e contesta a existência da irregularidade apontada pela distribuidora.",
+        "source_document": "synthetic_initial_petition.pdf",
+        "tipo": "ALEGACAO_AUTORAL",
+        "page": 3,
+        "confidence": 1.0
+      },
+      {
+        "fact": "O registro interno sintético da distribuidora indica que foi realizada inspeção na unidade consumidora e identificada ocorrência classificada internamente como irregularidade de medição ou de consumo.",
+        "source_document": "synthetic_inspection_record.txt",
+        "tipo": "FATO_DOCUMENTADO",
+        "confidence": 1.0
+      },
+      {
+        "fact": "O registro interno sintético indica que a distribuidora realizou procedimento de apuração e cálculo de recuperação de consumo com fundamento na regulamentação aplicável ao fornecimento de energia elétrica.",
+        "source_document": "synthetic_consumption_recovery_record.txt",
+        "tipo": "FATO_DOCUMENTADO",
+        "confidence": 1.0
+      },
+      {
+        "fact": "O consumidor afirma que não teve oportunidade adequada de acompanhar ou impugnar o procedimento administrativo antes da cobrança.",
+        "source_document": "synthetic_initial_petition.pdf",
+        "tipo": "ALEGACAO_AUTORAL",
+        "page": 4,
+        "confidence": 1.0
+      },
+      {
+        "fact": "Na demanda sintética, o consumidor requer a declaração de inexigibilidade da cobrança decorrente da recuperação de consumo e indenização por danos morais.",
+        "source_document": "synthetic_initial_petition.pdf",
+        "page": 6,
+        "confidence": 1.0
+      }
+    ],
+    "questoes_juridicas": [
+      "Regularidade do procedimento de apuração de irregularidade de consumo de energia elétrica.",
+      "Observância das garantias procedimentais da regulamentação da ANEEL na inspeção, apuração e recuperação de consumo.",
+      "Exigibilidade da cobrança de recuperação de consumo à luz da Resolução Normativa ANEEL nº 1.000/2021.",
+      "Aplicação das normas de proteção do consumidor à relação entre distribuidora de energia elétrica e unidade consumidora.",
+      "Pressupostos para eventual indenização por danos morais decorrente da cobrança questionada."
+    ],
+    "estado_processual": {}
+  }
+}

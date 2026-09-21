@@ -334,6 +334,28 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   - Pacote da fixture exata: 27,2 KB -> 50,9 KB. Dependência nova:
     **nenhuma**; `VERSION` permanece `0.13.0`. **Não implantado em
     produção neste gate.**
+- **`docx_numeracao_engine`: `mc:Fallback` deixa de ser conteúdo visível**
+  (Gate 6.6-A, auditoria obrigatória). O motor de numeração somava o texto
+  dos ramos `mc:Choice` (moderno, exibido pelo Word) e `mc:Fallback` (VML
+  legado, oculto) — mesma classe de defeito já corrigida em
+  `docx_context_engine` no Gate 6.5-B3. Medido no Modelo Oficial real: **24
+  dos 342 parágrafos** saíam com texto duplicado ("PRELIMINARESPRELIMINARES",
+  "CONTESTAÇÃO COM RECONVENÇÃOCONTESTAÇÃO COM RECONVENÇÃO"…), e os 9 badges
+  de nível 1 existem em dobro (9 em `mc:Choice`, 9 em `mc:Fallback`). A
+  numeração só estava correta por um workaround que colapsava badges
+  duplicados *adjacentes* pelo id — dependência estrutural implícita, que
+  também escondia uma duplicata visível real.
+  - Correção na causa: extração visível-only (`_ts_visiveis`), parágrafos
+    do ramo Fallback ignorados, workaround removido; duplicata visível
+    agora aborta (`numeracao_ordem_badges_invalida`). Helper reimplementado
+    localmente (importar de `docx_context_engine` criaria ciclo).
+  - Equivalência: saída renumerada **byte-idêntica em 41/41 cenários** de
+    composição de blocos sobre o Modelo Oficial real, antes e depois.
+  - Testes: sintéticos (Choice/Fallback não adjacentes, duplicata visível,
+    resíduo só no Fallback) e `docx_real` (nenhum parágrafo duplicado,
+    9 badges únicos e visíveis, propriedade metamórfica: renumerar o
+    documento completo == renumerar sem o ramo Fallback).
+  - Sem dependência nova; `VERSION` permanece `0.13.0`. Não implantado.
 
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto

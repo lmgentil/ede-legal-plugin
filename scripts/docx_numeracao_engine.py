@@ -73,12 +73,35 @@ import re
 import lxml.etree as LET
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+MC = "http://schemas.openxmlformats.org/markup-compatibility/2006"
 NS = {"w": W}
 _NUM_PREFIXO_RE = re.compile(r"^(\d+(?:\.\d+)*)")
 
 
 def _qn(tag):
     return f"{{{W}}}{tag}"
+
+
+def _dentro_de_fallback(el) -> bool:
+    """`True` se `el` (um `<w:t>` ou `<w:p>`) descende de `<mc:Fallback>` —
+    o ramo de compatibilidade legada (VML) que toda forma/textbox ancorada
+    moderna (`<mc:AlternateContent>`) carrega ao lado do `<mc:Choice>` real.
+    O Word moderno NUNCA renderiza o `mc:Fallback` quando o `mc:Choice` é
+    suportado: tratar os dois ramos como conteúdo visível dobra o texto
+    (achado do Gate 6.5-B3 no `docx_context_engine`: "PRELIMINARES" saía como
+    "PRELIMINARESPRELIMINARES"; Gate 6.6-A: mesma classe de defeito aqui,
+    medida no Modelo Oficial real em 24 dos 342 parágrafos).
+
+    Reimplementado localmente, não importado de `docx_context_engine`:
+    aquele módulo importa `docx_block_engine`, que importa este — importar
+    de volta criaria ciclo (mesmo motivo de `NumeracaoAbortada` abaixo)."""
+    return any(a.tag == f"{{{MC}}}Fallback" for a in el.iterancestors())
+
+
+def _ts_visiveis(el):
+    """Os `<w:t>` de `el` que o Word realmente exibe (nunca os do ramo
+    `mc:Fallback`), na ordem do documento."""
+    return (t for t in el.iter(_qn("t")) if not _dentro_de_fallback(t))
 
 
 class NumeracaoAbortada(Exception):
@@ -188,7 +211,7 @@ _NOS_LITERAIS_POR_ID = {n["id"]: n for n in NOS_LITERAIS}
 # combinação [prefixo numérico no início da run] + [substring âncora,
 # única e auditada contra o modelo real, em algum lugar do PARÁGRAFO]).
 def _texto_paragrafo(p):
-    return "".join(t.text or "" for t in p.iter(_qn("t")))
+    return "".join(t.text or "" for t in _ts_visiveis(p))
 
 
 def _badges_nivel1_presentes(root):
@@ -203,6 +226,8 @@ def _badges_nivel1_presentes(root):
 
     brutos = []
     for p in root.iter(_qn("p")):
+        if _dentro_de_fallback(p):
+            continue  # ramo legado (VML): nunca é conteúdo visível
         ppr = p.find("w:pPr", NS)
         if ppr is None:
             continue
@@ -224,22 +249,15 @@ def _badges_nivel1_presentes(root):
             )
         brutos.append((titulos_por_id[texto], p))
 
-    # Cada badge é desenhado duas vezes (mc:Choice em DrawingML moderno +
-    # mc:Fallback em VML legado — mesma forma, dois formatos de
-    # compatibilidade, achado da auditoria) e as duas cópias aparecem
-    # SEMPRE fisicamente adjacentes no documento, mesmo id resolvido. Para
-    # CONTAR a posição de nível 1 sem contar a mesma seção duas vezes,
-    # colapsa duplicatas ADJACENTES pelo id já resolvido — nunca por
-    # identidade de objeto lxml (`id()` de um proxy `_Element` efêmero
-    # pode ser reciclado pelo GC entre chamadas e colidir com outro nó;
-    # armadilha real encontrada nesta implementação) e nunca por posição/
-    # índice cru (a garantia real é "mesmo id, lado a lado", não "algum
-    # padrão de contagem fixo").
-    achados = []
-    for bid, p in brutos:
-        if achados and achados[-1][0] == bid:
-            continue
-        achados.append((bid, p))
+    # Cada badge é desenhado duas vezes no XML (mc:Choice em DrawingML
+    # moderno + mc:Fallback em VML legado), mas SÓ o mc:Choice é conteúdo
+    # visível — o ramo Fallback já foi descartado acima, pela CAUSA. Antes
+    # do Gate 6.6-A o motor contava as duas cópias e depois colapsava
+    # duplicatas ADJACENTES pelo id resolvido: funcionava, mas dependia de
+    # o Fallback estar fisicamente ao lado do Choice, e escondia uma
+    # duplicata real de badge visível. Agora uma duplicata visível cai na
+    # verificação estrita logo abaixo (`numeracao_ordem_badges_invalida`).
+    achados = list(brutos)
 
     ids_achados = [a[0] for a in achados]
     posicoes = [ordem_canonica.index(i) for i in ids_achados]
@@ -284,7 +302,7 @@ def _localizar_run_literal(root, no):
     for p in root.iter(_qn("p")):
         if no["ancora_texto"] not in _texto_paragrafo(p):
             continue
-        primeira = next(p.iter(_qn("t")), None)
+        primeira = next(_ts_visiveis(p), None)
         if primeira is not None and _NUM_PREFIXO_RE.match(primeira.text or ""):
             candidatos.append(primeira)
 
@@ -331,7 +349,7 @@ def _escrever_numero(elemento, numero_novo):
     cirurgia sobre o XML, sem risco de mexer em contagem de runs usada
     por revisão/rastreamento)."""
     paragrafo = _paragrafo_de(elemento)
-    runs = list(paragrafo.iter(_qn("t")))
+    runs = list(_ts_visiveis(paragrafo))
     texto_paragrafo = "".join(r.text or "" for r in runs)
     m = _NUM_PREFIXO_RE.match(texto_paragrafo)
     if not m:
@@ -444,7 +462,7 @@ def validar_numeracao_final(document_xml: str) -> list:
     # corrige; só reporta (fail closed, seção 10 do pedido).
     elementos_do_plano = {id(e) for _i, _n, e in plano}
     padrao_multi_nivel = re.compile(r"^\s*\d+\.\d+")
-    for t in root.iter(_qn("t")):
+    for t in _ts_visiveis(root):
         if padrao_multi_nivel.match(t.text or "") and id(t) not in elementos_do_plano:
             erros.append(f"título numerado residual/não catalogado: {(t.text or '')!r}")
 

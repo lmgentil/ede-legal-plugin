@@ -31,6 +31,8 @@ BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
 from docx_numeracao_engine import (  # noqa: E402
     NumeracaoAbortada,
+    _badges_nivel1_presentes,
+    _texto_paragrafo,
     renumerar_titulos,
     validar_numeracao_final,
 )
@@ -392,3 +394,169 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# =====================================================================
+# Gate 6.6-A — mc:Fallback (VML legado) nunca é conteúdo visível
+# =====================================================================
+#
+# Achado (auditoria obrigatória do gate, medido no Modelo Oficial real):
+# `_texto_paragrafo` somava o texto dos ramos `mc:Choice` (moderno, o que o
+# Word exibe) e `mc:Fallback` (VML legado, oculto) — 24 dos 342 parágrafos
+# saíam com texto duplicado ("PRELIMINARESPRELIMINARES"). A numeração só
+# funcionava por um workaround que colapsava badges duplicados ADJACENTES.
+# Mesma classe de defeito já corrigida em docx_context_engine (Gate 6.5-B3).
+
+MC = "http://schemas.openxmlformats.org/markup-compatibility/2006"
+
+
+def _alternate(interno_choice, interno_fallback):
+    """Parágrafo externo com a mesma forma desenhada em mc:Choice + mc:Fallback."""
+    return (f'<w:p><w:r><mc:AlternateContent xmlns:mc="{MC}">'
+            f'<mc:Choice Requires="wps">{interno_choice}</mc:Choice>'
+            f'<mc:Fallback>{interno_fallback}</mc:Fallback>'
+            '</mc:AlternateContent></w:r></w:p>')
+
+
+def _doc_mc(*paragrafos):
+    return (f'<w:document xmlns:w="{W}" xmlns:mc="{MC}"><w:body>'
+            f'{"".join(paragrafos)}</w:body></w:document>')
+
+
+def test_texto_do_paragrafo_ignora_o_ramo_fallback():
+    doc = _doc_mc(_alternate(_badge("PRELIMINARES"), _badge("PRELIMINARES")))
+    externo = LET.fromstring(doc.encode("utf-8")).find(".//w:body/w:p", NS)
+    assert _texto_paragrafo(externo) == "PRELIMINARES"  # nunca "PRELIMINARESPRELIMINARES"
+
+
+def test_badges_com_choice_e_fallback_nao_adjacentes_sao_contados_uma_vez():
+    """O ramo Fallback é ignorado pela causa: não depende mais de a cópia
+    legada estar fisicamente ao lado da moderna."""
+    titulos = ["TEMPESTIVIDADE", "PRELIMINARES", "MÉRITO"]
+    choices = [_alternate(_badge(t), "") for t in titulos]
+    fallbacks = [_alternate("", _badge(t)) for t in titulos]  # todos os Fallback depois dos Choice
+    root = LET.fromstring(_doc_mc(*choices, *fallbacks).encode("utf-8"))
+    achados = _badges_nivel1_presentes(root)
+    assert len(achados) == 3 and len({a[0] for a in achados}) == 3
+
+
+def test_badge_visivel_duplicado_continua_abortando():
+    """Sem o colapso por adjacência, uma duplicata VISÍVEL real é erro."""
+    doc = _doc(_badge("TEMPESTIVIDADE"), _badge("TEMPESTIVIDADE"), _badge("PRELIMINARES"))
+    e = _abortou(renumerar_titulos, doc)
+    assert e is not None and e.stage == "numeracao_ordem_badges_invalida"
+
+
+def test_renumeracao_com_estrutura_choice_fallback_igual_a_sem_ela():
+    base = [_badge("TEMPESTIVIDADE"), _badge("PRELIMINARES"),
+            _titulo("2.1 - INAPLICABILIDADE DO CÓDIGO DE DEFESA DO CONSUMIDOR"),
+            _badge("MÉRITO"), _titulo("3.1 - LEGALIDADE DOS PROCEDIMENTOS"),
+            _titulo("3.1.1 - SINOPSE DOS FATOS"), _titulo("3.1.2 - REALIDADE FÁTICA")]
+    com_mc = [_alternate(x, x) if x.startswith("<w:p><w:pPr>") else x for x in base]
+
+    def numeros(xml):
+        return [t.text for t in LET.fromstring(xml.encode("utf-8")).iter(f"{{{W}}}t")
+                if t.text and t.text[:1].isdigit()]
+
+    simples, _ = renumerar_titulos(_doc(*base))
+    duplo, _ = renumerar_titulos(_doc_mc(*com_mc))
+    assert numeros(simples) == numeros(duplo) and numeros(simples)
+
+
+def test_residual_numerado_so_no_fallback_e_ignorado_mas_o_visivel_e_apontado():
+    base, _ = renumerar_titulos(DOC_COMPLETO)  # documento completo e válido
+    oculto = _alternate("<w:p><w:r><w:t>texto</w:t></w:r></w:p>",
+                        "<w:p><w:r><w:t>9.9 residual oculto</w:t></w:r></w:p>")
+    assert validar_numeracao_final(base) == []
+    com_oculto = base.replace("</w:body>", oculto + "</w:body>")
+    assert validar_numeracao_final(com_oculto) == []  # número só no ramo Fallback: nunca exibido
+    com_visivel = base.replace("</w:body>", _titulo("9.9 residual visível") + "</w:body>")
+    assert any("residual" in e for e in validar_numeracao_final(com_visivel))
+
+
+# ---------------------------------------------------- docx_real (modelo real)
+def _xml_do_modelo_real():
+    import tempfile
+
+    from docx_package import extrair_pacote_docx
+    with tempfile.TemporaryDirectory() as tmp:
+        extrair_pacote_docx(TEMPLATE_REAL, Path(tmp) / "u")
+        return (Path(tmp) / "u" / "word" / "document.xml").read_text(encoding="utf-8")
+
+
+def _em_fallback(el):
+    return any(a.tag == f"{{{MC}}}Fallback" for a in el.iterancestors())
+
+
+@pytest.mark.docx_real
+def test_real_nenhum_paragrafo_tem_texto_duplicado_pelo_ramo_fallback():
+    if not TEMPLATE_REAL.exists():
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — asset institucional externo (ADR-0009).")
+    root = LET.fromstring(_xml_do_modelo_real().encode("utf-8"))
+    diverge_do_bruto = 0
+    for p in root.iter(f"{{{W}}}p"):
+        visivel = "".join(t.text or "" for t in p.iter(f"{{{W}}}t") if not _em_fallback(t))
+        bruto = "".join(t.text or "" for t in p.iter(f"{{{W}}}t"))
+        assert _texto_paragrafo(p) == visivel
+        diverge_do_bruto += bruto != visivel
+    # o modelo real AINDA tem Fallback (senão o teste seria vácuo)
+    assert diverge_do_bruto > 0
+    titulos_de_badge = ("TEMPESTIVIDADE", "PRELIMINARES", "MÉRITO", "REQUERIMENTOS", "RECONVENÇÃO")
+    for p in root.iter(f"{{{W}}}p"):  # por parágrafo (o aninhado já é contado no externo)
+        texto = _texto_paragrafo(p)
+        assert not any(t + t in texto for t in titulos_de_badge), texto[:80]
+
+
+@pytest.mark.docx_real
+def test_real_nove_badges_de_nivel_1_unicos_e_todos_visiveis():
+    if not TEMPLATE_REAL.exists():
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — asset institucional externo (ADR-0009).")
+    root = LET.fromstring(_xml_do_modelo_real().encode("utf-8"))
+    achados = _badges_nivel1_presentes(root)
+    assert len(achados) == 9 and len({a[0] for a in achados}) == 9
+    assert not any(_em_fallback(p) for _bid, p in achados)
+
+
+@pytest.mark.docx_real
+def test_real_numeracao_do_documento_completo_igual_a_do_documento_sem_o_ramo_fallback():
+    """Propriedade metamórfica: como o Fallback não é conteúdo visível, remover
+    fisicamente os ramos mc:Fallback do XML não pode mudar NENHUM número
+    escrito — vale para o modelo cru e para composições de blocos."""
+    if not TEMPLATE_REAL.exists():
+        pytest.skip(f"{TEMPLATE_REAL} não instalado localmente — asset institucional externo (ADR-0009).")
+    import random
+
+    import docx_block_engine as be
+
+    catalogo = be.carregar_catalogo(CATALOGO_REAL)
+    be.validar_catalogo(catalogo)
+    xml_cru = _xml_do_modelo_real()
+
+    def sem_fallback(xml):
+        root = LET.fromstring(xml.encode("utf-8"))
+        for f in list(root.iter(f"{{{MC}}}Fallback")):
+            f.getparent().remove(f)
+        return LET.tostring(root, encoding="unicode")
+
+    def numeros(xml):
+        return [t.text for t in LET.fromstring(xml.encode("utf-8")).iter(f"{{{W}}}t")
+                if t.text and t.text[:1].isdigit() and not _em_fallback(t)]
+
+    cenarios = [xml_cru]
+    for seed in range(6):
+        rnd = random.Random(seed)
+        fatos = {b["linked_fact"]: rnd.random() < .5 for b in catalogo["blocks"] if b["decision_mode"] == "state_linked"}
+        fatos["CORTE_EFETIVO"] = rnd.random() < .5
+        dec = {}
+        for b in catalogo["blocks"]:
+            if b["decision_mode"] in ("estrategista", "humano"):
+                if b["id"] == "LICITUDE_CORTE_SUSPENSAO" and not fatos["CORTE_EFETIVO"]:
+                    continue
+                dec[b["id"]] = {"decisao": "INCLUIR" if rnd.random() < .55 else "EXCLUIR"}
+        estados = be.validar_e_resolver_decisoes(catalogo, dec, fatos)
+        cenarios.append(be.compor_xml(xml_cru, catalogo, estados)[0])
+    for xml in cenarios:
+        completo, _ = renumerar_titulos(xml)
+        reduzido, _ = renumerar_titulos(sem_fallback(xml))
+        assert numeros(completo) == numeros(reduzido)
+        assert validar_numeracao_final(completo) == []

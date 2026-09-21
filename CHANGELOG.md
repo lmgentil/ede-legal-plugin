@@ -262,6 +262,37 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   - `VERSION` passa a `0.13.0` (SemVer minor — nova ferramenta MCP,
     retrocompatível, escopo `ede:legal` nunca exigido de `ede_health`),
     **sem tag e sem GitHub Release** nesta etapa.
+- **Robustez da recuperação lexical para questões jurídicas abstratas**
+  (Gate 6.5-C1, `scripts/preparar_contestacao.py`). Achado do Gate 6.5-C
+  em produção: o capítulo central "Dos Procedimentos Irregulares" (REN1000
+  `TII_C07`) ficava fora do top-3 da questão de regularidade do
+  procedimento e as questões finais recebiam poucas fontes ou nenhuma
+  (CDC/CC ausentes). Causas medidas: (1) texto comparado só por `.lower()`,
+  sem normalizar acento nem flexão (`procedimento`/`procedimentos`,
+  `irregularidade`/`irregulares`), e stopwords escritas sem acento que
+  nunca casavam com o texto acentuado; (2) vocabulário genérico do setor
+  ("energia elétrica" no título de capítulos de pré-pagamento) valendo
+  quase o mesmo que o assunto real; (3) o teto global de 10 fontes era
+  esgotado pelas primeiras questões.
+  - Normalização de acento/caixa e radical leve e conservador em PT-BR
+    (plural, `-idade`, `-ção`, infinitivo, vogal final), IDF calculado
+    sobre o próprio corpus (sem lista manual de palavras do setor),
+    IDF² no bônus de título, saturação de frequência no corpo e
+    comparação de bigramas sobre radicais.
+  - Seleção entre questões **por rodadas** (melhor fonte de cada questão,
+    depois a segunda, etc.): nenhuma questão fica sem fonte por causa do
+    teto global. Alerta novo (só o índice, nunca o texto da questão) quando
+    uma questão não recupera nenhuma fonte.
+  - Tabela `CONCEITOS_JURIDICOS` explícita, com **um** conceito
+    ("proteção do consumidor"), que só acrescenta termos de consulta com
+    peso reduzido; nunca inclui diploma nem chunk. Dois outros conceitos
+    avaliados foram descartados por ganho zero em ablation sobre 17
+    paráfrases.
+  - Contrato do pacote inalterado (`questoes_relacionadas`,
+    `artigo_preciso`, `corpus_versao`, `validation_status`, `vigencia`,
+    `truncado`, `alertas`). `score_lexical`/`score_final` passam de inteiro
+    a decimal ponderado. Dependência nova: **nenhuma**; `VERSION`
+    permanece `0.13.0`.
 
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto

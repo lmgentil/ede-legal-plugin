@@ -41,10 +41,13 @@ nunca cacheada, nunca logada. Este módulo não grava arquivo algum.
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import sys
 import tempfile
+import unicodedata
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -258,6 +261,11 @@ _PALAVRA_RE = re.compile(r"[a-zà-ú0-9]+", re.IGNORECASE)
 # extensos — nunca por serem mais relevantes. Nunca remove palavra de
 # conteúdo (substantivo/verbo/adjetivo do domínio) — só função
 # gramatical e meta-vocabulário estrutural.
+#
+# Gate 6.5-C1: a lista sempre foi escrita SEM acento ("nao", "ate", "ja"),
+# mas o texto era comparado só com `.lower()` — "não"/"até"/"já" do corpus
+# nunca casavam com ela. Agora o texto é normalizado (sem acento) antes
+# da comparação, então a lista passa a funcionar como sempre foi escrita.
 STOPWORDS_LEXICAS = frozenset({
     "de", "da", "do", "das", "dos", "em", "no", "na", "nos", "nas", "por",
     "para", "com", "sem", "e", "ou", "a", "o", "as", "os", "um", "uma",
@@ -279,39 +287,174 @@ BONUS_TITULO_POR_TERMO = 2
 """Peso do termo da questão que também aparece no título/capítulo do
 chunk (frontmatter `titulo`/`capitulo`) — sinal de relevância mais forte
 que ocorrência solta no corpo (Gate 6.5-B3 §5, "title/article-heading
-weighting")."""
+weighting"). Desde o Gate 6.5-C1 o termo vale seu IDF, multiplicado por
+este fator."""
 
 BONUS_FRASE_POR_BIGRAMA = 2
 """Peso por bigrama da questão (dois termos de conteúdo consecutivos no
-texto original, nunca atravessando uma stopword) que aparece verbatim no
-corpo do chunk — sinal de correspondência de expressão, não só de
-palavra solta (Gate 6.5-B3 §5, "exact-phrase bonuses")."""
+texto original, nunca atravessando uma stopword) que aparece também no
+chunk — sinal de correspondência de expressão, não só de palavra solta
+(Gate 6.5-B3 §5, "exact-phrase bonuses"). Desde o Gate 6.5-C1 a
+comparação é feita sobre radicais (`procedimento irregular` casa com
+`procedimentos irregulares`) e o bônus é multiplicado pelo IDF médio do
+par."""
+
+PESO_TERMO_EXPANDIDO = 0.5
+"""Peso relativo de um termo vindo de `CONCEITOS_JURIDICOS` (Gate 6.5-C1)
+em relação a um termo escrito pelo próprio advogado (peso 1). O conceito
+só ajuda a alcançar o vocabulário do diploma; nunca pode valer mais que o
+que foi de fato perguntado."""
 
 _RE_ARTIGO = re.compile(r"\bArt\.?\s*(\d+)", re.IGNORECASE)
+_PALAVRA_RE = re.compile(r"[a-z0-9]+")
 
 
-def _tokens(texto: str) -> set:
-    return set(_PALAVRA_RE.findall(texto.lower()))
+def _normalizar(texto: str) -> str:
+    """Caixa baixa e sem diacríticos (`apuração` -> `apuracao`). Único
+    ponto de normalização do scorer: consulta, título e corpo passam por
+    aqui, então "Recuperação" digitada sem acento ainda casa o corpus
+    acentuado (e vice-versa)."""
+    decomposto = unicodedata.normalize("NFKD", texto.lower())
+    return "".join(c for c in decomposto if not unicodedata.combining(c))
 
 
-def _tokens_uteis(texto: str) -> set:
-    """Mesma tokenização de `_tokens`, descontadas as stopwords léxicas
-    e tokens de um único caractere (nunca discriminativos)."""
-    return {t for t in _tokens(texto) if t not in STOPWORDS_LEXICAS and len(t) > 1}
+# Sufixos de plural, do mais longo ao mais curto: (sufixo, substituto).
+_PLURAIS = (("coes", "cao"), ("oes", "ao"), ("aes", "ao"), ("ais", "al"),
+            ("eis", "el"), ("ores", "or"), ("res", "r"), ("ns", "m"))
+_SUFIXOS_DERIVACIONAIS = ("mente", "idade", "cao")
+_INFINITIVOS = ("ar", "er", "ir")
 
 
-def _bigramas_uteis(texto: str) -> set:
-    """Pares de palavras CONSECUTIVAS no texto original onde NENHUMA das
-    duas é stopword — nunca uma stopword ponte (ex.: "de consumo" não
-    vira bigrama; "unidade consumidora" vira). Bigrama formado a partir
-    de palavras que uma stopword intermediária separava no texto
-    original NUNCA é gerado (não há como formá-lo sem inventar
-    adjacência que o texto não tem)."""
-    palavras = _PALAVRA_RE.findall(texto.lower())
-    return {
-        f"{a} {b}" for a, b in zip(palavras, palavras[1:])
-        if a not in STOPWORDS_LEXICAS and b not in STOPWORDS_LEXICAS
-    }
+def _radical(token: str) -> str:
+    """Radical determinístico e deliberadamente CONSERVADOR de um token já
+    normalizado (Gate 6.5-C1): plural -> sufixo derivacional (-idade,
+    -mente, -ção) -> infinitivo -> vogal temática final. Objetivo único:
+    fazer `procedimento`/`procedimentos`, `irregularidade`/`irregulares`/
+    `irregular`, `indenização`/`indenizar` e `consumidor`/`consumidora`
+    convergirem — nunca análise morfológica geral. Números e tokens
+    curtos passam intactos. Não é um stemmer linguístico (sem dicionário,
+    sem exceções): erra para o lado de NÃO unir palavras distintas."""
+    if len(token) <= 3 or token.isdigit():
+        return token
+    for sufixo, troca in _PLURAIS:
+        if token.endswith(sufixo) and len(token) - len(sufixo) >= 3:
+            token = token[: -len(sufixo)] + troca
+            break
+    else:
+        if token.endswith("s") and not token.endswith("ss"):
+            token = token[:-1]
+    for sufixo in _SUFIXOS_DERIVACIONAIS:
+        if token.endswith(sufixo) and len(token) - len(sufixo) >= 3:
+            token = token[: -len(sufixo)]
+            break
+    for sufixo in _INFINITIVOS:
+        if token.endswith(sufixo) and len(token) - len(sufixo) >= 4:
+            token = token[: -len(sufixo)]
+            break
+    if len(token) > 4 and token[-1] in "aeo":
+        token = token[:-1]
+    return token
+
+
+def _sequencia_radicais(texto: str) -> list:
+    """Uma entrada por palavra do texto, na ordem original: o radical,
+    ou `None` para stopword/token de 1 caractere. `None` preserva o
+    "buraco" onde a stopword estava — é ele que impede um bigrama de
+    atravessar uma stopword (adjacência que o texto não tem)."""
+    saida = []
+    for palavra in _PALAVRA_RE.findall(_normalizar(texto)):
+        if palavra in STOPWORDS_LEXICAS or len(palavra) <= 1:
+            saida.append(None)
+        else:
+            saida.append(_radical(palavra))
+    return saida
+
+
+def _radicais_uteis(texto: str) -> set:
+    return {r for r in _sequencia_radicais(texto) if r}
+
+
+def _bigramas_radicais(texto: str) -> set:
+    """Pares de radicais de palavras CONSECUTIVAS no texto original onde
+    nenhuma das duas é stopword (ex.: "de consumo" não vira bigrama;
+    "unidade consumidora" vira)."""
+    seq = _sequencia_radicais(texto)
+    return {f"{a} {b}" for a, b in zip(seq, seq[1:]) if a and b}
+
+
+# ------------------------------------------------- conceitos jurídicos
+# Gate 6.5-C1: tabela PEQUENA, explícita e revisável de aliases de
+# domínio. Existe só para transpor uma lacuna de TERMINOLOGIA entre a
+# forma como uma questão abstrata é formulada e o vocabulário do
+# diploma que trata do assunto (ex.: "proteção do consumidor" nunca
+# aparece no título do capítulo "Dos Direitos Básicos do Consumidor").
+#
+# Regras de uso (todas verificadas por teste):
+#   - um conceito só dispara se a questão contiver TODOS os radicais de
+#     ao menos um de seus gatilhos — nunca por presença solta de uma
+#     palavra genérica;
+#   - disparar não inclui NENHUM diploma nem chunk: só acrescenta termos
+#     de consulta com peso reduzido (`PESO_TERMO_EXPANDIDO`); a
+#     relevância continua sendo textual, medida contra o corpus;
+#   - nenhum conceito nomeia diploma: "consumidor -> sempre CDC" e
+#     "dano -> sempre CC" são expressamente vedados (Gate 6.5-C1 §5);
+#   - um conceito só entra na tabela com EVIDÊNCIA de necessidade: a
+#     normalização (acento/plural/derivação), o IDF e a saturação de
+#     frequência já resolvem sozinhos a maior parte das lacunas. Ablation
+#     do Gate 6.5-C1 sobre 17 paráfrases (irregularidade, consumidor, dano
+#     moral): sem tabela nenhuma, 17/17 ainda recuperam a fonte esperada;
+#     só "proteção do consumidor" mostrou ganho mensurável (a fonte do CDC
+#     sobe de 2º para 1º e o ruído da REN1000 sai do top-3 da questão
+#     abstrata). Conceitos de "procedimento irregular" e de
+#     "responsabilidade civil/dano" foram avaliados e DESCARTADOS por
+#     ganho zero — não reintroduzir sem nova evidência.
+CONCEITOS_JURIDICOS = (
+    {
+        "id": "PROTECAO_DO_CONSUMIDOR",
+        "gatilhos": (("protecao", "consumidor"), ("defesa", "consumidor"),
+                     ("direitos", "consumidor"), ("relacao", "consumo"),
+                     ("relacoes", "consumo")),
+        "expansao": ("fornecedor", "servico", "vulnerabilidade",
+                     "direitos basicos", "politica nacional", "relacoes consumo"),
+    },
+)
+
+
+def _conceitos_compilados() -> tuple:
+    """Gatilhos/expansões reduzidos a radicais UMA vez, na mesma função
+    (`_radical`) que processa a questão — nunca duas normalizações que
+    poderiam divergir."""
+    def rad(frase: str) -> tuple:
+        return tuple(_radical(p) for p in _PALAVRA_RE.findall(_normalizar(frase)))
+    compilados = []
+    for c in CONCEITOS_JURIDICOS:
+        compilados.append({
+            "id": c["id"],
+            "gatilhos": [frozenset(rad(" ".join(g))) for g in c["gatilhos"]],
+            "expansao": [rad(e) for e in c["expansao"]],
+        })
+    return tuple(compilados)
+
+
+_CONCEITOS = _conceitos_compilados()
+
+
+def _termos_da_consulta(questao: str) -> tuple:
+    """Devolve `(pesos, bigramas, conceitos_ativos)`: `pesos` mapeia radical
+    -> peso (1 para o que o advogado escreveu; `PESO_TERMO_EXPANDIDO` para
+    termo trazido por conceito ativo, e nunca sobrescrevendo um termo
+    direto)."""
+    diretos = _radicais_uteis(questao)
+    pesos = {r: 1.0 for r in diretos}
+    ativos = []
+    for conceito in _CONCEITOS:
+        if any(g and g <= diretos for g in conceito["gatilhos"]):
+            ativos.append(conceito["id"])
+            for frase in conceito["expansao"]:
+                for r in frase:
+                    if r and len(r) > 1 and r not in pesos:
+                        pesos[r] = PESO_TERMO_EXPANDIDO
+    return pesos, _bigramas_radicais(questao), ativos
 
 
 def _ler_frontmatter(texto: str) -> dict:
@@ -390,30 +533,27 @@ def _artigo_preciso(excerto: str) -> str | None:
     return m.group(1) if m else None
 
 
-def _buscar_fontes_para_questao(questao: str, rag_dir: Path, indice_questao: int) -> list:
-    """Recuperação lexical determinística e limitada (Gate 6.5-A §12,
-    recalibrada no Gate 6.5-B3): pontua cada chunk por três sinais,
-    todos determinísticos e sem embeddings/BM25 (aquilo é
-    rag/search_hybrid.py, fora do escopo deste MCP por footprint,
-    RNF-CUSTO-001):
+_CACHE_INDICE_CORPUS: dict = {}
 
-      1. sobreposição lexical ÚTIL (termos de conteúdo, stopwords fora);
-      2. bônus por termo que também aparece no título/capítulo do chunk;
-      3. bônus por bigrama de conteúdo da questão citado verbatim no chunk.
 
-    Devolve os `MAX_FONTES_POR_QUESTAO` melhores. Nenhum corpus fora dos
-    6 diplomas institucionais é tocado; nenhuma jurisprudência, nenhuma
-    busca externa. `indice_questao` semeia `questoes_relacionadas` — a
-    fusão entre questões que recuperam a MESMA fonte acontece em
-    `_montar_fontes_legais`, nunca aqui."""
-    termos_questao = _tokens_uteis(questao)
-    if not termos_questao:
-        return []
-    bigramas_questao = _bigramas_uteis(questao)
+def _indice_corpus(rag_dir: Path) -> dict:
+    """Índice lexical em memória do corpus (Gate 6.5-C1), construído uma
+    vez por diretório: por chunk, os radicais do texto, do título/capítulo
+    e os bigramas; e o IDF de cada radical sobre o corpus inteiro.
 
-    corpus_versao = _versao_corpus(rag_dir)
+    O IDF (`ln(1 + N/df)`) é o que impede vocabulário genérico do SETOR
+    ("energia", "elétrica", "distribuidora", presentes em centenas de
+    chunks da REN1000) de dominar a pontuação — sem lista manual de
+    "palavras do setor", que precisaria de curadoria e nunca seria
+    completa: o próprio corpus diz o que é comum. O corpus é asset
+    estático da revisão (versionado por `corpus_manifest.json`), então
+    o cache nunca serve dado defasado dentro de um processo."""
+    chave = str(rag_dir)
+    if chave in _CACHE_INDICE_CORPUS:
+        return _CACHE_INDICE_CORPUS[chave]
 
-    candidatos = []
+    chunks = []
+    df: Counter = Counter()
     for diploma in DIPLOMAS:
         dirp = rag_dir / f"chunks_{diploma}"
         if not dirp.is_dir():
@@ -423,79 +563,169 @@ def _buscar_fontes_para_questao(questao: str, rag_dir: Path, indice_questao: int
             meta = _ler_frontmatter(texto)
             # `chunk_mestre` é o índice/mapa sistemático do diploma, não
             # dispositivo legal — nunca uma fonte citável (achado do
-            # smoke test deste gate: seu texto de nota genérica competia
-            # em score com dispositivos reais por pura extensão).
+            # smoke test do Gate 6.5-A: seu texto de nota genérica
+            # competia em score com dispositivos reais por pura extensão).
             if meta.get("tipo") == "chunk_mestre":
                 continue
-            score_lexico = len(termos_questao & _tokens_uteis(texto))
-            titulo_texto = f"{meta.get('titulo', '')} {meta.get('capitulo', '')}"
-            bonus_titulo = BONUS_TITULO_POR_TERMO * len(termos_questao & _tokens_uteis(titulo_texto))
-            texto_lower = texto.lower()
-            bonus_frase = BONUS_FRASE_POR_BIGRAMA * sum(
-                1 for bg in bigramas_questao if bg in texto_lower
-            )
-            score_total = score_lexico + bonus_titulo + bonus_frase
-            if score_total > 0:
-                candidatos.append((score_total, score_lexico, diploma, arquivo, texto, meta))
+            frequencias = Counter(r for r in _sequencia_radicais(texto) if r)
+            df.update(frequencias.keys())
+            chunks.append({
+                "diploma": diploma,
+                "arquivo": arquivo,
+                "texto": texto,
+                "meta": meta,
+                "frequencias": frequencias,
+                "radicais_titulo": _radicais_uteis(
+                    f"{meta.get('titulo', '')} {meta.get('capitulo', '')}"),
+                "bigramas": _bigramas_radicais(texto),
+            })
+    total = max(len(chunks), 1)
+    idf = {r: math.log(1 + total / n) for r, n in df.items()}
+    indice = {"chunks": chunks, "idf": idf}
+    _CACHE_INDICE_CORPUS[chave] = indice
+    return indice
 
-    candidatos.sort(key=lambda c: (-c[0], c[2], c[3].name))
 
-    fontes = []
-    for score_total, score_lexico, diploma, arquivo, texto, meta in candidatos[:MAX_FONTES_POR_QUESTAO]:
-        corpo = texto.split("\n---", 1)
-        corpo_sem_frontmatter = corpo[1] if len(corpo) > 1 and texto.startswith("---") else texto
-        excerto, truncado = _truncar_com_limite_de_frase(
-            corpo_sem_frontmatter.strip(), MAX_EXCERPT_CHARS
-        )
-        fonte = fonte_juridica(
-            source_id=f"{diploma}/{arquivo.name}",
-            tipo="dispositivo_legal",
-            diploma=meta.get("lei", diploma),
-            artigo=meta.get("arts_range"),
-            texto=excerto,
-            fonte="corpus institucional EDE (compilado oficial)",
-            authority_level=AUTORIDADE_POR_DIPLOMA.get(diploma, "NAO_VERIFICADA"),
-            validation_status="NAO_VALIDADA",
-            score_lexical=float(score_lexico),
-            score_final=float(score_total),
-        )
-        # Campos além do modelo canônico compartilhado (rag/legal_validation/
-        # models.py) — adicionados aqui, nunca no modelo canônico em si:
-        # `fonte_juridica()` é contrato COMPARTILHADO com
-        # citation_validator.py/outros consumidores (Fase 5, SPEC-0001 §9);
-        # estender o dict já construído mantém este pacote (Gate 6.5-A/B3)
-        # sem alterar um contrato de fora do seu próprio escopo de
-        # autoridade (Gate 6.5-B3 §7/§10).
-        fonte["capitulo"] = meta.get("capitulo")
-        fonte["artigo_preciso"] = _artigo_preciso(excerto)
-        fonte["corpus_versao"] = corpus_versao
-        fonte["truncado"] = truncado
-        fonte["questoes_relacionadas"] = [indice_questao]
-        fontes.append(fonte)
-    return fontes
+TF_SATURACAO_K1 = 2.0
+"""Parâmetro de saturação da frequência do termo no corpo do chunk (mesma
+família do `k1` do BM25). Um chunk que REPETE o termo trata do assunto; um
+que o menciona uma vez apenas o cita — mas a repetição satura, então um
+capítulo enorme não vence só por extensão (o achado original do Gate
+6.5-B3)."""
+
+
+def _saturar(tf: int) -> float:
+    return tf * (TF_SATURACAO_K1 + 1) / (tf + TF_SATURACAO_K1)
+
+
+def _ranquear_candidatos(questao: str, rag_dir: Path) -> list:
+    """Candidatos da questão em ordem decrescente de relevância, cada um
+    `(score_total, score_lexico, chunk)`. Determinístico: a soma percorre
+    os radicais em ordem alfabética e o desempate é (diploma, nome do
+    arquivo) — nunca a ordem de inserção de um `set`."""
+    pesos, bigramas_questao, _ = _termos_da_consulta(questao)
+    if not pesos:
+        return []
+    indice = _indice_corpus(rag_dir)
+    idf = indice["idf"]
+    termos = sorted(r for r in pesos if r in idf)
+    if not termos:
+        return []
+
+    candidatos = []
+    for chunk in indice["chunks"]:
+        freq = chunk["frequencias"]
+        lexico = sum(pesos[r] * idf[r] * _saturar(freq[r]) for r in termos if r in freq)
+        # Título: IDF ao QUADRADO. Um título é a declaração mais forte do
+        # assunto do chunk, mas só quando o termo identifica assunto: "energia
+        # elétrica" no título do capítulo de pré-pagamento é vocabulário do
+        # domínio inteiro e não deve valer quase o mesmo que "procedimentos
+        # irregulares" (achado do Gate 6.5-C1). Sem limiar/corte: a raridade
+        # simplesmente pesa duas vezes, então termo comum ainda conta, pouco.
+        titulo = BONUS_TITULO_POR_TERMO * sum(
+            pesos[r] * idf[r] * idf[r] for r in termos if r in chunk["radicais_titulo"])
+        frase = BONUS_FRASE_POR_BIGRAMA * sum(
+            (idf.get(a, 0.0) + idf.get(b, 0.0)) / 2
+            for a, b in (bg.split(" ") for bg in sorted(bigramas_questao))
+            if f"{a} {b}" in chunk["bigramas"])
+        total = round(lexico + titulo + frase, 6)
+        if total > 0:
+            candidatos.append((total, round(lexico, 6), chunk))
+    candidatos.sort(key=lambda c: (-c[0], c[2]["diploma"], c[2]["arquivo"].name))
+    return candidatos[:MAX_FONTES_POR_QUESTAO]
+
+
+def _fonte_de_candidato(candidato: tuple, corpus_versao: str | None, indice_questao: int) -> dict:
+    score_total, score_lexico, chunk = candidato
+    diploma, arquivo, texto, meta = (chunk["diploma"], chunk["arquivo"],
+                                     chunk["texto"], chunk["meta"])
+    corpo = texto.split("\n---", 1)
+    corpo_sem_frontmatter = corpo[1] if len(corpo) > 1 and texto.startswith("---") else texto
+    excerto, truncado = _truncar_com_limite_de_frase(
+        corpo_sem_frontmatter.strip(), MAX_EXCERPT_CHARS
+    )
+    fonte = fonte_juridica(
+        source_id=f"{diploma}/{arquivo.name}",
+        tipo="dispositivo_legal",
+        diploma=meta.get("lei", diploma),
+        artigo=meta.get("arts_range"),
+        texto=excerto,
+        fonte="corpus institucional EDE (compilado oficial)",
+        authority_level=AUTORIDADE_POR_DIPLOMA.get(diploma, "NAO_VERIFICADA"),
+        validation_status="NAO_VALIDADA",
+        score_lexical=float(score_lexico),
+        score_final=float(score_total),
+    )
+    # Campos além do modelo canônico compartilhado (rag/legal_validation/
+    # models.py) — adicionados aqui, nunca no modelo canônico em si:
+    # `fonte_juridica()` é contrato COMPARTILHADO com
+    # citation_validator.py/outros consumidores (Fase 5, SPEC-0001 §9);
+    # estender o dict já construído mantém este pacote (Gate 6.5-A/B3)
+    # sem alterar um contrato de fora do seu próprio escopo de
+    # autoridade (Gate 6.5-B3 §7/§10).
+    fonte["capitulo"] = meta.get("capitulo")
+    fonte["artigo_preciso"] = _artigo_preciso(excerto)
+    fonte["corpus_versao"] = corpus_versao
+    fonte["truncado"] = truncado
+    fonte["questoes_relacionadas"] = [indice_questao]
+    return fonte
+
+
+def _buscar_fontes_para_questao(questao: str, rag_dir: Path, indice_questao: int) -> list:
+    """Recuperação lexical determinística e limitada (Gate 6.5-A §12,
+    recalibrada nos Gates 6.5-B3 e 6.5-C1). Três sinais, todos
+    determinísticos e sem embeddings/BM25 (aquilo é rag/search_hybrid.py,
+    fora do escopo deste MCP por footprint, RNF-CUSTO-001):
+
+      1. sobreposição lexical ponderada por IDF, sobre radicais (acento,
+         caixa, plural e derivação `-idade`/`-ção` normalizados);
+      2. bônus por termo que também aparece no título/capítulo do chunk;
+      3. bônus por bigrama de conteúdo da questão presente no chunk.
+
+    Termos vindos de `CONCEITOS_JURIDICOS` entram com peso reduzido.
+    Devolve os `MAX_FONTES_POR_QUESTAO` melhores. Nenhum corpus fora dos
+    6 diplomas institucionais é tocado; nenhuma jurisprudência, nenhuma
+    busca externa. `indice_questao` semeia `questoes_relacionadas` — a
+    fusão entre questões que recuperam a MESMA fonte acontece em
+    `_montar_fontes_legais`, nunca aqui."""
+    corpus_versao = _versao_corpus(rag_dir)
+    return [_fonte_de_candidato(c, corpus_versao, indice_questao)
+            for c in _ranquear_candidatos(questao, rag_dir)]
 
 
 def _montar_fontes_legais(questoes: list) -> list:
     """Agrega fontes de todas as questões, deduplicando por `source_id`
-    — mas, ao contrário da versão anterior (Gate 6.5-A), uma fonte que
-    responde a MAIS de uma questão não é silenciosamente descartada na
-    segunda ocorrência: seu índice é ACRESCENTADO a
-    `questoes_relacionadas` (Gate 6.5-B3 §6) — o host precisa saber que
-    aquela fonte foi recuperada por mais de um motivo, sem duplicar o
-    objeto inteiro por questão."""
+    — uma fonte que responde a MAIS de uma questão não é descartada na
+    segunda ocorrência: seu índice é ACRESCENTADO a `questoes_relacionadas`
+    (Gate 6.5-B3 §6).
+
+    Gate 6.5-C1 — seleção por RODADAS entre questões: primeiro o melhor
+    candidato de cada questão, depois o segundo de cada uma, e assim por
+    diante, até `MAX_FONTES_TOTAL`. Antes, as questões eram esgotadas em
+    ordem e o teto global era consumido pelas primeiras (achado real do
+    Gate 6.5-C: com 5 questões, a 4ª recebia 1 fonte e a 5ª nenhuma). Uma
+    fonte já selecionada por outra questão só ganha o vínculo e não
+    consome vaga."""
+    corpus_versao = _versao_corpus(RAG_DIR_PADRAO)
+    ranking = [_ranquear_candidatos(q, RAG_DIR_PADRAO) for q in questoes]
     por_source_id: dict = {}
     ordem = []
-    for indice, questao in enumerate(questoes):
-        for fonte in _buscar_fontes_para_questao(questao, RAG_DIR_PADRAO, indice):
-            existente = por_source_id.get(fonte["source_id"])
+    for rodada in range(MAX_FONTES_POR_QUESTAO):
+        for indice, candidatos in enumerate(ranking):
+            if rodada >= len(candidatos):
+                continue
+            chunk = candidatos[rodada][2]
+            source_id = f"{chunk['diploma']}/{chunk['arquivo'].name}"
+            existente = por_source_id.get(source_id)
             if existente is not None:
                 if indice not in existente["questoes_relacionadas"]:
                     existente["questoes_relacionadas"].append(indice)
                 continue
-            por_source_id[fonte["source_id"]] = fonte
-            ordem.append(fonte)
             if len(ordem) >= MAX_FONTES_TOTAL:
-                return ordem
+                continue
+            fonte = _fonte_de_candidato(candidatos[rodada], corpus_versao, indice)
+            por_source_id[source_id] = fonte
+            ordem.append(fonte)
     return ordem
 
 
@@ -670,6 +900,17 @@ def preparar_contexto_contestacao(
         alertas.append("Nenhuma fonte legal do corpus institucional encontrada "
                         "para as questões jurídicas informadas — refine os termos "
                         "ou trate como lacuna a suprir pelo raciocínio do host.")
+    elif questoes:
+        # Gate 6.5-C1: uma questão sem NENHUMA fonte não pode passar em
+        # silêncio só porque outras questões recuperaram fontes. Só o
+        # índice, nunca o texto da questão (mesma disciplina do 6.5-B3 §16).
+        sem_fonte = [i for i in range(len(questoes))
+                     if not any(i in f["questoes_relacionadas"] for f in fontes_legais)]
+        if sem_fonte:
+            alertas.append("Nenhuma fonte legal do corpus institucional foi "
+                            f"recuperada para questoes_juridicas{sem_fonte} — "
+                            "refine os termos ou trate como lacuna a suprir "
+                            "pelo raciocínio do host.")
     if contexto_institucional is None:
         alertas.append("Contexto institucional (texto fixo ao redor dos "
                         "placeholders) não pôde ser extraído nesta chamada — "

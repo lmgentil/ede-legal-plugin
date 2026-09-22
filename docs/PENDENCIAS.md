@@ -756,13 +756,19 @@ Em aberto (execução deliberadamente adiada).
 
 ## PEND-014 — Redesenho do mecanismo de entrega de artefato entre hosts (candidato implementado, Gate 6.6-E)
 
-**Status:** CANDIDATO IMPLEMENTADO. `scripts/artifact_storage.py`
-(objeto GCS efêmero + URL V4 assinada) implementado, testado (fake, sem
-rede) e parcialmente verificado contra GCP real (upload real e negação
-de acesso não assinado confirmados; assinatura V4 real NÃO verificada —
-ver ADR-0019 "Implementação (Gate 6.6-E)"). **Prova viva completa
-(assinatura real + download por Claude/ChatGPT) e ativação em produção
-continuam NÃO autorizadas.**
+**Status:** CANDIDATO IMPLEMENTADO E VERIFICADO AO VIVO (continuação do
+Gate 6.6-E). `scripts/artifact_storage.py` (objeto GCS efêmero + URL V4
+assinada) implementado, testado (fake, sem rede) e verificado
+COMPLETAMENTE contra GCP real: upload, `signBlob`, download assinado,
+identidade de bytes/SHA-256, negação de acesso não assinado, expiração,
+limpeza oportunista e HARD DELETE — todos com IAM de homologação
+temporária, criada/usada/removida (ver ADR-0019 "Implementação" e
+"Retenção"). Janela de download revisada para 24h (decisão do usuário);
+retenção normal (~24-25h) depende de um mecanismo de agendamento ainda
+NÃO provisionado (`scripts/limpar_artefatos_agendado.py` existe, pronto
+para Cloud Scheduler; a infraestrutura de agendamento em si não foi
+criada). **Prova viva de download por Claude/ChatGPT e ativação em
+produção continuam NÃO autorizadas.**
 **Aberta em:** Fechamento do Gate 6.6-D como `PARTIAL PASS` (2026-09-22);
 implementação candidata no Gate 6.6-E, mesma data.
 **Bloqueia:** O gate de download ao vivo (verificação com Claude/ChatGPT
@@ -785,7 +791,7 @@ mecanismo de entrega, não do renderer.
 `docs/adr/ADR-0019-entrega-de-artefato-multi-cliente.md` registra a
 avaliação e, desde o Gate 6.6-E, a implementação candidata: bucket real
 `ede-legal-mcp-01-artefatos-efemeros` (homologação, privado, PAP
-enforced, soft-delete desligado, lifecycle de 1 dia como backstop),
+enforced, soft-delete desligado, lifecycle de 2 dias como backstop),
 `scripts/artifact_storage.py` (V4 signing manual, sem SDK de nuvem
 novo), integração em `finalizar_peca.py`/`server.py` (v2 substitui o
 `EmbeddedResource`, nunca em paralelo). **Nenhuma IAM de runtime de

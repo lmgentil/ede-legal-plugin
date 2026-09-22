@@ -107,8 +107,20 @@ até a ativação ser explicitamente autorizada.
 
 | Variável | Valor candidato | Status |
 |---|---|---|
-| `EDE_ARTEFATOS_GCS_BUCKET` | `ede-legal-mcp-01-artefatos-efemeros` | criado no Gate 6.6-E — privado, regional (`southamerica-east1`), acesso uniforme, `public_access_prevention: enforced`, sem `allUsers`/`allAuthenticatedUsers`, sem versionamento, **soft-delete desligado** (`retentionDurationSeconds: 0` — achado deste gate: o padrão do projeto GCP é reter objetos "excluídos" por 7 dias; desligado aqui deliberadamente, porque o bucket guarda documento jurídico efêmero, não deveria sobreviver 7 dias a uma exclusão real), lifecycle `age: 1` (dia) como backstop de limpeza (ver ADR-0019 para a distinção entre isso e a janela de 15 minutos da URL assinada) |
+| `EDE_ARTEFATOS_GCS_BUCKET` | `ede-legal-mcp-01-artefatos-efemeros` | criado no Gate 6.6-E — privado, regional (`southamerica-east1`), acesso uniforme, `public_access_prevention: enforced`, sem `allUsers`/`allAuthenticatedUsers`, **sem versionamento** (confirmado ao vivo), **soft-delete desligado** (`retentionDurationSeconds: 0`, confirmado ao vivo — o padrão do projeto GCP retém objeto "excluído" por 7 dias; desligado aqui porque o bucket guarda documento jurídico efêmero e uma exclusão precisa ser real, nunca recuperável), **sem retention policy nem default event-based hold** (confirmado ao vivo), lifecycle `age: 2` (dias) como backstop **assíncrono, sem prazo garantido** — nunca a garantia normal de exclusão (ver ADR-0019, seção "Retenção") |
 | `EDE_ARTEFATOS_SIGNER_SA` | *(pendente — ver nota de IAM abaixo)* | e-mail da service account a impersonar para `signBlob` (V4 keyless); em produção normal é o e-mail da PRÓPRIA `ede-mcp-runtime@ede-legal-mcp-01.iam.gserviceaccount.com` (auto-impersonation) |
+
+**Retenção (decisão final, Gate 6.6-E continuação):** janela de
+AUTORIZAÇÃO de download = 24 horas (`TTL_DOWNLOAD_SEGUNDOS`, revisado
+de um valor original de 15 minutos — histórico no `CHANGELOG.md`);
+elegibilidade de limpeza NORMAL = imediatamente ao expirar essa janela
+(`LIMPEZA_ELEGIVEL_SEGUNDOS`, sem margem adicional); retenção normal
+ALVO = ~24-25h, nunca prometida como exata, e **depende de um
+mecanismo de agendamento (Cloud Scheduler -> `scripts/limpar_
+artefatos_agendado.py`, cadência horária) ainda NÃO provisionado** —
+sem ele, só a limpeza oportunista (disparada por finalizações reais)
+está ativa, que não cobre períodos sem tráfego. Exclusão é sempre
+REAL (hard delete) — nunca soft-delete recuperável.
 
 IAM pendente, **não aplicada nesta rodada** (Gate 6.6-E §41 — nenhuma
 alteração de IAM da service account de runtime corrente antes de um
@@ -116,24 +128,32 @@ passo controlado e explicitamente aprovado):
 
 * `roles/storage.objectAdmin` escopado **só** ao bucket
   `ede-legal-mcp-01-artefatos-efemeros` (upload, leitura de metadado
-  para assinatura, exclusão) — nunca papel de projeto;
+  para assinatura, exclusão, listagem para limpeza) — nunca papel de
+  projeto;
 * `roles/iam.serviceAccountTokenCreator` de
   `ede-mcp-runtime@ede-legal-mcp-01.iam.gserviceaccount.com` NELA MESMA
   (auto-impersonation, necessário e suficiente para `signBlob` sem
-  arquivo de chave).
+  arquivo de chave);
+* IAM própria do mecanismo de agendamento escolhido (Cloud Scheduler +
+  alvo invocável), a definir junto do provisionamento desse mecanismo.
 
-Verificado neste gate com uma service account de homologação dedicada
-(`ede-artefatos-homolog`, nunca criada por falta da mesma concessão de
-IAM — bloqueada pelo próprio harness de execução, guard de "Permission
-Grant"): upload multipart real funcionou (200) contra o bucket real;
-acesso não assinado foi corretamente negado (401); a chamada real a
-`iamcredentials.signBlob` **não pôde ser exercitada nesta sessão**
-porque nem `roles/owner` do operador nem a ausência de concessão prévia
-bastam para chamar `signBlob` sem uma concessão explícita — achado
-real, registrado como item de risco residual no relatório do Gate
-6.6-E (não presumir que o algoritmo de assinatura V4 funciona contra o
-GCS real sem essa verificação completa antes do gate de download ao
-vivo).
+**Verificado AO VIVO, de ponta a ponta, na continuação do Gate 6.6-E**
+com uma service account de homologação dedicada (`ede-artefatos-
+homolog`) — criada, usada e **removida ao final** (nenhuma IAM
+temporária permanece; nenhuma IAM de produção foi tocada): upload
+multipart real, `signBlob` real, download por URL V4 assinada real com
+`Content-Type`/`Content-Disposition` corretos, identidade de SHA-256
+entre renderer/objeto/download, negação de acesso não assinado antes e
+depois do upload, expiração real (TTL curto de teste, caminho interno
+nunca exposto no schema público), limpeza oportunista real (objeto
+antigo removido, objeto recente preservado), limpeza por falha de
+assinatura real (upload real + exclusão real do órfão), e **hard
+delete real completo**: objeto some da listagem autenticada, a URL
+assinada emitida antes da exclusão passa a devolver 404, acesso não
+assinado continua negado, `gcloud storage ls --soft-deleted` para o
+objeto devolve vazio, e não há geração não corrente possível
+(versionamento desligado). Nenhum item permanece só estrutural/
+unitário.
 
 ## Confirmação do hostname determinístico
 

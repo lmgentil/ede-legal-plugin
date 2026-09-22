@@ -445,6 +445,19 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
                               "Falha ao gerar o link de download do artefato.", capability_id,
                               artefato_id=e.artefato_id, limpeza_ok=e.limpeza_ok)
 
+        # Limpeza oportunista (Gate 6.6-E, continuação §8/§9) —
+        # exclusão NORMAL de artefatos antigos, best-effort: dispara só
+        # depois que ESTA finalização já tem uma resposta de sucesso
+        # pronta. Qualquer falha aqui (rede, autenticação, listagem)
+        # nunca reverte nem degrada a resposta já bem-sucedida — o
+        # backstop de lifecycle (~1 dia) continua ativo independente
+        # disso. Resultado agregado (contadores, nunca nome de objeto)
+        # fica disponível só para telemetria futura, se necessário.
+        try:
+            ast.limpar_artefatos_elegiveis(_obter_transporte_artefato())
+        except Exception:
+            pass
+
         return ResultadoFinalizacao(
             status="OK",
             capability_id=capability_id,

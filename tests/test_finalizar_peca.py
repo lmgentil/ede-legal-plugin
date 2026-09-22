@@ -239,6 +239,11 @@ class _TransporteArtefatoFake:
         self.objetos.pop(object_name, None)
         return True
 
+    def listar(self, prefixo, limite):
+        self.chamadas_listar = getattr(self, "chamadas_listar", 0) + 1
+        nomes = sorted(n for n in self.objetos if n.startswith(prefixo))[:limite]
+        return [(n, self.objetos[n][2]) for n in nomes]
+
 
 @pytest.fixture
 def transporte_artefato_fake(monkeypatch):
@@ -312,6 +317,10 @@ def test_pipeline_completo_ok_contra_modelo_oficial_real(modelo_oficial_local, t
     assert metadata["sha256"] == r.documento_sha256
     # nenhum dado de caso no metadado do objeto (Gate 6.6-E §20)
     assert set(metadata) == {"artifact_id", "created_at", "expires_at", "sha256"}
+
+    # Gate 6.6-E, continuação §8 — limpeza oportunista roda depois de
+    # todo sucesso (best-effort; aqui só provamos que foi chamada).
+    assert transporte_artefato_fake.chamadas_listar == 1
 
 
 @pytest.mark.docx_real

@@ -76,11 +76,21 @@ ENV_ARTEFATOS_SIGNER_SA = "EDE_ARTEFATOS_SIGNER_SA"
 
 CONTENT_TYPE_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
-TTL_DOWNLOAD_SEGUNDOS = 15 * 60
-"""Contrato FIXO de produção (Gate 6.6-E §8) — 15 minutos, nunca
+TTL_DOWNLOAD_SEGUNDOS = 24 * 60 * 60
+"""Contrato FIXO de produção — janela de AUTORIZAÇÃO de download, nunca
 configurável pelo cliente MCP nem por variável de ambiente: é uma
 constante Python, não lida de `os.environ`, para que nenhuma
-configuração de implantação possa alongá-la silenciosamente."""
+configuração de implantação possa alongá-la silenciosamente.
+
+Revisado de 15 minutos para 24 horas (decisão explícita do usuário, Gate
+6.6-E continuação — "USER DECISION — SIGNED URL LIFETIME CHANGE"). O
+valor original de 15 minutos foi a primeira implementação deste gate
+(ver `CHANGELOG.md`, entrada original do Gate 6.6-E) — registro
+histórico preservado ali, não reescrito; esta é a decisão vigente. A
+natureza do mecanismo não muda com o valor: a URL assinada continua
+sendo uma CAPACIDADE PORTADORA — quem quer que a possua dentro da
+janela de validade pode baixar o artefato, sem segunda verificação de
+identidade — nunca "acesso vinculado à identidade"."""
 
 _GCS_ESCOPO_ESCRITA = "https://www.googleapis.com/auth/devstorage.read_write"
 _IAM_ESCOPO_ASSINATURA = "https://www.googleapis.com/auth/iam"
@@ -146,6 +156,39 @@ class TransporteArtefato(Protocol):
         """Retorna True se o objeto foi removido (ou já não existia —
         idempotente); False só numa falha real de exclusão."""
         ...
+
+    def listar(self, prefixo: str, limite: int) -> list[tuple[str, dict]]:
+        """Lista (nome do objeto, metadado) só sob `prefixo` — usado
+        exclusivamente pela limpeza oportunista (Gate 6.6-E, continuação
+        §8). Nunca lê conteúdo, nunca lista fora do prefixo de
+        artefatos."""
+        ...
+
+
+LIMPEZA_ELEGIVEL_SEGUNDOS = TTL_DOWNLOAD_SEGUNDOS
+"""Limiar de elegibilidade da limpeza — EXATAMENTE `TTL_DOWNLOAD_
+SEGUNDOS` (24h), sem margem adicional (decisão explícita do usuário,
+Gate 6.6-E continuação — "USER RETENTION DECISION — HARD DELETE
+REQUIRED": elegibilidade "imediatamente após a janela de 24h expirar").
+A retenção NORMAL total (criação -> exclusão de fato) não é este
+número sozinho — é este limiar SOMADO à cadência do mecanismo que
+executa a varredura (ver `limpar_artefatos_elegiveis`): com cadência de
+1h, o alvo de retenção normal é ~24-25h, nunca prometido como exato
+(exclusão é sempre um DELETE real de objeto, nunca soft-delete
+recuperável — `soft_delete_policy.retentionDurationSeconds: 0` neste
+bucket, verificado ao vivo). Este valor substitui dois valores
+anteriores deste mesmo gate (15 min de TTL / 30 min de limpeza na
+primeira implementação; 24h de TTL / 26h de limpeza numa revisão
+intermediária) — histórico preservado no `CHANGELOG.md`, não
+reescrito; este é o valor vigente."""
+
+LIMPEZA_MAX_OBJETOS_POR_VARREDURA = 20
+"""Teto de objetos processados por chamada — cada finalização bem-
+sucedida pode disparar, no máximo, esta quantidade de exclusões, para
+que a limpeza nunca infle a latência de uma finalização de forma
+descontrolada (Gate 6.6-E, continuação §8). Sobra de objetos elegíveis
+além deste teto é varrida na próxima finalização, ou, na ausência de
+tráfego, pelo backstop de lifecycle (~1 dia)."""
 
 
 def _novo_id_artefato() -> str:
@@ -364,6 +407,27 @@ class TransporteGcsReal:
             return False
         return resposta.status_code in (200, 204, 404)
 
+    def listar(self, prefixo: str, limite: int) -> list[tuple[str, dict]]:
+        import httpx2
+
+        try:
+            credenciais = _credenciais_e_token()
+        except ErroArmazenamentoArtefato:
+            return []
+        url = (
+            f"{_GCS_API_BASE}/b/{self._bucket}/o"
+            f"?prefix={_quote(prefixo, safe='/')}&maxResults={int(limite)}"
+        )
+        cabecalhos = {"Authorization": f"Bearer {credenciais.token}"}
+        try:
+            resposta = httpx2.get(url, headers=cabecalhos, timeout=30.0)
+        except httpx2.HTTPError:
+            return []
+        if resposta.status_code != 200:
+            return []
+        dados = resposta.json()
+        return [(item["name"], item.get("metadata") or {}) for item in dados.get("items", [])]
+
 
 def obter_transporte_do_ambiente(env: dict) -> TransporteGcsReal:
     bucket = (env.get(ENV_ARTEFATOS_GCS_BUCKET) or "").strip()
@@ -417,3 +481,69 @@ def entregar_artefato_efemero(document_bytes: bytes, sha256_hex: str, filename_c
         expires_at=expira_em.strftime("%Y-%m-%dT%H:%M:%SZ"),
         artefato_id=artefato_id,
     )
+
+
+def limpar_artefatos_elegiveis(transporte: TransporteArtefato,
+                                agora: _dt.datetime | None = None) -> dict:
+    """Núcleo da exclusão NORMAL do artefato — sempre um DELETE real de
+    objeto (nunca soft-delete recuperável: este bucket tem
+    `soft_delete_policy.retentionDurationSeconds: 0`, verificado ao
+    vivo; sem versionamento; sem retention policy/hold), distinta do
+    backstop de lifecycle (~2 dias, assíncrono, sem garantia de prazo
+    exato) e da expiração da URL assinada (24h, só access, nunca
+    exclusão do objeto).
+
+    Duas formas de chamada, mesma função (Gate 6.6-E continuação —
+    "Do not rely only on opportunistic cleanup... could leave the final
+    artifact stored indefinitely during periods of no traffic"):
+    (1) oportunista, disparada por `finalizar_peca.py` depois de cada
+    sucesso — cobre o caso comum, mas sozinha não garante nada sem
+    tráfego; (2) `scripts/limpar_artefatos_agendado.py`, um entrypoint
+    standalone pensado para ser invocado por um mecanismo de agendamento
+    externo (Cloud Scheduler -> Cloud Run Job/endpoint autenticado, não
+    provisionado nesta rodada — ver ADR-0019) com cadência horária, que
+    é o que torna a retenção normal ~24-25h mesmo sem nenhuma
+    finalização acontecendo. Varre SÓ o prefixo `artifacts/`, lê SÓ o
+    metadado seguro já gravado no upload (`created_at`) — nunca conteúdo,
+    nunca nome de arquivo do cliente, nunca dado de caso — e exclui
+    objetos cuja idade já ultrapassa `LIMPEZA_ELEGIVEL_SEGUNDOS`.
+    Processa no máximo `LIMPEZA_MAX_OBJETOS_POR_VARREDURA` por chamada.
+
+    **Best-effort por design, nunca bloqueia a finalização que a
+    disparou:** o chamador (`finalizar_peca.py`) invoca isto DEPOIS de
+    já ter uma resposta de sucesso pronta para o cliente — qualquer
+    exceção aqui é responsabilidade do CHAMADOR capturar (esta função
+    não suprime as próprias exceções de rede/autenticação, para que o
+    chamador possa decidir telemetria; ela decide, e sempre decide não
+    propagar, porque um artefato órfão e não relacionado nunca deve
+    degradar uma finalização que já passou por Template Lock/fidelidade/
+    round-trip e já tem seu próprio artefato entregue). O backstop de
+    lifecycle continua ativo independentemente do resultado.
+
+    Devolve só contadores agregados (`inspecionados`/`excluidos`/
+    `falhas`) — nunca nomes de objeto, nunca timestamp individual —
+    seguro para telemetria."""
+    resultado = {"inspecionados": 0, "excluidos": 0, "falhas": 0}
+    if agora is None:
+        agora = _dt.datetime.now(_dt.timezone.utc)
+
+    objetos = transporte.listar("artifacts/", LIMPEZA_MAX_OBJETOS_POR_VARREDURA)
+    for nome_objeto, metadata in objetos:
+        resultado["inspecionados"] += 1
+        criado_em_str = (metadata or {}).get("created_at")
+        if not criado_em_str:
+            continue  # sem o metadado esperado -- nunca inferido, só ignorado
+        try:
+            criado_em = _dt.datetime.strptime(
+                criado_em_str, "%Y-%m-%dT%H:%M:%SZ"
+            ).replace(tzinfo=_dt.timezone.utc)
+        except ValueError:
+            continue
+        idade_segundos = (agora - criado_em).total_seconds()
+        if idade_segundos < LIMPEZA_ELEGIVEL_SEGUNDOS:
+            continue
+        if transporte.excluir(nome_objeto):
+            resultado["excluidos"] += 1
+        else:
+            resultado["falhas"] += 1
+    return resultado

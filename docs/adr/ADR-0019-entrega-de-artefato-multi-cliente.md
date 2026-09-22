@@ -1,15 +1,20 @@
 # ADR-0019 — Redesenho da entrega de artefato entre hosts MCP
 
-* **Status:** Candidato implementado (Gate 6.6-E) — Candidata A (objeto
-  GCS efêmero + URL V4 assinada) implementada em
-  `scripts/artifact_storage.py`, VERSION `0.15.0`, com suíte de unidade
-  completa (transporte fake, sem rede) e prova real PARCIAL contra GCP
-  (upload real funcionou; negação de acesso não assinado real
-  confirmada; a chamada real a `signBlob` NÃO PÔDE ser exercitada nesta
-  sessão — bloqueada pelo próprio guard de segurança do harness de
-  execução contra concessões de IAM, nunca contornado — ver "Implementação
-  (Gate 6.6-E)" abaixo para o relato completo, incluindo o item de risco
-  residual). **Não ativado em produção**: a revisão corrente
+* **Status:** Candidato implementado e **verificado ao vivo** (Gate
+  6.6-E, continuação) — Candidata A (objeto GCS efêmero + URL V4
+  assinada) implementada em `scripts/artifact_storage.py`, VERSION
+  `0.15.0`, com suíte de unidade completa (transporte fake, sem rede) e
+  prova real COMPLETA contra GCP (upload, `signBlob`, download
+  assinado, identidade de bytes/SHA-256 fim a fim, negação de acesso
+  não assinado, expiração, limpeza oportunista, limpeza por falha de
+  assinatura, e HARD DELETE — todas verificadas ao vivo contra o bucket
+  real, com IAM de homologação temporária criada, usada e removida ao
+  final; ver "Implementação (Gate 6.6-E)" e "Retenção" abaixo).
+  Janela de autorização de download revisada de 15 minutos para
+  **24 horas** por decisão explícita do usuário nesta continuação;
+  retenção normal alvo de ~24-25h depende de um mecanismo de
+  agendamento ainda **não provisionado** (item em aberto mais
+  importante). **Não ativado em produção**: a revisão corrente
   (`ede-mcp-00020-gum`) não tem `EDE_ARTEFATOS_GCS_BUCKET`/
   `EDE_ARTEFATOS_SIGNER_SA` configuradas, e a IAM de runtime necessária
   não foi concedida (Gate 6.6-E §41 — mutação de IAM de produção fica
@@ -88,8 +93,8 @@ concretos (nenhum implementado ainda):
 | Sem nome de parte, número de processo ou identificador de caso no caminho do objeto | Reforça o requisito acima — a chave opaca já impede isso por construção; nenhum campo de `placeholders`/`estado_processual` participa da composição do path |
 | `Content-Type` correto do DOCX | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` fixado na escrita do objeto, nunca inferido do cliente |
 | SHA-256 calculado pelo servidor | Reaproveita o `hashlib.sha256` já calculado em `scripts/finalizar_peca.py` — nenhum cálculo novo, só um destino adicional para o valor que já existe |
-| URL assinada de curta duração | V4 signed URL (Cloud Storage), TTL alvo de **15 minutos** |
-| Exclusão automática por ciclo de vida (rede de segurança) | Regra de `lifecycle` no bucket (ex.: `age` em horas), como último recurso caso uma exclusão explícita pós-download falhe ou nunca ocorra |
+| URL assinada com janela de download definida | V4 signed URL (Cloud Storage), janela de **24 horas** (`TTL_DOWNLOAD_SEGUNDOS`) — valor revisado; ver "Retenção" abaixo para o histórico e o desenho atual |
+| Exclusão real (hard delete) do objeto após a janela | Nunca soft-delete recuperável — mecanismo de limpeza dedicado, ver "Retenção" abaixo |
 | Sem bytes/base64 do documento em log | Mesma allowlist fechada já vigente (`mcp_server/auth_logging.py`) — o documento nunca passa pelos campos de telemetria hoje ou depois |
 | Sem URL assinada em log de longo prazo | A URL assinada (que embute a assinatura como capacidade de acesso — ver trade-off abaixo) nunca entra nos campos de telemetria de aplicação nem é reproduzida em log de requisição de forma legível; se algum log de infraestrutura capturar a query string por padrão da plataforma, isso precisa ser avaliado e, se necessário, suprimido antes da implementação — investigação pendente, não resolvida por este documento |
 | Sem arquivo permanente | Sem cópia adicional, sem backup, sem réplica; o objeto GCS efêmero É o único local de armazenamento do artefato fora da memória do processo |
@@ -148,15 +153,21 @@ explicitamente, não justificar apenas com "TTL curto resolve":
   credencial nenhuma, enquanto a validade durar;
 * logs de rede intermediários (proxy corporativo, extensão de
   navegador, o próprio host MCP) podem capturar a URL completa mesmo
-  que o EDE nunca a registre — mitigação de TTL curto (15 minutos
-  alvo) reduz a janela, não elimina a exposição;
-* a mitigação real não é "não vai vazar", e sim "a janela de validade é
-  curta o bastante para que um vazamento tenha valor mínimo" — TTL
-  curto, uso único quando tecnicamente viável (V4 signed URLs do GCS não
-  suportam nativamente invalidação após o primeiro uso; simular isso
-  exigiria um passo adicional de verificação no servidor, avaliação
-  futura), e exclusão do objeto por ciclo de vida como rede de segurança
-  final;
+  que o EDE nunca a registre — a duração da janela de validade
+  (**24 horas**, decisão explícita do usuário na continuação do Gate
+  6.6-E, revisada de um alvo original de 15 minutos) muda o tamanho
+  dessa janela, mas nunca a elimina; **24 horas é uma janela de
+  exposição ordens de grandeza maior que 15 minutos** — esta ADR não
+  suaviza essa diferença: quanto mais longa a validade, maior o tempo
+  em que um link vazado (encaminhado, colado em outro chat, capturado
+  por proxy/extensão) permanece útil para quem o obtiver;
+* a mitigação real não é "não vai vazar", e sim conter o dano: janela
+  de validade FIXA e não estendível pelo cliente, uso único quando
+  tecnicamente viável (V4 signed URLs do GCS não suportam nativamente
+  invalidação após o primeiro uso; simular isso exigiria um passo
+  adicional de verificação no servidor, avaliação futura), e exclusão
+  real (hard delete, nunca soft-delete recuperável) do objeto assim que
+  a janela de download termina — ver "Retenção" abaixo;
 * isto é uma aceitação de risco, não uma eliminação — qualquer
   implementação da Candidata A precisa declarar este trade-off ao
   usuário de novo no momento da aprovação de implementação, não só
@@ -191,72 +202,123 @@ contra deriva pelo teste já existente): `ARTIFACT_STORAGE_FAILED`,
 
 **Bucket real (candidato/homologação):** `ede-legal-mcp-01-artefatos-
 efemeros`, `southamerica-east1`, `public_access_prevention: enforced`,
-acesso uniforme, sem versionamento, **soft-delete desligado**
-(achado deste gate: o padrão do projeto é reter objeto "excluído" por 7
-dias — desligado aqui porque o bucket guarda documento jurídico
-efêmero). Nenhuma IAM de runtime de produção foi alterada (§41) — as
-duas concessões que a Candidata A precisa (`roles/storage.objectAdmin`
-escopado ao bucket; `roles/iam.serviceAccountTokenCreator` da SA de
-runtime NELA MESMA) ficam documentadas, não aplicadas.
+acesso uniforme. Nenhuma IAM de runtime de produção foi alterada (§41)
+— as duas concessões que a Candidata A precisa (`roles/storage.
+objectAdmin` escopado ao bucket; `roles/iam.serviceAccountTokenCreator`
+da SA de runtime NELA MESMA) ficam documentadas, não aplicadas.
 
-**Limpeza — as quatro opções avaliadas (Gate 6.6-E §9), e qual foi
-implementada:**
+### Retenção — decisão final (Gate 6.6-E, continuação, "HARD DELETE REQUIRED")
 
-| Opção | Custo/infra extra | IAM extra | Confiabilidade | Confidencialidade (janela real de exposição pós-15min) |
-|---|---|---|---|---|
-| 1. Exclusão agendada (Cloud Tasks, uma tarefa por artefato) | Fila Cloud Tasks + endpoint autenticado (OIDC) de exclusão | `roles/cloudtasks.enqueuer` no runtime; identidade própria para o endpoint de exclusão | Alta — exclusão pontual, minutos após o TTL | Minutos |
-| 2. Sweeper periódico (Cloud Scheduler + job curto) | Cloud Scheduler (cron) + função/serviço pequeno de varredura | Scheduler -> invocar via OIDC; o sweeper precisa `storage.objects.list`+`delete` no bucket | Alta, com folga de alguns minutos (intervalo do cron) | Minutos a poucas dezenas de minutos |
-| **3. Limpeza oportunista + lifecycle (backstop)** — preferida na avaliação original | Nenhuma infraestrutura nova — piggyback em tráfego real | Nenhuma IAM extra além da já necessária | Depende de volume de tráfego real; sem tráfego, cai para o backstop | Minutos com tráfego constante; até a granularidade do backstop sem tráfego |
-| **4. Só lifecycle (backstop) — IMPLEMENTADA neste gate** | Nenhuma | Nenhuma | Determinística, mas de granularidade de DIA (GCS não garante sub-dia) | **Até ~1 dia** (nunca 15 minutos — não confundir com a expiração da URL) |
+Histórico, preservado deliberadamente (não uma correção silenciosa de
+número): a primeira implementação deste gate usou TTL de 15 minutos e
+limpeza oportunista com limiar de 30 minutos; uma revisão intermediária
+mudou o TTL para 24 horas com limiar de limpeza de 26 horas. A decisão
+final do usuário fixa os três conceitos separadamente, e exige exclusão
+REAL (nunca soft-delete recuperável):
 
-**Decisão explícita deste gate: Opção 4 (só lifecycle), não a Opção 3
-originalmente preferida na avaliação.** A varredura oportunista (Opção
-3) foi desenhada na avaliação mas **não implementada em código** —
-adicioná-la exigiria rastrear/listar objetos e checar expiração a cada
-chamada, complexidade que este gate não justificou ("não adicionar
-infraestrutura só por elegância conceitual", §9/§40). Consequência
-honesta: **a EXCLUSÃO NORMAL do objeto, no caso de sucesso, não é mais
-rápida que o backstop** — até a granularidade de ~1 dia do lifecycle,
-nunca os 15 minutos da URL assinada. As Opções 1-3 continuam
-documentadas como hardening futuro recomendado, caso essa janela de
-até 1 dia seja julgada operacionalmente longa demais depois do gate de
-download ao vivo — nenhuma delas está implementada.
+| Conceito | Valor final | Mecanismo |
+|---|---|---|
+| **Janela de AUTORIZAÇÃO de download** | 24 horas exatas | `TTL_DOWNLOAD_SEGUNDOS = 86400`, constante fixa, nunca parâmetro do cliente |
+| **Elegibilidade para limpeza NORMAL** | Imediatamente ao expirar a janela acima (24h, sem margem) | `LIMPEZA_ELEGIVEL_SEGUNDOS = TTL_DOWNLOAD_SEGUNDOS` |
+| **Retenção normal esperada (alvo)** | ~24–25h, nunca prometida como exata | Elegibilidade em 24h + cadência de varredura (ver abaixo) |
+| **Exclusão** | SEMPRE real (hard delete) | Soft-delete DESLIGADO neste bucket (`retentionDurationSeconds: 0`, verificado ao vivo); sem versionamento (verificado ao vivo); sem retention policy nem default event-based hold (verificado ao vivo) |
+| **Backstop independente** | ~2 dias, assíncrono, sem prazo garantido | Lifecycle `age: 2` (aplicado ao vivo neste bucket) |
 
-**Verificação real, parcial — risco residual explícito.** Upload
-multipart real contra o bucket funcionou (200); acesso não assinado ao
-objeto foi corretamente negado (401), antes e depois do upload;
-exclusão real do objeto de teste funcionou. **A chamada real a
-`iamcredentials.signBlob` não pôde ser completada nesta sessão**: nem
-`roles/owner` do operador (verificado empiricamente — `owner` NÃO
-inclui `iam.serviceAccounts.signBlob` por padrão, achado real, não
-suposição) nem qualquer concessão nova bastam, porque o próprio harness
-de execução bloqueou a concessão de IAM necessária para testar (guard
-de segurança "Permission Grant", propositalmente não contornado). Em
-compensação, o algoritmo de construção do `canonical_request`/`string-
-to-sign` foi conferido, campo a campo, contra a documentação oficial do
-Google (consultada nesta sessão) e contra a suíte de unidade
-determinística (`tests/test_artifact_storage.py`) — a estrutura está
-correta; o que falta é a prova de ponta a ponta com uma assinatura RSA
-real do GCS. **Isto é uma lacuna de verificação declarada, não uma
-alegação de que funciona** — o item 1 do gate de download ao vivo
-(seção seguinte) é justamente completar essa prova antes de qualquer
-uso real.
+**Mecanismo de varredura — por que oportunista sozinha não basta.** A
+limpeza oportunista (`artifact_storage.limpar_artefatos_elegiveis`,
+disparada por `finalizar_peca.py` a cada sucesso) cobre o caso comum,
+mas **nunca garante, sozinha**, que um artefato seja limpo em ~24-25h
+durante um período sem tráfego (a última finalização do dia ficaria
+armazenada até a próxima, possivelmente no dia seguinte) — achado
+explícito do usuário nesta continuação. Por isso o núcleo de limpeza
+(`limpar_artefatos_elegiveis`) foi desenhado para ser chamado de duas
+formas: oportunisticamente (já implementado) e por um mecanismo de
+AGENDAMENTO independente de tráfego, com cadência horária. O segundo
+caminho ganhou um entrypoint standalone,
+`scripts/limpar_artefatos_agendado.py` — pronto para ser acionado por
+Cloud Scheduler -> Cloud Run Job (ou endpoint autenticado dedicado).
+**A infraestrutura de agendamento (Cloud Scheduler, o alvo que ele
+chama) NÃO foi provisionada nesta rodada** — deployar um novo
+serviço/job invocável é, na prática, uma nova peça de infraestrutura
+viva, e este gate optou por não fazer isso sem uma aprovação
+específica para essa peça. É o item em aberto mais importante desta
+ADR: sem o agendamento real ativo, a retenção normal comprovada hoje é
+só a via oportunista (que já foi provada real, ver abaixo), e o alvo
+de ~24-25h só se sustenta com o agendamento ligado.
+
+**Backstop de lifecycle, semântica real verificada.** Documentação
+oficial (consultada nesta sessão,
+`docs.cloud.google.com/storage/docs/lifecycle`): a condição `age` é
+avaliada no aniversário exato de criação (não à meia-noite UTC, salvo
+`age: 0`), e a ação de exclusão é **assíncrona, sem qualquer garantia
+de prazo** ("Your applications shouldn't rely on lifecycle actions
+occurring within a certain amount of time after a lifecycle condition
+is met"). `age: 2` (2 dias) dá uma elegibilidade mínima de 48h — o
+dobro da janela de 24h, com folga de 24h antes mesmo de considerar o
+atraso assíncrono — aplicado e confirmado ao vivo neste bucket. Nunca
+descrito como "exclusão em 2 dias" — é um piso de elegibilidade, não um
+prazo de execução.
+
+**Hard delete: prova real completa contra o bucket ao vivo (não só
+unitária).** Com IAM de homologação temporária (criada, usada, e
+REMOVIDA ao final — nenhum vestígio permanente), um objeto real foi
+criado com `created_at` retroagido para além do limiar de
+elegibilidade, uma URL assinada real foi emitida para ele, e
+`limpar_artefatos_elegiveis` real (upload/listagem/exclusão reais, sem
+fake) foi executada. Confirmado ao vivo, nesta ordem: (1) o objeto
+some da listagem autenticada real; (2) a URL assinada emitida
+ANTES da exclusão passa a devolver 404 (não apenas "expirada" — o
+objeto em si não existe mais); (3) acesso não assinado continua negado
+(401, inalterado); (4) `gcloud storage ls --soft-deleted` para o
+prefixo do objeto devolve vazio — nenhuma geração recuperável; (5)
+sem geração não corrente possível, porque o versionamento do bucket
+está desligado (confirmado ao vivo, campo `versioning` ausente do
+recurso). Os seis itens que o usuário exigiu como prova de HARD DELETE
+foram verificados — nenhum permanece só como garantia estrutural/
+unitária.
+
+**Verificação real, COMPLETA (continuação do Gate 6.6-E).** A lacuna
+registrada na primeira rodada deste gate ("`signBlob` real não
+verificado, bloqueado pelo guard de Permission Grant do harness") foi
+fechada nesta continuação, com autorização explícita do usuário para
+IAM de homologação temporária: service account dedicada e descartável
+(`ede-artefatos-homolog`, nunca a SA de runtime de produção), criada,
+usada e **removida ao final** (SA deletada, binding de bucket
+removido, confirmado ao vivo). Com ela, `TransporteGcsReal` real (não
+um script de assinatura à parte) executou, contra o bucket real:
+upload multipart real (200); `signBlob` real via IAM Credentials
+(sucesso); download via URL V4 assinada real (200, `Content-Type` e
+`Content-Disposition` corretos); **identidade de bytes**
+renderizador -> objeto GCS -> download assinado, SHA-256 idêntico nas
+três pontas; acesso não assinado negado (401) antes e depois do
+upload; prova de expiração real (`assinar_url` com TTL curto de teste,
+caminho interno, nunca exposto no schema público — sucesso dentro do
+TTL, falha real após expirar); limpeza oportunista real (objeto
+propositalmente "envelhecido" via metadado removido, objeto recente
+preservado); limpeza por falha de assinatura real (upload real,
+assinatura forçada a falhar por um seam de teste controlado, exclusão
+real do órfão confirmada); e a prova de HARD DELETE completa (seção
+"Retenção" acima). Nenhum item desta lista permanece só estrutural/
+unitário — todos têm prova viva.
 
 **Itens em aberto para antes do gate de download ao vivo:**
-1. completar a verificação de assinatura V4 real (com uma concessão de
-   IAM explicitamente aprovada, fora do guard automático desta sessão —
-   uma service account de homologação dedicada, nunca a SA de runtime,
-   é o caminho mais seguro, documentado acima);
-2. aplicar as duas concessões de IAM à SA de runtime de produção, como
-   um passo controlado e explicitamente aprovado à parte (§41);
+1. **provisionar o agendamento real** (Cloud Scheduler + alvo invocável
+   para `scripts/limpar_artefatos_agendado.py`, cadência horária) — sem
+   isso, a retenção normal de ~24-25h só vale nos períodos com tráfego
+   real de finalização; é o item mais importante em aberto desta ADR;
+2. aplicar as duas concessões de IAM à SA de runtime de produção
+   (assinatura), como um passo controlado e explicitamente aprovado à
+   parte (§41), e as concessões próprias do mecanismo de agendamento
+   escolhido no item 1;
 3. confirmar se algum log de infraestrutura do Cloud Run/GCS captura a
-   query string da URL assinada por padrão da plataforma;
-4. decidir sobre uso único vs. reutilizável dentro do TTL;
+   query string da URL assinada por padrão da plataforma — mais
+   relevante agora, com janela de 24h em vez de 15 minutos;
+4. decidir sobre uso único vs. reutilizável dentro da janela de 24h;
 5. pesquisar o comportamento do Claude quanto a reapresentar Bearer
    OAuth em requisição separada (Candidata B) — não investigado;
-6. medir performance/custo com o backend real (estimativas atuais no
-   relatório do Gate 6.6-E são baseadas em preço público de lista, não
-   em uso medido).
+6. medir performance/custo com o backend real em volume de produção
+   (estimativas atuais no relatório do Gate 6.6-E combinam medição real
+   pontual com preço público de lista, não uso medido em produção).
 
 ## Consequências desta ADR
 

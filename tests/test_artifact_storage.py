@@ -59,6 +59,10 @@ class _FakeTransporte:
         self.objetos.pop(object_name, None)
         return True
 
+    def listar(self, prefixo, limite):
+        nomes = sorted(n for n in self.objetos if n.startswith(prefixo))[:limite]
+        return [(n, self.objetos[n][2]) for n in nomes]
+
 
 DOCX_FAKE = b"PK\x03\x04-- bytes de teste, nunca um DOCX real --" * 50
 SHA_FAKE = hashlib.sha256(DOCX_FAKE).hexdigest()
@@ -131,12 +135,12 @@ def test_ttl_de_producao_e_sempre_a_constante_do_modulo():
 
     assinatura = inspect.signature(ast.entregar_artefato_efemero)
     assert "ttl" not in "".join(assinatura.parameters).lower()
-    assert ast.TTL_DOWNLOAD_SEGUNDOS == 15 * 60
+    assert ast.TTL_DOWNLOAD_SEGUNDOS == 24 * 60 * 60
 
     transporte = _FakeTransporte()
     ast.entregar_artefato_efemero(DOCX_FAKE, SHA_FAKE, FILENAME, transporte)
     (_, ttl_usado, _), = transporte.chamadas_assinar
-    assert ttl_usado == 900
+    assert ttl_usado == 86400
 
 
 # =========================================================== matriz negativa
@@ -293,5 +297,100 @@ def test_expires_at_e_exatamente_ttl_de_producao_apos_agora():
     expira = dt.datetime.strptime(entrega.expires_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc)
     delta_min = (expira - antes).total_seconds()
     delta_max = (expira - depois).total_seconds()
-    assert 899 <= delta_min <= 901
-    assert 899 <= delta_max <= 901
+    assert 86399 <= delta_min <= 86401
+    assert 86399 <= delta_max <= 86401
+
+
+# ==================================================== limpeza oportunista
+
+def _objeto_com_idade(transporte, artefato_id, idade_segundos, agora):
+    """Insere um objeto fake diretamente no backend, com `created_at`
+    calculado para ter exatamente `idade_segundos` em relação a `agora`
+    — sem passar por `entregar_artefato_efemero` (que sempre usa "agora"
+    real)."""
+    criado_em = agora - dt.timedelta(seconds=idade_segundos)
+    nome = ast._nome_objeto(artefato_id)
+    transporte.objetos[nome] = (
+        DOCX_FAKE, ast.CONTENT_TYPE_DOCX,
+        {"artifact_id": artefato_id, "created_at": criado_em.strftime("%Y-%m-%dT%H:%M:%SZ"),
+         "expires_at": "irrelevante-para-este-teste", "sha256": SHA_FAKE},
+    )
+    return nome
+
+
+def test_limpeza_remove_objeto_alem_do_limiar_e_preserva_objeto_recente():
+    transporte = _FakeTransporte()
+    agora = dt.datetime.now(dt.timezone.utc)
+    velho = _objeto_com_idade(transporte, "velho00000000000000000000000000", 100000, agora)  # > 93600s (26h)
+    novo = _objeto_com_idade(transporte, "novo00000000000000000000000000000"[:32], 60, agora)  # bem recente
+
+    resultado = ast.limpar_artefatos_elegiveis(transporte, agora=agora)
+
+    assert velho not in transporte.objetos
+    assert novo in transporte.objetos
+    assert resultado["inspecionados"] == 2
+    assert resultado["excluidos"] == 1
+    assert resultado["falhas"] == 0
+
+
+def test_limpeza_no_limiar_exato_ainda_nao_e_elegivel():
+    """< LIMPEZA_ELEGIVEL_SEGUNDOS nunca é excluído -- só >= (checado
+    pela borda: 1 segundo antes do limiar sobrevive)."""
+    transporte = _FakeTransporte()
+    agora = dt.datetime.now(dt.timezone.utc)
+    nome = _objeto_com_idade(transporte, "bordaaaaaaaaaaaaaaaaaaaaaaaaaaaa", ast.LIMPEZA_ELEGIVEL_SEGUNDOS - 1, agora)
+    ast.limpar_artefatos_elegiveis(transporte, agora=agora)
+    assert nome in transporte.objetos
+
+
+def test_limpeza_ignora_objeto_sem_metadado_created_at():
+    transporte = _FakeTransporte()
+    nome = "artifacts/sem-metadado.docx"
+    transporte.objetos[nome] = (DOCX_FAKE, ast.CONTENT_TYPE_DOCX, {"sha256": SHA_FAKE})
+    resultado = ast.limpar_artefatos_elegiveis(transporte)
+    assert nome in transporte.objetos
+    assert resultado["inspecionados"] == 1
+    assert resultado["excluidos"] == 0
+
+
+def test_limpeza_nunca_inspeciona_fora_do_prefixo_artifacts():
+    transporte = _FakeTransporte()
+    agora = dt.datetime.now(dt.timezone.utc)
+    transporte.objetos["outro-prefixo/coisa.docx"] = (
+        DOCX_FAKE, ast.CONTENT_TYPE_DOCX,
+        {"created_at": (agora - dt.timedelta(seconds=100000)).strftime("%Y-%m-%dT%H:%M:%SZ")},
+    )
+    resultado = ast.limpar_artefatos_elegiveis(transporte, agora=agora)
+    assert resultado["inspecionados"] == 0
+    assert "outro-prefixo/coisa.docx" in transporte.objetos
+
+
+def test_limpeza_respeita_teto_de_objetos_por_varredura():
+    transporte = _FakeTransporte()
+    agora = dt.datetime.now(dt.timezone.utc)
+    for i in range(ast.LIMPEZA_MAX_OBJETOS_POR_VARREDURA + 5):
+        _objeto_com_idade(transporte, f"obj{i:029d}", 100000, agora)
+    resultado = ast.limpar_artefatos_elegiveis(transporte, agora=agora)
+    assert resultado["inspecionados"] == ast.LIMPEZA_MAX_OBJETOS_POR_VARREDURA
+    assert resultado["excluidos"] == ast.LIMPEZA_MAX_OBJETOS_POR_VARREDURA
+    assert len(transporte.objetos) == 5
+
+
+def test_limpeza_registra_falha_sem_propagar_excecao():
+    transporte = _FakeTransporte(falhar_exclusao=True)
+    agora = dt.datetime.now(dt.timezone.utc)
+    _objeto_com_idade(transporte, "falhaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 100000, agora)
+    resultado = ast.limpar_artefatos_elegiveis(transporte, agora=agora)
+    assert resultado["falhas"] == 1
+    assert resultado["excluidos"] == 0
+
+
+def test_limiar_de_elegibilidade_e_exatamente_o_ttl_de_download():
+    """Elegibilidade = exatamente `TTL_DOWNLOAD_SEGUNDOS` (24h), sem
+    margem adicional -- decisão explícita do usuário (Gate 6.6-E,
+    continuação "HARD DELETE REQUIRED": elegível "imediatamente após a
+    janela de 24h expirar"). A retenção normal (~24-25h) vem da cadência
+    de varredura (ex.: agendamento horário via
+    `scripts/limpar_artefatos_agendado.py`), não de uma margem embutida
+    neste limiar."""
+    assert ast.LIMPEZA_ELEGIVEL_SEGUNDOS == ast.TTL_DOWNLOAD_SEGUNDOS

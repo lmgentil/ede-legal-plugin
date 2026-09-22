@@ -1534,6 +1534,10 @@ class _TransporteArtefatoFakeOAuth:
         self.objetos.pop(object_name, None)
         return True
 
+    def listar(self, prefixo, limite):
+        nomes = sorted(n for n in self.objetos if n.startswith(prefixo))[:limite]
+        return [(n, self.objetos[n][2]) for n in nomes]
+
 
 @pytest.mark.anyio
 @pytest.mark.docx_real

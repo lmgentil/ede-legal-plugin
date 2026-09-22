@@ -1011,6 +1011,121 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   ABERTA até a prova viva completa (assinatura real + download real) e
   autorização explícita de ativação em produção.
 
+### Gate 6.6-E continuação — prova real de assinatura V4 + hard delete + retenção revisada para 24h (VERSION permanece 0.15.0)
+- **IAM de homologação temporária, autorizada e usada só para isto.**
+  Duas rodadas de prova real, cada uma com uma service account
+  descartável (`ede-artefatos-homolog@ede-legal-mcp-01.iam.
+  gserviceaccount.com`), criada, usada e **removida ao final de cada
+  rodada** (bindings removidos, SA deletada, confirmado por leitura).
+  IAM aplicada só à SA de homologação e ao bucket
+  `ede-legal-mcp-01-artefatos-efemeros` (`storage.objectAdmin`
+  escopado ao bucket) — a service account de runtime de produção
+  (`ede-mcp-runtime@...`) nunca foi tocada.
+- **Prova real completa de `signBlob`, fechando o risco residual do
+  gate original.** Usando a implementação real
+  (`artifact_storage.TransporteGcsReal`, não um script de assinatura à
+  parte, com credenciais injetadas via token do próprio operador só
+  porque este ambiente de desenvolvimento não tem ADC local),
+  `finalizar_peca.finalizar_peca()` renderizou o Modelo Oficial real,
+  enviou os bytes exatos ao bucket real, assinou uma URL V4 real e
+  devolveu `status=OK`. SHA-256 idêntico em três pontas — renderer,
+  objeto armazenado e bytes baixados pela URL assinada — confirmado por
+  download HTTP comum e não autenticado. `Content-Type` e
+  `Content-Disposition` corretos na resposta real do GCS.
+- **Acesso não assinado negado (401), antes e depois do upload —
+  real.** Enumeração anônima do bucket negada — real (confirmado em
+  rodada anterior, reconfirmado nesta).
+- **Expiração real.** `assinar_url()` chamada diretamente com TTL curto
+  de teste (5s) — caminho interno, nunca exposto no schema Pydantic
+  público; download dentro do TTL teve sucesso (200), depois de
+  expirado falhou (400) — o contrato de produção (constante fixa,
+  agora 24h) nunca foi alterado para viabilizar este teste.
+- **Limpeza por falha de assinatura, prova real (não só fake).** Um
+  seam de teste controlado força `assinar_url()` a falhar SEM mexer em
+  IAM (upload e exclusão continuam sendo os métodos reais da classe) —
+  `ErroAssinaturaArtefato` propagado com `limpeza_ok=True`, e o objeto
+  órfão confirmado ausente por uma listagem real subsequente.
+- **USER DECISION — SIGNED URL LIFETIME CHANGE, aplicada.** Janela de
+  autorização de download revisada de 15 minutos para **24 horas**
+  (`TTL_DOWNLOAD_SEGUNDOS = 86400`) — decisão explícita do usuário,
+  não uma escolha técnica deste agente. A URL assinada continua
+  documentada explicitamente como capacidade portadora (quem a possuir
+  dentro da janela baixa o artefato, sem segunda verificação de
+  identidade) — a janela maior é reconhecida como maior exposição, não
+  minimizada.
+- **USER RETENTION DECISION — HARD DELETE REQUIRED, aplicada e provada
+  ao vivo.** Elegibilidade de limpeza revisada para EXATAMENTE
+  `TTL_DOWNLOAD_SEGUNDOS` (24h, sem margem — substitui uma revisão
+  intermediária de 26h que chegou a ser implementada e testada antes
+  desta decisão final). Auditados e confirmados AO VIVO neste bucket,
+  nesta ordem: soft-delete desligado (`retentionDurationSeconds: 0`),
+  versionamento desligado, sem retention policy (Bucket Lock), sem
+  default event-based hold. Lifecycle backstop revisado de `age: 1`
+  para **`age: 2`** (dias) — aplicado ao vivo — porque a documentação
+  oficial da Google (consultada nesta sessão) confirma que a condição
+  `age` é avaliada no aniversário exato de criação do objeto e que a
+  ação de exclusão é assíncrona **sem nenhuma garantia de prazo**; 2
+  dias dá uma elegibilidade mínima de 48h, o dobro da janela de 24h,
+  antes mesmo de considerar esse atraso assíncrono.
+  **Prova real de HARD DELETE, os seis itens exigidos:** objeto criado
+  com `created_at` retroagido além do limiar, URL assinada real emitida
+  para ele, `limpar_artefatos_elegiveis` REAL executada (sem fake) —
+  confirmado depois: (1) ausente da listagem autenticada real; (2) a
+  URL assinada emitida ANTES da exclusão passa a devolver **404** (o
+  objeto em si não existe mais, não é só "expirado"); (3) acesso não
+  assinado continua negado (401); (4) `gcloud storage ls
+  --soft-deleted` para o objeto devolve vazio — nenhuma geração
+  recuperável; (5)/(6) sem geração não corrente possível, porque o
+  bucket nunca teve versionamento ligado.
+- **Limpeza deixa de depender só de tráfego — novo entrypoint
+  standalone.** Achado do usuário, correto: limpeza oportunista
+  (disparada só quando alguém finaliza uma peça) nunca garante, sozinha,
+  retenção normal de ~24-25h num período sem tráfego algum. Novo
+  `scripts/limpar_artefatos_agendado.py` — chama o mesmo núcleo
+  (`artifact_storage.limpar_artefatos_elegiveis`) em laço, pronto para
+  ser acionado por um mecanismo de agendamento externo (Cloud Scheduler
+  -> Cloud Run Job/endpoint autenticado, cadência horária recomendada).
+  **A infraestrutura de agendamento em si (Cloud Scheduler, o alvo que
+  ele chama) NÃO foi provisionada nesta rodada** — deployar um novo
+  serviço/job invocável ficou fora do escopo desta continuação
+  (homologação, sem nova infraestrutura viva); é o item em aberto mais
+  importante para a ADR-0019 antes do gate de download ao vivo. Sem
+  esse agendamento ligado, a retenção normal comprovada hoje continua
+  sendo só a via oportunista.
+- **Código:** `scripts/artifact_storage.py` ganha `TransporteArtefato.
+  listar()` (real e fake), `LIMPEZA_ELEGIVEL_SEGUNDOS`,
+  `LIMPEZA_MAX_OBJETOS_POR_VARREDURA`, `limpar_artefatos_elegiveis()`
+  (best-effort, nunca bloqueia a finalização que a disparou — uma
+  finalização já bem-sucedida nunca deve ser degradada por um artefato
+  órfão e não relacionado). `scripts/finalizar_peca.py` chama a
+  limpeza oportunista logo após montar a resposta de sucesso, dentro de
+  um `try/except Exception: pass` deliberado. Novo
+  `scripts/limpar_artefatos_agendado.py`.
+- **Testes:** `tests/test_artifact_storage.py` ganha 7 casos novos de
+  limpeza (remove além do limiar, preserva o recente, ignora objeto sem
+  metadado esperado, nunca inspeciona fora do prefixo `artifacts/`,
+  respeita o teto por varredura, registra falha sem propagar exceção,
+  limiar é exatamente o TTL). Novo `tests/test_limpar_artefatos_
+  agendado.py` (4 casos, fake, sem rede: usa o transporte do ambiente,
+  repete até esgotar backlog, respeita teto de rodadas por execução,
+  configuração ausente sai com código 2). Valores de TTL/limiar
+  reconciliados em todos os testes que os referenciavam (900s -> 86400s
+  onde representava o contrato de produção; literais de teste
+  arbitrários da função de assinatura de baixo nível, não ligados à
+  constante de produção, mantidos como estavam). Suíte completa: 1178
+  passam (1114 unidade + 64 `docx_real`), 1 falha preexistente e não
+  relacionada (`skills/docx` local).
+- **Nenhuma mudança de produção.** `ede-mcp-00020-gum`/`0.14.0`/100%
+  intocados; nenhuma IAM de runtime de produção alterada; nenhum
+  deploy; nenhuma tag Git; nenhum GitHub Release; nenhuma ampliação de
+  acesso de advogados. Toda IAM temporária desta continuação foi
+  removida antes do fim da sessão, confirmado por leitura.
+- **Gate 6.6-E permanece `PARTIAL PASS`.** A prova de assinatura/hard
+  delete que faltava está completa; falta ainda: provisionar o
+  agendamento real de limpeza, aplicar a IAM de produção (passo
+  controlado à parte), e o próprio gate de download ao vivo com Claude
+  e ChatGPT (não iniciado — aguardando autorização explícita).
+
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto
   o de produção (`K_SERVICE=ede-mcp`, ver acima). Desligada, o

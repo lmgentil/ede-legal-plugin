@@ -24,6 +24,9 @@ import re
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent.parent
+WORKFLOW_HOMOLOGACAO = (
+    BASE / ".github" / "workflows" / "homologar-mcp-container.yml"
+).read_text(encoding="utf-8")
 DOCKERFILE = (BASE / "mcp_server" / "Dockerfile").read_text(encoding="utf-8")
 DOCKERIGNORE_LINHAS = [
     linha.strip()
@@ -217,6 +220,40 @@ def test_modulos_core_do_gate_6_6_c_liberados():
         assert caminho in origens_copiadas
     for proibido in ("scripts/gerar_contestacao.py", "scripts/datajud_client.py"):
         assert proibido not in DOCKERIGNORE_PERMITIDOS
+
+
+# --------------------------------- allowlist independente do workflow CI
+
+def test_allowlist_de_scripts_do_workflow_ci_espelha_o_dockerignore():
+    """`homologar-mcp-container.yml` tem sua PRÓPRIA allowlist fechada de
+    `scripts/*.py` (prova de DENTRO da imagem real construída, deliberada
+    e independente de `.dockerignore`/`Dockerfile` — nunca confia só na
+    configuração de build) — achado real do Gate 6.6-C: essa terceira
+    lista ficou esquecida quando os seis módulos do finalizador foram
+    liberados nas outras duas, e a homologação real falhou
+    (`ARQUIVO INESPERADO EM /app/scripts NA IMAGEM`) por isso. Esta prova
+    trava as duas listas uma contra a outra a partir de agora — nenhuma
+    pode divergir silenciosamente da outra."""
+    bloco = re.search(
+        r"find /app/scripts -maxdepth 1 -type f(.*?)2>/dev/null \|\| true\)",
+        WORKFLOW_HOMOLOGACAO, re.DOTALL,
+    )
+    assert bloco, "bloco `achados_scripts=$(find /app/scripts ...)` não encontrado no workflow"
+    liberados_workflow = {
+        nome for nome in re.findall(r'! -name "([^"]+)"', bloco.group(1))
+        if nome.endswith(".py")
+    }
+    assert liberados_workflow, "nenhum `! -name \"*.py\"` extraído do bloco — regex desalinhada com o workflow real"
+
+    liberados_dockerignore = {
+        Path(c).name for c in DOCKERIGNORE_PERMITIDOS
+        if c.startswith("scripts/") and c.endswith(".py")
+    }
+    assert liberados_workflow == liberados_dockerignore, (
+        f"scripts/*.py liberados só no workflow CI: "
+        f"{sorted(liberados_workflow - liberados_dockerignore)}; "
+        f"só no .dockerignore: {sorted(liberados_dockerignore - liberados_workflow)}"
+    )
 
 
 # ------------------------------------------------ corpus real no disco

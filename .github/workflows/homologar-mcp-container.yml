@@ -239,6 +239,15 @@ jobs:
       # dentro de scripts/templates/rag — qualquer arquivo além dele já é
       # achado indevido, mesmo sem ser sensível por natureza (mesma
       # disciplina de fail-closed do .dockerignore).
+      #
+      # Atualizado no Gate 6.6-C: `scripts/{validate_paragrafos,validate_
+      # placeholder_semantics,docx_fidelidade_independente,docx_round_
+      # trip,capability_registry,finalizar_peca}.py` — pipeline do
+      # finalizador MCP genérico (`ede_finalizar_peca`) — passam a existir
+      # legitimamente na imagem; esta allowlist é um mecanismo
+      # INDEPENDENTE do `.dockerignore`/`Dockerfile` (deliberado — prova
+      # de dentro da imagem real, não confia só na configuração de build),
+      # então precisa da MESMA atualização nos dois lugares, sempre.
       - name: "Testes negativos: ausência de assets sensíveis DENTRO da imagem real (não confia só no .dockerignore)"
         run: |
           docker run --rm ede-mcp:ci sh -c '
@@ -263,7 +272,11 @@ jobs:
               ! -name "docx_package.py" ! -name "docx_template_engine.py" \
               ! -name "docx_block_engine.py" ! -name "docx_numeracao_engine.py" \
               ! -name "docx_context_engine.py" ! -name "instalar_modelo_oficial.py" \
-              ! -name "validate_fatos.py" 2>/dev/null || true)
+              ! -name "validate_fatos.py" \
+              ! -name "validate_paragrafos.py" ! -name "validate_placeholder_semantics.py" \
+              ! -name "docx_fidelidade_independente.py" ! -name "docx_round_trip.py" \
+              ! -name "capability_registry.py" ! -name "finalizar_peca.py" \
+              2>/dev/null || true)
             if [ -n "$achados_scripts" ]; then
               echo "ARQUIVO INESPERADO EM /app/scripts NA IMAGEM: $achados_scripts"
               exit 1

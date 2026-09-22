@@ -115,12 +115,24 @@ AUTORIZAÇÃO de download = 24 horas (`TTL_DOWNLOAD_SEGUNDOS`, revisado
 de um valor original de 15 minutos — histórico no `CHANGELOG.md`);
 elegibilidade de limpeza NORMAL = imediatamente ao expirar essa janela
 (`LIMPEZA_ELEGIVEL_SEGUNDOS`, sem margem adicional); retenção normal
-ALVO = ~24-25h, nunca prometida como exata, e **depende de um
-mecanismo de agendamento (Cloud Scheduler -> `scripts/limpar_
-artefatos_agendado.py`, cadência horária) ainda NÃO provisionado** —
-sem ele, só a limpeza oportunista (disparada por finalizações reais)
-está ativa, que não cobre períodos sem tráfego. Exclusão é sempre
+ALVO = ~24-25h, nunca prometida como exata, sustentada por **limpeza
+agendada horária** (Cloud Scheduler -> Cloud Run Job executando
+`scripts/limpar_artefatos_agendado.py` a partir da mesma imagem
+imutável de runtime) somada à limpeza oportunista disparada por
+finalizações reais. Provisionada e provada ao vivo **só em
+homologação** — produção ainda não tem equivalente (ver tabela
+abaixo). Exclusão é sempre
 REAL (hard delete) — nunca soft-delete recuperável.
+
+**Infraestrutura de limpeza agendada — hoje SÓ em homologação**
+(provisionada e provada ao vivo na continuação do Gate 6.6-E; produção
+ainda não tem equivalente):
+
+| Recurso | Nome (homologação) | Observação |
+|---|---|---|
+| Cloud Run Job | `ede-artefatos-limpeza-homolog` | mesma imagem de runtime, fixada por DIGEST (nunca `:latest`); comando trocado para `python scripts/limpar_artefatos_agendado.py --json` |
+| Cloud Scheduler | `ede-artefatos-limpeza-homolog-horaria` | `0 * * * *` (UTC), OAuth, aciona `jobs:run` |
+| Service account | `ede-artefatos-limpeza-homolog` | **só** `roles/storage.objectAdmin` escopado ao bucket de artefatos + `roles/run.invoker` no próprio Job; **nenhuma autoridade de assinatura** (a limpeza nunca assina URL), nenhuma chave JSON |
 
 IAM pendente, **não aplicada nesta rodada** (Gate 6.6-E §41 — nenhuma
 alteração de IAM da service account de runtime corrente antes de um

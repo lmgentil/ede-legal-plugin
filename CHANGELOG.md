@@ -1126,6 +1126,76 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   controlado à parte), e o próprio gate de download ao vivo com Claude
   e ChatGPT (não iniciado — aguardando autorização explícita).
 
+### Gate 6.6-E fechamento — limpeza agendada provisionada e provada em homologação (VERSION permanece 0.15.0)
+- **Correção conceitual do usuário, aplicada:** o gate de download ao
+  vivo com Claude/ChatGPT **não** é requisito para o PASS do Gate
+  6.6-E — a sequência é `6.6-E PASS` -> candidato aceito -> só então,
+  mediante autorização separada, o gate ao vivo. A única pendência que
+  restava para o fechamento era a prova real do mecanismo AGENDADO de
+  hard delete em períodos sem novas finalizações.
+- **`scripts/limpar_artefatos_agendado.py` entra na imagem de
+  runtime.** Liberado nas três allowlists independentes já usadas pelos
+  módulos do Gate 6.6-C/6.6-E (linha `COPY` do Dockerfile,
+  `.dockerignore`, e a verificação feita de DENTRO da imagem real pelo
+  workflow de homologação), com novo teste
+  `test_modulos_core_do_gate_6_6_e_liberados` travando as duas
+  primeiras contra esquecimento. A limpeza roda a MESMA imagem do
+  servidor MCP, trocando só o comando do container — nunca uma segunda
+  implementação de exclusão fora da imagem de runtime.
+- **Infraestrutura agendada, estritamente homologatória, provisionada
+  com autorização explícita:** Cloud Scheduler
+  `ede-artefatos-limpeza-homolog-horaria` (`0 * * * *` UTC, OAuth) ->
+  Cloud Run Job `ede-artefatos-limpeza-homolog` (imagem fixada por
+  DIGEST, nunca `:latest`; comando `python scripts/limpar_artefatos_
+  agendado.py --json`) -> hard delete. Service account dedicada
+  `ede-artefatos-limpeza-homolog` com **apenas**
+  `roles/storage.objectAdmin` escopado ao bucket de artefatos e
+  `roles/run.invoker` no próprio Job — **nenhuma autoridade de
+  assinatura** (o caminho de limpeza jamais assina URL) e **nenhuma
+  chave JSON** (identidade de workload do Cloud Run). API Cloud
+  Scheduler habilitada no projeto como parte do provisionamento mínimo.
+- **Prova real do caminho AGENDADO, sem nenhuma chamada a
+  `finalizar_peca`:** três objetos reais no bucket de homologação e o
+  Scheduler disparado de fato. Resultado — objeto de 25h (elegível):
+  **excluído**; objeto recém-criado (<24h): **preservado**; objeto de
+  99h fora do prefixo `artifacts/`: **intocado**. Log da execução com
+  **só contadores agregados** (`status=OK; rodadas=1; inspecionados=2;
+  excluidos=1; falhas=0`) — nenhum nome de objeto, nenhuma URL
+  assinada, nenhum dado de caso.
+- **Hard delete confirmado sobre o objeto excluído pelo caminho
+  agendado:** GET autenticado -> **404**; URL assinada emitida ANTES da
+  exclusão, ainda dentro da validade de 1h -> **404** (prova de que o
+  OBJETO sumiu, não de que a URL expirou); acesso não assinado ->
+  **401**; e a consulta de versões soft-deletadas é **recusada pelo
+  próprio GCS** (`HTTPError 400: Soft delete policy is required to list
+  soft-deleted versions`) — evidência mais forte que uma lista vazia:
+  sem política de soft delete, geração recuperável não pode existir por
+  construção. Versionamento permanece desligado.
+- **Semântica de falha verificada ao vivo.** Uma execução foi
+  propositalmente induzida a falhar (override de variável de ambiente
+  SÓ na execução — a definição do Job foi conferida depois e continua
+  íntegra): contêiner saiu com código 2, log com erro tipado
+  (`status=ERRO_CONFIGURACAO`) e sem conteúdo algum, e os dois objetos
+  NÃO elegíveis permaneceram **byte a byte intactos** (mesma
+  `Generation`, mesmo `Content-Length` antes e depois). Execução
+  agendada que falha não exclui, não altera e não corrompe nada; o
+  backstop de lifecycle (`age: 2`, assíncrono) segue ativo
+  independentemente.
+- **Limpeza pós-prova:** objetos de teste removidos, service account
+  temporária de assinatura (`ede-artefatos-signer-tmp`, usada só para
+  emitir a URL que depois deveria dar 404) deletada junto do seu
+  binding de bucket, bucket confirmado vazio. Permanecem, por serem a
+  própria infraestrutura candidata homologada: bucket, Cloud Run Job,
+  Cloud Scheduler e a SA de limpeza — todos rotulados
+  `gate=6-6-e`/`status=homolog-candidate`.
+- **Nenhuma mudança de produção.** `ede-mcp-00020-gum`/`0.14.0`/100%
+  intocados; nenhuma variável `EDE_ARTEFATOS_*` na revisão de produção;
+  IAM da service account de runtime de produção inalterado (confirmado
+  por leitura ao final); sem deploy, sem tag Git, sem GitHub Release,
+  sem rollout para advogados; gate de download ao vivo NÃO iniciado.
+- **Suíte completa:** 1179 passam, 1 falha preexistente e não
+  relacionada (`skills/docx` local, ausente no clone limpo da CI).
+
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto
   o de produção (`K_SERVICE=ede-mcp`, ver acima). Desligada, o

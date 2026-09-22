@@ -27,7 +27,7 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-011 | ABERTA | Primeira chamada viva do ChatGPT a `ede_finalizar_peca` (2026-09-22) | Declaração de interoperabilidade do finalizador com o ChatGPT (não bloqueia o runtime; o servidor já recusa quando a inflação estoura o limite) | Transporte do cliente ChatGPT inseriu quebras de linha nos valores de placeholder; abaixo do limite de densidade isso passaria sem detecção |
 | PEND-012 | ABERTA (escopo ampliado) | Gate 6.6-D, chamadas do ChatGPT e do Claude (2026-09-22) | Critério de entrega nativa do Gate 6.6-D, ENCERRADO como PARTIAL PASS com esta pendência aberta; não bloqueia o runtime nem motiva rollback | Nem ChatGPT nem Claude entregam o DOCX nativamente via `EmbeddedResource` — ChatGPT não expõe a URI `attachment://` (contorno do host preserva os bytes); Claude recusa explicitamente o tipo de mídia do DOCX (nenhum byte chega ao usuário) |
 | PEND-013 | APROVADA, execução ADIADA | Auditoria somente-leitura das revisões antigas com tag, Gate 6.6-D item 6 (2026-09-22) | Nenhuma (não bloqueia; execução deliberadamente adiada para depois da evidência de interoperabilidade viva do Claude) | Remoção das seis tags históricas do Cloud Run (`candidato`, `candidato-6-5-b`, `candidato-6-5-b2`, `candidato-6-5-c`, `candidato-6-5-c2`, `candidato-6-5-c4`) — aprovada em princípio como *pre-pilot hardening*, nenhuma removida ainda |
-| PEND-014 | CANDIDATO IMPLEMENTADO (Gate 6.6-E); prova viva completa e ativação em produção NÃO autorizadas | Fechamento do Gate 6.6-D como PARTIAL PASS (2026-09-22); implementação Gate 6.6-E mesma data | Gate de download ao vivo (Claude/ChatGPT); não bloqueia o runtime — produção continua em v1 até ativação explícita | Redesenho do mecanismo de entrega de artefato entre hosts — v2 (`scripts/artifact_storage.py`, GCS efêmero + URL V4 assinada) implementado e testado (fake), verificação real de `signBlob` pendente (bloqueada pelo guard de IAM do harness) |
+| PEND-014 | CANDIDATO IMPLEMENTADO E PROVADO AO VIVO (Gate 6.6-E, incl. limpeza agendada); download ao vivo Claude/ChatGPT e ativação em produção NÃO autorizados | Fechamento do Gate 6.6-D como PARTIAL PASS (2026-09-22); implementação Gate 6.6-E mesma data | Gate de download ao vivo (Claude/ChatGPT); não bloqueia o runtime — produção continua em v1 até ativação explícita | Redesenho do mecanismo de entrega de artefato entre hosts — v2 (`scripts/artifact_storage.py`, GCS efêmero + URL V4 assinada de 24h) implementado, testado e verificado ao vivo: assinatura real, identidade de bytes, hard delete, e limpeza agendada horária (Cloud Scheduler -> Cloud Run Job) provisionada em homologação |
 
 ---
 
@@ -764,11 +764,12 @@ identidade de bytes/SHA-256, negação de acesso não assinado, expiração,
 limpeza oportunista e HARD DELETE — todos com IAM de homologação
 temporária, criada/usada/removida (ver ADR-0019 "Implementação" e
 "Retenção"). Janela de download revisada para 24h (decisão do usuário);
-retenção normal (~24-25h) depende de um mecanismo de agendamento ainda
-NÃO provisionado (`scripts/limpar_artefatos_agendado.py` existe, pronto
-para Cloud Scheduler; a infraestrutura de agendamento em si não foi
-criada). **Prova viva de download por Claude/ChatGPT e ativação em
-produção continuam NÃO autorizadas.**
+retenção normal (~24-25h) sustentada por limpeza AGENDADA horária
+(Cloud Scheduler -> Cloud Run Job sobre a mesma imagem imutável),
+**provisionada em homologação e provada ao vivo** — inclusive a
+semântica de falha (execução agendada que falha não altera artefato
+não elegível). **Prova viva de download por Claude/ChatGPT e ativação
+em produção continuam NÃO autorizadas.**
 **Aberta em:** Fechamento do Gate 6.6-D como `PARTIAL PASS` (2026-09-22);
 implementação candidata no Gate 6.6-E, mesma data.
 **Bloqueia:** O gate de download ao vivo (verificação com Claude/ChatGPT

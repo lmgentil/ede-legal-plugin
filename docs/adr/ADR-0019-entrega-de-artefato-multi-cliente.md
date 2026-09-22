@@ -12,9 +12,12 @@
   final; ver "Implementação (Gate 6.6-E)" e "Retenção" abaixo).
   Janela de autorização de download revisada de 15 minutos para
   **24 horas** por decisão explícita do usuário nesta continuação;
-  retenção normal alvo de ~24-25h depende de um mecanismo de
-  agendamento ainda **não provisionado** (item em aberto mais
-  importante). **Não ativado em produção**: a revisão corrente
+  retenção normal alvo de ~24-25h sustentada por um mecanismo de
+  limpeza **agendado, provisionado em homologação e provado ao vivo**
+  (Cloud Scheduler horário -> Cloud Run Job sobre a mesma imagem
+  imutável -> hard delete), incluindo a prova de que uma execução
+  agendada que falha não altera artefato não elegível. **Não ativado em
+  produção**: a revisão corrente
   (`ede-mcp-00020-gum`) não tem `EDE_ARTEFATOS_GCS_BUCKET`/
   `EDE_ARTEFATOS_SIGNER_SA` configuradas, e a IAM de runtime necessária
   não foi concedida (Gate 6.6-E §41 — mutação de IAM de produção fica
@@ -234,17 +237,75 @@ explícito do usuário nesta continuação. Por isso o núcleo de limpeza
 (`limpar_artefatos_elegiveis`) foi desenhado para ser chamado de duas
 formas: oportunisticamente (já implementado) e por um mecanismo de
 AGENDAMENTO independente de tráfego, com cadência horária. O segundo
-caminho ganhou um entrypoint standalone,
-`scripts/limpar_artefatos_agendado.py` — pronto para ser acionado por
-Cloud Scheduler -> Cloud Run Job (ou endpoint autenticado dedicado).
-**A infraestrutura de agendamento (Cloud Scheduler, o alvo que ele
-chama) NÃO foi provisionada nesta rodada** — deployar um novo
-serviço/job invocável é, na prática, uma nova peça de infraestrutura
-viva, e este gate optou por não fazer isso sem uma aprovação
-específica para essa peça. É o item em aberto mais importante desta
-ADR: sem o agendamento real ativo, a retenção normal comprovada hoje é
-só a via oportunista (que já foi provada real, ver abaixo), e o alvo
-de ~24-25h só se sustenta com o agendamento ligado.
+caminho tem um entrypoint standalone,
+`scripts/limpar_artefatos_agendado.py`.
+
+**Agendamento provisionado e PROVADO em homologação (autorização
+explícita do usuário).** Arquitetura escolhida, a mais simples que o
+GCP já oferece para isto e que não exige nenhum serviço HTTP novo:
+
+```text
+Cloud Scheduler (0 * * * *, UTC)
+  -> run.googleapis.com jobs:run (OAuth, SA dedicada)
+  -> Cloud Run Job `ede-artefatos-limpeza-homolog`
+  -> MESMA imagem de runtime, só trocando o comando do container:
+     python scripts/limpar_artefatos_agendado.py --json
+  -> artifact_storage.limpar_artefatos_elegiveis (hard delete)
+```
+
+Decisões relevantes: (1) o Job roda a **mesma imagem imutável** do
+servidor MCP, fixada por digest — nunca uma segunda implementação de
+exclusão fora da imagem de runtime, nunca `:latest`; (2) a identidade
+do Job (`ede-artefatos-limpeza-homolog`) tem **apenas**
+`roles/storage.objectAdmin` escopado ao bucket de artefatos e
+`roles/run.invoker` no próprio Job — **nenhuma autoridade de
+assinatura**, porque o caminho de limpeza só lista e exclui, jamais
+assina URL; (3) nenhuma chave JSON de service account foi criada —
+autenticação por identidade de workload do próprio Cloud Run; (4)
+`EDE_ARTEFATOS_SIGNER_SA` é exigida pelo construtor do transporte mas
+nunca exercitada por este caminho (pequena aresta de desenho, anotada
+aqui em vez de escondida).
+
+**Infraestrutura estritamente homologatória:** Job e Scheduler são
+rotulados `gate=6-6-e`/`status=homolog-candidate`, apontam só para o
+bucket de homologação, e não têm nenhuma relação com o serviço de
+produção `ede-mcp` (que permanece na revisão `ede-mcp-00020-gum`,
+VERSION `0.14.0`, 100% do tráfego, sem nenhuma variável
+`EDE_ARTEFATOS_*` e com o IAM de runtime intocado).
+
+**Prova real do caminho AGENDADO (sem nenhuma chamada a
+`finalizar_peca`).** Três objetos reais foram colocados no bucket de
+homologação e o **Cloud Scheduler** foi disparado (`gcloud scheduler
+jobs run`), exercitando a cadeia inteira Scheduler -> Job -> limpeza:
+
+| Objeto | Idade (`created_at`) | Esperado | Resultado real |
+|---|---|---|---|
+| `artifacts/<id>.docx` (stale) | 25h (> 24h) | excluído | **excluído** |
+| `artifacts/<id>.docx` (fresh) | 0h | preservado | **preservado** |
+| `outros/<id>.docx` (fora do prefixo) | 99h | intocado | **intocado** |
+
+O log da execução agendada traz **só contadores agregados**
+(`status=OK; rodadas=1; inspecionados=2; excluidos=1; falhas=0`) —
+nenhum nome de objeto, nenhuma URL assinada, nenhum dado de caso.
+Depois da execução, sobre o objeto excluído: GET autenticado -> **404**;
+a URL assinada emitida ANTES da exclusão (validade de 1h, portanto
+ainda dentro da janela) -> **404**, provando que o OBJETO sumiu e não
+que a URL apenas expirou; acesso não assinado -> **401**; e a consulta
+de versões soft-deletadas é **recusada pelo próprio GCS** com
+`HTTPError 400: Soft delete policy is required to list soft-deleted
+versions` — prova mais forte que uma lista vazia: sem política de soft
+delete no bucket, geração recuperável não pode existir por construção.
+
+**Semântica de falha da execução agendada (verificada ao vivo).** Uma
+execução foi propositalmente induzida a falhar (override de variável de
+ambiente só na execução, nunca na definição do Job — confirmado depois
+que a definição continua íntegra). Resultado: contêiner saiu com código
+2, log com erro tipado (`status=ERRO_CONFIGURACAO`) e sem conteúdo
+algum; e os dois objetos NÃO elegíveis permaneceram **byte a byte
+intactos** — mesma `Generation` e mesmo `Content-Length` antes e
+depois. Uma execução agendada que falha não exclui, não altera e não
+corrompe nada; o backstop de lifecycle continua ativo
+independentemente.
 
 **Backstop de lifecycle, semântica real verificada.** Documentação
 oficial (consultada nesta sessão,
@@ -302,14 +363,13 @@ real do órfão confirmada); e a prova de HARD DELETE completa (seção
 unitário — todos têm prova viva.
 
 **Itens em aberto para antes do gate de download ao vivo:**
-1. **provisionar o agendamento real** (Cloud Scheduler + alvo invocável
-   para `scripts/limpar_artefatos_agendado.py`, cadência horária) — sem
-   isso, a retenção normal de ~24-25h só vale nos períodos com tráfego
-   real de finalização; é o item mais importante em aberto desta ADR;
+1. replicar em PRODUÇÃO o agendamento já provado em homologação (Job +
+   Scheduler equivalentes, apontando ao bucket de produção quando
+   houver), com as concessões próprias — o mecanismo em si já está
+   provado, o que falta é a instância de produção;
 2. aplicar as duas concessões de IAM à SA de runtime de produção
    (assinatura), como um passo controlado e explicitamente aprovado à
-   parte (§41), e as concessões próprias do mecanismo de agendamento
-   escolhido no item 1;
+   parte (§41);
 3. confirmar se algum log de infraestrutura do Cloud Run/GCS captura a
    query string da URL assinada por padrão da plataforma — mais
    relevante agora, com janela de 24h em vez de 15 minutos;

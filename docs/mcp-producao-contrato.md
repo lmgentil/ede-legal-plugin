@@ -95,6 +95,46 @@ serviço recebeu permissão nova neste bucket.
 das três variáveis `EDE_MODELO_OFICIAL_GCS_*` acima ativa exclusivamente
 o modo GCS em `scripts/legal_readiness.py` (ver docstring do módulo).
 
+## Artefatos efêmeros — entrega v2 (Gate 6.6-E, ADR-0019)
+
+Mesma disciplina do bloco acima: o bucket **já existe de fato**
+(candidato/homologação, criado no Gate 6.6-E), mas as duas variáveis
+abaixo **não estão aplicadas a nenhuma revisão de produção** — a
+revisão corrente (`ede-mcp-00020-gum`, 100% do tráfego) não tem nenhuma
+delas definida, então `ede_finalizar_peca` em produção hoje recusa com
+`ARTIFACT_STORAGE_FAILED` (`scripts/artifact_storage.ErroConfiguracaoArtefato`)
+até a ativação ser explicitamente autorizada.
+
+| Variável | Valor candidato | Status |
+|---|---|---|
+| `EDE_ARTEFATOS_GCS_BUCKET` | `ede-legal-mcp-01-artefatos-efemeros` | criado no Gate 6.6-E — privado, regional (`southamerica-east1`), acesso uniforme, `public_access_prevention: enforced`, sem `allUsers`/`allAuthenticatedUsers`, sem versionamento, **soft-delete desligado** (`retentionDurationSeconds: 0` — achado deste gate: o padrão do projeto GCP é reter objetos "excluídos" por 7 dias; desligado aqui deliberadamente, porque o bucket guarda documento jurídico efêmero, não deveria sobreviver 7 dias a uma exclusão real), lifecycle `age: 1` (dia) como backstop de limpeza (ver ADR-0019 para a distinção entre isso e a janela de 15 minutos da URL assinada) |
+| `EDE_ARTEFATOS_SIGNER_SA` | *(pendente — ver nota de IAM abaixo)* | e-mail da service account a impersonar para `signBlob` (V4 keyless); em produção normal é o e-mail da PRÓPRIA `ede-mcp-runtime@ede-legal-mcp-01.iam.gserviceaccount.com` (auto-impersonation) |
+
+IAM pendente, **não aplicada nesta rodada** (Gate 6.6-E §41 — nenhuma
+alteração de IAM da service account de runtime corrente antes de um
+passo controlado e explicitamente aprovado):
+
+* `roles/storage.objectAdmin` escopado **só** ao bucket
+  `ede-legal-mcp-01-artefatos-efemeros` (upload, leitura de metadado
+  para assinatura, exclusão) — nunca papel de projeto;
+* `roles/iam.serviceAccountTokenCreator` de
+  `ede-mcp-runtime@ede-legal-mcp-01.iam.gserviceaccount.com` NELA MESMA
+  (auto-impersonation, necessário e suficiente para `signBlob` sem
+  arquivo de chave).
+
+Verificado neste gate com uma service account de homologação dedicada
+(`ede-artefatos-homolog`, nunca criada por falta da mesma concessão de
+IAM — bloqueada pelo próprio harness de execução, guard de "Permission
+Grant"): upload multipart real funcionou (200) contra o bucket real;
+acesso não assinado foi corretamente negado (401); a chamada real a
+`iamcredentials.signBlob` **não pôde ser exercitada nesta sessão**
+porque nem `roles/owner` do operador nem a ausência de concessão prévia
+bastam para chamar `signBlob` sem uma concessão explícita — achado
+real, registrado como item de risco residual no relatório do Gate
+6.6-E (não presumir que o algoritmo de assinatura V4 funciona contra o
+GCS real sem essa verificação completa antes do gate de download ao
+vivo).
+
 ## Confirmação do hostname determinístico
 
 O valor de `EDE_MCP_RESOURCE`/`EDE_MCP_CANONICAL_HOST` acima é o

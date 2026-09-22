@@ -34,6 +34,7 @@ chamadas, nunca um path estável."""
 from __future__ import annotations
 
 import hashlib
+import os
 import sys
 import tempfile
 from dataclasses import dataclass, field
@@ -43,6 +44,7 @@ from typing import Literal
 BASE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import artifact_storage as ast  # noqa: E402
 import capability_registry as cr  # noqa: E402
 import docx_block_engine as be  # noqa: E402
 import docx_fidelidade_independente as fi  # noqa: E402
@@ -102,11 +104,22 @@ CODIGOS_ERRO = frozenset({
     "ROUND_TRIP_FAILED",
     "RENDER_FAILED",
     "ARTIFACT_TOO_LARGE",
+    "ARTIFACT_STORAGE_FAILED",
+    "ARTIFACT_SIGNING_FAILED",
     "ARTIFACT_DELIVERY_FAILED",
 })
-"""Vocabulário FECHADO (Gate 6.6-C §18/§21) — o adapter MCP nunca
+"""Vocabulário FECHADO (Gate 6.6-C §18/§21; Gate 6.6-E acrescenta
+ARTIFACT_STORAGE_FAILED/ARTIFACT_SIGNING_FAILED) — o adapter MCP nunca
 devolve um código fora desta lista, e nenhuma mensagem de erro carrega
-stack trace, path privado, identificador GCS ou corpo da requisição."""
+stack trace, path privado, identificador GCS/bucket/objeto, e-mail de
+service account, interno de assinatura ou corpo da requisição.
+ARTIFACT_STORAGE_FAILED é upload ao bucket efêmero falhou (nenhum
+artefato foi criado). ARTIFACT_SIGNING_FAILED é upload teve sucesso mas
+a assinatura V4 falhou (o órfão é limpo quando operacionalmente
+possível; nunca uma URL inutilizável é devolvida ao cliente).
+ARTIFACT_DELIVERY_FAILED permanece só para a falha pré-existente de
+reabrir o DOCX gerado para fidelidade independente — não sobreposto
+pelos dois novos códigos, que são específicos do transporte v2."""
 
 ETAPAS = frozenset({
     "capability_resolution",
@@ -136,13 +149,34 @@ class ResultadoFinalizacao:
     documento_tamanho: int | None = None
     filename: str | None = None
     warnings: tuple[str, ...] = ()
+    download_url: str | None = None
+    """Gate 6.6-E — URL HTTPS assinada (V4), curta duração
+    (`artifact_storage.TTL_DOWNLOAD_SEGUNDOS`). `None` em toda resposta
+    REFUSED; presente sempre que `status == "OK"`."""
+    download_expires_at: str | None = None
+    """ISO-8601 UTC, sufixo 'Z' — momento em que `download_url` deixa de
+    funcionar. Não confundir com exclusão do objeto (Gate 6.6-E §9/§34):
+    a URL para de funcionar neste instante; o objeto em si pode
+    sobreviver mais tempo até a limpeza efetiva."""
+    artefato_id: str | None = None
+    """Identificador opaco (Gate 6.6-E §19) — NUNCA serializado na
+    resposta pública ao cliente MCP (`EdeFinalizarPecaResposta` não tem
+    este campo); existe só para telemetria somente-metadado."""
+    limpeza_ok: bool | None = None
+    """Só relevante quando `error_code == ARTIFACT_SIGNING_FAILED`: se a
+    tentativa de excluir o objeto órfão (upload teve sucesso, assinatura
+    falhou) funcionou. `None` em qualquer outro resultado — nunca um
+    sinônimo de "não se aplica" vs "falhou", os dois ficam
+    inequivocamente distintos (Gate 6.6-E §22)."""
 
 
-def _recusado(stage: str, error_code: str, motivo: str, capability_id: str | None = None) -> ResultadoFinalizacao:
+def _recusado(stage: str, error_code: str, motivo: str, capability_id: str | None = None,
+               artefato_id: str | None = None, limpeza_ok: bool | None = None) -> ResultadoFinalizacao:
     assert stage in ETAPAS, stage  # defensivo: nunca um estágio inventado ad hoc
     assert error_code in CODIGOS_ERRO, error_code
     return ResultadoFinalizacao(status="REFUSED", capability_id=capability_id,
-                                 stage=stage, error_code=error_code, motivo=motivo)
+                                 stage=stage, error_code=error_code, motivo=motivo,
+                                 artefato_id=artefato_id, limpeza_ok=limpeza_ok)
 
 
 # error_code -> estágio seguro, para os códigos cujo estágio é dedutível
@@ -162,6 +196,8 @@ _ETAPA_POR_CODIGO = {
     "TEMPLATE_LOCK_FAILED": "template_lock",
     "ROUND_TRIP_FAILED": "round_trip",
     "ARTIFACT_TOO_LARGE": "artifact_delivery",
+    "ARTIFACT_STORAGE_FAILED": "artifact_delivery",
+    "ARTIFACT_SIGNING_FAILED": "artifact_delivery",
     "ARTIFACT_DELIVERY_FAILED": "artifact_delivery",
 }
 
@@ -169,6 +205,18 @@ _ETAPA_POR_CODIGO = {
 def _recusado_por_codigo(error_code: str, motivo: str, capability_id: str | None = None,
                           stage: str | None = None) -> ResultadoFinalizacao:
     return _recusado(stage or _ETAPA_POR_CODIGO[error_code], error_code, motivo, capability_id)
+
+
+def _obter_transporte_artefato() -> ast.TransporteArtefato:
+    """Ponto único de injeção do transporte de armazenamento (Gate
+    6.6-E) — produção resolve `EDE_ARTEFATOS_GCS_BUCKET`/
+    `EDE_ARTEFATOS_SIGNER_SA` do ambiente real; testes usam
+    `monkeypatch` sobre esta função (mesma disciplina de
+    `legal_readiness.adquirir_bytes_modelo_oficial`, nunca variável de
+    ambiente vazada entre testes). Nenhum parâmetro público de
+    `finalizar_peca()` expõe ou permite escolher o transporte (Gate
+    6.6-E §48 — o cliente MCP não escolhe bucket/TTL/modo de entrega)."""
+    return ast.obter_transporte_do_ambiente(os.environ)
 
 
 # ------------------------------------------------- mapeamento de estágios
@@ -373,6 +421,30 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
                               "O conteúdo do documento gerado não corresponde ao rascunho aceito.", capability_id)
 
         sha256 = hashlib.sha256(documento_bytes).hexdigest()
+        filename = FILENAME_POR_CAPACIDADE[capability_id]
+
+        # Gate 6.6-E, ADR-0019: entrega v2. Envia exatamente `documento_
+        # bytes` (já aprovado por Template Lock/fidelidade/round-trip
+        # acima, nunca reaberto/reconstruído) a um objeto GCS privado e
+        # efêmero e devolve uma URL HTTPS assinada de curta duração —
+        # substitui o `EmbeddedResource` inline v1 (Decisão 5 da
+        # ADR-0018, provado insuficiente no Gate 6.6-D), nunca em
+        # paralelo com ele.
+        try:
+            entrega = ast.entregar_artefato_efemero(
+                documento_bytes, sha256, filename, transporte=_obter_transporte_artefato(),
+            )
+        except ast.ErroConfiguracaoArtefato:
+            return _recusado("artifact_delivery", "ARTIFACT_STORAGE_FAILED",
+                              "Armazenamento efêmero de artefatos não está configurado.", capability_id)
+        except ast.ErroArmazenamentoArtefato:
+            return _recusado("artifact_delivery", "ARTIFACT_STORAGE_FAILED",
+                              "Falha ao armazenar o artefato gerado.", capability_id)
+        except ast.ErroAssinaturaArtefato as e:
+            return _recusado("artifact_delivery", "ARTIFACT_SIGNING_FAILED",
+                              "Falha ao gerar o link de download do artefato.", capability_id,
+                              artefato_id=e.artefato_id, limpeza_ok=e.limpeza_ok)
+
         return ResultadoFinalizacao(
             status="OK",
             capability_id=capability_id,
@@ -380,7 +452,10 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
             documento_bytes=documento_bytes,
             documento_sha256=sha256,
             documento_tamanho=len(documento_bytes),
-            filename=FILENAME_POR_CAPACIDADE[capability_id],
+            filename=filename,
+            download_url=entrega.download_url,
+            download_expires_at=entrega.expires_at,
+            artefato_id=entrega.artefato_id,
         )
 
 

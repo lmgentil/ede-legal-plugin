@@ -27,7 +27,7 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-011 | ABERTA | Primeira chamada viva do ChatGPT a `ede_finalizar_peca` (2026-09-22) | Declaração de interoperabilidade do finalizador com o ChatGPT (não bloqueia o runtime; o servidor já recusa quando a inflação estoura o limite) | Transporte do cliente ChatGPT inseriu quebras de linha nos valores de placeholder; abaixo do limite de densidade isso passaria sem detecção |
 | PEND-012 | ABERTA (escopo ampliado) | Gate 6.6-D, chamadas do ChatGPT e do Claude (2026-09-22) | Critério de entrega nativa do Gate 6.6-D, ENCERRADO como PARTIAL PASS com esta pendência aberta; não bloqueia o runtime nem motiva rollback | Nem ChatGPT nem Claude entregam o DOCX nativamente via `EmbeddedResource` — ChatGPT não expõe a URI `attachment://` (contorno do host preserva os bytes); Claude recusa explicitamente o tipo de mídia do DOCX (nenhum byte chega ao usuário) |
 | PEND-013 | APROVADA, execução ADIADA | Auditoria somente-leitura das revisões antigas com tag, Gate 6.6-D item 6 (2026-09-22) | Nenhuma (não bloqueia; execução deliberadamente adiada para depois da evidência de interoperabilidade viva do Claude) | Remoção das seis tags históricas do Cloud Run (`candidato`, `candidato-6-5-b`, `candidato-6-5-b2`, `candidato-6-5-c`, `candidato-6-5-c2`, `candidato-6-5-c4`) — aprovada em princípio como *pre-pilot hardening*, nenhuma removida ainda |
-| PEND-014 | EM AVALIAÇÃO (preparação autorizada; implementação NÃO autorizada) | Fechamento do Gate 6.6-D como PARTIAL PASS (2026-09-22) | Nenhuma (avaliação apenas); implementação exige gate e autorização própria | Redesenho do mecanismo de entrega de artefato entre hosts (candidato: GCS efêmero + URL assinada de curta duração + link em `TextContent`), avaliado em `docs/adr/ADR-0019-entrega-de-artefato-multi-cliente.md` (proposta, sem implementação) |
+| PEND-014 | CANDIDATO IMPLEMENTADO (Gate 6.6-E); prova viva completa e ativação em produção NÃO autorizadas | Fechamento do Gate 6.6-D como PARTIAL PASS (2026-09-22); implementação Gate 6.6-E mesma data | Gate de download ao vivo (Claude/ChatGPT); não bloqueia o runtime — produção continua em v1 até ativação explícita | Redesenho do mecanismo de entrega de artefato entre hosts — v2 (`scripts/artifact_storage.py`, GCS efêmero + URL V4 assinada) implementado e testado (fake), verificação real de `signBlob` pendente (bloqueada pelo guard de IAM do harness) |
 
 ---
 
@@ -754,14 +754,21 @@ Em aberto (execução deliberadamente adiada).
 
 ---
 
-## PEND-014 — Redesenho do mecanismo de entrega de artefato entre hosts (avaliação, sem implementação)
+## PEND-014 — Redesenho do mecanismo de entrega de artefato entre hosts (candidato implementado, Gate 6.6-E)
 
-**Status:** EM AVALIAÇÃO. Preparação da proposta AUTORIZADA; implementação
-NÃO autorizada.
-**Aberta em:** Fechamento do Gate 6.6-D como `PARTIAL PASS` (2026-09-22)
-**Bloqueia:** Nenhuma fase — é avaliação, não implementação. A
-implementação, quando/se autorizada, será um gate próprio (numeração a
-definir, ex. Gate 6.7).
+**Status:** CANDIDATO IMPLEMENTADO. `scripts/artifact_storage.py`
+(objeto GCS efêmero + URL V4 assinada) implementado, testado (fake, sem
+rede) e parcialmente verificado contra GCP real (upload real e negação
+de acesso não assinado confirmados; assinatura V4 real NÃO verificada —
+ver ADR-0019 "Implementação (Gate 6.6-E)"). **Prova viva completa
+(assinatura real + download por Claude/ChatGPT) e ativação em produção
+continuam NÃO autorizadas.**
+**Aberta em:** Fechamento do Gate 6.6-D como `PARTIAL PASS` (2026-09-22);
+implementação candidata no Gate 6.6-E, mesma data.
+**Bloqueia:** O gate de download ao vivo (verificação com Claude/ChatGPT
+reais). Não bloqueia o runtime: produção continua servindo v1
+tecnicamente (a revisão corrente não tem `EDE_ARTEFATOS_GCS_*`
+configuradas, então v2 nem é alcançável em produção hoje).
 
 ### Contexto
 
@@ -776,28 +783,35 @@ resposta no log de requisições do Claude). A lacuna é estrutural do
 mecanismo de entrega, não do renderer.
 
 `docs/adr/ADR-0019-entrega-de-artefato-multi-cliente.md` registra a
-avaliação (arquitetura candidata, requisitos de segurança, alternativa
-de download autenticado mediado pelo servidor, e o trade-off explícito
-de tratar a URL assinada como capacidade portadora). Nenhum código,
-bucket, IAM ou deploy foi criado por esta pendência.
+avaliação e, desde o Gate 6.6-E, a implementação candidata: bucket real
+`ede-legal-mcp-01-artefatos-efemeros` (homologação, privado, PAP
+enforced, soft-delete desligado, lifecycle de 1 dia como backstop),
+`scripts/artifact_storage.py` (V4 signing manual, sem SDK de nuvem
+novo), integração em `finalizar_peca.py`/`server.py` (v2 substitui o
+`EmbeddedResource`, nunca em paralelo). **Nenhuma IAM de runtime de
+produção foi alterada** (Gate 6.6-E §41) — as duas concessões
+necessárias (bucket-scoped `storage.objectAdmin`;
+`iam.serviceAccountTokenCreator` de auto-impersonation) ficam
+documentadas, não aplicadas.
 
 ### Critério de resolução
 
 Esta pendência se resolve com uma das duas:
 
-1. decisão explícita do usuário aprovando uma arquitetura de entrega
-   específica (assinatura de URL, download autenticado mediado pelo
-   servidor, ou outra), seguida de gate próprio de implementação,
-   testes e prova viva com os dois clientes; ou
+1. verificação real completa da assinatura V4 (com IAM de homologação
+   explicitamente concedida por decisão separada do usuário — o guard
+   de segurança do harness bloqueou isso nesta sessão, propositalmente
+   não contornado), seguida de aplicação controlada da IAM de produção
+   e prova viva de download real com Claude e ChatGPT; ou
 2. decisão explícita do usuário de manter a Decisão 5 (v1) como está,
    aceitando que a entrega nativa continue indisponível e que o
    artefato só chegue ao usuário por contorno do cliente (caso do
    ChatGPT) ou não chegue (caso do Claude).
 
-Esta pendência nunca se resolve por implementação silenciosa — nenhuma
-mudança de infraestrutura de entrega (bucket, IAM, URL assinada) sem
-autorização explícita do usuário para o gate de implementação
-(CLAUDE.md §6/§17/§24).
+Esta pendência nunca se resolve por ativação silenciosa — nenhuma
+mudança de IAM de runtime de produção nem configuração das variáveis
+`EDE_ARTEFATOS_GCS_*` na revisão de produção sem autorização explícita
+do usuário para esse passo específico (CLAUDE.md §6/§17/§24).
 
 ### Fechamento
 

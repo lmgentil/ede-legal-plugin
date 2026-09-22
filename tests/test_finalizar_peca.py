@@ -28,6 +28,7 @@ import pytest
 BASE = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE / "scripts"))
 
+import artifact_storage as ast  # noqa: E402
 import capability_registry as cr  # noqa: E402
 import finalizar_peca as fp  # noqa: E402
 
@@ -219,6 +220,40 @@ def modelo_oficial_local(monkeypatch):
     monkeypatch.setenv("EDE_MODELO_OFICIAL_SHA256", sha)
 
 
+class _TransporteArtefatoFake:
+    """Gate 6.6-E — mesmo papel de `test_artifact_storage._FakeTransporte`,
+    redefinido aqui (não importado de lá) para não acoplar os dois
+    arquivos de teste: um DOCX_real ponta a ponta não deve depender de
+    detalhe interno da suíte de unidade de outro módulo."""
+
+    def __init__(self):
+        self.objetos = {}
+
+    def enviar(self, object_name, dados, content_type, metadata):
+        self.objetos[object_name] = (dados, content_type, dict(metadata))
+
+    def assinar_url(self, object_name, ttl_segundos, content_disposition):
+        return f"https://storage.googleapis.com/bucket-fake-teste/{object_name}?assinado=1"
+
+    def excluir(self, object_name):
+        self.objetos.pop(object_name, None)
+        return True
+
+
+@pytest.fixture
+def transporte_artefato_fake(monkeypatch):
+    """Injeta um transporte em memória no ponto único de injeção do
+    Core (`fp._obter_transporte_artefato`) — os testes `docx_real`
+    exercitam o RENDER real do Modelo Oficial (Template Lock, fidelidade,
+    round-trip), mas nunca precisam de GCS/IAM real para isso: a entrega
+    do artefato é testada isoladamente, com rede real, em
+    `tests/test_artifact_storage.py` (fake) e no relatório de
+    homologação do Gate 6.6-E (real, fora da suíte automatizada)."""
+    fake = _TransporteArtefatoFake()
+    monkeypatch.setattr(fp, "_obter_transporte_artefato", lambda: fake)
+    return fake
+
+
 def _dados_tudo_incluido():
     return {
         "JUIZO": "AO JUÍZO DA VARA CÍVEL DA COMARCA DE SALVADOR/BA (DADOS FICTÍCIOS DE TESTE)",
@@ -244,7 +279,7 @@ def _block_decisions_tudo_incluido():
 
 
 @pytest.mark.docx_real
-def test_pipeline_completo_ok_contra_modelo_oficial_real(modelo_oficial_local):
+def test_pipeline_completo_ok_contra_modelo_oficial_real(modelo_oficial_local, transporte_artefato_fake):
     entrada = {
         "capability_id": "contestacao.irregularidade_consumo",
         "placeholders": _dados_tudo_incluido(),
@@ -262,6 +297,21 @@ def test_pipeline_completo_ok_contra_modelo_oficial_real(modelo_oficial_local):
     assert r.filename == "EDE-Contestacao-Irregularidade.docx"
     # bytes de um pacote ZIP/OOXML válido
     assert r.documento_bytes[:2] == b"PK"
+
+    # Gate 6.6-E — entrega v2: URL de download presente, artefato
+    # realmente "enviado" ao transporte (fake), bytes armazenados
+    # idênticos aos bytes renderizados/aprovados.
+    assert r.download_url and r.download_url.startswith("https://")
+    assert r.download_expires_at and r.download_expires_at.endswith("Z")
+    assert r.artefato_id and len(r.artefato_id) == 32
+    object_name = f"artifacts/{r.artefato_id}.docx"
+    assert object_name in transporte_artefato_fake.objetos
+    dados_armazenados, content_type, metadata = transporte_artefato_fake.objetos[object_name]
+    assert dados_armazenados == r.documento_bytes
+    assert content_type == ast.CONTENT_TYPE_DOCX
+    assert metadata["sha256"] == r.documento_sha256
+    # nenhum dado de caso no metadado do objeto (Gate 6.6-E §20)
+    assert set(metadata) == {"artifact_id", "created_at", "expires_at", "sha256"}
 
 
 @pytest.mark.docx_real
@@ -330,7 +380,8 @@ def test_pipeline_rejeita_travessao_via_validacao_estrutural(modelo_oficial_loca
 
 
 @pytest.mark.docx_real
-def test_pipeline_rejeita_documento_acima_do_limite_de_tamanho(modelo_oficial_local, monkeypatch):
+def test_pipeline_rejeita_documento_acima_do_limite_de_tamanho(modelo_oficial_local, monkeypatch,
+                                                                 transporte_artefato_fake):
     monkeypatch.setattr(fp, "MAX_DOCX_BYTES", 1)  # qualquer DOCX real excede 1 byte
     entrada = {
         "capability_id": "contestacao.irregularidade_consumo",
@@ -344,10 +395,75 @@ def test_pipeline_rejeita_documento_acima_do_limite_de_tamanho(modelo_oficial_lo
     assert r.stage == "artifact_delivery"
     assert r.documento_bytes is None
     assert str(fp.MAX_DOCX_BYTES) in r.motivo
+    # Gate 6.6-E §16 — nunca envia um artefato para só depois recusar por
+    # tamanho: a checagem acontece antes de qualquer chamada ao transporte.
+    assert transporte_artefato_fake.objetos == {}
 
 
 @pytest.mark.docx_real
-def test_pipeline_nunca_gera_arquivo_temporario_residual(modelo_oficial_local):
+def test_pipeline_rejeita_por_falha_de_armazenamento_do_artefato(modelo_oficial_local, monkeypatch):
+    class _TransporteFalhaEnvio:
+        def enviar(self, object_name, dados, content_type, metadata):
+            raise ast.ErroArmazenamentoArtefato("gcs_status_inesperado")
+
+        def assinar_url(self, *a, **k):
+            raise AssertionError("nunca deveria assinar depois de falha de upload")
+
+        def excluir(self, *a, **k):
+            raise AssertionError("nunca deveria haver o que limpar — upload nem chegou a existir")
+
+    monkeypatch.setattr(fp, "_obter_transporte_artefato", lambda: _TransporteFalhaEnvio())
+    entrada = {
+        "capability_id": "contestacao.irregularidade_consumo",
+        "placeholders": _dados_tudo_incluido(),
+        "block_decisions": _block_decisions_tudo_incluido(),
+        "estado_processual": {"GRATUIDADE_CONCEDIDA": True, "CORTE_EFETIVO": True},
+    }
+    r = fp.finalizar_peca(entrada)
+    assert r.status == "REFUSED"
+    assert r.error_code == "ARTIFACT_STORAGE_FAILED"
+    assert r.stage == "artifact_delivery"
+    assert r.download_url is None
+    assert r.documento_bytes is None
+
+
+@pytest.mark.docx_real
+def test_pipeline_rejeita_por_falha_de_assinatura_e_tenta_limpar_o_orfao(modelo_oficial_local, monkeypatch):
+    class _TransporteFalhaAssinatura:
+        def __init__(self):
+            self.excluiu = []
+
+        def enviar(self, object_name, dados, content_type, metadata):
+            pass  # upload "funciona"
+
+        def assinar_url(self, object_name, ttl_segundos, content_disposition):
+            raise ast.ErroAssinaturaArtefato("iam_signblob_status_inesperado", artefato_id="", limpeza_ok=None)
+
+        def excluir(self, object_name):
+            self.excluiu.append(object_name)
+            return True
+
+    transporte = _TransporteFalhaAssinatura()
+    monkeypatch.setattr(fp, "_obter_transporte_artefato", lambda: transporte)
+    entrada = {
+        "capability_id": "contestacao.irregularidade_consumo",
+        "placeholders": _dados_tudo_incluido(),
+        "block_decisions": _block_decisions_tudo_incluido(),
+        "estado_processual": {"GRATUIDADE_CONCEDIDA": True, "CORTE_EFETIVO": True},
+    }
+    r = fp.finalizar_peca(entrada)
+    assert r.status == "REFUSED"
+    assert r.error_code == "ARTIFACT_SIGNING_FAILED"
+    assert r.stage == "artifact_delivery"
+    assert r.download_url is None
+    assert r.documento_bytes is None
+    assert r.artefato_id  # opaco, não vazio -- para telemetria
+    assert r.limpeza_ok is True
+    assert len(transporte.excluiu) == 1
+
+
+@pytest.mark.docx_real
+def test_pipeline_nunca_gera_arquivo_temporario_residual(modelo_oficial_local, transporte_artefato_fake):
     import glob
     import tempfile
     antes = set(glob.glob(str(Path(tempfile.gettempdir()) / "**"), recursive=False))

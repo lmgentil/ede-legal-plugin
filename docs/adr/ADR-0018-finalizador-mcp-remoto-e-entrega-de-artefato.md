@@ -12,12 +12,20 @@
   PASS`** (correção do servidor e determinismo do documento comprovados
   nos dois clientes; entrega nativa do artefato falhou nos dois — ver
   "Prova viva" abaixo). Desenho original (Gate 6.6-B) permanece íntegro;
-  nenhuma decisão desta ADR foi revista, a Decisão 5 inclusive — sua
-  insuficiência frente ao requisito real está registrada, mas a revisão
-  em si fica para um gate próprio (ver "Prova viva", PEND-012 e
-  PEND-014; avaliação preparatória em ADR-0019, sem implementação).
-* **Data:** 2026-09-22 (Gate 6.6-B) — implementação Gate 6.6-C e ativação
-  controlada Gate 6.6-D (revisão criada às 15:01:49 UTC), mesma data
+  nenhuma decisão desta ADR foi revista silenciosamente — a Decisão 5 é
+  explicitamente HISTÓRICA a partir do Gate 6.6-E: v1 (`EmbeddedResource`
+  inline) permanece implementada e corretamente testada, mas REJEITADA
+  como mecanismo de entrega entre hosts de produção (ver "Status
+  histórico" logo abaixo da Decisão 5); v2 é agora
+  `scripts/artifact_storage.py` (objeto GCS efêmero + URL HTTPS assinada
+  V4), implementado como candidato/homologação no Gate 6.6-E, VERSION
+  `0.15.0` — **não ativado em produção** (a revisão corrente continua
+  `ede-mcp-00020-gum`/`0.14.0`, sem as variáveis `EDE_ARTEFATOS_GCS_*`).
+  Detalhe completo, requisitos de segurança e status de implementação:
+  `docs/adr/ADR-0019-entrega-de-artefato-multi-cliente.md`.
+* **Data:** 2026-09-22 (Gate 6.6-B) — implementação Gate 6.6-C, ativação
+  controlada Gate 6.6-D (revisão criada às 15:01:49 UTC) e implementação
+  candidata do v2 no Gate 6.6-E, mesma data
 * **Relacionado:** ADR-0015 (fronteira Core/Adapter/MCP), ADR-0016/0017
   (OAuth e ativação de produção), ADR-0009 (Modelo Oficial externo);
   Gate 6.5-A/B3/C1-C4 (`ede_preparar_contestacao`, escopo `ede:legal`);
@@ -209,6 +217,39 @@ Resumo da decisão:
 - **Nunca:** bucket público; `TextContent` com base64 (mesmo overhead da
   opção aceita, mas sem nenhuma semântica de "isto é um arquivo" — o
   conteúdo entra no contexto do modelo como texto de conversa).
+
+### Status histórico (Gate 6.6-E) — v1 rejeitada, v2 implementada difere do desenho original desta decisão
+
+**v1 foi implementada e corretamente testada, e é REJEITADA como
+mecanismo de entrega entre hosts de produção**, com base em evidência
+viva (Gate 6.6-D): o servidor, a validação produção-final e o
+determinismo do documento estavam todos corretos nos dois clientes reais
+do produto (Claude e ChatGPT); só o transporte do artefato falhava — o
+ChatGPT não conseguiu usar a URI `attachment://` na UI (recorreu a um
+canal de arquivos próprio), e o Claude recusou explicitamente o tipo de
+mídia do `EmbeddedResource`. Nenhum dos dois entrega o blob inline
+nativamente. Esta seção não é apagada — registra o que foi tentado, por
+que parecia razoável na hora (overhead baixo, sem armazenamento, sem
+superfície de autorização nova) e por que a evidência viva provou o
+contrário.
+
+**O v2 implementado no Gate 6.6-E diverge do "v2 condicional" desenhado
+acima.** Esta decisão original previa como mecanismo PRIMÁRIO um
+`ResourceLink`/resource template nativo do SDK (`ede://artifact/<id>`,
+via `@server.resource(...)`) e cotava URL assinada pública só como
+"opção auditada à parte, se algum cliente exigir HTTP puro" — nunca
+primária. O Gate 6.6-E, por autorização explícita do usuário, implementa
+diretamente o mecanismo de URL assinada (objeto GCS efêmero + V4
+signed URL) como v2, sem passar pelo resource template. Duas razões
+registradas: (1) o resource template exigiria uma capacidade do SDK MCP
+("resolvível via `resource()` do SDK") nunca implementada nem testada
+contra nenhum host real — trocaria uma incerteza de suporte de cliente
+(a que derrubou a v1) por outra, sem prova viva prévia; (2) a
+autorização do Gate 6.6-E tratou "HTTPS comum" como o requisito central,
+precisamente porque os dois hosts reais já mostraram, na prática, que
+mecanismos MCP nativos além de texto simples são o ponto frágil. Detalhe
+completo, requisitos de segurança e o trade-off de capacidade portadora
+da URL assinada: `docs/adr/ADR-0019-entrega-de-artefato-multi-cliente.md`.
 
 ## Decisão 6 — Escopo OAuth: `ede:legal` permanece único para execução
 

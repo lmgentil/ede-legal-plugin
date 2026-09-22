@@ -176,6 +176,8 @@ CODIGOS_ERRO_FINALIZACAO: Final = frozenset({
     "ROUND_TRIP_FAILED",
     "RENDER_FAILED",
     "ARTIFACT_TOO_LARGE",
+    "ARTIFACT_STORAGE_FAILED",
+    "ARTIFACT_SIGNING_FAILED",
     "ARTIFACT_DELIVERY_FAILED",
 })
 
@@ -201,6 +203,8 @@ CAMPOS_PERMITIDOS: Final = frozenset({
     "estagio_finalizacao",
     "codigo_erro_finalizacao",
     "documento_tamanho_bytes",
+    "artefato_id",
+    "artefato_limpeza_ok",
 })
 """Allowlist FECHADA. Acrescentar campo aqui é decisão de segurança
 consciente, não detalhe de implementação — qualquer campo novo precisa
@@ -211,7 +215,18 @@ Gate 6.6-C: `capability_id` é identificador estável e público
 dado de caso — mesma natureza de `ferramenta`/`escopo_exigido`.
 `documento_tamanho_bytes` é só a contagem de bytes do artefato final,
 nunca o conteúdo; ausente em toda resposta `REFUSED` (nenhum documento
-existe para medir)."""
+existe para medir).
+
+Gate 6.6-E: `artefato_id` é o identificador OPACO (uuid4 hex) do objeto
+GCS efêmero — nunca o nome do objeto (`artifacts/<id>.docx`), nunca o
+bucket, nunca a URL assinada (assinada ou não); presente só quando há um
+artefato de fato criado (sucesso, ou recusa por `ARTIFACT_SIGNING_
+FAILED` depois de um upload que teve sucesso). `artefato_limpeza_ok`
+existe só junto de `ARTIFACT_SIGNING_FAILED` — booleano indicando se o
+objeto órfão foi removido; NENHUM dos dois campos é ou pode conter uma
+URL: `_registrar_finalizacao` (mcp_server/server.py) não recebe nem
+repassa `download_url`/`expires_at` a este módulo, por construção da
+própria assinatura da função."""
 
 
 class CampoDeLogProibido(ValueError):
@@ -269,6 +284,13 @@ def _validar_valor(campo: str, valor: Any) -> Any:
         raise CampoDeLogProibido(f"codigo_erro_finalizacao fora do vocabulário fechado: {valor!r}")
     if campo == "documento_tamanho_bytes" and (not isinstance(valor, int) or isinstance(valor, bool) or valor < 0):
         raise CampoDeLogProibido(f"documento_tamanho_bytes deve ser um inteiro não negativo: {valor!r}")
+    if campo == "artefato_id" and (not isinstance(valor, str) or "/" in valor or len(valor) > 64):
+        raise CampoDeLogProibido(
+            f"artefato_id deve ser um identificador opaco curto sem barras: {valor!r} "
+            f"(uma barra sugeriria um caminho de objeto GCS vazando para o log)."
+        )
+    if campo == "artefato_limpeza_ok" and not isinstance(valor, bool):
+        raise CampoDeLogProibido(f"artefato_limpeza_ok deve ser booleano: {valor!r}")
     return valor
 
 

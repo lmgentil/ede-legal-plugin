@@ -1,10 +1,22 @@
-# ADR-0019 — Redesenho da entrega de artefato entre hosts MCP (proposta)
+# ADR-0019 — Redesenho da entrega de artefato entre hosts MCP
 
-* **Status:** Proposto — avaliação técnica autorizada pelo usuário;
-  **implementação NÃO autorizada**. Nenhum código, bucket, IAM, Resource
-  Descope, deploy ou revisão de infraestrutura foi criado por este
-  documento.
-* **Data:** 2026-09-22
+* **Status:** Candidato implementado (Gate 6.6-E) — Candidata A (objeto
+  GCS efêmero + URL V4 assinada) implementada em
+  `scripts/artifact_storage.py`, VERSION `0.15.0`, com suíte de unidade
+  completa (transporte fake, sem rede) e prova real PARCIAL contra GCP
+  (upload real funcionou; negação de acesso não assinado real
+  confirmada; a chamada real a `signBlob` NÃO PÔDE ser exercitada nesta
+  sessão — bloqueada pelo próprio guard de segurança do harness de
+  execução contra concessões de IAM, nunca contornado — ver "Implementação
+  (Gate 6.6-E)" abaixo para o relato completo, incluindo o item de risco
+  residual). **Não ativado em produção**: a revisão corrente
+  (`ede-mcp-00020-gum`) não tem `EDE_ARTEFATOS_GCS_BUCKET`/
+  `EDE_ARTEFATOS_SIGNER_SA` configuradas, e a IAM de runtime necessária
+  não foi concedida (Gate 6.6-E §41 — mutação de IAM de produção fica
+  para um passo controlado e explicitamente aprovado à parte). Sem
+  tag Git, sem release, sem rollout para advogados.
+* **Data:** 2026-09-22 (proposta) — implementação candidata Gate 6.6-E,
+  mesma data
 * **Relacionado:** ADR-0018 (finalizador MCP remoto — Decisão 5 é o
   mecanismo de entrega v1 que este documento avalia substituir/
   complementar); ADR-0017 (Arquitetura A′ — precedente de bucket
@@ -150,24 +162,113 @@ explicitamente, não justificar apenas com "TTL curto resolve":
   usuário de novo no momento da aprovação de implementação, não só
   aqui.
 
-## Consequências desta ADR (proposta)
+## Implementação (Gate 6.6-E, 2026-09-22)
 
-* Nenhuma mudança de código, infraestrutura, IAM, bucket ou deploy.
+Autorização explícita do usuário: implementar a Candidata A, homologar,
+**nunca ativar em produção nesta rodada**. Divergência anotada em
+ADR-0018 §Decisão 5/"Status histórico": esta implementação vai direto à
+URL assinada, sem passar pelo `ResourceLink`/resource template que a
+Decisão 5 original cotava como v2 primário — decisão do usuário, não
+uma reinterpretação silenciosa desta ADR.
+
+**Código:** `scripts/artifact_storage.py` (Core puro, mesma disciplina
+de `legal_readiness.py` — sem SDK de nuvem completo, `google-auth` +
+`httpx2`, nenhuma dependência nova). Assinatura V4 construída à mão,
+verificada ponto a ponto contra a documentação oficial do algoritmo
+(`docs.cloud.google.com/storage/docs/access-control/signing-urls-manually`):
+escapamento de `canonical_uri` com `safe="/~"`, escapamento de chave/
+valor da query string equivalente a `safe=""`, token literal `"auto"`
+no `credential_scope` (não a região real do bucket), linha em branco
+entre `canonical_headers` e `signed_headers`. Integrado a
+`scripts/finalizar_peca.py` logo após o SHA-256 do documento já
+validado (Template Lock/fidelidade/round-trip) — nunca reabre/
+reconstrói os bytes. `mcp_server/server.py` não emite mais
+`EmbeddedResource`: resposta é sempre um único `TextContent`, com
+`download_url`/`expires_at` em sucesso. Dois códigos de erro novos,
+vocabulário fechado espelhado em `mcp_server/auth_logging.py` (testado
+contra deriva pelo teste já existente): `ARTIFACT_STORAGE_FAILED`,
+`ARTIFACT_SIGNING_FAILED`.
+
+**Bucket real (candidato/homologação):** `ede-legal-mcp-01-artefatos-
+efemeros`, `southamerica-east1`, `public_access_prevention: enforced`,
+acesso uniforme, sem versionamento, **soft-delete desligado**
+(achado deste gate: o padrão do projeto é reter objeto "excluído" por 7
+dias — desligado aqui porque o bucket guarda documento jurídico
+efêmero). Nenhuma IAM de runtime de produção foi alterada (§41) — as
+duas concessões que a Candidata A precisa (`roles/storage.objectAdmin`
+escopado ao bucket; `roles/iam.serviceAccountTokenCreator` da SA de
+runtime NELA MESMA) ficam documentadas, não aplicadas.
+
+**Limpeza — as quatro opções avaliadas (Gate 6.6-E §9), e qual foi
+implementada:**
+
+| Opção | Custo/infra extra | IAM extra | Confiabilidade | Confidencialidade (janela real de exposição pós-15min) |
+|---|---|---|---|---|
+| 1. Exclusão agendada (Cloud Tasks, uma tarefa por artefato) | Fila Cloud Tasks + endpoint autenticado (OIDC) de exclusão | `roles/cloudtasks.enqueuer` no runtime; identidade própria para o endpoint de exclusão | Alta — exclusão pontual, minutos após o TTL | Minutos |
+| 2. Sweeper periódico (Cloud Scheduler + job curto) | Cloud Scheduler (cron) + função/serviço pequeno de varredura | Scheduler -> invocar via OIDC; o sweeper precisa `storage.objects.list`+`delete` no bucket | Alta, com folga de alguns minutos (intervalo do cron) | Minutos a poucas dezenas de minutos |
+| **3. Limpeza oportunista + lifecycle (backstop)** — preferida na avaliação original | Nenhuma infraestrutura nova — piggyback em tráfego real | Nenhuma IAM extra além da já necessária | Depende de volume de tráfego real; sem tráfego, cai para o backstop | Minutos com tráfego constante; até a granularidade do backstop sem tráfego |
+| **4. Só lifecycle (backstop) — IMPLEMENTADA neste gate** | Nenhuma | Nenhuma | Determinística, mas de granularidade de DIA (GCS não garante sub-dia) | **Até ~1 dia** (nunca 15 minutos — não confundir com a expiração da URL) |
+
+**Decisão explícita deste gate: Opção 4 (só lifecycle), não a Opção 3
+originalmente preferida na avaliação.** A varredura oportunista (Opção
+3) foi desenhada na avaliação mas **não implementada em código** —
+adicioná-la exigiria rastrear/listar objetos e checar expiração a cada
+chamada, complexidade que este gate não justificou ("não adicionar
+infraestrutura só por elegância conceitual", §9/§40). Consequência
+honesta: **a EXCLUSÃO NORMAL do objeto, no caso de sucesso, não é mais
+rápida que o backstop** — até a granularidade de ~1 dia do lifecycle,
+nunca os 15 minutos da URL assinada. As Opções 1-3 continuam
+documentadas como hardening futuro recomendado, caso essa janela de
+até 1 dia seja julgada operacionalmente longa demais depois do gate de
+download ao vivo — nenhuma delas está implementada.
+
+**Verificação real, parcial — risco residual explícito.** Upload
+multipart real contra o bucket funcionou (200); acesso não assinado ao
+objeto foi corretamente negado (401), antes e depois do upload;
+exclusão real do objeto de teste funcionou. **A chamada real a
+`iamcredentials.signBlob` não pôde ser completada nesta sessão**: nem
+`roles/owner` do operador (verificado empiricamente — `owner` NÃO
+inclui `iam.serviceAccounts.signBlob` por padrão, achado real, não
+suposição) nem qualquer concessão nova bastam, porque o próprio harness
+de execução bloqueou a concessão de IAM necessária para testar (guard
+de segurança "Permission Grant", propositalmente não contornado). Em
+compensação, o algoritmo de construção do `canonical_request`/`string-
+to-sign` foi conferido, campo a campo, contra a documentação oficial do
+Google (consultada nesta sessão) e contra a suíte de unidade
+determinística (`tests/test_artifact_storage.py`) — a estrutura está
+correta; o que falta é a prova de ponta a ponta com uma assinatura RSA
+real do GCS. **Isto é uma lacuna de verificação declarada, não uma
+alegação de que funciona** — o item 1 do gate de download ao vivo
+(seção seguinte) é justamente completar essa prova antes de qualquer
+uso real.
+
+**Itens em aberto para antes do gate de download ao vivo:**
+1. completar a verificação de assinatura V4 real (com uma concessão de
+   IAM explicitamente aprovada, fora do guard automático desta sessão —
+   uma service account de homologação dedicada, nunca a SA de runtime,
+   é o caminho mais seguro, documentado acima);
+2. aplicar as duas concessões de IAM à SA de runtime de produção, como
+   um passo controlado e explicitamente aprovado à parte (§41);
+3. confirmar se algum log de infraestrutura do Cloud Run/GCS captura a
+   query string da URL assinada por padrão da plataforma;
+4. decidir sobre uso único vs. reutilizável dentro do TTL;
+5. pesquisar o comportamento do Claude quanto a reapresentar Bearer
+   OAuth em requisição separada (Candidata B) — não investigado;
+6. medir performance/custo com o backend real (estimativas atuais no
+   relatório do Gate 6.6-E são baseadas em preço público de lista, não
+   em uso medido).
+
+## Consequências desta ADR
+
+* Código, testes e bucket de homologação existem (Gate 6.6-E); nenhuma
+  mudança de produção, IAM de runtime, deploy ou tráfego.
   `ede_finalizar_peca`, o renderer, o Template Lock e a validação
   produção-final permanecem exatamente como o Gate 6.6-C/D os deixou.
-* A Decisão 5 da ADR-0018 não é revista por este documento — ela
-  permanece o mecanismo em produção até uma decisão explícita do
-  usuário adotar uma candidata daqui (ou outra) e um gate de
-  implementação ser autorizado e concluído com prova viva própria.
-* PEND-014 (`docs/PENDENCIAS.md`) referencia este documento como o
-  registro da avaliação; seu critério de resolução exige decisão
-  explícita do usuário, não a existência desta ADR sozinha.
-* Itens em aberto que uma implementação futura precisa resolver antes
-  do gate de prova viva: (1) confirmar se algum log de infraestrutura
-  do Cloud Run/GCS captura a query string da URL assinada por padrão da
-  plataforma; (2) decidir sobre uso único vs. reutilizável dentro do TTL;
-  (3) pesquisar o comportamento do Claude quanto a reapresentar Bearer
-  OAuth em requisição separada (Candidata B), hoje não investigado; (4)
-  confirmar que Public Access Prevention e a política de IAM do bucket
-  novo são verificadas por teste automatizado antes de qualquer tráfego
-  real, mesma disciplina do Gate 6.4-B para o bucket do Modelo Oficial.
+* A Decisão 5 da ADR-0018 é HISTÓRICA (v1 rejeitada) a partir deste
+  gate — não mais "mecanismo em produção", mas produção continua
+  servindo v1 tecnicamente até uma ativação futura explicitamente
+  autorizada do v2 (que hoje recusaria toda chamada, por falta de
+  configuração — nunca "ativa sozinha").
+* PEND-014 (`docs/PENDENCIAS.md`) passa de "em avaliação" para "candidato
+  implementado, aguardando prova viva completa (assinatura real) e
+  autorização de ativação" — não fecha só com este documento.

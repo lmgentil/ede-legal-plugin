@@ -276,6 +276,7 @@ jobs:
               ! -name "validate_paragrafos.py" ! -name "validate_placeholder_semantics.py" \
               ! -name "docx_fidelidade_independente.py" ! -name "docx_round_trip.py" \
               ! -name "capability_registry.py" ! -name "finalizar_peca.py" \
+              ! -name "artifact_storage.py" \
               2>/dev/null || true)
             if [ -n "$achados_scripts" ]; then
               echo "ARQUIVO INESPERADO EM /app/scripts NA IMAGEM: $achados_scripts"

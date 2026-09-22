@@ -178,6 +178,13 @@ COPY --chown=10001:10001 scripts/docx_round_trip.py scripts/docx_round_trip.py
 COPY --chown=10001:10001 scripts/capability_registry.py scripts/capability_registry.py
 COPY --chown=10001:10001 scripts/finalizar_peca.py scripts/finalizar_peca.py
 
+# Gate 6.6-E (ADR-0019): entrega v2 do artefato -- objeto GCS efêmero +
+# URL HTTPS assinada, substitui o EmbeddedResource inline v1 (Decisão 5
+# da ADR-0018, provada insuficiente no Gate 6.6-D). Nenhum SDK de nuvem
+# novo na imagem (google-auth e httpx2 já eram dependências, ver
+# mcp_server/requirements.txt) -- só este módulo Core.
+COPY --chown=10001:10001 scripts/artifact_storage.py scripts/artifact_storage.py
+
 # Contrato institucional (público, git-tracked — nunca o Modelo Oficial
 # .docx em si, que é asset privado externo, ADR-0009, e nunca entra
 # nesta imagem nem em nenhuma outra).

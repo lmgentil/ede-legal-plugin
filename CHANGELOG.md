@@ -850,6 +850,167 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   infraestrutura com a evidência de interoperabilidade de cliente em
   andamento. Nenhuma tag foi removida nesta entrada.
 
+### Gate 6.6-E — entrega v2 do artefato: objeto GCS efêmero + URL assinada (candidato/homologação, VERSION 0.15.0)
+- **Autorização e objetivo.** Autorização explícita do usuário: Gate
+  6.6-D fechou como `PARTIAL PASS` — correção do servidor, validação
+  produção-final e determinismo do documento comprovados nos dois
+  hosts reais; a falha era só a entrega nativa do `EmbeddedResource`
+  inline v1 (ADR-0018, Decisão 5), rejeitada por evidência viva. Este
+  gate implementa e homologa o v2: `ede_finalizar_peca` -> DOCX
+  validado (pipeline inalterado) -> objeto GCS privado efêmero -> URL
+  HTTPS assinada (V4) de curta duração -> `TextContent` pequeno com
+  metadado + link, nunca base64. **Só implementação/homologação —
+  nenhum deploy de produção, nenhuma tag Git, nenhum GitHub Release,
+  nenhuma ampliação de acesso de advogados.**
+- **Preservado sem alteração:** registro de capacidades, semântica
+  produção-final, validação jurídica, Template Lock, renderer,
+  fidelidade independente, round-trip, autoridade do Modelo Oficial,
+  modelo de escopo OAuth (`ede:legal`, sem escopo novo), telemetria
+  somente-metadado (allowlist fechada, dois campos novos conscientes:
+  `artefato_id`, `artefato_limpeza_ok` — nunca URL).
+- **VERSION:** `0.14.0` -> `0.15.0` (SemVer minor — mudança de contrato
+  de saída de `ede_finalizar_peca`, retrocompatível na entrada).
+  Sincronizado em `VERSION`, `.claude-plugin/plugin.json`, badge do
+  README e `skills/atualizar-ede/SKILL.md` — os quatro literais que a
+  suíte de testes (`test_marketplace.py`) trava contra deriva.
+- **ADR-0018, Decisão 5: marcada HISTÓRICA, não apagada.** v1
+  (`EmbeddedResource` inline) permanece registrada como implementada e
+  corretamente testada, e agora REJEITADA como mecanismo de entrega
+  entre hosts, com a evidência viva do Gate 6.6-D citada no próprio
+  texto. Nova seção "Status histórico" documenta também que o v2
+  implementado diverge do desenho original da própria Decisão 5 (que
+  previa um `ResourceLink`/resource template do SDK como v2 primário, e
+  URL assinada só como opção auditada à parte) — divergência
+  por decisão explícita do usuário neste gate, registrada como tal, não
+  uma reinterpretação silenciosa.
+- **ADR-0019: de "proposta" para "candidato implementado".** Nova seção
+  "Implementação (Gate 6.6-E)" com a arquitetura de bucket real, decisão
+  final de limpeza, e o item de risco residual da verificação de
+  assinatura (abaixo).
+- **`scripts/artifact_storage.py` (Core novo).** Mesma disciplina de
+  `legal_readiness.py` (Gate 6.4-B) — nenhum SDK de nuvem completo:
+  `google-auth` (credencial) + `httpx2` (REST), ambos já dependências
+  do projeto; nenhuma dependência nova. Upload multipart (bytes +
+  metadado atômico), assinatura V4 construída à mão (conferida ponto a
+  ponto contra `docs.cloud.google.com/storage/docs/access-control/
+  signing-urls-manually`: escapamento de `canonical_uri` com
+  `safe="/~"`, escapamento de query string equivalente a `safe=""`,
+  token literal `"auto"` no `credential_scope`, linha em branco entre
+  cabeçalhos canônicos e `signed_headers`), exclusão idempotente.
+  Nenhuma chave de service account — assinatura via IAM Credentials
+  `signBlob` (keyless), identidade de assinatura explícita
+  (`EDE_ARTEFATOS_SIGNER_SA`, nunca auto-detectada de atributo de
+  credencial). TTL de download (`TTL_DOWNLOAD_SEGUNDOS = 900`) é
+  constante do módulo — `entregar_artefato_efemero` não tem parâmetro
+  de TTL, e o schema Pydantic de `ede_finalizar_peca` nunca expôs nem
+  expõe TTL/bucket/chave de objeto/modo de entrega ao cliente. Object
+  key sempre opaco (`artifacts/<uuid4 hex>.docx`) — nunca deriva de
+  SHA-256, nome de arquivo do cliente ou qualquer dado de caso; dois
+  documentos idênticos em chamadas diferentes recebem objetos
+  diferentes (identidade do documento e identidade de entrega
+  deliberadamente separadas). Metadado do objeto restrito a
+  `artifact_id`/`created_at`/`expires_at`/`sha256` — nunca dado de caso.
+- **Integração em `scripts/finalizar_peca.py`.** Chamada logo após o
+  SHA-256 do documento já aprovado por Template Lock/fidelidade/
+  round-trip — nunca reabre/reconstrói os bytes. Dois códigos de erro
+  novos no vocabulário fechado (`ARTIFACT_STORAGE_FAILED`,
+  `ARTIFACT_SIGNING_FAILED`), mapeados ao estágio `artifact_delivery`
+  já existente. Falha de upload: nenhuma limpeza necessária (upload
+  multipart do GCS é atômico, nunca deixa objeto parcial). Falha de
+  assinatura APÓS upload: tenta excluir o objeto órfão; o resultado
+  (`limpeza_ok`) vai só para telemetria, nunca para o cliente MCP — a
+  resposta é `REFUSED` de qualquer jeito, nunca uma URL inutilizável.
+  Ponto único de injeção de transporte (`_obter_transporte_artefato`,
+  monkeypatchável em teste) — nenhum parâmetro público relaxa ou
+  escolhe o mecanismo de entrega.
+- **`mcp_server/server.py`: resposta agora SEMPRE um único
+  `TextContent`.** `EdeFinalizarPecaResposta` ganha `download_url`/
+  `expires_at`; `EmbeddedResource`/`BlobResourceContents`/`Annotations`
+  removidos dos imports (não usados mais em lugar nenhum). Nenhum
+  base64, nenhum byte do documento, em nenhuma resposta MCP, sucesso ou
+  recusa.
+- **`mcp_server/auth_logging.py`:** dois códigos de erro novos no
+  vocabulário fechado espelhado (testado contra deriva pelo teste já
+  existente); dois campos novos na allowlist fechada de telemetria
+  (`artefato_id` — opaco, sem barra, ≤64 chars; `artefato_limpeza_ok` —
+  booleano) — `download_url`/`expires_at` NUNCA chegam a este módulo:
+  `_registrar_finalizacao` não tem parâmetro nenhum para URL.
+- **Bucket real de homologação:** `ede-legal-mcp-01-artefatos-efemeros`
+  (`southamerica-east1`, `public_access_prevention: enforced`, acesso
+  uniforme, sem versionamento). **Achado deste gate:** o padrão do
+  projeto GCP retém objeto "excluído" por 7 dias (soft-delete) —
+  desligado explicitamente neste bucket
+  (`retentionDurationSeconds: 0`), porque guarda documento jurídico
+  efêmero, não deveria sobreviver a uma exclusão real. Lifecycle
+  `age: 1` (dia) como backstop de limpeza — reportado honestamente como
+  granularidade de DIA, nunca chamado de "exclusão em 15 minutos"; a
+  janela de 15 minutos é só a validade da URL assinada (Gate 6.6-E §9/
+  §34: expiração de acesso e exclusão de armazenamento são garantias
+  DIFERENTES, documentadas separadamente em `docs/mcp-producao-
+  contrato.md`). Nenhuma IAM de runtime de PRODUÇÃO foi alterada (§41):
+  as duas concessões que a implementação precisa (`storage.objectAdmin`
+  escopado ao bucket; `iam.serviceAccountTokenCreator` de
+  auto-impersonação) estão documentadas, não aplicadas.
+- **Verificação real, parcial — risco residual explícito.** Upload
+  multipart real contra o bucket funcionou (200); acesso não assinado
+  ao objeto foi corretamente negado (401), antes e depois do upload;
+  exclusão real do objeto de teste funcionou. **A chamada real a
+  `iamcredentials.signBlob` não pôde ser completada nesta sessão:** o
+  guard de segurança do próprio harness de execução ("Permission
+  Grant") bloqueou toda tentativa de conceder a IAM necessária para
+  testar — inclusive a criação de uma service account de homologação
+  dedicada só para isso — e essa restrição foi respeitada, nunca
+  contornada. Achado real, não suposição: `roles/owner` do operador
+  **não inclui** `iam.serviceAccounts.signBlob` (testado ao vivo,
+  403). Compensação: o algoritmo de `canonical_request`/`string-to-sign`
+  foi conferido campo a campo contra a documentação oficial do Google
+  (consultada nesta sessão) e contra a suíte de unidade determinística
+  — a estrutura está correta; falta a prova de ponta a ponta com uma
+  assinatura RSA real do GCS antes do gate de download ao vivo.
+- **Testes.** `tests/test_artifact_storage.py` (19 casos novos, só fake,
+  sem rede): caminho feliz, byte-identidade, object key opaco e único
+  por chamada mesmo com SHA igual, metadado do objeto restrito aos
+  quatro campos seguros, `Content-Disposition` com o nome neutro do
+  cliente, TTL sempre a constante do módulo, matriz negativa completa
+  (falha de upload nunca tenta assinar; falha de assinatura tenta
+  limpar e propaga `artefato_id`/`limpeza_ok`; falha de assinatura E de
+  limpeza reporta `limpeza_ok=False`, nunca silencioso; configuração
+  ausente é erro tipado distinto de falha operacional), estrutura e
+  determinismo do `string_to_sign`, preservação de barra interna do
+  nome do objeto no `canonical_uri`, percent-encoding de `/` dentro do
+  valor de `X-Goog-Credential` na query string. `tests/test_finalizar_
+  peca.py`: fixture `transporte_artefato_fake` (fake em memória,
+  reimplementado — não importado de `test_artifact_storage.py`, para
+  não acoplar os dois arquivos), teste OK atualizado com asserções de
+  `download_url`/`expires_at`/`artefato_id`/bytes armazenados idênticos
+  aos renderizados, teste de residual de arquivo temporário atualizado,
+  dois testes negativos novos (`ARTIFACT_STORAGE_FAILED` nunca tenta
+  assinar; `ARTIFACT_SIGNING_FAILED` tenta limpar e reporta
+  `limpeza_ok`), teste de tamanho máximo estendido para provar que
+  NENHUM upload é tentado antes da checagem de 8 MiB.
+  `tests/test_mcp_oauth.py::test_escopo_legal_finaliza_peca_com_sucesso_real`
+  reescrito para o contrato v2: um único content block, `download_url`
+  presente, nenhum `blob`/base64 em lugar nenhum da resposta serializada,
+  bytes do fake batendo com o SHA-256 relatado ao cliente.
+  `mcp_server/Dockerfile`, `.dockerignore` e `.github/workflows/
+  homologar-mcp-container.yml` liberam `scripts/artifact_storage.py`
+  pela MESMA allowlist tripla já usada pelos módulos do Gate 6.6-C
+  (Dockerfile + `.dockerignore` + verificação independente dentro da
+  imagem real via CI).
+  Suíte completa: **1167 passam** (1103 unidade + 64 `docx_real`), 1
+  falha preexistente e não relacionada (`skills/docx` local,
+  INV-GATE-CONTESTACAO — mesma falha já registrada em gates anteriores,
+  alheia a este).
+- **PEND-012 ampliado (Gate 6.6-D) continua ABERTO** — a implementação
+  do v2 não fecha PEND-012 sozinha (Gate 6.6-E §52): só uma prova viva
+  de download real por Claude e ChatGPT fecha. **PEND-011 intocado**
+  (Gate 6.6-E §51 — transporte de texto multilinha não faz parte deste
+  gate). **PEND-013 (remoção de tags históricas) continua ADIADA**
+  (Gate 6.6-E §50 — nenhuma tag removida nesta rodada). **PEND-014**
+  passa de "em avaliação" para "candidato implementado", permanece
+  ABERTA até a prova viva completa (assinatura real + download real) e
+  autorização explícita de ativação em produção.
+
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto
   o de produção (`K_SERVICE=ede-mcp`, ver acima). Desligada, o

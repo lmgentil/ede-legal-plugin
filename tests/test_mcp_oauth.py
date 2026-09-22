@@ -1514,14 +1514,37 @@ async def test_escopo_apenas_legal_sem_health_nao_alcanca_finalizar_peca():
     assert CONTADOR_DISPATCH.total() == 0
 
 
+class _TransporteArtefatoFakeOAuth:
+    """Gate 6.6-E — mesmo papel do fake redefinido em
+    test_finalizar_peca.py/test_artifact_storage.py, uma terceira vez
+    aqui de propósito: este teste exercita o transporte MCP real de
+    ponta a ponta e não deve importar detalhe interno de outro arquivo
+    de teste só para isso."""
+
+    def __init__(self):
+        self.objetos = {}
+
+    def enviar(self, object_name, dados, content_type, metadata):
+        self.objetos[object_name] = (dados, content_type, dict(metadata))
+
+    def assinar_url(self, object_name, ttl_segundos, content_disposition):
+        return f"https://storage.googleapis.com/bucket-fake-teste-oauth/{object_name}?assinado=1"
+
+    def excluir(self, object_name):
+        self.objetos.pop(object_name, None)
+        return True
+
+
 @pytest.mark.anyio
 @pytest.mark.docx_real
-async def test_escopo_legal_finaliza_peca_com_sucesso_real():
+async def test_escopo_legal_finaliza_peca_com_sucesso_real(monkeypatch):
     """Caminho de sucesso completo, através do transporte MCP protegido:
-    entrada válida -> `EdeFinalizarPecaResposta` (primeiro content block)
-    -> `EmbeddedResource` com o DOCX real (segundo content block),
-    `annotations.audience == ["user"]`. Requer o Modelo Oficial real
-    (mesmo padrão docx_real do resto da suíte)."""
+    entrada válida -> `EdeFinalizarPecaResposta` com `download_url`
+    (Gate 6.6-E, v2 -- nunca mais `EmbeddedResource`/base64 nesta
+    resposta, ver ADR-0018 Decisão 5/ADR-0019). Requer o Modelo Oficial
+    real (mesmo padrão docx_real do resto da suíte); o transporte de
+    armazenamento é um fake em memória — GCS/IAM real não fazem parte
+    da suíte automatizada (Gate 6.6-E §43)."""
     template_real = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
     if not template_real.is_file():
         pytest.skip(f"{template_real} não instalado localmente — "
@@ -1532,6 +1555,8 @@ async def test_escopo_legal_finaliza_peca_com_sucesso_real():
     sha = hashlib.sha256(template_real.read_bytes()).hexdigest()
     os.environ["EDE_MODELO_OFICIAL_PATH"] = str(template_real)
     os.environ["EDE_MODELO_OFICIAL_SHA256"] = sha
+    transporte_fake = _TransporteArtefatoFakeOAuth()
+    monkeypatch.setattr(ede.finalizar_peca, "_obter_transporte_artefato", lambda: transporte_fake)
     try:
         catalogo = _json.loads(
             (BASE / "templates" / "contestacao" / "blocos.json").read_text(encoding="utf-8")
@@ -1569,20 +1594,25 @@ async def test_escopo_legal_finaliza_peca_com_sucesso_real():
         os.environ.pop("EDE_MODELO_OFICIAL_SHA256", None)
 
     assert resultado.is_error is not True
-    assert len(resultado.content) == 2
+    # Gate 6.6-E: SEMPRE um único content block agora, sucesso ou recusa
+    # — nunca mais um segundo bloco `EmbeddedResource` com o DOCX.
+    assert len(resultado.content) == 1
     metadado = json.loads(resultado.content[0].text)
     assert metadado["status"] == "OK"
     assert metadado["capability_id"] == CAPABILITY_ID_TESTE
     assert metadado["document_size"] and metadado["document_size"] <= 8 * 1024 * 1024
 
-    recurso = resultado.content[1]
-    assert recurso.type == "resource"
-    assert recurso.annotations.audience == ["user"]
-    assert recurso.resource.mime_type == (
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
-    import base64
-    bruto = base64.b64decode(recurso.resource.blob)
-    assert bruto[:2] == b"PK"
-    assert hashlib.sha256(bruto).hexdigest() == metadado["document_sha256"]
+    # Nenhum base64/bytes do documento na resposta MCP — só metadado e
+    # uma URL HTTPS comum.
+    assert metadado["download_url"].startswith("https://")
+    assert metadado["expires_at"].endswith("Z")
+    assert "blob" not in json.dumps(metadado)
+
+    # Os bytes exatos chegaram ao transporte (fake) — mesmo SHA-256 que
+    # o metadado reporta ao cliente, provando que o que foi "enviado"
+    # bate com o que o cliente vê referenciado.
+    (dados_armazenados, content_type, _), = transporte_fake.objetos.values()
+    assert hashlib.sha256(dados_armazenados).hexdigest() == metadado["document_sha256"]
+    assert dados_armazenados[:2] == b"PK"
+    assert content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     assert CONTADOR_DISPATCH.de("ede_finalizar_peca") == 1

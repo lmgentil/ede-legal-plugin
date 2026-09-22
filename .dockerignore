@@ -70,6 +70,11 @@
 # Mesma disciplina fail-closed: modulo esquecido aqui quebra o import no
 # container, nunca sobe servindo ede_finalizar_peca sem uma das
 # checagens que ele deveria carregar.
+#
+# Gate 6.6-E (ADR-0019): scripts/artifact_storage.py entra pelo mesmo
+# motivo -- entrega v2 do artefato (objeto GCS efemero + URL assinada),
+# substitui o EmbeddedResource inline v1. Nenhum SDK de nuvem novo
+# (google-auth/httpx2 ja eram dependencia, ver mcp_server/requirements.txt).
 *
 !mcp_server
 !mcp_server/server.py
@@ -97,6 +102,7 @@
 !scripts/docx_round_trip.py
 !scripts/capability_registry.py
 !scripts/finalizar_peca.py
+!scripts/artifact_storage.py
 !templates
 !templates/contestacao
 !templates/contestacao/schema.json

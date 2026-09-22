@@ -67,11 +67,13 @@ logger = logging.getLogger("ede.mcp.seguranca")
 EVENTO_STARTUP: Final = "startup"
 EVENTO_REQUISICAO_HTTP: Final = "requisicao_http"
 EVENTO_AUTORIZACAO_FERRAMENTA: Final = "autorizacao_ferramenta"
+EVENTO_FINALIZACAO_PECA: Final = "finalizacao_peca"
 
 EVENTOS: Final = frozenset({
     EVENTO_STARTUP,
     EVENTO_REQUISICAO_HTTP,
     EVENTO_AUTORIZACAO_FERRAMENTA,
+    EVENTO_FINALIZACAO_PECA,
 })
 
 AUTH_AUSENTE: Final = "ausente"
@@ -133,6 +135,50 @@ MOTIVOS: Final = frozenset({
     MOTIVO_PRINCIPAL_INDETERMINADO,
 })
 
+RESULTADO_FINALIZACAO_OK: Final = "OK"
+RESULTADO_FINALIZACAO_REFUSED: Final = "REFUSED"
+
+RESULTADOS_FINALIZACAO: Final = frozenset({RESULTADO_FINALIZACAO_OK, RESULTADO_FINALIZACAO_REFUSED})
+
+# Vocabulário FECHADO de `capability_id`, `estagio_finalizacao` e
+# `codigo_erro_finalizacao` (Gate 6.6-C, ADR-0018) — DELIBERADAMENTE
+# duplicado aqui como rótulos literais, nunca importado de
+# `scripts/finalizar_peca.py`: mesma disciplina já aplicada a MOTIVOS
+# acima (este módulo não conhece a biblioteca que produz o evento, só o
+# vocabulário fechado que decide se o campo pode ser logado). A suíte de
+# testes prova que os dois conjuntos permanecem idênticos aos de
+# `finalizar_peca.py` (nunca o contrário — Core nunca importa mcp_server).
+CAPACIDADES_FINALIZACAO: Final = frozenset({
+    "contestacao.irregularidade_consumo",
+})
+
+ESTAGIOS_FINALIZACAO: Final = frozenset({
+    "capability_resolution",
+    "input_validation",
+    "production_final_validation",
+    "official_model_readiness",
+    "template_lock",
+    "render",
+    "post_render_fidelity",
+    "round_trip",
+    "artifact_delivery",
+})
+
+CODIGOS_ERRO_FINALIZACAO: Final = frozenset({
+    "CAPABILITY_NOT_FOUND",
+    "CAPABILITY_NOT_READY",
+    "INPUT_VALIDATION_FAILED",
+    "OFFICIAL_MODEL_NOT_READY",
+    "MISSING_REQUIRED_FIELD",
+    "MISSING_BLOCK_DECISION",
+    "SYNTHETIC_SENTINEL_REJECTED",
+    "TEMPLATE_LOCK_FAILED",
+    "ROUND_TRIP_FAILED",
+    "RENDER_FAILED",
+    "ARTIFACT_TOO_LARGE",
+    "ARTIFACT_DELIVERY_FAILED",
+})
+
 CAMPOS_PERMITIDOS: Final = frozenset({
     "evento",
     "id_correlacao",
@@ -150,10 +196,22 @@ CAMPOS_PERMITIDOS: Final = frozenset({
     "auth_aplicacao",
     "host_canonico",
     "motivo",
+    "capability_id",
+    "resultado_finalizacao",
+    "estagio_finalizacao",
+    "codigo_erro_finalizacao",
+    "documento_tamanho_bytes",
 })
 """Allowlist FECHADA. Acrescentar campo aqui é decisão de segurança
 consciente, não detalhe de implementação — qualquer campo novo precisa
-ser metadado, nunca conteúdo."""
+ser metadado, nunca conteúdo.
+
+Gate 6.6-C: `capability_id` é identificador estável e público
+(`<familia>.<modelo>`, ex. `contestacao.irregularidade_consumo`), nunca
+dado de caso — mesma natureza de `ferramenta`/`escopo_exigido`.
+`documento_tamanho_bytes` é só a contagem de bytes do artefato final,
+nunca o conteúdo; ausente em toda resposta `REFUSED` (nenhum documento
+existe para medir)."""
 
 
 class CampoDeLogProibido(ValueError):
@@ -201,6 +259,16 @@ def _validar_valor(campo: str, valor: Any) -> Any:
             f"motivo fora do vocabulário fechado: {valor!r}. Motivo nunca é texto livre — "
             f"texto livre é o caminho pelo qual conteúdo do token/cliente chegaria ao log."
         )
+    if campo == "capability_id" and valor not in CAPACIDADES_FINALIZACAO:
+        raise CampoDeLogProibido(f"capability_id fora do vocabulário fechado: {valor!r}")
+    if campo == "resultado_finalizacao" and valor not in RESULTADOS_FINALIZACAO:
+        raise CampoDeLogProibido(f"resultado_finalizacao fora do vocabulário fechado: {valor!r}")
+    if campo == "estagio_finalizacao" and valor not in ESTAGIOS_FINALIZACAO:
+        raise CampoDeLogProibido(f"estagio_finalizacao fora do vocabulário fechado: {valor!r}")
+    if campo == "codigo_erro_finalizacao" and valor not in CODIGOS_ERRO_FINALIZACAO:
+        raise CampoDeLogProibido(f"codigo_erro_finalizacao fora do vocabulário fechado: {valor!r}")
+    if campo == "documento_tamanho_bytes" and (not isinstance(valor, int) or isinstance(valor, bool) or valor < 0):
+        raise CampoDeLogProibido(f"documento_tamanho_bytes deve ser um inteiro não negativo: {valor!r}")
     return valor
 
 

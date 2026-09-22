@@ -464,6 +464,81 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   - Suíte completa: 1093 passam (1 falha preexistente e não relacionada,
     `skills/docx` local). Sem dependência nova. `VERSION` permanece
     `0.13.0`. Não implantado em produção.
+- **Arquitetura do finalizador MCP remoto genérico** (Gate 6.6-B,
+  auditoria — nenhuma tool pública, nenhum deploy). `docs/adr/ADR-0018-
+  finalizador-mcp-remoto-e-entrega-de-artefato.md`: identificador de
+  capacidade `<familia>.<modelo>` (registro server-side, nunca exposto
+  por completo ao cliente), `ede_finalizar_peca` genérico em vez de uma
+  tool por modelo institucional, nunca aceitar template/bucket/path do
+  cliente (o cliente escolhe uma CAPACIDADE, nunca um arquivo), modo
+  público sempre produção-final, entrega v1 como blob inline
+  (`EmbeddedResource`/`BlobResourceContents`, `annotations.audience:
+  ["user"]`) com v2 condicional (dois passos + `ResourceLink`) reservada
+  para quando o documento crescer, escopo `ede:legal` reaproveitado
+  (nunca um escopo por capacidade). Protótipo isolado mede overhead real
+  de serialização do SDK `mcp==2.2.0` (~1,33x base64). `VERSION`
+  permanece `0.13.0`; bump para `0.14.0` fica condicionado à aprovação
+  explícita de implementação (concedida no Gate 6.6-C, abaixo).
+- **`ede_finalizar_peca` — finalizador MCP remoto implementado** (Gate
+  6.6-C, ADR-0018, candidato/homologação — sem ativação em produção).
+  `scripts/capability_registry.py` (registro determinístico; hoje só
+  `contestacao.irregularidade_consumo` está `READY`, INV-GATE-
+  CONTESTACAO) e `scripts/finalizar_peca.py` (pipeline Core: validação
+  estrutural -> composição de blocos/zonas -> modo PRODUÇÃO-FINAL
+  (`validar_modo_producao_final`, sempre — nenhum parâmetro relaxa isso)
+  -> aquisição/readiness do Modelo Oficial -> render -> fidelidade
+  independente -> round-trip -> SHA-256/tamanho), reaproveitando
+  integralmente o pipeline endurecido do Gate 6.6-A, nenhuma etapa pulada
+  por ser agora um caminho MCP.
+  - Vocabulário de erro FECHADO (`CAPABILITY_NOT_FOUND/_NOT_READY`,
+    `INPUT_VALIDATION_FAILED`, `OFFICIAL_MODEL_NOT_READY`, `MISSING_
+    REQUIRED_FIELD`, `MISSING_BLOCK_DECISION`, `SYNTHETIC_SENTINEL_
+    REJECTED`, `TEMPLATE_LOCK_FAILED`, `ROUND_TRIP_FAILED`, `RENDER_
+    FAILED`, `ARTIFACT_TOO_LARGE`, `ARTIFACT_DELIVERY_FAILED`) e estágio
+    seguro por código — nunca stack trace, path privado ou identificador
+    de armazenamento exposto ao cliente. Classificação de `stage` interno
+    do motor de composição espelha DELIBERADAMENTE a já usada em
+    `gerar_contestacao.py::_etapa_template` — nunca uma segunda taxonomia
+    paralela.
+  - `mcp_server/server.py`: `EdeFinalizarPecaEntrada` sem nenhum campo de
+    template/bucket/path/hash/modo (ausência ESTRUTURAL, Decisão 3/4 da
+    ADR-0018); resposta em dois content blocks MCP — `TextContent`
+    (metadado JSON) sempre, `EmbeddedResource` (DOCX, blob base64,
+    `annotations.audience: ["user"]`) só em sucesso. Escopo `ede:legal`
+    (`mcp_server/scope_policy.py`), telemetria somente-metadado nova em
+    `mcp_server/auth_logging.py` (`capability_id`, `resultado_
+    finalizacao`, `estagio_finalizacao`, `codigo_erro_finalizacao`,
+    `documento_tamanho_bytes` — vocabulário fechado espelhado do Core,
+    nunca importado, com teste dedicado contra deriva).
+  - Teto de entrega inline: **8 MiB exatos** (`8 * 1024 * 1024`, nunca
+    8.000.000 decimal) — acima disso, `ARTIFACT_TOO_LARGE` sem nenhum
+    byte do conteúdo codificado.
+  - `mcp_server/Dockerfile`/`.dockerignore`: seis módulos Core liberados
+    nominalmente (`capability_registry.py`, `finalizar_peca.py`,
+    `validate_paragrafos.py`, `validate_placeholder_semantics.py`,
+    `docx_fidelidade_independente.py`, `docx_round_trip.py`) — mesma
+    disciplina allowlist fail-closed; `gerar_contestacao.py`/
+    `datajud_client.py` continuam fora.
+  - Testes novos: `tests/test_capability_registry.py`,
+    `tests/test_finalizar_peca.py` (unidade + `docx_real` ponta a ponta
+    contra o Modelo Oficial real, incluindo o caminho de sucesso completo
+    e recusas de sentinela/campo obrigatório/decisão ausente/travessão/
+    tamanho — Modelo Oficial configurado por `fixture` isolada via
+    `monkeypatch`, nunca por variável de ambiente vazada entre testes),
+    `tests/test_docker_context.py::test_modulos_core_do_gate_6_6_c_
+    liberados`, `tests/test_marketplace.py::test_version_sincronizada_
+    com_o_badge_do_readme` (achado: o badge do README nunca tinha trava
+    própria), mais extensão de `tests/test_mcp_oauth.py` (escopo,
+    dispatch, sucesso ponta a ponta pelo transporte MCP protegido).
+    Suíte completa (`docx_real` incluído, um único run): **1144 passam**,
+    1 falha preexistente e não relacionada (`skills/docx` local,
+    INV-GATE-CONTESTACAO — diretório fora do controle de versão, alheio a
+    este gate).
+  - `VERSION`: `0.13.0` -> `0.14.0` (SemVer minor — nova ferramenta MCP,
+    retrocompatível; aprovação explícita do usuário). **Candidato/
+    homologação apenas** — sem ativação em produção, sem deploy, sem
+    troca de tráfego do Cloud Run, sem rollout para advogados, sem tag e
+    sem GitHub Release nesta etapa.
 
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto

@@ -192,6 +192,33 @@ def test_modulos_core_do_gate_6_5_a_liberados():
         assert proibido not in DOCKERIGNORE_PERMITIDOS
 
 
+def test_modulos_core_do_gate_6_6_c_liberados():
+    """`scripts/finalizar_peca.py` e os cinco módulos Core que ele importa
+    e que nenhum gate anterior tinha liberado: `capability_registry.py`
+    (registro de capacidades), `validate_paragrafos.py`/`validate_
+    placeholder_semantics.py` (validação estrutural/semântica pré-render,
+    Gate 6.6-A) e `docx_fidelidade_independente.py`/`docx_round_trip.py`
+    (verificação pós-render que nunca chama as funções de composição/
+    substituição do próprio renderer, Gate 6.6-A) — nenhum esquecido
+    silenciosamente. `gerar_contestacao.py`/`datajud_client.py` continuam
+    de fora: o finalizador nunca resolve `JUIZO`/tempestividade, só
+    compõe e renderiza a partir de um rascunho já estruturado."""
+    esperados = {
+        "scripts/finalizar_peca.py",
+        "scripts/capability_registry.py",
+        "scripts/validate_paragrafos.py",
+        "scripts/validate_placeholder_semantics.py",
+        "scripts/docx_fidelidade_independente.py",
+        "scripts/docx_round_trip.py",
+    }
+    origens_copiadas = {origem for origem, _ in _linhas_copy()}
+    for caminho in esperados:
+        assert caminho in DOCKERIGNORE_PERMITIDOS
+        assert caminho in origens_copiadas
+    for proibido in ("scripts/gerar_contestacao.py", "scripts/datajud_client.py"):
+        assert proibido not in DOCKERIGNORE_PERMITIDOS
+
+
 # ------------------------------------------------ corpus real no disco
 
 def test_arquivos_reais_do_corpus_ficam_sob_diretorios_liberados():

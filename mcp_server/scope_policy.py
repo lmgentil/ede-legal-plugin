@@ -65,10 +65,12 @@ import auth_logging as telemetria
 
 FERRAMENTA_HEALTH: Final = "ede_health"
 FERRAMENTA_CONTESTACAO: Final = "ede_preparar_contestacao"
+FERRAMENTA_FINALIZAR_PECA: Final = "ede_finalizar_peca"
 
 MAPA_ESCOPO_POR_FERRAMENTA: Final[Mapping[str, str]] = {
     FERRAMENTA_HEALTH: ESCOPO_HEALTH,
     FERRAMENTA_CONTESTACAO: ESCOPO_LEGAL,
+    FERRAMENTA_FINALIZAR_PECA: ESCOPO_LEGAL,
 }
 """Mapa EXPLÍCITO tool -> escopo exigido. Uma tool ausente deste mapa não
 é "livre": `escopo_exigido_por` devolve `None` e o middleware NEGA — uma
@@ -82,7 +84,12 @@ o escopo de base do transporte, `auth_config.ESCOPOS_EXIGIDOS_PADRAO`,
 inalterado — ainda só `ede:health`). A política humana de produção
 concede ede:legal é decisão de um gate de autorização separado (Gate
 6.5-A §5): a mera existência desta entrada no mapa não torna a tool
-alcançável por ninguém que não tenha o escopo de verdade."""
+alcançável por ninguém que não tenha o escopo de verdade.
+
+Gate 6.6-C (ADR-0018): `ede_finalizar_peca` reaproveita `ede:legal` — o
+mesmo escopo de `ede_preparar_contestacao`, nunca um escopo por
+capacidade/peça (Decisão 6 da ADR-0018: capacidade nova é publicação
+server-side, nunca reautorização do advogado)."""
 
 
 def escopo_exigido_por(ferramenta: str) -> str | None:

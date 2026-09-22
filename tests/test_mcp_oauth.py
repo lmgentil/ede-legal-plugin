@@ -540,17 +540,25 @@ def test_matriz_de_escopos_por_ferramenta():
     )
 
 
-def test_mapa_do_produto_reflete_exatamente_as_duas_ferramentas_atuais():
+def test_mapa_do_produto_reflete_exatamente_as_tres_ferramentas_atuais():
     """Trava de escopo (atualizada no Gate 6.5-A: `ede_preparar_
-    contestacao` passou a existir, exigindo `ede:legal`). O mapa nunca
-    pode conter uma terceira entrada por acidente, e as duas ferramentas
-    conhecidas devem apontar para escopos DIFERENTES — nenhuma delas
-    implica a outra (item central do Gate 6.5-A §4/§18)."""
-    from scope_policy import FERRAMENTA_CONTESTACAO, FERRAMENTA_HEALTH, MAPA_ESCOPO_POR_FERRAMENTA
+    contestacao` passou a existir, exigindo `ede:legal`; e no Gate 6.6-C:
+    `ede_finalizar_peca`, reaproveitando o MESMO `ede:legal`, nunca um
+    escopo próprio — Decisão 6 da ADR-0018). O mapa nunca pode conter uma
+    quarta entrada por acidente, e `ede_health` continua o único apontando
+    para um escopo DIFERENTE — nenhuma das três se implica mutuamente
+    (item central do Gate 6.5-A §4/§18, estendido pelo Gate 6.6-C)."""
+    from scope_policy import (
+        FERRAMENTA_CONTESTACAO,
+        FERRAMENTA_FINALIZAR_PECA,
+        FERRAMENTA_HEALTH,
+        MAPA_ESCOPO_POR_FERRAMENTA,
+    )
 
     assert dict(MAPA_ESCOPO_POR_FERRAMENTA) == {
         FERRAMENTA_HEALTH: ESCOPO_HEALTH,
         FERRAMENTA_CONTESTACAO: ESCOPO_LEGAL,
+        FERRAMENTA_FINALIZAR_PECA: ESCOPO_LEGAL,
     }
 
 
@@ -960,12 +968,15 @@ async def test_health_only_chamada_direta_a_ferramenta_legal_e_negada():
 async def test_escopo_legal_descobre_ferramenta_legal_real():
     """8: escopo `ede:legal` (+ `ede:health`, exigido pela camada de
     transporte — ver test_escopo_de_base_do_transporte_permanece_so_
-    health) lista as DUAS ferramentas."""
+    health) lista as TRÊS ferramentas (Gate 6.6-C: `ede_finalizar_peca`
+    reaproveita `ede:legal`, mesmo escopo de `ede_preparar_contestacao`)."""
     token = h.emitir_token(escopo=f"{ESCOPO_HEALTH} {ESCOPO_LEGAL}")
     async with app_autenticada() as (app, config):
         async with h.cliente_mcp_protocolo(app, config, token) as cliente:
             listagem = await cliente.list_tools()
-    assert {t.name for t in listagem.tools} == {"ede_health", "ede_preparar_contestacao"}
+    assert {t.name for t in listagem.tools} == {
+        "ede_health", "ede_preparar_contestacao", "ede_finalizar_peca",
+    }
 
 
 @pytest.mark.anyio
@@ -1433,3 +1444,145 @@ def test_producao_sem_auth_e_subclasse_de_configuracao_invalida():
     `ConfiguracaoAuthInvalida` — o guard não introduz um segundo
     contrato de erro paralelo."""
     assert issubclass(ProducaoSemAuthInvalida, ConfiguracaoAuthInvalida)
+
+
+# =====================================================================
+# 10. ede_finalizar_peca — Gate 6.6-C (servidor REAL, ADR-0018)
+# =====================================================================
+#
+# Mesmo padrão do bloco 5 (ede_preparar_contestacao): servidor REAL, sem
+# override sintético — a tool `ede_finalizar_peca` de verdade, mesmo
+# escopo `ede:legal`, mesmo CONTADOR_DISPATCH.
+
+CAPABILITY_ID_TESTE = "contestacao.irregularidade_consumo"
+
+
+def _entrada_minima_finalizar_peca() -> dict:
+    """Entrada estruturalmente válida, mas incompleta de propósito (sem
+    `block_decisions`) — o suficiente para provar dispatch/escopo sem
+    depender do Modelo Oficial real; o resultado esperado é sempre
+    REFUSED (`MISSING_BLOCK_DECISION`), nunca uma exceção de transporte."""
+    return {"capability_id": CAPABILITY_ID_TESTE, "placeholders": {}}
+
+
+@pytest.mark.anyio
+async def test_escopo_so_health_nao_descobre_nem_alcanca_finalizar_peca_real():
+    """`ede_finalizar_peca` exige `ede:legal` — um token só-`ede:health`
+    não a descobre e não consegue despachá-la, mesmo servidor real."""
+    async with app_autenticada() as (app, config):
+        async with h.cliente_mcp_protocolo(app, config, h.emitir_token()) as cliente:
+            listagem = await cliente.list_tools()
+            assert "ede_finalizar_peca" not in {t.name for t in listagem.tools}
+
+            with pytest.raises(Exception) as excecao:
+                await cliente.call_tool("ede_finalizar_peca", {"entrada": _entrada_minima_finalizar_peca()})
+            assert "insufficient_scope" in str(excecao.value)
+    assert CONTADOR_DISPATCH.de("ede_finalizar_peca") == 0
+
+
+@pytest.mark.anyio
+async def test_escopo_legal_alcanca_finalizar_peca_e_despacha_uma_vez_mesmo_recusado():
+    """Escopo `ede:legal` alcança `ede_finalizar_peca`; uma entrada
+    incompleta é RECUSADA pelo Core (não um erro de transporte) e ainda
+    assim conta como dispatch real — a prova de dispatch zero é só sobre
+    autenticação/autorização, nunca sobre o resultado de negócio."""
+    token = h.emitir_token(escopo=f"{ESCOPO_HEALTH} {ESCOPO_LEGAL}")
+    async with app_autenticada() as (app, config):
+        async with h.cliente_mcp_protocolo(app, config, token) as cliente:
+            resultado = await cliente.call_tool(
+                "ede_finalizar_peca", {"entrada": _entrada_minima_finalizar_peca()}
+            )
+    assert resultado.is_error is not True
+    texto = resultado.content[0].text
+    dados = json.loads(texto)
+    assert dados["status"] == "REFUSED"
+    assert dados["error_code"] == "MISSING_BLOCK_DECISION"
+    assert len(resultado.content) == 1  # nenhum EmbeddedResource em recusa
+    assert CONTADOR_DISPATCH.de("ede_finalizar_peca") == 1
+
+
+@pytest.mark.anyio
+async def test_escopo_apenas_legal_sem_health_nao_alcanca_finalizar_peca():
+    """Mesma garantia dupla de `test_escopo_apenas_legal_nao_alcanca_
+    camada_de_transporte` (bloco 5), agora para `ede_finalizar_peca`:
+    `ede:legal` sozinho não basta — falta o escopo de BASE do transporte."""
+    token = h.emitir_token(escopo=ESCOPO_LEGAL)
+    async with app_autenticada() as (app, config):
+        with pytest.raises(Exception):
+            async with h.cliente_mcp_protocolo(app, config, token) as cliente:
+                await cliente.list_tools()
+    assert CONTADOR_DISPATCH.total() == 0
+
+
+@pytest.mark.anyio
+@pytest.mark.docx_real
+async def test_escopo_legal_finaliza_peca_com_sucesso_real():
+    """Caminho de sucesso completo, através do transporte MCP protegido:
+    entrada válida -> `EdeFinalizarPecaResposta` (primeiro content block)
+    -> `EmbeddedResource` com o DOCX real (segundo content block),
+    `annotations.audience == ["user"]`. Requer o Modelo Oficial real
+    (mesmo padrão docx_real do resto da suíte)."""
+    template_real = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
+    if not template_real.is_file():
+        pytest.skip(f"{template_real} não instalado localmente — "
+                     "asset institucional externo (ADR-0009).")
+    import hashlib
+    import json as _json
+
+    sha = hashlib.sha256(template_real.read_bytes()).hexdigest()
+    os.environ["EDE_MODELO_OFICIAL_PATH"] = str(template_real)
+    os.environ["EDE_MODELO_OFICIAL_SHA256"] = sha
+    try:
+        catalogo = _json.loads(
+            (BASE / "templates" / "contestacao" / "blocos.json").read_text(encoding="utf-8")
+        )
+        block_decisions = {
+            b["id"]: "INCLUIR" for b in catalogo["blocks"] if b["decision_mode"] in ("estrategista", "humano")
+        }
+        entrada = {
+            "capability_id": CAPABILITY_ID_TESTE,
+            "placeholders": {
+                "JUIZO": "AO JUÍZO DA VARA CÍVEL DA COMARCA DE SALVADOR/BA (DADOS FICTÍCIOS DE TESTE)",
+                "NUMERO_PROCESSO": "0000000-00.0000.0.00.0000",
+                "AUTOR": "FULANO DE TAL (DADOS FICTÍCIOS DE TESTE)",
+                "TEMPESTIVIDADE_CASO": "Tempestiva, conforme certidão de intimação.",
+                "SINOPSE_FATOS": "Síntese fictícia dos fatos, apenas para teste automatizado.",
+                "REALIDADE_FATICA": "Linha fictícia da realidade fática.",
+                "IRREGULARIDADE_ENCONTRADA": "ligação direta (dado fictício de teste)",
+                "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": "Desenvolvimento técnico fictício de teste.",
+                "FOTOS_DA_IRREGULARIADE": "(nenhuma foto anexada, dado fictício de teste)",
+                "VALOR_FRA": "R$ 0,00 (dado fictício de teste)",
+                "VALOR_DANO_MORAL_PRETENDIDO": "R$ 0,00 (dado fictício de teste)",
+                "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
+                "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
+                "SINOPSE_FATOS_NUCLEO_OBJETO": "Objeto fictício de teste (dado fictício de teste).",
+            },
+            "block_decisions": block_decisions,
+            "estado_processual": {"GRATUIDADE_CONCEDIDA": True, "CORTE_EFETIVO": True},
+        }
+        token = h.emitir_token(escopo=f"{ESCOPO_HEALTH} {ESCOPO_LEGAL}")
+        async with app_autenticada() as (app, config):
+            async with h.cliente_mcp_protocolo(app, config, token) as cliente:
+                resultado = await cliente.call_tool("ede_finalizar_peca", {"entrada": entrada})
+    finally:
+        os.environ.pop("EDE_MODELO_OFICIAL_PATH", None)
+        os.environ.pop("EDE_MODELO_OFICIAL_SHA256", None)
+
+    assert resultado.is_error is not True
+    assert len(resultado.content) == 2
+    metadado = json.loads(resultado.content[0].text)
+    assert metadado["status"] == "OK"
+    assert metadado["capability_id"] == CAPABILITY_ID_TESTE
+    assert metadado["document_size"] and metadado["document_size"] <= 8 * 1024 * 1024
+
+    recurso = resultado.content[1]
+    assert recurso.type == "resource"
+    assert recurso.annotations.audience == ["user"]
+    assert recurso.resource.mime_type == (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    import base64
+    bruto = base64.b64decode(recurso.resource.blob)
+    assert bruto[:2] == b"PK"
+    assert hashlib.sha256(bruto).hexdigest() == metadado["document_sha256"]
+    assert CONTADOR_DISPATCH.de("ede_finalizar_peca") == 1

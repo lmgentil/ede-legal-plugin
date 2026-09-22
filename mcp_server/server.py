@@ -94,6 +94,7 @@ anônimo. Ver mcp_server/auth_config.py para o contrato completo.
 """
 from __future__ import annotations
 
+import base64
 import importlib.metadata
 import os
 import sys
@@ -107,12 +108,15 @@ from mcp.server import MCPServer
 from mcp.server.auth.provider import TokenVerifier
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import Annotations, BlobResourceContents, EmbeddedResource, TextContent
 
+import auth_logging as telemetria
 from auth_config import EdeAuthConfig, carregar_config_do_ambiente
 from http_telemetry import TelemetriaSegurancaMiddleware, registrar_startup
 from prm_override import MetadadosRecursoProtegidoMiddleware
 from scope_policy import (
     FERRAMENTA_CONTESTACAO,
+    FERRAMENTA_FINALIZAR_PECA,
     FERRAMENTA_HEALTH,
     EscopoFerramentaMiddleware,
     contar_dispatch,
@@ -139,6 +143,17 @@ import legal_readiness  # noqa: E402
 # acima. Escopo de acesso é decidido só por scope_policy.py; registrar a
 # tool aqui não a torna alcançável por um principal sem `ede:legal`.
 import preparar_contestacao  # noqa: E402
+
+# Gate 6.6-C (ADR-0018): finalizador genérico — scripts/finalizar_peca.py
+# é CORE puro (capacidade -> composição de blocos -> modo produção-final
+# -> render do Modelo Oficial -> fidelidade independente -> round-trip),
+# mesma disciplina de reaproveitamento acima. Este módulo só traduz
+# Pydantic <-> dict e embrulha o DOCX resultante num content block MCP
+# (`EmbeddedResource`) — nenhuma lógica de composição/validação jurídica
+# duplicada aqui. (O registro de capacidades, scripts/capability_
+# registry.py, é consumido só indiretamente, dentro de finalizar_peca.py
+# — nenhuma tool de descoberta própria neste gate, Decisão 7 da ADR-0018.)
+import finalizar_peca  # noqa: E402
 
 NOME_SERVIDOR = "EDE Legal Plugin — MCP Server"
 
@@ -365,6 +380,161 @@ def ede_preparar_contestacao(entrada: PrepararContestacaoEntrada) -> PrepararCon
     )
 
 
+# ===================================================================
+# ede_finalizar_peca — Gate 6.6-C (escopo ede:legal, ADR-0018)
+# ===================================================================
+
+MIME_TYPE_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+class EdeFinalizarPecaEntrada(BaseModel):
+    """Entrada estruturada do finalizador genérico (Decisão 2 da
+    ADR-0018). O cliente escolhe uma CAPACIDADE jurídica, nunca um
+    arquivo: nenhum campo de template/bucket/objeto/hash/path/URL existe
+    aqui — ausência ESTRUTURAL (Decisão 3), não uma checagem em runtime
+    que pode ser esquecida. Nenhum campo de modo/flag que relaxe
+    validação — este finalizador público só fala produção-final
+    (Decisão 4); o modo de aceite/teste nunca é alcançável por este
+    transporte.
+
+    Os limites abaixo (`max_length`) são defesa em profundidade de
+    PERÍMETRO, lidos de `scripts/finalizar_peca.py` (nunca um número
+    solto redeclarado aqui — mesma disciplina de `FatoEntrada` acima); a
+    validação estrutural de verdade (380/densidade/semântica/
+    produção-final) é sempre a do Core, executada depois."""
+
+    capability_id: str = Field(..., max_length=200)
+    placeholders: Annotated[
+        dict[str, Annotated[str, Field(max_length=finalizar_peca.MAX_PLACEHOLDER_CHARS)]],
+        Field(max_length=finalizar_peca.MAX_CHAVES_POR_DICIONARIO_ENTRADA),
+    ] = {}
+    block_decisions: Annotated[
+        dict[str, Literal["INCLUIR", "EXCLUIR"]],
+        Field(max_length=finalizar_peca.MAX_CHAVES_POR_DICIONARIO_ENTRADA),
+    ] = {}
+    estado_processual: Annotated[
+        dict[str, bool | Literal["INDETERMINADO"]],
+        Field(max_length=finalizar_peca.MAX_CHAVES_POR_DICIONARIO_ENTRADA),
+    ] = {}
+
+
+class EdeFinalizarPecaResposta(BaseModel):
+    """Metadado da finalização — NUNCA o corpo do documento (isso vai só
+    no `EmbeddedResource` do content block, Decisão 5 da ADR-0018).
+    Serializada como o primeiro content block da resposta da tool, sempre
+    presente (sucesso ou recusa); o segundo content block (o DOCX) só
+    existe quando `status == "OK"`.
+
+    Nunca exposto: bucket, objeto GCS, geração, caminho local do Modelo
+    Oficial, stack trace — `error_code` é sempre um dos valores do
+    vocabulário fechado de `scripts/finalizar_peca.CODIGOS_ERRO`."""
+
+    status: Literal["OK", "REFUSED"]
+    capability_id: str | None = None
+    schema_version: str | None = None
+    stage: str | None = None
+    error_code: str | None = None
+    motivo: str | None = None
+    document_sha256: str | None = None
+    document_size: int | None = None
+    filename: str | None = None
+
+
+def _registrar_finalizacao(resposta: EdeFinalizarPecaResposta) -> None:
+    """Telemetria somente-metadado (auth_logging.py) — nunca levanta para
+    o chamador da tool: um `capability_id` que o cliente inventou (nunca
+    resolvido pelo registro) não é um valor do vocabulário fechado de
+    `auth_logging.CAPACIDADES_FINALIZACAO`, então é omitido do log em vez
+    de arriscar `CampoDeLogProibido` no meio da resposta ao cliente —
+    `stage`/`error_code`, por outro lado, são SEMPRE valores do
+    vocabulário fechado (garantido por `finalizar_peca._recusado`), nunca
+    precisam do mesmo saneamento."""
+    capability_id_seguro = (
+        resposta.capability_id
+        if resposta.capability_id in telemetria.CAPACIDADES_FINALIZACAO
+        else None
+    )
+    telemetria.registrar_evento(
+        telemetria.EVENTO_FINALIZACAO_PECA,
+        capability_id=capability_id_seguro,
+        resultado_finalizacao=resposta.status,
+        estagio_finalizacao=resposta.stage,
+        codigo_erro_finalizacao=resposta.error_code,
+        documento_tamanho_bytes=resposta.document_size,
+    )
+
+
+@contar_dispatch(FERRAMENTA_FINALIZAR_PECA)
+def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent | EmbeddedResource]:
+    """Finaliza uma peça jurídica a partir de uma capacidade pronta —
+    composição de blocos/zonas, modo produção-final, render do Modelo
+    Oficial, fidelidade independente e round-trip (Gate 6.6-A, sem
+    nenhuma etapa pulada por este ser agora um caminho MCP), devolvendo o
+    DOCX final pronto para protocolo.
+
+    SEMPRE modo produção-final (Decisão 4, ADR-0018): recusa
+    (`status="REFUSED"`, nunca "melhor esforço") por Modelo Oficial não
+    pronto, capacidade desconhecida/não pronta, decisão de bloco
+    ausente, campo obrigatório ausente, sentinela de aceite/teste,
+    falha de Template Lock/fidelidade/round-trip, ou documento acima do
+    limite de entrega inline (8 MiB).
+
+    Resposta: dois content blocks em sucesso — `TextContent` (JSON de
+    `EdeFinalizarPecaResposta`) e `EmbeddedResource` (o DOCX, blob base64,
+    `annotations.audience=["user"]` — sinaliza que o conteúdo é para o
+    usuário baixar, não para o modelo raciocinar sobre ele); só o
+    primeiro em recusa.
+
+    Privacidade: bytes do documento nunca são logados; `document_sha256`
+    é o único traço persistido do conteúdo na telemetria."""
+    try:
+        resultado = finalizar_peca.finalizar_peca(entrada.model_dump(exclude_none=False))
+    except Exception:
+        # Fail-closed (CLAUDE.md §17): mesma disciplina de ede_health/
+        # ede_preparar_contestacao — exceção genuína nunca vira um
+        # artefato parcial nem expõe stack trace/detalhe interno.
+        resposta = EdeFinalizarPecaResposta(
+            status="REFUSED", stage="render", error_code="RENDER_FAILED",
+            motivo="Falha interna ao finalizar a peça.",
+        )
+        _registrar_finalizacao(resposta)
+        return [TextContent(type="text", text=resposta.model_dump_json(exclude_none=True))]
+
+    if resultado.status != "OK":
+        resposta = EdeFinalizarPecaResposta(
+            status="REFUSED", capability_id=resultado.capability_id,
+            stage=resultado.stage, error_code=resultado.error_code, motivo=resultado.motivo,
+        )
+        _registrar_finalizacao(resposta)
+        return [TextContent(type="text", text=resposta.model_dump_json(exclude_none=True))]
+
+    resposta = EdeFinalizarPecaResposta(
+        status="OK",
+        capability_id=resultado.capability_id,
+        schema_version=resultado.schema_version,
+        document_sha256=resultado.documento_sha256,
+        document_size=resultado.documento_tamanho,
+        filename=resultado.filename,
+    )
+    _registrar_finalizacao(resposta)
+
+    recurso = EmbeddedResource(
+        resource=BlobResourceContents(
+            # `attachment://` — deliberadamente NÃO o esquema `ede://
+            # artifact/<id>` reservado pela Decisão 5/v2 da ADR-0018 a um
+            # resource template de verdade (resolvível via `resource()`
+            # do SDK, ainda não implementado). Este blob v1 é inline e
+            # nunca re-buscável por este URI — usar o mesmo esquema aqui
+            # sinalizaria uma capacidade que este gate não entrega.
+            uri=f"attachment://{resultado.filename}",
+            mimeType=MIME_TYPE_DOCX,
+            blob=base64.b64encode(resultado.documento_bytes).decode("ascii"),
+        ),
+        annotations=Annotations(audience=["user"]),
+    )
+    return [TextContent(type="text", text=resposta.model_dump_json(exclude_none=True)), recurso]
+
+
 def criar_servidor(
     config: EdeAuthConfig | None, verificador: TokenVerifier | None = None
 ) -> MCPServer:
@@ -391,6 +561,7 @@ def criar_servidor(
         servidor = MCPServer(NOME_SERVIDOR)
         servidor.add_tool(ede_health)
         servidor.add_tool(ede_preparar_contestacao)
+        servidor.add_tool(ede_finalizar_peca)
         return servidor
 
     servidor = MCPServer(
@@ -417,6 +588,7 @@ def criar_servidor(
     )
     servidor.add_tool(ede_health)
     servidor.add_tool(ede_preparar_contestacao)
+    servidor.add_tool(ede_finalizar_peca)
     return servidor
 
 

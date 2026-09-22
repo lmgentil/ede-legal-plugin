@@ -137,9 +137,9 @@ COPY --chown=10001:10001 VERSION VERSION
 # `scripts/legal_readiness.py` (chamado por server.py em `ede_health`) —
 # só os módulos de manipulação/validação OOXML que ele importa
 # transitivamente, nunca o pipeline inteiro de geração da Contestação
-# (gerar_contestacao.py, datajud_client.py, validate_paragrafos.py etc.
-# continuam FORA — nenhuma ferramenta de GERAÇÃO DE DOCX é exposta por
-# este gate, só readiness e preparação de contexto).
+# (gerar_contestacao.py, datajud_client.py etc. continuam FORA — nenhuma
+# ferramenta de GERAÇÃO DE DOCX era exposta por este gate, só readiness e
+# preparação de contexto).
 #
 # Gate 6.5-A acrescenta `docx_context_engine.py` (contexto institucional
 # ao redor dos placeholders — mesma disciplina lxml-only das demais) e
@@ -155,6 +155,28 @@ COPY --chown=10001:10001 scripts/docx_numeracao_engine.py scripts/docx_numeracao
 COPY --chown=10001:10001 scripts/docx_context_engine.py scripts/docx_context_engine.py
 COPY --chown=10001:10001 scripts/instalar_modelo_oficial.py scripts/instalar_modelo_oficial.py
 COPY --chown=10001:10001 scripts/validate_fatos.py scripts/validate_fatos.py
+
+# Gate 6.6-C (ADR-0018): `ede_finalizar_peca` roda dentro do container o
+# MESMO pipeline endurecido do Gate 6.6-A, nunca uma versão reduzida —
+# `validate_paragrafos.py`/`validate_placeholder_semantics.py` (validação
+# estrutural/semântica 380/densidade/travessão/produção-final, biblioteca
+# padrão, sem lxml) deixam de ficar "FORA" (comentário acima, agora
+# desatualizado por esta razão) porque o finalizador as chama antes de
+# renderizar; `docx_fidelidade_independente.py`/`docx_round_trip.py` são
+# a verificação PÓS-render que deliberadamente nunca chama as funções de
+# composição/substituição do próprio renderer (Gate 6.6-A); `capability_
+# registry.py` é o registro determinístico de capacidades (só
+# `contestacao.irregularidade_consumo` está `READY` — INV-GATE-
+# CONTESTACAO); `finalizar_peca.py` é o próprio pipeline Core do
+# finalizador. `gerar_contestacao.py`/`datajud_client.py` continuam FORA
+# — o finalizador nunca resolve `JUIZO`/tempestividade, só compõe e
+# renderiza a partir de um rascunho já estruturado.
+COPY --chown=10001:10001 scripts/validate_paragrafos.py scripts/validate_paragrafos.py
+COPY --chown=10001:10001 scripts/validate_placeholder_semantics.py scripts/validate_placeholder_semantics.py
+COPY --chown=10001:10001 scripts/docx_fidelidade_independente.py scripts/docx_fidelidade_independente.py
+COPY --chown=10001:10001 scripts/docx_round_trip.py scripts/docx_round_trip.py
+COPY --chown=10001:10001 scripts/capability_registry.py scripts/capability_registry.py
+COPY --chown=10001:10001 scripts/finalizar_peca.py scripts/finalizar_peca.py
 
 # Contrato institucional (público, git-tracked — nunca o Modelo Oficial
 # .docx em si, que é asset privado externo, ADR-0009, e nunca entra

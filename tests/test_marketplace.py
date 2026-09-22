@@ -14,12 +14,14 @@ sem depender de rodar o CLI.
 Mesmo padrão sem framework: asserts + `if __name__ == "__main__"`.
 """
 import json
+import re
 from pathlib import Path
 
 BASE = Path(__file__).parent.parent
 MARKETPLACE_PATH = BASE / ".claude-plugin" / "marketplace.json"
 PLUGIN_PATH = BASE / ".claude-plugin" / "plugin.json"
 VERSION_PATH = BASE / "VERSION"
+README_PATH = BASE / "README.md"
 
 
 def _marketplace() -> dict:
@@ -81,6 +83,21 @@ def test_version_sincronizada_entre_version_e_plugin_json():
     assert versao_arquivo == versao_plugin, (
         f"VERSION ({versao_arquivo!r}) != plugin.json version ({versao_plugin!r}) "
         f"— fonte canônica é VERSION (SPEC-0001 Fase 8 §15); sincronize antes de commitar.")
+
+
+def test_version_sincronizada_com_o_badge_do_readme():
+    """Gate 6.6-C: o badge de versão do README (shields.io, URL-encoded —
+    `vers%C3%A3o-X.Y.Z-blue`) nunca tinha uma trava de sincronização
+    própria; achado real deste gate (o badge ficou parado em `0.13.0` até
+    ser corrigido manualmente junto do bump para `0.14.0`). Nunca mais
+    silencioso: badge divergente de VERSION falha este teste."""
+    versao_arquivo = VERSION_PATH.read_text(encoding="utf-8").strip()
+    conteudo = README_PATH.read_text(encoding="utf-8")
+    m = re.search(r"vers%C3%A3o-([0-9]+\.[0-9]+\.[0-9]+)-blue", conteudo)
+    assert m, "README.md não tem o badge de versão esperado (shields.io, vers%C3%A3o-X.Y.Z-blue)"
+    assert m.group(1) == versao_arquivo, (
+        f"VERSION ({versao_arquivo!r}) != badge do README ({m.group(1)!r}) "
+        f"— sincronize o badge antes de commitar.")
 
 
 def test_plugin_json_tem_identidade_minima():

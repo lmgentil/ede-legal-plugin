@@ -55,6 +55,21 @@
 # subir com uma checagem incompleta -- fail-closed, nao fail-open.
 # rag/embeddings/ e rag/jurisprudencia/ (privado, fora do repositorio)
 # permanecem deliberadamente FORA desta lista.
+#
+# ATUALIZADO no Gate 6.6-C (ADR-0018): o finalizador generico
+# (ede_finalizar_peca) roda dentro do container o mesmo pipeline
+# endurecido do Gate 6.6-A -- por isso seis modulos novos entram aqui:
+# scripts/validate_paragrafos.py e scripts/validate_placeholder_
+# semantics.py (validacao estrutural/semantica pre-render, ja existiam
+# no repo mas nunca tinham sido liberados para o container),
+# scripts/docx_fidelidade_independente.py e scripts/docx_round_trip.py
+# (verificacao POS-render que nao chama as funcoes de composicao/
+# substituicao do proprio renderer, Gate 6.6-A), e
+# scripts/capability_registry.py / scripts/finalizar_peca.py (o proprio
+# registro de capacidades e o pipeline Core do finalizador, Gate 6.6-C).
+# Mesma disciplina fail-closed: modulo esquecido aqui quebra o import no
+# container, nunca sobe servindo ede_finalizar_peca sem uma das
+# checagens que ele deveria carregar.
 *
 !mcp_server
 !mcp_server/server.py
@@ -76,6 +91,12 @@
 !scripts/docx_context_engine.py
 !scripts/instalar_modelo_oficial.py
 !scripts/validate_fatos.py
+!scripts/validate_paragrafos.py
+!scripts/validate_placeholder_semantics.py
+!scripts/docx_fidelidade_independente.py
+!scripts/docx_round_trip.py
+!scripts/capability_registry.py
+!scripts/finalizar_peca.py
 !templates
 !templates/contestacao
 !templates/contestacao/schema.json

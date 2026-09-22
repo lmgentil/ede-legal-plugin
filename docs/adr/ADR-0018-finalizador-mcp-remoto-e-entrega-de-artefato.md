@@ -1,13 +1,18 @@
 # ADR-0018 — Finalizador MCP remoto: contrato multi-peça e entrega de DOCX
 
-* **Status:** Proposto (auditoria de arquitetura — Gate 6.6-B; nenhuma tool
-  pública criada, nenhum deploy realizado por esta ADR)
-* **Data:** 2026-09-22
+* **Status:** Implementado como candidato/homologação (Gate 6.6-C —
+  `ede_finalizar_peca` real, escopo `ede:legal`, VERSION `0.14.0`); **não
+  ativado em produção** — sem deploy, sem troca de tráfego do Cloud Run,
+  sem rollout para advogados. Desenho original (Gate 6.6-B) permanece
+  íntegro; nenhuma decisão desta ADR foi revista na implementação.
+* **Data:** 2026-09-22 (Gate 6.6-B) — implementação Gate 6.6-C, mesma data
 * **Relacionado:** ADR-0015 (fronteira Core/Adapter/MCP), ADR-0016/0017
   (OAuth e ativação de produção), ADR-0009 (Modelo Oficial externo);
   Gate 6.5-A/B3/C1-C4 (`ede_preparar_contestacao`, escopo `ede:legal`);
   Gate 6.6-A (renderer do Modelo Oficial, Template Lock, fidelidade
-  independente, round-trip, modo produção-final)
+  independente, round-trip, modo produção-final); Gate 6.6-C
+  (implementação: `scripts/capability_registry.py`,
+  `scripts/finalizar_peca.py`, `mcp_server/server.py::ede_finalizar_peca`)
 
 ## Contexto
 

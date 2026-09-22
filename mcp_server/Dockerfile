@@ -185,6 +185,17 @@ COPY --chown=10001:10001 scripts/finalizar_peca.py scripts/finalizar_peca.py
 # mcp_server/requirements.txt) -- só este módulo Core.
 COPY --chown=10001:10001 scripts/artifact_storage.py scripts/artifact_storage.py
 
+# Gate 6.6-E (continuação): entrypoint da limpeza AGENDADA de artefatos
+# efêmeros. Entra na MESMA imagem de runtime de propósito -- a limpeza
+# roda o mesmo código de armazenamento que a escrita (nenhuma segunda
+# implementação de exclusão), só com outro comando de container: um
+# Cloud Run Job executa `python scripts/limpar_artefatos_agendado.py`
+# enquanto o serviço MCP continua com o CMD padrão abaixo. A limpeza
+# NUNCA assina URL (só lista e exclui) -- a identidade que a executa
+# precisa apenas de autoridade de objeto no bucket de artefatos, nunca
+# de `iam.serviceAccounts.signBlob`.
+COPY --chown=10001:10001 scripts/limpar_artefatos_agendado.py scripts/limpar_artefatos_agendado.py
+
 # Contrato institucional (público, git-tracked — nunca o Modelo Oficial
 # .docx em si, que é asset privado externo, ADR-0009, e nunca entra
 # nesta imagem nem em nenhuma outra).

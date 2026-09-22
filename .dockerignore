@@ -75,6 +75,11 @@
 # motivo -- entrega v2 do artefato (objeto GCS efemero + URL assinada),
 # substitui o EmbeddedResource inline v1. Nenhum SDK de nuvem novo
 # (google-auth/httpx2 ja eram dependencia, ver mcp_server/requirements.txt).
+# Na continuacao do mesmo gate, scripts/limpar_artefatos_agendado.py
+# entra junto: e o entrypoint da limpeza AGENDADA (hard delete apos a
+# janela de 24h), executado por um Cloud Run Job a partir DESTA MESMA
+# imagem, com outro comando de container -- nunca uma segunda
+# implementacao de exclusao fora da imagem de runtime.
 *
 !mcp_server
 !mcp_server/server.py
@@ -103,6 +108,7 @@
 !scripts/capability_registry.py
 !scripts/finalizar_peca.py
 !scripts/artifact_storage.py
+!scripts/limpar_artefatos_agendado.py
 !templates
 !templates/contestacao
 !templates/contestacao/schema.json

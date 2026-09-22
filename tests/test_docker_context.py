@@ -222,6 +222,27 @@ def test_modulos_core_do_gate_6_6_c_liberados():
         assert proibido not in DOCKERIGNORE_PERMITIDOS
 
 
+def test_modulos_core_do_gate_6_6_e_liberados():
+    """Gate 6.6-E (entrega v2 do artefato) e sua continuação (limpeza
+    agendada): `artifact_storage.py` é o Core de armazenamento/
+    assinatura chamado por `finalizar_peca.py`; `limpar_artefatos_
+    agendado.py` é o entrypoint da limpeza AGENDADA, que roda a partir
+    da MESMA imagem de runtime (um Cloud Run Job troca só o comando do
+    container) — nunca uma segunda implementação de exclusão fora da
+    imagem. Os dois precisam estar liberados nas DUAS allowlists
+    independentes (`.dockerignore` e as linhas `COPY` do Dockerfile);
+    esquecer qualquer uma quebra o import dentro do container, fail-
+    closed, em vez de rodar sem a checagem que deveria carregar."""
+    esperados = {
+        "scripts/artifact_storage.py",
+        "scripts/limpar_artefatos_agendado.py",
+    }
+    origens_copiadas = {origem for origem, _ in _linhas_copy()}
+    for caminho in esperados:
+        assert caminho in DOCKERIGNORE_PERMITIDOS, caminho
+        assert caminho in origens_copiadas, caminho
+
+
 # --------------------------------- allowlist independente do workflow CI
 
 def test_allowlist_de_scripts_do_workflow_ci_espelha_o_dockerignore():

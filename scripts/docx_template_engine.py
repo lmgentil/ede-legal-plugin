@@ -430,7 +430,24 @@ def _substituir_um_no(rpr_full, entre: str, attrs: str, texto: str, dados: dict,
     substituidos.add(nome)
     token = "{{" + nome + "}}"
     valor_bruto = str(dados[nome])
-    linhas = [_xml_escape(l) for l in valor_bruto.split("\n")]
+    # Gate 6.6-A — achado real da verificação independente de fidelidade:
+    # esta divisão usava `valor_bruto.split("\n")` cru, sem descartar linha
+    # em branco — diferente de `validate_paragrafos.paragrafos()` (mesmo
+    # contrato de "quebra de linha vazia é separador de espaçamento, nunca
+    # conteúdo", já aplicado por TODOS os validadores de densidade/380
+    # caracteres sobre o mesmo valor). Um valor com "\n\n" entre parágrafos
+    # lógicos (uso comum e já validado como correto pelos validadores
+    # acima) produzia um <w:p> extra VAZIO no meio do documento gerado —
+    # nunca detectado pelo Template Lock existente, que recomputa o
+    # "esperado" chamando esta MESMA função (o defeito aparecia idêntico
+    # nos dois lados e nunca divergia). Alinhado aqui à MESMA regra —
+    # nenhum comportamento novo inventado, só a divisão passa a respeitar
+    # o contrato que os validadores já impunham. Lista nunca fica vazia
+    # (valor todo em branco continua virando uma única linha vazia — mesmo
+    # resultado do split cru para esse caso extremo, comportamento
+    # inalterado).
+    linhas_uteis = [l for l in valor_bruto.split("\n") if l.strip()] or [""]
+    linhas = [_xml_escape(l) for l in linhas_uteis]
     attrs_ps = attrs if "xml:space" in attrs else attrs + ' xml:space="preserve"'
     rpr_vermelho = _rpr_com_cor_forcada(rpr_full)
 

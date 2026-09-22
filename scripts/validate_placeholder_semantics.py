@@ -745,6 +745,106 @@ def validar_semantica(dados: dict) -> tuple:
     return (len(erros) == 0), erros
 
 
+# =====================================================================
+# Gate 6.6-A — modo ACEITE vs. modo PRODUÇÃO-FINAL
+# =====================================================================
+#
+# Achado do gate: nada distinguia um artefato de aceite/teste (valores
+# sintéticos explícitos, marcador [PENDENTE: ...] legítimo enquanto a
+# tempestividade não pode ser calculada) de uma peça pronta para
+# protocolo. `preparar_contexto_contestacao`/`gerar_peca_com_blocos`
+# aceitam os dois igualmente — correto para o pipeline de geração em si
+# (que não deve saber se está sendo exercitado por um teste), mas exige
+# um gate ADICIONAL, explícito, antes de entregar o DOCX como peça
+# pronta para o advogado assinar. Esta seção formaliza esse gate — nunca
+# chamado implicitamente por `gerar_peca_com_blocos`.
+#
+# Sentinelas: lista FECHADA e explícita (nunca regex/heurística ampla —
+# texto jurídico legítimo pode legitimamente conter colchetes, ex. os
+# marcadores de evidência manual "[INSERIR MANUALMENTE...]", que NÃO são
+# sentinelas — só "SINTÉTICO DE ACEITE" marca inequivocamente artefato de
+# teste, e "[PENDENTE:" marca campo explicitamente não resolvido).
+SENTINELAS_MODO_ACEITE = ("[PENDENTE:", "SINTÉTICO DE ACEITE")
+
+# Classificação dos 19 placeholders do contrato (Gate 6.6-A §8), obtida por
+# auditoria direta do Modelo Oficial real via `docx_context_engine.
+# extrair_contexto` — nunca por suposição. Um placeholder com ocorrência
+# de `bloco_ancestral=None` (fora de qualquer <w:sdt> do catálogo) é
+# SEMPRE visível no documento final, qualquer que seja a composição de
+# blocos — por isso "sempre obrigatório" no modo produção-final.
+# `IRREGULARIDADE_ENCONTRADA` também ocorre dentro de `RECONVENCAO`
+# (2ª ocorrência), mas por ter uma ocorrência fixa fora de bloco algum,
+# continua sempre obrigatório independentemente do estado da Reconvenção.
+PLACEHOLDERS_SEMPRE_VISIVEIS = (
+    "JUIZO", "NUMERO_PROCESSO", "AUTOR", "TEMPESTIVIDADE_CASO",
+    "SINOPSE_FATOS", "REALIDADE_FATICA", "IRREGULARIDADE_ENCONTRADA",
+    "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE", "FOTOS_DA_IRREGULARIADE",
+    "PEDIDOS_FINAIS", "LOCAL_DATA",
+)
+
+# Os 8 restantes: mandatórios SOMENTE quando o bloco indicado está
+# INCLUIR nesta geração — mesma auditoria. Ausência aqui nunca é
+# adivinhada; é o dado bruto de `extrair_contexto` sobre o template real.
+PLACEHOLDER_BLOCO_DONO = {
+    "VALOR_FRA": "RECONVENCAO",
+    "VALOR_DANO_MORAL_PRETENDIDO": "DESCABIMENTO_DANO_MORAL",
+    "CONTA_CONTRATO": "PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO",
+    "NOME_TITULAR_DA_UC": "PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO",
+    "TELAS_DA_TITULARIDADE": "PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO",
+    "SINOPSE_FATOS_NUCLEO_OBJETO": "PRELIMINAR_INEPCIA_INICIAL",
+    "VALOR_DA_CAUSA": "PRELIMINAR_IMPUGNACAO_VALOR_CAUSA",
+    "VALOR_TOTAL_PROVEITO_ECONOMICO": "PRELIMINAR_IMPUGNACAO_VALOR_CAUSA",
+}
+
+# Campos MARCADOR_MANUAL (schema.json): produção-final aceita a instrução
+# de pós-edição manual do advogado como valor LEGÍTIMO e final — não é
+# "não resolvido". A obrigação de produção-final é só a de o campo estar
+# preenchido (não vazio, não sentinela de aceite); o conteúdo de instrução
+# em si é responsabilidade do Redator/Skill, não deste validador.
+PLACEHOLDERS_MARCADOR_MANUAL = ("FOTOS_DA_IRREGULARIADE", "TELAS_DA_TITULARIDADE")
+
+
+def validar_modo_producao_final(dados: dict, estados_blocos: dict) -> list:
+    """Gate fail-closed do modo PRODUÇÃO-FINAL (Gate 6.6-A §7/§25) — nunca
+    chamado implicitamente pelo pipeline de geração; é um portão adicional
+    e explícito antes de entregar o DOCX como peça pronta.
+
+    Não decide/resolve blocos: `estados_blocos` (o dict {id: "INCLUIR"|
+    "EXCLUIR"} já produzido por `docx_block_engine.validar_e_resolver_
+    decisoes`) é recebido pronto — decisão estratégica/humana ausente ou
+    indeterminada já teria abortado ANTES, naquela função (não duplicado
+    aqui). Este validador só verifica o que sobra depois disso: sentinela
+    de aceite em qualquer campo, e campo obrigatório (sempre visível, ou
+    do bloco ativo) vazio/ausente.
+
+    Retorna a lista de erros (vazia = aprovado para produção-final)."""
+    erros = []
+    for nome, valor in dados.items():
+        texto = "" if valor is None else str(valor)
+        achadas = [s for s in SENTINELAS_MODO_ACEITE if s in texto]
+        if achadas:
+            erros.append(
+                f"{nome}: contém sentinela de modo ACEITE {achadas} — "
+                f"nunca é válido em produção-final (peça pronta para "
+                f"protocolo): {valor!r}")
+
+    for nome in PLACEHOLDERS_SEMPRE_VISIVEIS:
+        valor = dados.get(nome)
+        if valor is None or not str(valor).strip():
+            erros.append(f"{nome}: obrigatório em produção-final (sempre "
+                         f"visível no Modelo Oficial) e está vazio/ausente")
+
+    for nome, bloco in PLACEHOLDER_BLOCO_DONO.items():
+        if estados_blocos.get(bloco) != "INCLUIR":
+            continue  # bloco não ativo nesta geração: placeholder inalcançável, nunca exigido
+        valor = dados.get(nome)
+        if valor is None or not str(valor).strip():
+            erros.append(f"{nome}: obrigatório em produção-final porque o "
+                         f"bloco {bloco!r} está INCLUIR nesta geração, e "
+                         f"está vazio/ausente")
+    return erros
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dados", required=True, help="JSON com {PLACEHOLDER: valor}")

@@ -356,6 +356,79 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
     9 badges únicos e visíveis, propriedade metamórfica: renumerar o
     documento completo == renumerar sem o ramo Fallback).
   - Sem dependência nova; `VERSION` permanece `0.13.0`. Não implantado.
+- **Fidelidade INDEPENDENTE do renderer, round-trip e modo produção-final**
+  (Gate 6.6-A, continuação — decisões de bloco e valores de aceite
+  fornecidos pelo usuário). O Template Lock existente
+  (`docx_template_engine.verificar_template_lock`) recomputa o "esperado"
+  chamando a MESMA cadeia de mutação do renderer e compara byte a byte —
+  correto, mas não prova nada que um bug NA PRÓPRIA cadeia não repita
+  identicamente dos dois lados. Dois módulos novos, nenhum deles chama
+  `compor_xml`/`compor_zonas_xml`/`renumerar_titulos`/`substituir_
+  placeholders`:
+  - `scripts/docx_fidelidade_independente.py` — deriva do TEMPLATE (texto
+    fixo + tokens ainda não substituídos) um padrão esperado por conta
+    própria (regex construída por substring) e casa contra o DOCX gerado
+    real; prova que nenhum wrapper `<w:sdt>` de bloco sobrevive à
+    composição.
+  - `scripts/docx_round_trip.py` — extrai do DOCX gerado real (nunca de
+    `dados` cacheado) o valor efetivamente presente em cada placeholder,
+    reconstruindo `**negrito**` a partir de `<w:b/>`, e compara com o
+    valor original aceito.
+  - **Dois defeitos reais encontrados e corrigidos pela auditoria
+    independente** (nenhum dos dois era visível ao Template Lock
+    self-referential, que recomputava o mesmo resultado incorreto dos
+    dois lados):
+    1. `docx_template_engine._substituir_um_no`: a divisão de um valor
+       multiline usava `valor_bruto.split("\n")` cru, sem descartar linha
+       em branco — diferente do critério que TODOS os validadores de
+       densidade/380 caracteres já aplicam sobre o mesmo valor
+       (`validate_paragrafos.paragrafos`). Um valor com `"\n\n"` entre
+       parágrafos lógicos (uso comum, já validado como correto pelos
+       validadores) produzia um `<w:p>` extra VAZIO no meio do documento.
+       Corrigido: mesma regra de descarte de linha em branco, lista nunca
+       fica vazia.
+    2. Os dois módulos novos precisaram do MESMO tratamento de
+       `mc:Fallback`/formas ancoradas já corrigido em
+       `docx_numeracao_engine`/`docx_context_engine` — e, além disso, de
+       um cuidado adicional descoberto aqui: um `<w:p>` "invólucro" que
+       hospeda uma forma/textbox ancorada (ex.: o campo de identificação
+       "PROCESSO Nº `{{NUMERO_PROCESSO}}`" do cabeçalho) não pode herdar,
+       via `.iter()`, o texto do `<w:p>` aninhado dentro da forma — cada
+       `<w:t>` só conta para o `<w:p>` mais próximo que realmente o
+       contém.
+  - `scripts/validate_placeholder_semantics.py`: modo PRODUÇÃO-FINAL
+    (`validar_modo_producao_final`), formalizando a distinção entre
+    artefato de ACEITE (marcadores `[PENDENTE:`/`SINTÉTICO DE ACEITE`
+    explicitamente autorizados para teste) e peça pronta para protocolo
+    (rejeita as duas sentinelas; exige os 11 placeholders sempre visíveis
+    e os 8 placeholders block-local quando o bloco dono está INCLUIR —
+    classificação obtida por auditoria direta do Modelo Oficial real via
+    `docx_context_engine.extrair_contexto`, nunca suposta). Nunca chamado
+    implicitamente pelo pipeline de geração existente — portão adicional
+    e explícito.
+  - Prova end-to-end (`docx_real`, contrato aceito de 19 placeholders,
+    múltiplos blocos incluídos): fidelidade e round-trip com **zero**
+    divergências contra o Modelo Oficial real, incluindo um teste
+    negativo que corrompe texto institucional pós-render e confirma
+    detecção. Regressão completa: 1091 passam (1 falha preexistente e
+    não relacionada, `skills/docx` local).
+  - **Achado, não corrigido — limitação documentada**: o run que carrega
+    `{{IRREGULARIDADE_ENCONTRADA}}` no Modelo Oficial já nasce em negrito
+    no próprio template (independente de qualquer `**marcação**` no
+    valor); o round-trip de negrito PARCIAL dentro desse campo específico
+    não é distinguível — consistente com o contrato (CLAUDE.md §14: nome
+    do tipo inteiramente em negrito), sem ocorrência real nos 19
+    placeholders para os quais isso importe.
+  - **O DOCX de aceite do Gate 6.6-A não foi gerado nesta continuação**:
+    a validação determinística pré-render (obrigatória antes de tocar o
+    DOCX) reprova dois dos valores exatos fornecidos —
+    `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` excede
+    `LIMITES_DENSIDADE_BLOCO` (6 parágrafos/1373 caracteres; máximo 5/700)
+    e `JUIZO` não começa com o prefixo institucional `"AO JUÍZO DA"`
+    (`"AO JUÍZO DO JUIZADO ESPECIAL CÍVEL..."` não bate). Reportado à
+    parte; nenhum dos dois validadores foi enfraquecido para fazer passar.
+  - Sem dependência nova. `VERSION` permanece `0.13.0`. Não implantado em
+    produção nesta continuação.
 
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto

@@ -90,22 +90,48 @@ def _bloco_esta_em_escopo(p, tags_fora_de_escopo: set) -> bool:
     return True
 
 
-def _texto_bruto_paragrafo(p) -> str:
+def _tag_do_sdt_ancestral(t, ate):
+    """Tag do `<w:sdt>` ancestral mais próximo de `t`, sem subir além de
+    `ate` (o parágrafo `p` corrente) — usado só para reconhecer um
+    fragmento INLINE condicional (`decision_mode="linked"`, ex.
+    `INLINE:COM_RECONVENCAO`: o SDT embrulha só ALGUMAS runs no MEIO de
+    um parágrafo de texto fixo, sem embrulhar o parágrafo inteiro — nunca
+    aparece como ancestral de `t.getparent()`'s próprio `<w:p>`, então
+    `_bloco_esta_em_escopo` — que só olha ancestrais do PARÁGRAFO — nunca
+    o vê)."""
+    el = t.getparent()
+    while el is not None and el is not ate:
+        if el.tag == _qn("sdt"):
+            tag_el = el.find("w:sdtPr/w:tag", NS)
+            return tag_el.get(_qn("val")) if tag_el is not None else None
+        el = el.getparent()
+    return None
+
+
+def _texto_bruto_paragrafo(p, tags_linked_fora: frozenset = frozenset()) -> str:
     """Só os `<w:t>` cujo `<w:p>` mais próximo É `p` (nunca os de um
-    `<w:p>` aninhado dentro dele) e que não vivem no ramo `mc:Fallback` —
-    ver `_paragrafo_mais_proximo`/`_dentro_de_fallback`."""
+    `<w:p>` aninhado dentro dele), que não vivem no ramo `mc:Fallback`
+    (ver `_paragrafo_mais_proximo`/`_dentro_de_fallback`), e que não vivem
+    dentro de um fragmento INLINE condicional (`tags_linked_fora` —
+    `decision_mode="linked"`, ex. `INLINE:COM_RECONVENCAO`): esse
+    mecanismo é resolvido por regra própria do catálogo (par MC_PAIR,
+    testado em `docx_block_engine`/`docx_numeracao_engine`) — fora do
+    escopo desta verificação, exatamente como blocos `derived` o são para
+    `verificar_sdts_bloco`."""
     return "".join(t.text or "" for t in p.iter(_qn("t"))
-                   if not _dentro_de_fallback(t) and _paragrafo_mais_proximo(t) is p)
+                   if not _dentro_de_fallback(t) and _paragrafo_mais_proximo(t) is p
+                   and _tag_do_sdt_ancestral(t, p) not in tags_linked_fora)
 
 
-def _paragrafo_totalmente_gerado(p) -> bool:
+def _paragrafo_totalmente_gerado(p, tags_linked_fora: frozenset = frozenset()) -> bool:
     """Sinal POSICIONAL (nunca de conteúdo): todo <w:t> não vazio do
     parágrafo tem a cor forçada de conteúdo gerado — parágrafo irmão novo,
     produto da explosão de um valor multiline, sem contrapartida física
     direta no template."""
     algum = False
     for t in p.iter(_qn("t")):
-        if not (t.text or "") or _dentro_de_fallback(t) or _paragrafo_mais_proximo(t) is not p:
+        if (not (t.text or "") or _dentro_de_fallback(t) or _paragrafo_mais_proximo(t) is not p
+                or _tag_do_sdt_ancestral(t, p) in tags_linked_fora):
             continue
         algum = True
         r = t.getparent()
@@ -175,6 +201,16 @@ def verificar_sequencia_locked(template_xml: str, gerado_xml: str, catalogo: dic
         exige que pelo menos um exista (explosão vazia é divergência)."""
     fora = {b["tag"] for b in catalogo["blocks"] if estados_blocos.get(b["id"]) == "EXCLUIR"}
     fora |= {z["tag"] for z in catalogo.get("zones", []) if estados_zonas.get(z["id"]) != "INCLUIR"}
+    # Mesmo `fora` também filtra a nível de RUN (não só de parágrafo
+    # inteiro via `_bloco_esta_em_escopo`): um bloco `decision_mode=
+    # "linked"` (ex. INLINE_COM_RECONVENCAO, par MC_PAIR) embrulha só
+    # ALGUMAS runs no MEIO de um parágrafo de texto fixo, nunca o
+    # parágrafo inteiro — quando resolvido EXCLUIR, seu conteúdo (aqui,
+    # "COM RECONVENÇÃO") desaparece do gerado mas continua fisicamente no
+    # template; quando INCLUIR, permanece nos dois lados. O MESMO estado
+    # já resolvido (`estados_blocos`) decide os dois níveis — nenhuma
+    # regra de resolução própria do "linked" é reimplementada aqui.
+    tags_linked = fora
 
     parser = LET.XMLParser(remove_blank_text=False, strip_cdata=False)
     root_t = LET.fromstring(template_xml.encode("utf-8"), parser)
@@ -189,10 +225,10 @@ def verificar_sequencia_locked(template_xml: str, gerado_xml: str, catalogo: dic
         if j >= len(paras_g):
             divergencias.append(f"parágrafo template #{i} sem contrapartida no gerado (gerado terminou antes)")
             break
-        texto_t = _texto_bruto_paragrafo(paras_t[i])
+        texto_t = _texto_bruto_paragrafo(paras_t[i], tags_linked)
         padrao, bloco_isolado = _padrao_do_paragrafo_template(texto_t)
         if padrao is None:
-            texto_g = _texto_bruto_paragrafo(paras_g[j])
+            texto_g = _texto_bruto_paragrafo(paras_g[j], tags_linked)
             if _normalizar_titulo(texto_t) != _normalizar_titulo(texto_g):
                 divergencias.append(
                     f"parágrafo locked #{i}/#{j}: esperado {texto_t[:90]!r}, "
@@ -210,11 +246,11 @@ def verificar_sequencia_locked(template_xml: str, gerado_xml: str, catalogo: dic
             # multiline explodido). Consome toda a corrida de parágrafos
             # totalmente gerados — 1 (valor de uma linha) ou N (explosão).
             consumidos = 0
-            while j < len(paras_g) and _paragrafo_totalmente_gerado(paras_g[j]):
+            while j < len(paras_g) and _paragrafo_totalmente_gerado(paras_g[j], tags_linked):
                 j += 1
                 consumidos += 1
             if consumidos == 0:
-                texto_g = _texto_bruto_paragrafo(paras_g[j]) if j < len(paras_g) else "<fim do documento>"
+                texto_g = _texto_bruto_paragrafo(paras_g[j], tags_linked) if j < len(paras_g) else "<fim do documento>"
                 divergencias.append(
                     f"parágrafo template #{i} com placeholder isolado {texto_t[:90]!r} "
                     f"não tem parágrafo gerado correspondente em #{j} {texto_g[:90]!r}")
@@ -222,7 +258,7 @@ def verificar_sequencia_locked(template_xml: str, gerado_xml: str, catalogo: dic
             i += 1
             continue
 
-        texto_g = _texto_bruto_paragrafo(paras_g[j])
+        texto_g = _texto_bruto_paragrafo(paras_g[j], tags_linked)
         if padrao.match(texto_g):
             i += 1
             j += 1

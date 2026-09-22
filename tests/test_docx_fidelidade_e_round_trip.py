@@ -186,6 +186,42 @@ def test_normalizacao_de_linha_em_branco_e_documentada_e_aplicada():
     assert rt._paragrafos_visiveis_normalizados("a.\n\nb.") == rt._paragrafos_visiveis_normalizados("a.\nb.")
 
 
+def test_normalizacao_de_negrito_pre_existente_e_escopada_ao_placeholder_verificado():
+    """Normalização documentada #4: só se aplica ao(s) nome(s) verificados
+    em `PLACEHOLDERS_COM_CARREGADOR_JA_NEGRITO` — nunca um "ignorar
+    negrito sempre" genérico, que mascararia negrito incorreto em
+    qualquer outro campo."""
+    assert "IRREGULARIDADE_ENCONTRADA" in rt.PLACEHOLDERS_COM_CARREGADOR_JA_NEGRITO
+    divs = rt.comparar_round_trip(
+        {"IRREGULARIDADE_ENCONTRADA": "ligação direta", "OUTRO_CAMPO": "texto sem negrito"},
+        {"IRREGULARIDADE_ENCONTRADA": "**ligação direta**", "OUTRO_CAMPO": "**texto sem negrito**"},
+        {"IRREGULARIDADE_ENCONTRADA", "OUTRO_CAMPO"})
+    # o campo normalizado passa; um negrito inesperado em outro campo continua reprovando
+    assert not any("IRREGULARIDADE_ENCONTRADA" in d for d in divs)
+    assert any("OUTRO_CAMPO" in d for d in divs)
+
+
+def test_fragmento_inline_linked_preservado_quando_incluido_e_removido_quando_excluido():
+    """`decision_mode="linked"` (ex. INLINE_COM_RECONVENCAO): um SDT que
+    embrulha só ALGUMAS runs no MEIO de um parágrafo de texto fixo, nunca
+    o parágrafo inteiro — a fidelidade precisa acompanhar os dois estados
+    sem falso positivo em nenhum dos dois."""
+    catalogo_linked = {"blocks": [
+        {"id": "L", "tag": "INLINE:L", "tipo": "CONDICIONAL_PADRAO", "parent": None, "children": [],
+         "decision_mode": "linked", "placeholders": [], "dependencies": [], "cardinality": "ONE"},
+    ], "zones": []}
+    template = _doc(f'<w:p><w:r><w:t>Prefixo fixo</w:t></w:r>{_sdt("INLINE:L", "<w:r><w:t> COM FRAGMENTO</w:t></w:r>")}'
+                     f'<w:r><w:t>, sufixo fixo.</w:t></w:r></w:p>')
+    for estado_l, esperado in (("INCLUIR", "Prefixo fixo COM FRAGMENTO, sufixo fixo."),
+                               ("EXCLUIR", "Prefixo fixo, sufixo fixo.")):
+        estados = {"L": estado_l}
+        composto, _ = be.compor_xml(template, catalogo_linked, estados)
+        divs = fi.verificar_sequencia_locked(template, composto, catalogo_linked, estados, {})
+        assert divs == [], (estado_l, divs)
+        texto_gerado = "".join(t.text or "" for t in LET.fromstring(composto.encode("utf-8")).iter(f"{{{W}}}t"))
+        assert texto_gerado == esperado, (estado_l, texto_gerado)
+
+
 # =================================================== §3: placeholder populado não implica bloco incluído
 
 def test_placeholder_populado_nao_implica_bloco_incluido():

@@ -429,6 +429,41 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
     parte; nenhum dos dois validadores foi enfraquecido para fazer passar.
   - Sem dependência nova. `VERSION` permanece `0.13.0`. Não implantado em
     produção nesta continuação.
+- **Gate 6.6-A fechado: artefato de aceite sintético gerado e aprovado**
+  (continuação final — valores corrigidos de `JUIZO` e
+  `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` fornecidos pelo usuário).
+  Renderizado com as 9 decisões de bloco previamente autorizadas
+  (`DEVER_LEGAL_FISCALIZACAO`/`CALCULOS_RECUPERACAO_CONSUMO`/
+  `DESCABIMENTO_DANO_MORAL` INCLUIR; as demais, e todos os `state_linked`,
+  EXCLUIR) e os 19 placeholders de aceite. `template_lock: OK`,
+  fidelidade independente e round-trip **zero divergências** contra o
+  Modelo Oficial real.
+  - **Um defeito real a mais, encontrado só neste render completo**: os
+    dois módulos independentes (`docx_fidelidade_independente.py`,
+    `docx_round_trip.py`) ainda não sabiam reconhecer um bloco
+    `decision_mode="linked"` (ex. `INLINE_COM_RECONVENCAO`, par MC_PAIR)
+    — um `<w:sdt>` que embrulha só ALGUMAS runs no MEIO de um parágrafo
+    de texto fixo, nunca o parágrafo inteiro, então a exclusão por
+    ancestral de parágrafo (já usada para `BLOCO:`/`ZONA:`) nunca o
+    alcança. Corrigido: o MESMO conjunto de tags já resolvidas como
+    EXCLUIR (`fora`) agora filtra também a nível de RUN, reaproveitando o
+    estado já resolvido pelo catálogo — nenhuma regra de resolução do
+    "linked" duplicada.
+  - **Normalização documentada #4** (round-trip): o run que carrega
+    `{{IRREGULARIDADE_ENCONTRADA}}` no Modelo Oficial já nasce em negrito
+    (achado do gate anterior) — `PLACEHOLDERS_COM_CARREGADOR_JA_NEGRITO`
+    ignora marcadores `**` só para esse placeholder verificado, nunca uma
+    regra geral (um negrito inesperado em qualquer outro campo continua
+    reprovando; teste de regressão prova as duas coisas).
+  - Produção-final (`validar_modo_producao_final`) confirmado rejeitando
+    o próprio artefato de aceite (5 sentinelas: `AUTOR`,
+    `TEMPESTIVIDADE_CASO`, `FOTOS_DA_IRREGULARIADE`, `NOME_TITULAR_DA_UC`,
+    `TELAS_DA_TITULARIDADE`) — exatamente o comportamento exigido.
+  - Artefato: `GATE-6.6-A-SYNTHETIC-ACCEPTANCE-ARTIFACT.docx`, gerado só
+    no scratchpad efêmero da sessão — nunca commitado, nunca publicado.
+  - Suíte completa: 1093 passam (1 falha preexistente e não relacionada,
+    `skills/docx` local). Sem dependência nova. `VERSION` permanece
+    `0.13.0`. Não implantado em produção.
 
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto

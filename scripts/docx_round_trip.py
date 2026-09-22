@@ -132,15 +132,35 @@ def _texto_com_negrito_reconstruido(p) -> str:
     return "".join(partes)
 
 
-def _texto_bruto_paragrafo(p) -> str:
+def _tag_do_sdt_ancestral(t, ate):
+    """Tag do `<w:sdt>` ancestral mais próximo de `t`, sem subir além de
+    `ate` — mesmo helper de `docx_fidelidade_independente`, reescrito
+    aqui de forma independente: reconhece um fragmento INLINE condicional
+    (`decision_mode="linked"`, ex. `INLINE:COM_RECONVENCAO`) que embrulha
+    só ALGUMAS runs no MEIO de um parágrafo de texto fixo, sem embrulhar
+    o parágrafo inteiro."""
+    el = t.getparent()
+    while el is not None and el is not ate:
+        if el.tag == _qn("sdt"):
+            tag_el = el.find("w:sdtPr/w:tag", NS)
+            return tag_el.get(_qn("val")) if tag_el is not None else None
+        el = el.getparent()
+    return None
+
+
+def _texto_bruto_paragrafo(p, tags_linked_fora: frozenset = frozenset()) -> str:
     """Só os `<w:t>` cujo `<w:p>` mais próximo É `p` (nunca os de um
-    `<w:p>` aninhado dentro dele) e que não vivem no ramo `mc:Fallback` —
-    ver `_paragrafo_mais_proximo`/`_dentro_de_fallback`."""
+    `<w:p>` aninhado dentro dele), que não vivem no ramo `mc:Fallback` —
+    ver `_paragrafo_mais_proximo`/`_dentro_de_fallback` — e que não vivem
+    dentro de um fragmento INLINE condicional (`tags_linked_fora`),
+    resolvido por regra própria do catálogo, fora do escopo deste
+    módulo."""
     return "".join(t.text or "" for t in p.iter(_qn("t"))
-                   if not _dentro_de_fallback(t) and _paragrafo_mais_proximo(t) is p)
+                   if not _dentro_de_fallback(t) and _paragrafo_mais_proximo(t) is p
+                   and _tag_do_sdt_ancestral(t, p) not in tags_linked_fora)
 
 
-def _paragrafo_totalmente_gerado(p) -> bool:
+def _paragrafo_totalmente_gerado(p, tags_linked_fora: frozenset = frozenset()) -> bool:
     """Sinal POSICIONAL (nunca de conteúdo, mesmo critério de
     `docx_fidelidade_independente`): todo `<w:t>` não vazio do parágrafo
     tem a cor forçada de conteúdo gerado — parágrafo irmão novo, produto
@@ -151,7 +171,8 @@ def _paragrafo_totalmente_gerado(p) -> bool:
     texto/negrito real do parágrafo)."""
     algum = False
     for t in p.iter(_qn("t")):
-        if not (t.text or "") or _dentro_de_fallback(t) or _paragrafo_mais_proximo(t) is not p:
+        if (not (t.text or "") or _dentro_de_fallback(t) or _paragrafo_mais_proximo(t) is not p
+                or _tag_do_sdt_ancestral(t, p) in tags_linked_fora):
             continue
         algum = True
         r = t.getparent()
@@ -179,6 +200,10 @@ def extrair_valores_gerados(template_xml: str, gerado_xml: str, catalogo: dict,
     como "conteúdo perdido"."""
     estados_zonas = estados_zonas or {}
     fora = _tags_fora_de_escopo(catalogo, estados_blocos, estados_zonas)
+    # mesmo `fora` filtra a nível de run (fragmento INLINE condicional
+    # "linked", nunca embrulha o parágrafo inteiro) — ver mesma decisão
+    # em docx_fidelidade_independente.verificar_sequencia_locked.
+    tags_linked = fora
 
     parser = LET.XMLParser(remove_blank_text=False, strip_cdata=False)
     root_t = LET.fromstring(template_xml.encode("utf-8"), parser)
@@ -191,7 +216,7 @@ def extrair_valores_gerados(template_xml: str, gerado_xml: str, catalogo: dict,
     capturas: dict = {}
     i = j = 0
     while i < len(paras_t):
-        texto_t = _texto_bruto_paragrafo(paras_t[i])
+        texto_t = _texto_bruto_paragrafo(paras_t[i], tags_linked)
         ms = list(_PLACEHOLDER_RE.finditer(texto_t))
         if not ms:
             i += 1
@@ -211,7 +236,7 @@ def extrair_valores_gerados(template_xml: str, gerado_xml: str, catalogo: dict,
             # corrida de parágrafos totalmente gerados — 1 (valor de uma
             # linha) ou N (explosão multiline).
             inicio = j
-            while j < len(paras_g) and _paragrafo_totalmente_gerado(paras_g[j]):
+            while j < len(paras_g) and _paragrafo_totalmente_gerado(paras_g[j], tags_linked):
                 j += 1
             if interessa:
                 linhas = textos_g_negrito[inicio:j]
@@ -225,7 +250,7 @@ def extrair_valores_gerados(template_xml: str, gerado_xml: str, catalogo: dict,
         # captura em vez de curinga não-capturado) e extrai o meio.
         padrao = re.compile("^" + re.escape(prefixo) + "(.*?)" + re.escape(sufixo) + "$", re.DOTALL)
         if j < len(paras_g):
-            m = padrao.match(_texto_bruto_paragrafo(paras_g[j]))
+            m = padrao.match(_texto_bruto_paragrafo(paras_g[j], tags_linked))
             if interessa:
                 if m:
                     capturas.setdefault(nome, []).append(textos_g_negrito[j][len(prefixo):len(textos_g_negrito[j]) - len(sufixo)]
@@ -244,6 +269,24 @@ def extrair_valores_gerados(template_xml: str, gerado_xml: str, catalogo: dict,
         valores = [v for v in capturas.get(nome, []) if v is not None]
         resultado[nome] = valores[0] if valores else None
     return resultado
+
+
+PLACEHOLDERS_COM_CARREGADOR_JA_NEGRITO = frozenset({"IRREGULARIDADE_ENCONTRADA"})
+"""Normalização documentada #4 (Gate 6.6-A, achado verificado no Modelo
+Oficial real — ver o item 2 da docstring do módulo): o `<w:r>` que carrega
+`{{IRREGULARIDADE_ENCONTRADA}}` no template JÁ nasce em negrito,
+independentemente de o valor conter `**...**`. A extração reconstrói
+`**...**` fielmente a partir da formatação REAL (correto: o texto sai
+todo em negrito) — mas isso pode divergir do valor original quando o
+autor não marcou explicitamente `**...**`, mesmo o conteúdo por extenso
+sendo idêntico. Só para os nomes aqui listados (verificados, nunca uma
+regra geral de "ignorar negrito sempre" — isso mascararia negrito
+genuinamente incorreto em qualquer outro campo), a comparação ignora
+marcadores `**` dos dois lados. Nenhuma outra diferença é tolerada."""
+
+
+def _sem_marcadores_negrito(valor: str) -> str:
+    return str(valor).replace("**", "")
 
 
 def _paragrafos_visiveis_normalizados(valor: str) -> list:
@@ -273,7 +316,10 @@ def comparar_round_trip(original: dict, extraido: dict, alcancaveis: set) -> lis
             divergencias.append(f"{nome}: alcançável nesta composição, mas não "
                                 f"foi localizado no documento gerado (âncora não bateu)")
             continue
-        if _paragrafos_visiveis_normalizados(valor_original) != _paragrafos_visiveis_normalizados(valor_extraido):
+        original_cmp, extraido_cmp = valor_original, valor_extraido
+        if nome in PLACEHOLDERS_COM_CARREGADOR_JA_NEGRITO:
+            original_cmp, extraido_cmp = _sem_marcadores_negrito(original_cmp), _sem_marcadores_negrito(extraido_cmp)
+        if _paragrafos_visiveis_normalizados(original_cmp) != _paragrafos_visiveis_normalizados(extraido_cmp):
             divergencias.append(
                 f"{nome}: round-trip divergente\n  original: {valor_original!r}\n"
                 f"  extraído: {valor_extraido!r}")

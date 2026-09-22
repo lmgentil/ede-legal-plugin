@@ -24,6 +24,10 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-008 | ABERTA | Etapa 5.10, Microfix 7.1 | Nenhuma (não bloqueante — partes OOXML byte-idênticas ao canônico) | Segundo asset de teste `modelo-oficial_topicos-2.3-a-2.6_contratados.docx` é legado/redundante |
 | PEND-009 | ABERTA | Etapa 5.10, Microfix 7.1 | Nenhuma (dívida arquitetural pré-existente, não introduzida pela Etapa 5.10) | `docx_numeracao_engine.py` localiza títulos de nível 2/3 por âncoras de texto hardcoded do Modelo Oficial real, não derivadas de `blocos.json` |
 | PEND-010 | ABERTA | Etapa 5.10, Commit 7 | Declaração de validação visual automatizada em release público (não bloqueia runtime/distribuição técnica) | Inspeção visual automatizada do DOCX final ainda não executada — nenhum renderizador DOCX legítimo disponível no ambiente de homologação |
+| PEND-011 | ABERTA | Primeira chamada viva do ChatGPT a `ede_finalizar_peca` (2026-09-22) | Declaração de interoperabilidade do finalizador com o ChatGPT (não bloqueia o runtime; o servidor já recusa quando a inflação estoura o limite) | Transporte do cliente ChatGPT inseriu quebras de linha nos valores de placeholder; abaixo do limite de densidade isso passaria sem detecção |
+| PEND-012 | ABERTA (escopo ampliado) | Gate 6.6-D, chamadas do ChatGPT e do Claude (2026-09-22) | Critério de entrega nativa do Gate 6.6-D, ENCERRADO como PARTIAL PASS com esta pendência aberta; não bloqueia o runtime nem motiva rollback | Nem ChatGPT nem Claude entregam o DOCX nativamente via `EmbeddedResource` — ChatGPT não expõe a URI `attachment://` (contorno do host preserva os bytes); Claude recusa explicitamente o tipo de mídia do DOCX (nenhum byte chega ao usuário) |
+| PEND-013 | APROVADA, execução ADIADA | Auditoria somente-leitura das revisões antigas com tag, Gate 6.6-D item 6 (2026-09-22) | Nenhuma (não bloqueia; execução deliberadamente adiada para depois da evidência de interoperabilidade viva do Claude) | Remoção das seis tags históricas do Cloud Run (`candidato`, `candidato-6-5-b`, `candidato-6-5-b2`, `candidato-6-5-c`, `candidato-6-5-c2`, `candidato-6-5-c4`) — aprovada em princípio como *pre-pilot hardening*, nenhuma removida ainda |
+| PEND-014 | EM AVALIAÇÃO (preparação autorizada; implementação NÃO autorizada) | Fechamento do Gate 6.6-D como PARTIAL PASS (2026-09-22) | Nenhuma (avaliação apenas); implementação exige gate e autorização própria | Redesenho do mecanismo de entrega de artefato entre hosts (candidato: GCS efêmero + URL assinada de curta duração + link em `TextContent`), avaliado em `docs/adr/ADR-0019-entrega-de-artefato-multi-cliente.md` (proposta, sem implementação) |
 
 ---
 
@@ -582,3 +586,219 @@ qualquer release público que declare validação visual automatizada.
 Em aberto. Registrada como requisito explícito para esse cenário
 futuro (release público com tal declaração) — não é pré-requisito para
 o uso interno já validado tecnicamente por esta etapa.
+
+---
+
+## PEND-011 — Quebras de linha inseridas pelo transporte do cliente ChatGPT nos valores de placeholder
+
+**Status:** ABERTA
+**Aberta em:** primeira chamada viva do ChatGPT a `ede_finalizar_peca`
+(2026-09-22)
+**Bloqueia:** Declaração de interoperabilidade do finalizador com o
+ChatGPT. Não bloqueia o runtime: o servidor já recusa em
+`input_validation` quando a inflação estoura um limite de densidade.
+
+### Contexto
+
+A primeira chamada viva foi recusada, sem DOCX, porque os três campos
+narrativos chegaram ao servidor com cerca de 2,5 a 3 vezes mais linhas do
+que o rascunho do cliente (2→6, 2→6, 4→10; evidência no `CHANGELOG.md`,
+seção "Evidência viva"). O contrato conta parágrafo por `\n`
+(`validate_paragrafos.paragrafos`), então o servidor não distingue a
+quebra do autor da quebra do transporte.
+
+O risco é o caso que **não** falha: inflação que fica abaixo do limite
+(por exemplo, um parágrafo único de uns 450 caracteres brutos quebrado em
+3 linhas em `SINOPSE_FATOS`, cujo máximo é 3) passa na checagem de 380, na
+densidade e no round-trip, e cada linha vira um `<w:p>` próprio no DOCX,
+com o parágrafo partido no meio da frase. Reproduzido localmente contra
+`validate_paragrafos` na mesma data.
+
+A segunda chamada, com parágrafo único nos três campos, terminou `OK`.
+Isso **não** resolve esta pendência: nenhum campo com mais de um
+parágrafo foi exercitado, então a preservação de multilinha pelo
+transporte continua sem prova.
+
+### Critério de resolução
+
+Uma chamada viva do ChatGPT em que o DOCX devolvido tenha, em cada campo
+multiline, exatamente o número de parágrafos do rascunho do cliente,
+incluindo pelo menos um campo com 2 ou mais parágrafos. Um sucesso só com
+valores de parágrafo único não fecha esta pendência, porque não exercita o
+separador. Alternativa aceitável: identificar e corrigir a causa no
+cliente.
+
+Esta pendência nunca se resolve relaxando validador, juntando linhas no
+servidor nem inferindo a intenção do cliente (CLAUDE.md §17/§21).
+
+### Fechamento
+
+Em aberto.
+
+---
+
+## PEND-012 — Nenhum host MCP testado (ChatGPT, Claude) entrega o DOCX nativamente via `EmbeddedResource`
+
+**Status:** ABERTA (escopo ampliado em 2026-09-22 — passou a cobrir os
+dois clientes; aberta originalmente só para o ChatGPT)
+**Aberta em:** Gate 6.6-D, chamada 2 do ChatGPT a `ede_finalizar_peca`
+(2026-09-22); ampliada no mesmo gate com a chamada viva do Claude
+**Bloqueia:** Critério de entrega nativa do Gate 6.6-D. O gate foi
+**ENCERRADO como `6.6-D FINALIZER LIVE INTEROPERABILITY — PARTIAL
+PASS`** com esta pendência aberta — correção do servidor e determinismo
+do documento comprovados; entrega nativa é o item que falhou nos dois
+clientes. Não bloqueia o runtime e, pela política de rollback aprovada,
+não motiva rollback.
+
+### Contexto
+
+**ChatGPT.** A chamada terminou `OK` (1761975 bytes, SHA-256
+`edd2a513178f9eb7190cb105eb147ba8c9374d913d27b548fa0abe62eca872ab`), e o
+base64 não apareceu na conversa. Mas a UI do ChatGPT não conseguiu usar a
+URI `attachment://` do `EmbeddedResource` e o próprio host persistiu o
+arquivo por outro canal de arquivos. O arquivo obtido assim é idêntico
+byte a byte ao do servidor e mantém o timbrado. O problema é de entrega
+nativa no host, não do renderer.
+
+**Claude.** Chamada com o mesmo payload de parágrafo único, terminou
+`OK` com o **mesmo SHA-256** do ChatGPT. O claude.ai recusou
+explicitamente o tipo de mídia: "Resources of type
+'application/vnd.openxmlformats-officedocument.wordprocessingml.
+document' are not currently supported." Nenhum contorno; nenhum byte do
+DOCX chegou a ficar disponível para o usuário. O log de requisições
+confirma que o servidor transmitiu o `EmbeddedResource` completo
+(tamanho de resposta ≈ inflação base64 esperada) — a falha é do cliente,
+não do transporte nem do servidor.
+
+Evidência completa das duas chamadas no `CHANGELOG.md`, seção
+"Evidência viva — Gate 6.6-D".
+
+Documentação da OpenAI consultada em 2026-09-22 (Apps SDK Reference e
+"MCP server" em developers.openai.com): nenhum mecanismo nativo documentado
+para um resultado de ferramenta entregar arquivo baixável. As APIs de
+arquivo documentadas são de widget (`uploadFile`, `selectFiles`,
+`getFileDownloadUrl`), e `openai/fileParams` é só para entrada de
+ferramenta.
+
+### Critério de resolução
+
+Uma das duas:
+
+1. evidência de um mecanismo nativo de QUALQUER um dos hosts que exponha
+   este `EmbeddedResource` como artefato utilizável/baixável direto do
+   resultado MCP, sem URL pública, sem reconstrução manual e sem
+   regeneração secundária, comprovada em chamada viva; ou
+2. decisão explícita do usuário por outro mecanismo de entrega, registrada
+   como revisão da Decisão 5 da ADR-0018 (avaliação preparatória, sem
+   implementação, em ADR-0019 / PEND-014).
+
+Esta pendência nunca se resolve trocando a entrega para base64 em
+`TextContent`, publicando URL pública sem o desenho de segurança de
+PEND-014, mexendo no renderer ou no Template Lock, ou afrouxando a
+validação produção-final. Também não se resolve tratando o contorno do
+ChatGPT como entrega nativa, mesmo com os bytes idênticos.
+
+### Fechamento
+
+Em aberto. O Gate 6.6-D fechou com esta pendência aberta — a decisão do
+usuário foi encerrar o gate como PARTIAL PASS em vez de bloquear no
+critério de entrega nativa.
+
+---
+
+## PEND-013 — Remoção das tags históricas do Cloud Run (pre-pilot hardening, execução adiada)
+
+**Status:** APROVADA em princípio pelo usuário; execução ADIADA
+**Aberta em:** Auditoria somente-leitura das revisões antigas com tag,
+Gate 6.6-D item 6 (2026-09-22)
+**Bloqueia:** Nenhuma fase. Não bloqueia o runtime, o Gate 6.6-D nem
+qualquer entrega — as seis tags são AUTH-BLOCKED (auditoria acima) e não
+são necessárias para rollback.
+
+### Contexto
+
+A auditoria somente-leitura do Gate 6.6-D item 6 concluiu que as seis
+tags históricas do Cloud Run (`candidato`, `candidato-6-5-b`,
+`candidato-6-5-b2`, `candidato-6-5-c`, `candidato-6-5-c2`,
+`candidato-6-5-c4`) apontam para revisões `AUTH-BLOCKED`: alcançáveis sem
+autenticação só até a política de Host/OAuth, nunca até um dispatch de
+ferramenta (evidência completa no `CHANGELOG.md`, seção "Auditoria
+somente-leitura das revisões antigas com tag"). Nenhuma é
+`LEGACY-MCP-REACHABLE`.
+
+O usuário aceitou a conclusão da auditoria e aprovou EM PRINCÍPIO a
+remoção dessas tags como *pre-pilot hardening* (reduzir superfície
+pública antes de qualquer expansão de acesso a advogados), mas pediu
+explicitamente que a execução fique para depois de completa a evidência
+de interoperabilidade viva do Claude no Gate 6.6-D — para não misturar
+uma mutação de infraestrutura com evidência de interoperabilidade de
+cliente em andamento.
+
+### Critério de resolução
+
+Depois que o Gate 6.6-D fechar (ou, no mínimo, depois que a evidência de
+interoperabilidade viva do Claude estiver completa), remover as seis
+tags listadas (`gcloud run services update-traffic ede-mcp
+--remove-tags=...`) e verificar que a revisão alvo de rollback
+(`ede-mcp-00018-loc`) continua endereçável por nome de revisão sem a
+tag. Registrar a execução aqui e no `CHANGELOG.md`, com data e comando
+efetivamente usado.
+
+Esta pendência nunca se resolve por remoção automática/silenciosa das
+tags — exige autorização explícita do usuário no momento da execução
+(CLAUDE.md §6/§24), mesmo já tendo aprovação de princípio agora.
+
+### Fechamento
+
+Em aberto (execução deliberadamente adiada).
+
+---
+
+## PEND-014 — Redesenho do mecanismo de entrega de artefato entre hosts (avaliação, sem implementação)
+
+**Status:** EM AVALIAÇÃO. Preparação da proposta AUTORIZADA; implementação
+NÃO autorizada.
+**Aberta em:** Fechamento do Gate 6.6-D como `PARTIAL PASS` (2026-09-22)
+**Bloqueia:** Nenhuma fase — é avaliação, não implementação. A
+implementação, quando/se autorizada, será um gate próprio (numeração a
+definir, ex. Gate 6.7).
+
+### Contexto
+
+O Gate 6.6-D provou que o mecanismo de entrega v1 da ADR-0018 (Decisão
+5 — `EmbeddedResource`/`BlobResourceContents` inline) não é usável
+nativamente por nenhum dos dois hosts MCP reais testados: o ChatGPT não
+expõe a URI `attachment://` na UI (PEND-012), e o Claude recusa
+explicitamente o tipo de mídia do DOCX. Em ambos os casos o servidor
+está correto — o documento é gerado deterministicamente e os bytes
+efetivamente saem pelo transporte HTTPS (confirmado por tamanho de
+resposta no log de requisições do Claude). A lacuna é estrutural do
+mecanismo de entrega, não do renderer.
+
+`docs/adr/ADR-0019-entrega-de-artefato-multi-cliente.md` registra a
+avaliação (arquitetura candidata, requisitos de segurança, alternativa
+de download autenticado mediado pelo servidor, e o trade-off explícito
+de tratar a URL assinada como capacidade portadora). Nenhum código,
+bucket, IAM ou deploy foi criado por esta pendência.
+
+### Critério de resolução
+
+Esta pendência se resolve com uma das duas:
+
+1. decisão explícita do usuário aprovando uma arquitetura de entrega
+   específica (assinatura de URL, download autenticado mediado pelo
+   servidor, ou outra), seguida de gate próprio de implementação,
+   testes e prova viva com os dois clientes; ou
+2. decisão explícita do usuário de manter a Decisão 5 (v1) como está,
+   aceitando que a entrega nativa continue indisponível e que o
+   artefato só chegue ao usuário por contorno do cliente (caso do
+   ChatGPT) ou não chegue (caso do Claude).
+
+Esta pendência nunca se resolve por implementação silenciosa — nenhuma
+mudança de infraestrutura de entrega (bucket, IAM, URL assinada) sem
+autorização explícita do usuário para o gate de implementação
+(CLAUDE.md §6/§17/§24).
+
+### Fechamento
+
+Em aberto (avaliação em andamento).

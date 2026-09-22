@@ -540,6 +540,316 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
     troca de tráfego do Cloud Run, sem rollout para advogados, sem tag e
     sem GitHub Release nesta etapa.
 
+### Evidência viva — Gate 6.6-D, interoperabilidade do finalizador (2026-09-22) — ENCERRADO como PARTIAL PASS
+- **Ativação controlada em produção (Gate 6.6-D).** Promoção
+  explicitamente autorizada, exigida pelo teste de interoperabilidade
+  viva: revisão `ede-mcp-00020-gum` (criada em 2026-09-22 15:01:49 UTC,
+  tag `candidato-6-6-d`), VERSION `0.14.0`, digest imutável
+  `sha256:63521b143622a3d1f134ff2bc4a008f136046e92a5edbedc3d116fd86e45c427`,
+  100% do tráfego. O alvo de rollback anterior, `ede-mcp-00018-loc`
+  (tag `candidato-6-5-c4`), continua disponível com 0%. Revisão, digest,
+  tráfego e alvo de rollback conferidos por leitura
+  (`gcloud run services/revisions describe`). **Não é rollout para
+  advogados, release nem tag.** Corrige a menção "sem ativação em
+  produção" da entrada do Gate 6.6-C acima, que valia só até este gate.
+- **Chamada 1 (ChatGPT): recusada em `input_validation`; nenhum DOCX
+  gerado.** Evidência válida de fail-closed, registrada separadamente da
+  chamada 2. Primeira chamada
+  real do cliente ChatGPT ao finalizador de produção (`ede_health` no
+  momento do registro: `0.14.0`, `service_status`/`contestacao_status`/
+  `rag`/`modelo_oficial` todos `READY`). Resposta: `status=REFUSED`,
+  `stage=input_validation`; o código é `INPUT_VALIDATION_FAILED`, único
+  que `_validar_rascunho_estruturado` emite (`scripts/finalizar_peca.py`).
+  Recusa devolve só o `TextContent` de metadado; o `EmbeddedResource` do
+  DOCX só é montado com `status=OK` (`mcp_server/server.py`), então não
+  saiu artefato nenhum. Motivo: densidade de bloco
+  (`validate_paragrafos.validar_densidade_blocos`):
+
+  | Placeholder | Rascunho do cliente | Observado pelo servidor | Máximo |
+  |---|---|---|---|
+  | `SINOPSE_FATOS` | 2 parágrafos | 6 | 3 |
+  | `REALIDADE_FATICA` | 2 parágrafos | 6 | 3 |
+  | `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` | 4 parágrafos | 10 | 5 |
+
+  A coluna "rascunho do cliente" é a estrutura da fixture do lado do
+  cliente, segundo o relato do usuário; o servidor só conhece o valor
+  recebido. A checagem de 380 caracteres roda antes da densidade e
+  passou, o que bate com quebras inseridas dentro dos parágrafos, não
+  com parágrafos longos demais.
+- **Causa provável: transporte/cópia do lado do cliente inseriu quebras
+  de linha nos valores string.** O contrato define parágrafo como linha
+  não vazia separada por `\n` (`validate_paragrafos.paragrafos`), então o
+  servidor não tem como distinguir uma quebra do autor de uma quebra do
+  transporte, e não deve tentar. Reprodução local: quebrar dois
+  parágrafos em 80 colunas produz exatamente 6 linhas e a mesma mensagem
+  de recusa. Não foi possível confirmar o mecanismo exato no cliente.
+- **Nenhum validador foi alterado.** A recusa é o comportamento correto
+  de produção-final. Juntar linhas no servidor seria correção
+  silenciosa (CLAUDE.md §17). A nova tentativa de interoperabilidade usa
+  valores de parágrafo único nesses três campos, cada um abaixo de 380
+  caracteres sem espaços. Risco aberto em `docs/PENDENCIAS.md` PEND-011:
+  um sucesso com parágrafo único não prova que o transporte está limpo.
+- **Chamada 2 (ChatGPT, nova tentativa com parágrafo único): `status=OK`.**
+  Metadado do servidor: `document_size_bytes=1761975`,
+  `document_sha256=edd2a513178f9eb7190cb105eb147ba8c9374d913d27b548fa0abe62eca872ab`.
+  O ChatGPT não despejou o base64 na conversa. **PEND-011 continua
+  ABERTA**: esta chamada não exercitou nenhum campo com mais de um
+  parágrafo, então não prova que o transporte preserva multilinha.
+  **Correção pela auditoria de log (abaixo):** o telemetria de produção
+  mostra que o cliente `openai-mcp/1.0.0 (Codex)` não fez uma única
+  chamada de sucesso, e sim **sete**, entre 15:45:39 e 15:56:09 UTC —
+  todas `resultado_finalizacao=OK`, todas com
+  `documento_tamanho_bytes=1761975`, todas depois da recusa às 15:35:52.
+  Consistente com o cliente tentando repetidamente contornar a falha de
+  entrega inline (cada tentativa refazendo a chamada de ferramenta). A
+  narrativa "chamada 2" acima descreve o resultado obtido pelo usuário,
+  não o número real de invocações no servidor; ambas as evidências
+  concordam no que importa (`status=OK`, mesmo tamanho, mesmo SHA
+  relatado) e nenhuma foi descartada.
+- **Entrega inline do artefato no ChatGPT: FAIL.** A URI nativa do
+  `EmbeddedResource` não foi utilizável pela UI; o próprio ChatGPT
+  informou que "o link attachment:// não estava acessível na interface"
+  e, como contorno do lado da aplicação, persistiu o arquivo por outro
+  canal de arquivos. Isso não é entrega nativa: o critério do ChatGPT no
+  Gate 6.6-D exige DOCX utilizável/baixável direto do resultado MCP, sem
+  URL pública, sem reconstrução manual e sem regeneração secundária.
+  Documentação consultada em 2026-09-22 (OpenAI Apps SDK Reference e
+  "MCP server" em developers.openai.com): nenhum mecanismo nativo
+  documentado para um resultado de ferramenta entregar arquivo baixável;
+  as APIs de arquivo (`uploadFile`, `selectFiles`, `getFileDownloadUrl`)
+  são de widget, e `openai/fileParams` é só para entrada de ferramenta.
+  Sem evidência em contrário, o FAIL fica registrado. Aberto em
+  `docs/PENDENCIAS.md` PEND-012.
+- **Distinção obrigatória entre (A) e (B).** (A) entrega nativa via
+  `EmbeddedResource`: FAIL, acima. (B) arquivo persistido pelo caminho
+  secundário do ChatGPT: o arquivo baixado (`EDE-Contestacao-
+  Irregularidade.docx`, pasta de downloads local, 13:25 -03:00) tem
+  SHA-256 `edd2a513…a872ab` e 1761975 bytes, **idênticos byte a byte** ao
+  metadado do servidor (verificado localmente, sem abrir o conteúdo). A
+  inspeção visual do usuário encontrou o timbrado EDE íntegro: logo e
+  cabeçalho na página 1, rodapé institucional, o mesmo padrão nas páginas
+  seguintes e elementos gráficos/imagens institucionais preservados.
+  **Não há defeito de renderer a registrar a partir deste arquivo.** A
+  identidade de bytes de (B) não converte (A) em sucesso.
+- **Item "SHA do arquivo baixado do ChatGPT x metadado do servidor":
+  FECHADO.** Mesmo SHA-256
+  (`edd2a513178f9eb7190cb105eb147ba8c9374d913d27b548fa0abe62eca872ab`) e
+  mesmo tamanho (1761975 bytes). Conclusões: o caminho de persistência
+  secundária do ChatGPT preservou exatamente os bytes do servidor; não
+  houve corrupção pelo renderer; não houve perda de timbrado. A entrega
+  nativa via `EmbeddedResource`/`attachment://` continua **FAIL** e a
+  PEND-012 continua ABERTA; a Decisão 5 da ADR-0018 não foi alterada.
+- **Nenhuma mudança de código ou infraestrutura por causa deste
+  resultado.** Renderer, Template Lock e validação produção-final
+  intocados; sem troca para base64 em `TextContent`; sem rollback (a
+  política de rollback aprovada não o aciona por limitação da UI do
+  ChatGPT com o servidor correto); sem redesenho automático, sem novo
+  deploy, sem tag, sem release, sem ampliação de acesso de advogados.
+- **Chamada do Claude, mesmo payload da chamada 2 do ChatGPT que deu
+  certo: `status=OK`.** Metadado do servidor: `document_size_bytes=
+  1761975`, `document_sha256=
+  edd2a513178f9eb7190cb105eb147ba8c9374d913d27b548fa0abe62eca872ab` —
+  **idêntico** ao devolvido nas chamadas do ChatGPT, com o mesmo
+  payload de entrada. **Uma segunda chamada idêntica do Claude para
+  determinismo não foi feita** — desnecessária: o determinismo do
+  motor já está estabelecido pelas sete chamadas OK do ChatGPT (mesmo
+  payload, mesmo tamanho a cada vez, evidência de log abaixo) mais esta
+  chamada do Claude com o mesmo payload e o mesmo SHA; repetir só a
+  entrega nativa do Claude, que o próprio cliente já recusou, não
+  agregaria informação sobre determinismo — só repetiria um mecanismo de
+  transporte que este cliente não suporta.
+- **Entrega nativa do artefato no Claude: FAIL — recusa explícita do
+  cliente, tipo de mídia identificado.** O claude.ai respondeu:
+  "Resources of type
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  are not currently supported." Nenhum byte do DOCX chegou a ficar
+  disponível para o usuário nesta chamada — diferença importante frente
+  ao ChatGPT, que ao menos persistiu o arquivo por um canal próprio.
+- **Confirmado no nível de transporte: os bytes SAÍRAM do servidor.** O
+  log de requisições do Cloud Run (metadado apenas — método, tamanhos,
+  status, latência; nunca corpo) mostra, para a chamada do Claude, uma
+  resposta de **2.350.126 bytes**, quase exatamente a inflação base64 de
+  um arquivo de 1.761.975 bytes (4/3 ≈ 2.349.300, mais a moldura JSON do
+  `EmbeddedResource`/`TextContent`). Isto isola a falha: o
+  `EmbeddedResource` com o blob completo foi transmitido pelo servidor;
+  a rejeição é uma decisão do cliente Claude sobre o tipo de mídia, não
+  uma falha de entrega do servidor nem do transporte HTTPS.
+- **Resultado final de interoperabilidade viva, com as três camadas
+  distintas exigidas:**
+  1. **Correção do servidor** — `SERVER-SIDE FINALIZER = PASS`,
+     `PRODUCTION-FINAL VALIDATION = PASS`, `OFFICIAL MODEL RENDER =
+     PASS`. A recusa fail-closed da chamada 1 do ChatGPT e o sucesso
+     determinístico de todas as chamadas seguintes (ambos os clientes)
+     são o comportamento correto e esperado do pipeline endurecido do
+     Gate 6.6-A/C.
+  2. **Determinismo do documento** — `SERVER-SIDE DOCUMENT IDENTITY
+     ACROSS CHATGPT AND CLAUDE = PASS`. As duas chamadas vivas com o
+     mesmo payload de parágrafo único devolveram o mesmo SHA-256
+     (`edd2a513…a872ab`) e o mesmo tamanho (1761975 bytes); a
+     telemetria de produção mostra oito invocações OK no total (sete do
+     ChatGPT, uma do Claude), todas com `documento_tamanho_bytes=
+     1761975`.
+  3. **Interoperabilidade de transporte do cliente** —
+     `CHATGPT NATIVE EmbeddedResource DELIVERY = FAIL` (contorno do host
+     preservou os bytes, mas não é entrega nativa) e
+     `CLAUDE NATIVE EmbeddedResource DELIVERY = FAIL` (recusa explícita
+     de tipo de mídia; nenhum contorno, nenhum byte chegou ao usuário).
+     **Isto não é um defeito do renderer** — é uma lacuna do mecanismo de
+     entrega v1 (Decisão 5 da ADR-0018, `EmbeddedResource`/
+     `BlobResourceContents`) frente ao suporte real dos dois hosts MCP
+     que importam para o produto.
+- **Gate 6.6-D: ENCERRADO como `6.6-D FINALIZER LIVE INTEROPERABILITY —
+  PARTIAL PASS`.** Nenhuma mudança de renderer, Template Lock ou
+  validação produção-final; nenhuma troca para base64 em `TextContent`;
+  nenhum workaround implementado neste gate; nenhum rollback de produção
+  (a UI de nenhum dos dois clientes falhar em usar o artefato nativo,
+  com o servidor correto, não aciona a política de rollback já
+  aprovada); nenhuma tag Git; nenhum GitHub Release; nenhuma ampliação de
+  acesso de advogados. Esta evidência é suficiente para concluir que a
+  Decisão 5 da ADR-0018 (v1, `EmbeddedResource`/`BlobResourceContents`
+  como mecanismo de entrega entre hosts) **não satisfaz o requisito real
+  do produto** — nenhum cliente real testado consegue usá-la
+  nativamente. A Decisão 5 não é revista nesta entrada: a avaliação de
+  redesenho é preparada separadamente (ver ADR-0019, abaixo) e sua
+  implementação aguarda autorização explícita, em gate próprio.
+
+#### Auditoria final de logs/privacidade — chamada do Claude (Gate 6.6-D, item 6)
+- **Método:** só leitura (`gcloud logging read`), mesma disciplina das
+  auditorias anteriores deste gate. Nenhuma mutação.
+- **Contagem completa de invocações no período, por telemetria da
+  aplicação (`evento=finalizacao_peca`, allowlist fechada de
+  `mcp_server/auth_logging.py`):** nove eventos entre 15:33 e 18:55 UTC
+  de 2026-09-22 — uma `REFUSED` (`INPUT_VALIDATION_FAILED`, 15:35:52,
+  cliente `openai-mcp/1.0.0 (Codex)`), sete `OK` do mesmo cliente entre
+  15:45:39 e 15:56:09, e uma `OK` do cliente `Claude-User` às 18:55:14.
+  As nove batem exatamente com as nove concessões de escopo
+  `ede_finalizar_peca`/`ede:legal` registradas em `evento=
+  autorizacao_ferramenta` no mesmo período (mais duas concessões de
+  `ede_health`/`ede:health`, chamadas de diagnóstico feitas por esta
+  sessão de auditoria, sem relação com o teste de interoperabilidade).
+  Nenhum evento de `ede_preparar_contestacao` no período — nenhuma
+  extração/preparação com dado de caso ocorreu durante o teste.
+- **Nenhum conteúdo em log algum.** Os campos emitidos pela telemetria
+  de aplicação continuam restritos à allowlist (`capability_id`,
+  `resultado_finalizacao`, `estagio_finalizacao`,
+  `codigo_erro_finalizacao`, `documento_tamanho_bytes`,
+  `id_correlacao`) — nunca SHA-256, nunca base64, nunca texto de
+  placeholder. O log de requisições do Cloud Run (infraestrutura, não
+  aplicação) tem um schema fechado próprio (`latency`, `protocol`,
+  `remoteIp`, `requestMethod`, `requestSize`, `requestUrl`,
+  `responseSize`, `serverIp`, `status`, `userAgent`) que **nunca inclui
+  corpo de requisição ou resposta** — confirmado por leitura direta dos
+  registros da chamada do Claude: só os tamanhos aparecem (os mesmos
+  2.350.126 bytes citados acima), nunca os bytes em si.
+  `EDE_MODELO_OFICIAL_GCS_*`/segredos de OAuth nunca aparecem em nenhum
+  dos dois logs, em nenhuma das nove chamadas.
+- **Nenhuma URL assinada existe hoje para vazar.** O mecanismo de
+  entrega v1 (`EmbeddedResource` inline) não envolve URL assinada nem
+  armazenamento intermediário — o requisito "nenhuma URL assinada em log
+  de longo prazo" não se aplica ao mecanismo atual; passa a valer a
+  partir do redesenho avaliado em ADR-0019.
+- **Conclusão:** auditoria final de log/privacidade para as chamadas do
+  Claude **CONCLUÍDA**, sem achado. Fecha o item 6 do Gate 6.6-D
+  integralmente (a parte de revisões antigas já havia sido aceita
+  separadamente).
+
+#### Auditoria somente-leitura das revisões antigas com tag (Gate 6.6-D, item 6) — CONCLUÍDA, aceita pelo usuário
+- **Escopo e método.** Nenhuma mutação: só `gcloud run
+  services/revisions describe`, `gcloud artifacts docker images list`,
+  `gcloud logging read` e sondagens HTTP **sem token**, com User-Agent
+  próprio (`ede-audit-gate-6.6-D-*`). Nenhuma tag removida, nenhum
+  tráfego alterado, nenhum redeploy, nada tocado em IAM/OAuth/Descope/
+  código. Nenhuma chamada a `ede_preparar_contestacao`, a
+  `ede_finalizar_peca` ou com dado de caso.
+- **Mapeamento (tag → revisão → digest → VERSION → tráfego).** VERSION vem
+  do commit correspondente (tag da imagem no Artifact Registry é
+  `<commit>-candidato`), sem precisar de chamada autenticada:
+
+  | Tag | Revisão | Digest (prefixo) | Commit | VERSION | Tráfego | Classificação |
+  |---|---|---|---|---|---|---|
+  | `candidato` | `ede-mcp-0e74400-64c` | `sha256:1a0fa276ffa0` | `0e74400` | 0.12.0 | 0% | AUTH-BLOCKED |
+  | `candidato-6-5-b` | `ede-mcp-00010-gut` | `sha256:23294da8d211` | `ca9c0a74` | 0.13.0 | 0% | AUTH-BLOCKED |
+  | `candidato-6-5-b2` | `ede-mcp-00012-log` | `sha256:253f9889d1ab` | `895e995b` | 0.13.0 | 0% | AUTH-BLOCKED |
+  | `candidato-6-5-c` | `ede-mcp-00014-dox` | `sha256:5dfd43bace9a` | `0349c9ae` | 0.13.0 | 0% | AUTH-BLOCKED |
+  | `candidato-6-5-c2` | `ede-mcp-00016-yej` | `sha256:4096249730e1` | `2e013598` | 0.13.0 | 0% | AUTH-BLOCKED |
+  | `candidato-6-5-c4` | `ede-mcp-00018-loc` | `sha256:34d9b83381e3` | `981d9baa` | 0.13.0 | 0% | AUTH-BLOCKED |
+  | `candidato-6-6-d` | `ede-mcp-00020-gum` | `sha256:63521b143622` | `fe2c92a2` | 0.14.0 | 100% | (revisão corrente — ver adiante) |
+
+  Cada tag tem duas URLs públicas, a forma `…---ede-mcp-tzat7bdc6q-rj.a.run.app`
+  e a determinística `…---ede-mcp-269134711029.southamerica-east1.run.app`;
+  ambas verificadas. Todas as revisões estão `Ready`/`Active`, com
+  `EDE_MCP_AUTH_ENABLED=true`, mesmo Resource canônico, mesmo
+  `EDE_MCP_CANONICAL_HOST` e a mesma service account de runtime.
+- **(A) Superfície sem autenticação, em todas as tags.** `GET /mcp` e
+  `POST /mcp` (`tools/list`, sem token) → **401** com
+  `WWW-Authenticate` apontando o PRM canônico; `GET /` → **404**;
+  `GET /.well-known/oauth-protected-resource/mcp` → **200** com o PRM
+  público (Resource canônico, issuer Descope, escopos anunciados —
+  `ede:health` nas duas revisões mais antigas, `ede:health`+`ede:legal`
+  nas demais). Nenhuma execução de ferramenta, nenhum dado jurídico.
+- **(B) Nada sensível no corpo ou nos cabeçalhos.** Os únicos corpos são
+  `{"error": "invalid_token", …}`, `Not Found` e o PRM. Varredura por
+  stack trace, variável de ambiente, identificador de bucket/objeto do
+  Modelo Oficial, caminho interno, segredo e conteúdo jurídico: nenhuma
+  ocorrência.
+- **(C) Log: zero dispatch de ferramenta.** Na janela das sondagens, as
+  sete revisões registraram **apenas** `requisicao_http` e `startup` —
+  **zero `autorizacao_ferramenta` e zero `finalizacao_peca`**, ou seja,
+  nenhuma execução de ferramenta jurídica e nenhuma aquisição/renderização
+  do Modelo Oficial (que só ocorrem dentro de uma chamada de ferramenta).
+  Os campos emitidos continuam sendo só metadado da allowlist
+  (`caminho`, `metodo_http`, `status_http`, `latencia_ms`,
+  `resultado_auth`, `resultado_autz`, `id_correlacao`, `issuer`,
+  `audiencias_aceitas`, `migracao_audiencia`) — nenhum corpo, token ou
+  conteúdo de caso.
+- **(D) Host canônico é inalcançável numa revisão com tag.** O Cloud Run
+  roteia pelo Host: seis requisições enviadas às URLs de tag **com
+  `Host:` do host canônico** foram servidas pela revisão corrente
+  (`ede-mcp-00020-gum`), nunca pela revisão da tag (confirmado no log de
+  requisições). Como toda revisão antiga roda o mesmo `mcp==2.2.0` e a
+  mesma política `allowed_hosts=[canonical_host]` (casamento exato,
+  verificado commit a commit), um token válido do titular numa URL de tag
+  passaria pela autenticação e seria recusado com **421 Invalid Host**
+  pelo transporte, antes de qualquer parsing JSON-RPC ou dispatch. Daí a
+  classificação **AUTH-BLOCKED** para as seis tags históricas —
+  **nenhuma LEGACY-MCP-REACHABLE**, nenhum achado de segurança.
+- **Tag corrente `candidato-6-6-d` → `ede-mcp-00020-gum`, documentada à
+  parte.** Comportamento idêntico ao das demais **pela URL de tag** (401
+  sem token; Host da tag seria recusado com 421 mesmo autenticado). A
+  diferença não é de proteção, e sim de papel: esta revisão é a que
+  atende 100% do tráfego pelo host canônico, que é o caminho legítimo e
+  o usado pelas chamadas vivas deste gate. Não é exposição histórica.
+- **Limites desta auditoria, explicitados.** (1) Nenhuma sondagem
+  autenticada foi feita: não há caminho já autorizado para usar a
+  credencial OAuth do titular sem expor/copiar o token, então a recusa
+  421 está provada por leitura de código e por roteamento, não por
+  observação autenticada. (2) Só HTTP/1.1 foi exercitado (o `curl` do
+  ambiente não tem HTTP/2), então `:authority` em HTTP/2 não foi testado
+  diretamente. (3) Data Access log não está habilitado no projeto
+  (`auditConfigs` vazio), então não existe log de leitura do bucket
+  privado: a prova de "nenhuma aquisição do Modelo Oficial" é o zero
+  dispatch de ferramenta em (C), não um log do GCS.
+- **Conclusão aceita pelo usuário.** As seis tags históricas são
+  AUTH-BLOCKED; nenhuma é LEGACY-MCP-REACHABLE; zero dispatch de
+  ferramenta jurídica observado; zero evento de finalização observado;
+  nenhum conteúdo sensível ou segredo de infraestrutura exposto; nenhuma
+  condição de parada de segurança foi acionada. As três limitações desta
+  auditoria — (1) nenhuma sondagem autenticada de URL com tag, (2)
+  `:authority` de HTTP/2 não testado diretamente, (3) evidência de
+  "nenhuma leitura do Modelo Oficial" derivada do zero dispatch de
+  aplicação, não de log de acesso do GCS (Data Access log desligado no
+  projeto) — permanecem registradas acima, não descartadas pela aceitação.
+- **Remoção das tags: aprovada em princípio como *pre-pilot hardening*,
+  execução ADIADA.** As seis tags históricas não são necessárias para
+  rollback — a revisão alvo (`ede-mcp-00018-loc`) continua disponível por
+  nome, com ou sem tag. Remover as tags antigas reduziria a superfície
+  pública e impediria que código antigo suba por requisição externa a uma
+  URL de tag. A execução fica explicitamente para depois de completo o
+  restante da evidência de interoperabilidade viva do Gate 6.6-D (itens
+  do Claude, acima) — decisão deliberada de não misturar esta mutação de
+  infraestrutura com a evidência de interoperabilidade de cliente em
+  andamento. Nenhuma tag foi removida nesta entrada.
+
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto
   o de produção (`K_SERVICE=ede-mcp`, ver acima). Desligada, o

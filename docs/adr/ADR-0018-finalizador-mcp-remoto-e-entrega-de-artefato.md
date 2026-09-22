@@ -1,11 +1,23 @@
 # ADR-0018 — Finalizador MCP remoto: contrato multi-peça e entrega de DOCX
 
-* **Status:** Implementado como candidato/homologação (Gate 6.6-C —
-  `ede_finalizar_peca` real, escopo `ede:legal`, VERSION `0.14.0`); **não
-  ativado em produção** — sem deploy, sem troca de tráfego do Cloud Run,
-  sem rollout para advogados. Desenho original (Gate 6.6-B) permanece
-  íntegro; nenhuma decisão desta ADR foi revista na implementação.
-* **Data:** 2026-09-22 (Gate 6.6-B) — implementação Gate 6.6-C, mesma data
+* **Status:** Implementado (Gate 6.6-C — `ede_finalizar_peca` real,
+  escopo `ede:legal`, VERSION `0.14.0`) e **ativado em produção de forma
+  controlada no Gate 6.6-D**, por promoção explicitamente autorizada:
+  revisão `ede-mcp-00020-gum`, VERSION `0.14.0`, digest imutável
+  `sha256:63521b143622a3d1f134ff2bc4a008f136046e92a5edbedc3d116fd86e45c427`,
+  100% do tráfego; alvo de rollback anterior preservado
+  (`ede-mcp-00018-loc`). A ativação existiu só para o teste de
+  interoperabilidade viva do Gate 6.6-D: **não foi rollout para
+  advogados, release nem tag**. **Gate 6.6-D ENCERRADO como `PARTIAL
+  PASS`** (correção do servidor e determinismo do documento comprovados
+  nos dois clientes; entrega nativa do artefato falhou nos dois — ver
+  "Prova viva" abaixo). Desenho original (Gate 6.6-B) permanece íntegro;
+  nenhuma decisão desta ADR foi revista, a Decisão 5 inclusive — sua
+  insuficiência frente ao requisito real está registrada, mas a revisão
+  em si fica para um gate próprio (ver "Prova viva", PEND-012 e
+  PEND-014; avaliação preparatória em ADR-0019, sem implementação).
+* **Data:** 2026-09-22 (Gate 6.6-B) — implementação Gate 6.6-C e ativação
+  controlada Gate 6.6-D (revisão criada às 15:01:49 UTC), mesma data
 * **Relacionado:** ADR-0015 (fronteira Core/Adapter/MCP), ADR-0016/0017
   (OAuth e ativação de produção), ADR-0009 (Modelo Oficial externo);
   Gate 6.5-A/B3/C1-C4 (`ede_preparar_contestacao`, escopo `ede:legal`);
@@ -227,6 +239,65 @@ constante não paga o custo de existir ainda).
   `ede_preparar_peca` genérico substituindo `ede_preparar_contestacao` —
   decisão própria, condicionada à liberação de mais peças
   (INV-GATE-CONTESTACAO).
+
+## Prova viva — Gate 6.6-D (ENCERRADO como PARTIAL PASS, 2026-09-22)
+
+A primeira chamada real do ChatGPT a `ede_finalizar_peca` em produção foi
+**recusada em `input_validation`, sem DOCX gerado**: densidade de bloco
+excedida em `SINOPSE_FATOS` (6 parágrafos, máximo 3), `REALIDADE_FATICA`
+(6, máximo 3) e `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` (10, máximo 5),
+contra um rascunho de 2/2/4 no cliente. As chamadas seguintes do
+ChatGPT, com parágrafo único nesses campos, terminaram `OK`
+(telemetria de produção: sete invocações OK, não uma só), mas a UI do
+ChatGPT não conseguiu usar o `EmbeddedResource` devolvido. A chamada do
+Claude, com o mesmo payload de parágrafo único, também terminou `OK` e
+devolveu **o mesmo SHA-256** do ChatGPT — mas o claude.ai recusou
+explicitamente o tipo de mídia do recurso ("Resources of type
+'application/vnd.openxmlformats-officedocument.wordprocessingml.
+document' are not currently supported"), sem contorno algum; o log de
+requisições confirma que o servidor transmitiu o `EmbeddedResource`
+completo (tamanho da resposta ≈ inflação base64 esperada do documento).
+Evidência completa no `CHANGELOG.md` (seção "Evidência viva — Gate
+6.6-D"). O gate está encerrado; esta ADR registra as conclusões:
+
+1. **A Decisão 4 se sustentou em tráfego real.** O caminho público é
+   sempre produção-final, e a primeira entrada viva com defeito foi
+   recusada antes do render, sem artefato parcial.
+2. **Um valor string pode chegar ao servidor com quebras de linha que o
+   autor não escreveu.** Parágrafo é linha não vazia separada por `\n`,
+   e esse contrato não muda por causa disso. O servidor não junta linhas
+   nem adivinha a intenção do cliente (CLAUDE.md §17). Manter o valor
+   íntegro no transporte é responsabilidade do cliente.
+3. **O finalizador só detecta essa inflação quando ela estoura um
+   limite.** Abaixo do limite, cada quebra inserida vira um `<w:p>` real
+   no DOCX (INV-PARAGRAFO-HERDA-TEMPLATE), e o round-trip passa, porque
+   compara com o valor recebido e não com o rascunho do cliente. Um
+   sucesso obtido com valores de parágrafo único não prova, sozinho, que
+   o transporte está limpo (`docs/PENDENCIAS.md` PEND-011).
+4. **A entrega v1 da Decisão 5 não funcionou nativamente em nenhum dos
+   dois hosts testados.** No ChatGPT, o servidor gerou e devolveu o
+   documento correto, mas a UI não expôs a URI `attachment://` do
+   `EmbeddedResource`, e o ChatGPT recorreu a um canal de arquivos
+   próprio (o arquivo obtido por esse contorno é idêntico byte a byte ao
+   documento do servidor e mantém o timbrado — o defeito é de entrega no
+   host, não de renderização). No Claude, o servidor transmitiu o
+   `EmbeddedResource` completo (confirmado no log de requisições), mas o
+   cliente recusou explicitamente o tipo de mídia
+   `application/vnd.openxmlformats-officedocument.wordprocessingml.
+   document` — nenhum contorno, nenhum byte chegou ao usuário.
+5. **Isto é evidência suficiente de que a Decisão 5 não atende ao
+   requisito real do produto.** Correção do servidor, validação
+   produção-final e determinismo do documento (mesmo SHA-256 nas duas
+   chamadas vivas com o mesmo payload) estão todos comprovados — o que
+   falha é especificamente o mecanismo de entrega entre hosts
+   (`EmbeddedResource`/`BlobResourceContents` inline, v1). A Decisão 5
+   **não é revista por este registro**: a troca para base64 em
+   `TextContent` continua vetada, URL pública segue excluída pela
+   própria Decisão 5 tal como escrita, e qualquer mudança no mecanismo
+   de entrega é decisão própria, avaliada em ADR-0019 (proposta, sem
+   implementação) e sujeita a autorização explícita em gate próprio.
+   `docs/PENDENCIAS.md` PEND-012 registra a falha de entrega dos dois
+   clientes; PEND-014 registra a avaliação do redesenho.
 
 ## Consequências
 

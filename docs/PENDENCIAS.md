@@ -27,7 +27,7 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-011 | ABERTA | Primeira chamada viva do ChatGPT a `ede_finalizar_peca` (2026-09-22) | Declaração de interoperabilidade do finalizador com o ChatGPT (não bloqueia o runtime; o servidor já recusa quando a inflação estoura o limite) | Transporte do cliente ChatGPT inseriu quebras de linha nos valores de placeholder; abaixo do limite de densidade isso passaria sem detecção |
 | PEND-012 | ABERTA (escopo ampliado) | Gate 6.6-D, chamadas do ChatGPT e do Claude (2026-09-22) | Critério de entrega nativa do Gate 6.6-D, ENCERRADO como PARTIAL PASS com esta pendência aberta; não bloqueia o runtime nem motiva rollback | Nem ChatGPT nem Claude entregam o DOCX nativamente via `EmbeddedResource` — ChatGPT não expõe a URI `attachment://` (contorno do host preserva os bytes); Claude recusa explicitamente o tipo de mídia do DOCX (nenhum byte chega ao usuário) |
 | PEND-013 | APROVADA, execução ADIADA | Auditoria somente-leitura das revisões antigas com tag, Gate 6.6-D item 6 (2026-09-22) | Nenhuma (não bloqueia; execução deliberadamente adiada para depois da evidência de interoperabilidade viva do Claude) | Remoção das seis tags históricas do Cloud Run (`candidato`, `candidato-6-5-b`, `candidato-6-5-b2`, `candidato-6-5-c`, `candidato-6-5-c2`, `candidato-6-5-c4`) — aprovada em princípio como *pre-pilot hardening*, nenhuma removida ainda |
-| PEND-014 | Gate 6.6-E PASS; Gate 6.6-F Fase 1 (homolog permanente, server-side) PASS; Fase 2 (Claude/ChatGPT reais) PENDENTE; ativação em produção NÃO autorizada | Fechamento do Gate 6.6-D como PARTIAL PASS (2026-09-22); implementação Gate 6.6-E mesma data | Gate de download ao vivo (Claude/ChatGPT); não bloqueia o runtime — produção continua em v1 até ativação explícita | Redesenho do mecanismo de entrega de artefato entre hosts — v2 (`scripts/artifact_storage.py`, GCS efêmero + URL V4 assinada de 24h) implementado, testado e verificado ao vivo: assinatura real, identidade de bytes, hard delete, e limpeza agendada horária (Cloud Scheduler -> Cloud Run Job) provisionada em homologação |
+| PEND-014 | Gate 6.6-E PASS; Gate 6.6-F Fase 1 PASS; Fase 2 (Claude/ChatGPT reais) PARTIAL PASS (DELIVERY-CLIENT-01); URL opaca do EDE implementada e provada server-side no homolog; cliques reais pendentes; ativação em produção NÃO autorizada | Fechamento do Gate 6.6-D como PARTIAL PASS (2026-09-22); implementação Gate 6.6-E mesma data | Gate de download ao vivo (Claude/ChatGPT); não bloqueia o runtime — produção continua em v1 até ativação explícita | Redesenho do mecanismo de entrega de artefato entre hosts — v2 (`scripts/artifact_storage.py`, GCS efêmero + URL V4 assinada de 24h) implementado, testado e verificado ao vivo: assinatura real, identidade de bytes, hard delete, e limpeza agendada horária (Cloud Scheduler -> Cloud Run Job) provisionada em homologação |
 
 ---
 
@@ -758,7 +758,9 @@ Em aberto (execução deliberadamente adiada).
 
 **Status (2026-09-23):** Gate 6.6-E **PASS**; Gate 6.6-F Fase 1
 (homologação server-side em `ede-mcp-homolog`, permanente) **PASS**;
-Fase 2 (teste real com Claude/ChatGPT) **pendente**. Candidato canônico
+Fase 2 (teste real com Claude/ChatGPT) **PARTIAL PASS**
+(DELIVERY-CLIENT-01); URL opaca do EDE implementada e provada
+server-side no homolog; cliques reais pendentes de autorização. Candidato canônico
 `sha256:14f493a0704b4fdbe078158e087463f7c32d3a532ab3cd03a6ae9cfb7e0836a3` (commit `b20c2cf`). Ver "Gate 6.6-F" abaixo.
 
 Histórico: CANDIDATO IMPLEMENTADO E VERIFICADO AO VIVO (continuação do
@@ -847,6 +849,46 @@ do usuário para esse passo específico (CLAUDE.md §6/§17/§24).
   remover pelo titular: dois clientes DCR "EDE Gate 6.6-F loopback
   (homolog)" no Resource de homolog e as regras locais de IAM em
   `.claude/settings.local.json`.
+* **Fase 2 (LIVE CLAUDE/CHATGPT DOWNLOAD): PARTIAL PASS.** A URL V4
+  original emitida pelo EDE funciona: download manual da URL pura
+  devolve o DOCX correto, SHA local == SHA declarado pelo EDE. O clique
+  no link renderizado pelo ChatGPT falha com `SignatureDoesNotMatch`.
+* **DELIVERY-CLIENT-01 — Direct GCS V4 signed URLs are not resilient to
+  client-added query parameters.** O hyperlink renderizado pelo ChatGPT
+  acrescenta `utm_source=chatgpt.com` à URL; o parâmetro extra altera a
+  query string canônica assinada e o GCS rejeita a assinatura. Não é
+  defeito do renderer nem da assinatura; é incompatibilidade estrutural
+  entre URL assinada com query string e clientes que reescrevem links.
+  Corrigido pela Opção 1 aprovada (URL opaca do próprio EDE,
+  `/download/<token>`), ver item seguinte.
+* **Gate 6.6-F/G — URL opaca do EDE: implementada e provada
+  server-side no homolog (PASS).** Commit `0e57ee5`, candidato
+  `sha256:f5d21ad62d8f4b0d208e05185b220f832ce9c74b24b9c7ea908dc229ca80aca7`,
+  CI 35903486004 (1183 passed, 89 skipped, 0 failed), homolog
+  `ede-mcp-homolog-00006-n5d`. Provas ao vivo (ADR-0019, "Provas
+  server-side"): `?utm_source=chatgpt.com` entrega os mesmos bytes; SHA
+  entregue == SHA do renderer; 404 uniforme; expiração e hard delete
+  agendado → 404; SHA adulterado → 500 sem bytes; `/mcp` sem OAuth → 401.
+  Exclusion filter `ede-homolog-download-token-requests` no `_Default`
+  provada depois de corrigida — **incidente de homologação registrado**:
+  a primeira versão do filtro não foi aplicada pelo roteador e a
+  propagação da segunda levou minutos; tokens sintéticos ficaram no log
+  de requisições (30 dias), todos invalidados por hard delete.
+* **Pendente:** (1) repetir os cliques reais em Claude e ChatGPT contra
+  o homolog (aguarda autorização do titular); (2) depois do gate live,
+  propor e provar a remoção de `roles/iam.serviceAccountTokenCreator`
+  da SA de homolog e de `EDE_ARTEFATOS_SIGNER_SA` do serviço; (3)
+  titular decide sobre as entradas de log da rodada 1/2 (apagar exige
+  excluir o log de requisições do projeto inteiro); (4) resíduo a
+  remover pelo titular: cliente DCR "EDE Gate 6.6-F/G loopback
+  (homolog)" no Resource de homolog; (5) produção: nenhuma mudança —
+  ativação exige gate próprio, incluindo exclusion filter equivalente
+  provada com sondas antes de tráfego real.
+* Verificado em 2026-09-23: `.claude/settings.local.json` não existe
+  neste projeto (nem `~/.claude/settings.local.json`), e
+  `~/.claude/settings.json` não contém regra `add-/remove-iam-policy-
+  binding`. O resíduo "regras locais de IAM" acima não está nesses
+  arquivos.
 
 ### Fechamento
 

@@ -1,8 +1,10 @@
 # ADR-0019 — Redesenho da entrega de artefato entre hosts MCP
 
 * **Status:** **Gate 6.6-E PASS; Gate 6.6-F Fase 1 (homologação
-  server-side) PASS; Fase 2 (Claude/ChatGPT reais) pendente** — ver
-  "Gate 6.6-F" abaixo. Histórico: Candidato implementado e **verificado ao vivo** (Gate
+  server-side) PASS; Fase 2 (Claude/ChatGPT reais) PARTIAL PASS —
+  DELIVERY-CLIENT-01**; URL V4 exposta substituída pela URL opaca do
+  próprio EDE (Opção 1), implementada e em prova server-side no homolog
+  — ver "Gate 6.6-F Fase 2" abaixo. Histórico: Candidato implementado e **verificado ao vivo** (Gate
   6.6-E, continuação) — Candidata A (objeto GCS efêmero + URL V4
   assinada) implementada em `scripts/artifact_storage.py`, VERSION
   `0.15.0`, com suíte de unidade completa (transporte fake, sem rede) e
@@ -476,6 +478,147 @@ nova, v2 não ativado.
 homolog (conexão OAuth via CIMD/DCR do próprio cliente, chamada das
 ferramentas, clique e download do link, SHA local, abertura no Word).
 Só depois dela se discute ativação em produção, em passo próprio.
+
+## Gate 6.6-F Fase 2 — DELIVERY-CLIENT-01 e substituição da URL V4 exposta (2026-09-23)
+
+**Fase 2 (LIVE CLAUDE/CHATGPT DOWNLOAD): PARTIAL PASS.** A Candidata A,
+como implementada no Gate 6.6-E (URL V4 assinada do GCS entregue
+diretamente ao cliente), foi homologada server-side e funciona quando a
+URL é usada exatamente como emitida: download manual da URL pura devolve
+o DOCX correto, SHA local == SHA do EDE. O clique no link renderizado
+pelo ChatGPT falha com `SignatureDoesNotMatch`.
+
+**DELIVERY-CLIENT-01 — Direct GCS V4 signed URLs are not resilient to
+client-added query parameters.** O ChatGPT acrescenta
+`utm_source=chatgpt.com` ao hyperlink renderizado; o parâmetro extra
+altera a query string canônica que a assinatura V4 cobre, e o GCS recusa.
+Não é defeito do renderer nem do algoritmo de assinatura: é
+incompatibilidade estrutural entre uma URL cuja autorização está na
+query string e clientes que reescrevem links. Esta seção **não** apaga a
+história acima — a URL V4 foi implementada, homologada e rejeitada como
+solução cross-client por este achado.
+
+### Decisão (aprovada pelo usuário): Opção 1 — o EDE serve o objeto privado
+
+Comparadas duas alternativas: (1) o próprio EDE lê o objeto privado e
+entrega os bytes; (2) o EDE valida um token e redireciona para uma URL V4
+recém-assinada. **Opção 2 rejeitada** para esta arquitetura: mantém
+`signBlob`/auto-impersonation, cria uma segunda capacidade portadora
+(a URL do GCS no navegador), não permite conferir o SHA na entrega, e
+quebra em retomada de download após a URL curta expirar.
+
+```text
+ede_finalizar_peca
+  -> bytes validados (Template Lock / fidelidade / round-trip)
+  -> objeto privado artifacts/<sha256(token)>.docx
+  -> https://<host canônico do EDE>/download/<token>
+GET|HEAD /download/<token>   (query string nunca lida)
+  -> formato -> metadado -> expires_at -> geração observada
+  -> SHA-256 do conteúdo == SHA do metadado -> bytes
+```
+
+| Requisito | Mecanismo |
+|---|---|
+| Token imprevisível | `secrets.token_urlsafe(32)` — 256 bits, 43 chars base64url |
+| Sem dado de caso/filename na URL | token puro; filename só no metadado do objeto |
+| Token nunca persistido em claro | objeto identificado por `sha256(token)`; `artefato_id` na telemetria = esse hash |
+| Validade 24h, múltiplos downloads | `expires_at` do metadado, mesma fonte de verdade da limpeza; reuso permitido (pré-visualizadores de link consumiriam um token de uso único) |
+| Parâmetros extras ignorados | a rota nunca lê a query string; autorização inteira no caminho |
+| Fail-closed | token malformado/inexistente, expirado, metadado ausente/malformado, objeto excluído → 404 uniforme; SHA divergente → 500 sem bytes; armazenamento indisponível → 503 |
+| Cabeçalhos | `Content-Type` DOCX, `Content-Disposition: attachment; filename="<institucional>"`, `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` |
+| Bucket privado | inalterado; acesso anônimo direto ao GCS → 403 (verificado ao vivo) |
+| Sem assinatura | `signBlob`, auto-impersonation e `EDE_ARTEFATOS_SIGNER_SA` removidos do código (variável ignorada se presente) |
+| Retenção | limpeza oportunista + agendada horária, hard delete e lifecycle de 2 dias inalterados |
+| Autorização | exceção explícita e testada — ver adendo "mapa de autorização" da ADR-0017 |
+
+O trade-off de capacidade portadora descrito acima continua valendo, com
+uma diferença: agora a capacidade é um token do EDE, não uma assinatura
+do GCS, e cada entrega passa por verificação de integridade no servidor.
+
+Implementação: commit `0e57ee5`; candidato
+`mcp-server@sha256:f5d21ad62d8f4b0d208e05185b220f832ce9c74b24b9c7ea908dc229ca80aca7`,
+CI 35903486004 (1183 passed, 89 skipped, 0 failed); homolog
+`ede-mcp-homolog-00006-n5d`. Produção inalterada.
+
+### Provas server-side no homolog (2026-09-23) — PASS
+
+Contra `ede-mcp-homolog-00006-n5d`, com token OAuth real de homolog
+(authorization_code + PKCE) e `ede_finalizar_peca` real (dados
+sintéticos), sem nenhuma chamada aos clientes Claude/ChatGPT:
+
+* sem credencial: `/mcp` sem Bearer → 401; PRM público → 200; token bem
+  formado inexistente, truncado, com caractere inválido, com segmento
+  extra, e inexistente + `utm` → 404 idêntico em corpo e cabeçalhos;
+  `POST /download/...` → 405 (`Allow: GET, HEAD`);
+* finalização: `download_url` = `https://<host canônico>/download/<43
+  chars>`, sem query string, sem GCS, sem filename; resultado MCP
+  preserva `document_sha256`, `document_size`, `filename`, `expires_at`;
+* **prova obrigatória**: `/download/<token>?utm_source=chatgpt.com`
+  entrega exatamente os mesmos bytes de `/download/<token>`; também com
+  múltiplos parâmetros arbitrários e com valores codificados; segundo
+  download do mesmo token → 200; HEAD → 200 sem corpo; Bearer inválido
+  no download é ignorado; SHA entregue == SHA do renderer em todos;
+  cabeçalhos exigidos presentes; DOCX íntegro (ZIP, XML bem formado, zero
+  placeholder residual);
+* bucket: objeto em `artifacts/<sha256(token)>.docx`, metadado só com
+  `artifact_id/created_at/expires_at/sha256/filename`, token ausente do
+  objeto e do metadado, acesso anônimo direto ao GCS → 403;
+* expiração: metadado real retroagido → 404 (puro e com `utm`);
+  metadado malformado (`sha256`) → 404; conteúdo adulterado com
+  metadado original → **500 sem nenhum byte do documento**;
+* hard delete pela cadeia agendada real (Cloud Scheduler → Cloud Run Job
+  `ede-artefatos-limpeza-homolog`, que ainda roda a imagem anterior e
+  continua compatível por decidir pelo mesmo `expires_at`): objeto
+  excluído, não elegível preservado, download → 404 (puro e com `utm`),
+  nenhuma geração soft-deleted recuperável.
+
+### Privacidade de logs — exclusion filter e incidente de homologação
+
+O log de requisições da plataforma (`run.googleapis.com/requests`) grava
+a `requestUrl` completa; a aplicação não controla isso. Autorizada uma
+exclusion filter **estreita** no sink `_Default` (projeto compartilhado
+com produção, mas filtrada ao serviço de homolog, ao log de requisições
+e à rota `/download/`): `ede-homolog-download-token-requests`.
+
+**Incidente, registrado por inteiro.** A primeira versão do filtro
+(`log_id("run.googleapis.com/requests") AND httpRequest.requestUrl:
+"/download/"`, 18:41:24Z) casava na leitura, mas **não foi aplicada pelo
+roteador**: a rodada 1 de provas (18:44–18:51Z) gravou 43 entradas com
+tokens de 4 artefatos sintéticos. Reescrito às 18:54:30Z na forma
+`logName="projects/ede-legal-mcp-01/logs/run.googleapis.com%2Frequests"
+AND httpRequest.requestUrl=~"/download/"`; a rodada 2 (18:55–18:56Z),
+ainda dentro da propagação, gravou 4 de ~17 requisições. Qual das duas
+mudanças corrigiu o filtro não foi isolado. Contenção nas duas rodadas:
+todos os artefatos afetados sofreram hard delete em minutos, e todos os
+tokens registrados devolvem 404 (verificado). As entradas permanecem no
+bucket `_Default` (retenção de 30 dias) — conteúdo sintético, tokens já
+inúteis; apagá-las exigiria excluir o log `run.googleapis.com/requests`
+do projeto inteiro (inclusive produção), **não feito** — decisão do
+titular.
+
+Depois da propagação: rajada de 20 sondas (tokens sem artefato; GET,
+HEAD, `utm` e query strings diversas) + 4 controles `/mcp` → 0/20
+gravadas, 4/4 controles gravados. **Rodada 3** (4 artefatos reais, toda
+a bateria acima), varredura só depois de confirmada a ingestão dos
+eventos da própria rodada: token e prefixo de 30 caracteres → 0
+ocorrências em **qualquer** log do projeto; `run.googleapis.com/
+requests` com `/download/` → 0; `/mcp` continua gravado (exclusão
+estreita); stdout/stderr (1318 entradas) sem token e sem `utm_source`;
+telemetria HTTP do EDE com 125 registros `/download/<redacted>` e nenhum
+caminho não redigido; `download_artefato` com `entregue`,
+`nao_encontrado` e `integridade_divergente`; logs de erro sem token;
+Cloud Trace sem traces armazenados no projeto (nenhum token).
+
+**Lição operacional:** exclusion filter nova ou editada só é confiável
+depois de provada com sondas sem valor e controle positivo, e depois da
+janela de propagação — nunca com tráfego real logo após a edição. Vale
+igualmente para a futura ativação em produção.
+
+**Não feito nesta rodada:** clique real em Claude/ChatGPT (aguarda
+autorização após revisão); remoção de `roles/iam.
+serviceAccountTokenCreator` da SA de homolog e de `EDE_ARTEFATOS_
+SIGNER_SA` do serviço (mantidos para rollback até o gate live passar);
+qualquer mudança em produção.
 
 ## Consequências desta ADR
 

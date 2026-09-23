@@ -126,7 +126,8 @@ até a ativação ser explicitamente autorizada.
 | Variável | Valor candidato | Status |
 |---|---|---|
 | `EDE_ARTEFATOS_GCS_BUCKET` | `ede-legal-mcp-01-artefatos-efemeros` | criado no Gate 6.6-E — privado, regional (`southamerica-east1`), acesso uniforme, `public_access_prevention: enforced`, sem `allUsers`/`allAuthenticatedUsers`, **sem versionamento** (confirmado ao vivo), **soft-delete desligado** (`retentionDurationSeconds: 0`, confirmado ao vivo — o padrão do projeto GCP retém objeto "excluído" por 7 dias; desligado aqui porque o bucket guarda documento jurídico efêmero e uma exclusão precisa ser real, nunca recuperável), **sem retention policy nem default event-based hold** (confirmado ao vivo), lifecycle `age: 2` (dias) como backstop **assíncrono, sem prazo garantido** — nunca a garantia normal de exclusão (ver ADR-0019, seção "Retenção") |
-| `EDE_ARTEFATOS_SIGNER_SA` | *(pendente — ver nota de IAM abaixo)* | e-mail da service account a impersonar para `signBlob` (V4 keyless); em produção normal é o e-mail da PRÓPRIA `ede-mcp-runtime@ede-legal-mcp-01.iam.gserviceaccount.com` (auto-impersonation) |
+| `EDE_ARTEFATOS_DOWNLOAD_BASE_URL` | `https://<host canônico do serviço>` | **desde o Gate 6.6-F/G** — origem pública do link `https://<host>/download/<token>`; o processo recusa subir se o host divergir de `EDE_MCP_CANONICAL_HOST` ou se a camada OAuth estiver desligada |
+| `EDE_ARTEFATOS_SIGNER_SA` | *(obsoleta desde o Gate 6.6-F/G)* | só existia para a assinatura V4 (`signBlob`, auto-impersonation), substituída pela URL opaca servida pelo próprio EDE (DELIVERY-CLIENT-01, ADR-0019). Ignorada pelo código se presente; mantida no homolog só para permitir rollback à revisão anterior até o gate live passar |
 
 **Retenção (decisão final, Gate 6.6-E continuação):** janela de
 AUTORIZAÇÃO de download = 24 horas (`TTL_DOWNLOAD_SEGUNDOS`, revisado
@@ -234,8 +235,10 @@ ede-mcp-homolog-runtime@…` (auto-impersonation).
 `roles/iam.serviceAccountTokenCreator` sobre ela mesma (`signBlob`
 keyless). A SA de runtime de produção **não** recebeu nada neste gate.
 
-**Entrega e retenção:** a política da seção "Artefatos efêmeros" acima
-vale integralmente — URL V4 de 24h, hard delete, limpeza oportunista +
+**Entrega e retenção (atualizado no Gate 6.6-F/G):** o link entregue
+deixou de ser uma URL V4 assinada do GCS e passou a ser
+`https://<host do EDE>/download/<token opaco>`, servido pelo próprio EDE
+(DELIVERY-CLIENT-01, ADR-0019). Janela de 24h, hard delete, limpeza oportunista +
 agendada horária (`ede-artefatos-limpeza-homolog`), lifecycle de 2 dias
 como backstop assíncrono. O homolog compartilha o bucket e a limpeza
 agendada já provados no Gate 6.6-E.

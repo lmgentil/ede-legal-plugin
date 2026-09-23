@@ -1275,6 +1275,54 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - Produção intocada: `ede-mcp-00020-gum`, VERSION 0.14.0, 100% do
   tráfego, IAM de runtime sem concessão nova.
 
+### Gate 6.6-F Fase 2 / 6.6-F/G — DELIVERY-CLIENT-01: URL V4 exposta substituída por URL opaca do EDE (VERSION permanece 0.15.0)
+
+- **Fase 2 (LIVE CLAUDE/CHATGPT DOWNLOAD): PARTIAL PASS.** A URL V4
+  assinada funciona quando usada pura (SHA local == SHA do EDE), mas o
+  ChatGPT acrescenta `utm_source=chatgpt.com` ao link e o GCS recusa
+  (`SignatureDoesNotMatch`). **DELIVERY-CLIENT-01 — Direct GCS V4
+  signed URLs are not resilient to client-added query parameters.** A
+  solução V4 do Gate 6.6-E foi implementada, homologada e rejeitada como
+  solução cross-client por este achado — história preservada acima.
+- **Opção 1 (aprovada):** o próprio EDE serve o objeto privado em
+  `GET|HEAD /download/<token>` (`mcp_server/download_route.py`). Token
+  `secrets.token_urlsafe(32)` (256 bits); objeto
+  `artifacts/<sha256(token)>.docx`; token nunca persistido em claro;
+  24h, reuso permitido; query string nunca lida; formato → metadado →
+  `expires_at` → geração observada → SHA-256 conferido antes de qualquer
+  byte; 404 uniforme; SHA divergente → 500 sem bytes; indisponível → 503.
+  Opção 2 (redirect para URL V4 recém-assinada) rejeitada.
+- **Sem assinatura:** removidos `signBlob`, auto-impersonation,
+  `_construir_url_assinada_v4`, `ErroAssinaturaArtefato`,
+  `ARTIFACT_SIGNING_FAILED` e `artefato_limpeza_ok`;
+  `EDE_ARTEFATOS_SIGNER_SA` ignorada se presente. Nova variável
+  `EDE_ARTEFATOS_DOWNLOAD_BASE_URL`, validada na subida contra o host
+  canônico OAuth (`ConfiguracaoDownloadInvalida`). Testes da assinatura
+  V4 saíram junto com o código que testavam.
+- **Autorização:** exceção explícita e testada — mapa de rotas no
+  adendo da ADR-0017 (`/mcp` OAuth; PRM público; `/download/<token>`
+  capacidade portadora). `/mcp` sem OAuth continua 401.
+- **Logs:** caminho redigido para `/download/<redacted>` na telemetria
+  (e recusado pela allowlist se não redigido); novo evento
+  `download_artefato` com vocabulário fechado; access log do uvicorn
+  desligado. Exclusion filter estreita no `_Default` para o log de
+  requisições da plataforma em `/download/` do homolog — **incidente de
+  homologação**: a primeira versão do filtro não foi aplicada e a
+  segunda levou minutos para propagar; tokens sintéticos das rodadas 1
+  e 2 ficaram no log de requisições, todos invalidados por hard delete.
+  Rodada 3, depois de sondas: nenhum token em qualquer log ou trace.
+- **Testes:** `tests/test_download_route.py` (novo, app ASGI real) e
+  `tests/test_artifact_storage.py` reescrito; ponta a ponta em
+  `test_mcp_oauth.py` (finalização MCP → download com `utm`). Local:
+  1271 passed, 1 falha preexistente (`skills/docx` local). CI
+  35903486004: 1183 passed, 89 skipped, 0 failed.
+- **Candidato:** commit `0e57ee5`,
+  `sha256:f5d21ad62d8f4b0d208e05185b220f832ce9c74b24b9c7ea908dc229ca80aca7`,
+  implantado **só** em `ede-mcp-homolog` (`ede-mcp-homolog-00006-n5d`).
+  Provas server-side PASS (ADR-0019). Cliques reais em Claude/ChatGPT
+  pendentes de autorização. Produção intocada: `ede-mcp-00020-gum`,
+  0.14.0, 100% do tráfego, IAM inalterado.
+
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto
   o de produção (`K_SERVICE=ede-mcp`, ver acima). Desligada, o

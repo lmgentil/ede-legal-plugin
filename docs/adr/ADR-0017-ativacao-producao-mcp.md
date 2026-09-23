@@ -270,3 +270,39 @@ Local, suíte e contêiner fora do Cloud Run (sem `K_SERVICE`) não mudam.
 Qualquer serviço Cloud Run novo que use a imagem do MCP precisa
 configurar OAuth ou ser isento por decisão registrada. Implementado no
 commit `b20c2cf`.
+
+### Adendo — mapa de autorização do serviço e exceção explícita `/download/` (Gate 6.6-F/G, 2026-09-23)
+
+`INV-CLOUD-RUN-AUTH-OBRIGATORIA` garante que **o processo** não sobe sem
+a camada OAuth. Ela não significa que toda rota HTTP exija Bearer: o
+serviço tem três classes de rota, e cada uma é uma decisão registrada,
+nunca um efeito colateral de montagem:
+
+| Rota | Autorização | Onde é garantida |
+|---|---|---|
+| `/mcp` | OAuth obrigatório (Bearer válido + escopo base; `ede:legal` por ferramenta) | `RequireAuthMiddleware` do SDK, só nesta rota; `EscopoFerramentaMiddleware` no dispatch |
+| PRM / discovery OAuth (`/.well-known/oauth-protected-resource/...`) | público, conforme RFC 9728 | `MetadadosRecursoProtegidoMiddleware` |
+| `/download/<token>` | **capacidade portadora opaca** (token de 256 bits, 24h), nunca OAuth | `mcp_server/download_route.py` |
+
+A terceira linha é a única exceção a Bearer, e é **explícita**: um
+middleware próprio (`DownloadArtefatoMiddleware`), montado em
+`construir_app_http` por fora da app do SDK, que intercepta somente o
+prefixo exato `/download/` — o pedido de download nunca alcança
+`AuthenticationMiddleware`, `RequireAuthMiddleware` nem o dispatcher
+MCP. Não se usa `custom_route` do SDK (que também dispensaria auth, mas
+de forma implícita, pelo comportamento do SDK). Ordem real verificada no
+SDK 2.2.0 antes da implementação (`mcp/server/lowlevel/server.py::
+streamable_http_app`): `AuthenticationMiddleware` + `AuthContextMiddleware`
+globais na Starlette interna; `RequireAuthMiddleware` como endpoint da
+rota `/mcp` apenas. Ordem final, de fora para dentro: Telemetria →
+Download (`/download/*`) → PRM (caminho exato) → app do SDK.
+
+Testado: `/mcp` sem Bearer continua 401 com a rota de download montada
+(unidade e ao vivo no homolog); `/downloadx/...` e `/download` (sem
+barra) não chegam ao handler; Bearer inválido num download é ignorado,
+não vira 401. `EDE_ARTEFATOS_DOWNLOAD_BASE_URL` com host diferente do
+host canônico, ou presente sem a camada OAuth (onde a rota não é
+montada), faz o processo recusar subir (`ConfiguracaoDownloadInvalida`).
+Ampliar esta tabela com outra rota sem Bearer exige a mesma disciplina:
+decisão explícita, teste e revisão deste adendo. Contexto e trade-off da
+capacidade portadora: ADR-0019.

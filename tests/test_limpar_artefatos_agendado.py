@@ -26,9 +26,6 @@ class _FakeTransporte:
     def enviar(self, object_name, dados, content_type, metadata):
         self.objetos[object_name] = (dados, content_type, dict(metadata))
 
-    def assinar_url(self, *a, **k):
-        raise AssertionError("limpeza agendada nunca deveria assinar URL")
-
     def excluir(self, object_name):
         self.chamadas_excluir += 1
         self.objetos.pop(object_name, None)
@@ -58,7 +55,6 @@ def test_executar_usa_o_transporte_do_ambiente(monkeypatch):
     monkeypatch.setattr(ast, "obter_transporte_do_ambiente", lambda env: transporte)
     agregado = lae.executar({
         ast.ENV_ARTEFATOS_GCS_BUCKET: "b",
-        ast.ENV_ARTEFATOS_SIGNER_SA: "sa@x.iam.gserviceaccount.com",
     })
     assert agregado == {"rodadas": 1, "inspecionados": 0, "excluidos": 0, "falhas": 0}
 
@@ -76,7 +72,6 @@ def test_executar_repete_ate_esgotar_o_backlog(monkeypatch):
 
     agregado = lae.executar({
         ast.ENV_ARTEFATOS_GCS_BUCKET: "b",
-        ast.ENV_ARTEFATOS_SIGNER_SA: "sa@x.iam.gserviceaccount.com",
     })
     assert agregado["rodadas"] == 2  # cheia + parcial
     assert agregado["excluidos"] == total
@@ -96,7 +91,6 @@ def test_executar_respeita_teto_de_rodadas_por_execucao(monkeypatch):
 
     agregado = lae.executar({
         ast.ENV_ARTEFATOS_GCS_BUCKET: "b",
-        ast.ENV_ARTEFATOS_SIGNER_SA: "sa@x.iam.gserviceaccount.com",
     })
     assert agregado["rodadas"] == lae.MAX_RODADAS_POR_EXECUCAO
     assert agregado["excluidos"] == lae.MAX_RODADAS_POR_EXECUCAO * ast.LIMPEZA_MAX_OBJETOS_POR_VARREDURA

@@ -105,21 +105,22 @@ CODIGOS_ERRO = frozenset({
     "RENDER_FAILED",
     "ARTIFACT_TOO_LARGE",
     "ARTIFACT_STORAGE_FAILED",
-    "ARTIFACT_SIGNING_FAILED",
     "ARTIFACT_DELIVERY_FAILED",
 })
-"""Vocabulário FECHADO (Gate 6.6-C §18/§21; Gate 6.6-E acrescenta
-ARTIFACT_STORAGE_FAILED/ARTIFACT_SIGNING_FAILED) — o adapter MCP nunca
-devolve um código fora desta lista, e nenhuma mensagem de erro carrega
-stack trace, path privado, identificador GCS/bucket/objeto, e-mail de
-service account, interno de assinatura ou corpo da requisição.
-ARTIFACT_STORAGE_FAILED é upload ao bucket efêmero falhou (nenhum
-artefato foi criado). ARTIFACT_SIGNING_FAILED é upload teve sucesso mas
-a assinatura V4 falhou (o órfão é limpo quando operacionalmente
-possível; nunca uma URL inutilizável é devolvida ao cliente).
+"""Vocabulário FECHADO (Gate 6.6-C §18/§21; Gate 6.6-E acrescentou
+ARTIFACT_STORAGE_FAILED) — o adapter MCP nunca devolve um código fora
+desta lista, e nenhuma mensagem de erro carrega stack trace, path
+privado, identificador GCS/bucket/objeto, token de download ou corpo da
+requisição. ARTIFACT_STORAGE_FAILED é entrega efêmera não configurada ou
+upload ao bucket falhou (nenhum link é devolvido).
 ARTIFACT_DELIVERY_FAILED permanece só para a falha pré-existente de
-reabrir o DOCX gerado para fidelidade independente — não sobreposto
-pelos dois novos códigos, que são específicos do transporte v2."""
+reabrir o DOCX gerado para fidelidade independente.
+
+Histórico: `ARTIFACT_SIGNING_FAILED` (Gate 6.6-E) existiu enquanto a
+entrega dependia de assinatura V4 (`signBlob`); removido do vocabulário
+quando a URL V4 exposta foi substituída pela URL opaca servida pelo
+próprio EDE (Gate 6.6-F/G, DELIVERY-CLIENT-01) — sem assinatura, esse
+modo de falha deixou de existir."""
 
 ETAPAS = frozenset({
     "capability_resolution",
@@ -149,34 +150,28 @@ class ResultadoFinalizacao:
     documento_tamanho: int | None = None
     filename: str | None = None
     warnings: tuple[str, ...] = ()
-    download_url: str | None = None
-    """Gate 6.6-E — URL HTTPS assinada (V4), curta duração
-    (`artifact_storage.TTL_DOWNLOAD_SEGUNDOS`). `None` em toda resposta
-    REFUSED; presente sempre que `status == "OK"`."""
+    download_url: str | None = field(default=None, repr=False)
+    """`https://<host canônico do EDE>/download/<token opaco>` (Gate
+    6.6-F/G — substitui a URL V4 assinada do GCS, DELIVERY-CLIENT-01).
+    Contém a capacidade portadora: `repr=False`, e nunca repassada à
+    telemetria. `None` em toda resposta REFUSED; presente sempre que
+    `status == "OK"`."""
     download_expires_at: str | None = None
     """ISO-8601 UTC, sufixo 'Z' — momento em que `download_url` deixa de
-    funcionar. Não confundir com exclusão do objeto (Gate 6.6-E §9/§34):
-    a URL para de funcionar neste instante; o objeto em si pode
-    sobreviver mais tempo até a limpeza efetiva."""
+    autorizar download. Não confundir com exclusão do objeto: o link
+    para de funcionar neste instante; o objeto é excluído pela limpeza
+    (~24-25h) ou, no pior caso, pelo backstop de lifecycle."""
     artefato_id: str | None = None
-    """Identificador opaco (Gate 6.6-E §19) — NUNCA serializado na
-    resposta pública ao cliente MCP (`EdeFinalizarPecaResposta` não tem
-    este campo); existe só para telemetria somente-metadado."""
-    limpeza_ok: bool | None = None
-    """Só relevante quando `error_code == ARTIFACT_SIGNING_FAILED`: se a
-    tentativa de excluir o objeto órfão (upload teve sucesso, assinatura
-    falhou) funcionou. `None` em qualquer outro resultado — nunca um
-    sinônimo de "não se aplica" vs "falhou", os dois ficam
-    inequivocamente distintos (Gate 6.6-E §22)."""
+    """`sha256(token)` — identificador do objeto que não permite
+    reconstruir o link. NUNCA serializado na resposta pública ao cliente
+    MCP; existe só para telemetria somente-metadado."""
 
 
-def _recusado(stage: str, error_code: str, motivo: str, capability_id: str | None = None,
-               artefato_id: str | None = None, limpeza_ok: bool | None = None) -> ResultadoFinalizacao:
+def _recusado(stage: str, error_code: str, motivo: str, capability_id: str | None = None) -> ResultadoFinalizacao:
     assert stage in ETAPAS, stage  # defensivo: nunca um estágio inventado ad hoc
     assert error_code in CODIGOS_ERRO, error_code
     return ResultadoFinalizacao(status="REFUSED", capability_id=capability_id,
-                                 stage=stage, error_code=error_code, motivo=motivo,
-                                 artefato_id=artefato_id, limpeza_ok=limpeza_ok)
+                                 stage=stage, error_code=error_code, motivo=motivo)
 
 
 # error_code -> estágio seguro, para os códigos cujo estágio é dedutível
@@ -197,7 +192,6 @@ _ETAPA_POR_CODIGO = {
     "ROUND_TRIP_FAILED": "round_trip",
     "ARTIFACT_TOO_LARGE": "artifact_delivery",
     "ARTIFACT_STORAGE_FAILED": "artifact_delivery",
-    "ARTIFACT_SIGNING_FAILED": "artifact_delivery",
     "ARTIFACT_DELIVERY_FAILED": "artifact_delivery",
 }
 
@@ -207,10 +201,17 @@ def _recusado_por_codigo(error_code: str, motivo: str, capability_id: str | None
     return _recusado(stage or _ETAPA_POR_CODIGO[error_code], error_code, motivo, capability_id)
 
 
+def _obter_base_url_download() -> str:
+    """Origem pública do link de download (`EDE_ARTEFATOS_DOWNLOAD_BASE_
+    URL`, validada pelo Core) — mesmo ponto de injeção de
+    `_obter_transporte_artefato`; o cliente MCP nunca a escolhe."""
+    return ast.obter_base_url_download_do_ambiente(os.environ)
+
+
 def _obter_transporte_artefato() -> ast.TransporteArtefato:
     """Ponto único de injeção do transporte de armazenamento (Gate
-    6.6-E) — produção resolve `EDE_ARTEFATOS_GCS_BUCKET`/
-    `EDE_ARTEFATOS_SIGNER_SA` do ambiente real; testes usam
+    6.6-E) — produção resolve `EDE_ARTEFATOS_GCS_BUCKET` do ambiente
+    real; testes usam
     `monkeypatch` sobre esta função (mesma disciplina de
     `legal_readiness.adquirir_bytes_modelo_oficial`, nunca variável de
     ambiente vazada entre testes). Nenhum parâmetro público de
@@ -423,16 +424,16 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
         sha256 = hashlib.sha256(documento_bytes).hexdigest()
         filename = FILENAME_POR_CAPACIDADE[capability_id]
 
-        # Gate 6.6-E, ADR-0019: entrega v2. Envia exatamente `documento_
-        # bytes` (já aprovado por Template Lock/fidelidade/round-trip
-        # acima, nunca reaberto/reconstruído) a um objeto GCS privado e
-        # efêmero e devolve uma URL HTTPS assinada de curta duração —
-        # substitui o `EmbeddedResource` inline v1 (Decisão 5 da
-        # ADR-0018, provado insuficiente no Gate 6.6-D), nunca em
-        # paralelo com ele.
+        # Entrega v2 (Gate 6.6-E, ADR-0019; URL opaca desde o Gate
+        # 6.6-F/G). Envia exatamente `documento_bytes` (já aprovado por
+        # Template Lock/fidelidade/round-trip acima, nunca reaberto/
+        # reconstruído) a um objeto GCS privado e efêmero e devolve
+        # `https://<host do EDE>/download/<token>` — o próprio EDE serve
+        # o objeto, conferindo o SHA-256 antes de entregar.
         try:
             entrega = ast.entregar_artefato_efemero(
-                documento_bytes, sha256, filename, transporte=_obter_transporte_artefato(),
+                documento_bytes, sha256, filename,
+                transporte=_obter_transporte_artefato(), base_url=_obter_base_url_download(),
             )
         except ast.ErroConfiguracaoArtefato:
             return _recusado("artifact_delivery", "ARTIFACT_STORAGE_FAILED",
@@ -440,10 +441,6 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
         except ast.ErroArmazenamentoArtefato:
             return _recusado("artifact_delivery", "ARTIFACT_STORAGE_FAILED",
                               "Falha ao armazenar o artefato gerado.", capability_id)
-        except ast.ErroAssinaturaArtefato as e:
-            return _recusado("artifact_delivery", "ARTIFACT_SIGNING_FAILED",
-                              "Falha ao gerar o link de download do artefato.", capability_id,
-                              artefato_id=e.artefato_id, limpeza_ok=e.limpeza_ok)
 
         # Limpeza oportunista (Gate 6.6-E, continuação §8/§9) —
         # exclusão NORMAL de artefatos antigos, best-effort: dispara só

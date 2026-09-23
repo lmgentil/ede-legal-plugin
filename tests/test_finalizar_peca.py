@@ -232,9 +232,6 @@ class _TransporteArtefatoFake:
     def enviar(self, object_name, dados, content_type, metadata):
         self.objetos[object_name] = (dados, content_type, dict(metadata))
 
-    def assinar_url(self, object_name, ttl_segundos, content_disposition, momento=None):
-        return f"https://storage.googleapis.com/bucket-fake-teste/{object_name}?assinado=1"
-
     def excluir(self, object_name):
         self.objetos.pop(object_name, None)
         return True
@@ -256,7 +253,11 @@ def transporte_artefato_fake(monkeypatch):
     homologação do Gate 6.6-E (real, fora da suíte automatizada)."""
     fake = _TransporteArtefatoFake()
     monkeypatch.setattr(fp, "_obter_transporte_artefato", lambda: fake)
+    monkeypatch.setattr(fp, "_obter_base_url_download", lambda: BASE_URL_TESTE)
     return fake
+
+
+BASE_URL_TESTE = "https://ede.example.test"
 
 
 def _dados_tudo_incluido():
@@ -303,20 +304,29 @@ def test_pipeline_completo_ok_contra_modelo_oficial_real(modelo_oficial_local, t
     # bytes de um pacote ZIP/OOXML válido
     assert r.documento_bytes[:2] == b"PK"
 
-    # Gate 6.6-E — entrega v2: URL de download presente, artefato
-    # realmente "enviado" ao transporte (fake), bytes armazenados
-    # idênticos aos bytes renderizados/aprovados.
-    assert r.download_url and r.download_url.startswith("https://")
+    # Entrega v2 (Gate 6.6-E; URL opaca desde o Gate 6.6-F/G): link do
+    # PRÓPRIO EDE, artefato realmente "enviado" ao transporte (fake),
+    # bytes armazenados idênticos aos bytes renderizados/aprovados, e o
+    # objeto identificado por sha256(token) — nunca o token em claro.
+    prefixo = f"{BASE_URL_TESTE}/download/"
+    assert r.download_url and r.download_url.startswith(prefixo)
+    token = r.download_url[len(prefixo):]
+    assert ast.token_bem_formado(token)
+    assert "?" not in r.download_url and "storage.googleapis.com" not in r.download_url
     assert r.download_expires_at and r.download_expires_at.endswith("Z")
-    assert r.artefato_id and len(r.artefato_id) == 32
+    assert r.artefato_id == ast.id_artefato_do_token(token)
+    assert token not in repr(r)
     object_name = f"artifacts/{r.artefato_id}.docx"
     assert object_name in transporte_artefato_fake.objetos
     dados_armazenados, content_type, metadata = transporte_artefato_fake.objetos[object_name]
     assert dados_armazenados == r.documento_bytes
     assert content_type == ast.CONTENT_TYPE_DOCX
     assert metadata["sha256"] == r.documento_sha256
-    # nenhum dado de caso no metadado do objeto (Gate 6.6-E §20)
-    assert set(metadata) == {"artifact_id", "created_at", "expires_at", "sha256"}
+    # nenhum dado de caso no metadado do objeto (Gate 6.6-E §20) — o
+    # nome de arquivo é o institucional neutro, e o token não aparece
+    assert set(metadata) == {"artifact_id", "created_at", "expires_at", "sha256", "filename"}
+    assert metadata["filename"] == r.filename
+    assert token not in json.dumps(metadata)
 
     # Gate 6.6-E, continuação §8 — limpeza oportunista roda depois de
     # todo sucesso (best-effort; aqui só provamos que foi chamada).
@@ -415,13 +425,11 @@ def test_pipeline_rejeita_por_falha_de_armazenamento_do_artefato(modelo_oficial_
         def enviar(self, object_name, dados, content_type, metadata):
             raise ast.ErroArmazenamentoArtefato("gcs_status_inesperado")
 
-        def assinar_url(self, *a, **k):
-            raise AssertionError("nunca deveria assinar depois de falha de upload")
-
         def excluir(self, *a, **k):
             raise AssertionError("nunca deveria haver o que limpar — upload nem chegou a existir")
 
     monkeypatch.setattr(fp, "_obter_transporte_artefato", lambda: _TransporteFalhaEnvio())
+    monkeypatch.setattr(fp, "_obter_base_url_download", lambda: BASE_URL_TESTE)
     entrada = {
         "capability_id": "contestacao.irregularidade_consumo",
         "placeholders": _dados_tudo_incluido(),
@@ -437,23 +445,14 @@ def test_pipeline_rejeita_por_falha_de_armazenamento_do_artefato(modelo_oficial_
 
 
 @pytest.mark.docx_real
-def test_pipeline_rejeita_por_falha_de_assinatura_e_tenta_limpar_o_orfao(modelo_oficial_local, monkeypatch):
-    class _TransporteFalhaAssinatura:
-        def __init__(self):
-            self.excluiu = []
-
-        def enviar(self, object_name, dados, content_type, metadata):
-            pass  # upload "funciona"
-
-        def assinar_url(self, object_name, ttl_segundos, content_disposition, momento=None):
-            raise ast.ErroAssinaturaArtefato("iam_signblob_status_inesperado", artefato_id="", limpeza_ok=None)
-
-        def excluir(self, object_name):
-            self.excluiu.append(object_name)
-            return True
-
-    transporte = _TransporteFalhaAssinatura()
-    monkeypatch.setattr(fp, "_obter_transporte_artefato", lambda: transporte)
+def test_pipeline_sem_base_url_de_download_recusa_sem_subir_objeto(modelo_oficial_local, monkeypatch):
+    """Gate 6.6-F/G — substitui o teste de falha de assinatura (modo de
+    falha que deixou de existir junto com a URL V4). Sem
+    `EDE_ARTEFATOS_DOWNLOAD_BASE_URL` o link não poderia ser composto:
+    recusa fail-closed ANTES do upload — nenhum objeto órfão."""
+    fake = _TransporteArtefatoFake()
+    monkeypatch.setattr(fp, "_obter_transporte_artefato", lambda: fake)
+    monkeypatch.delenv(ast.ENV_ARTEFATOS_DOWNLOAD_BASE_URL, raising=False)
     entrada = {
         "capability_id": "contestacao.irregularidade_consumo",
         "placeholders": _dados_tudo_incluido(),
@@ -462,13 +461,11 @@ def test_pipeline_rejeita_por_falha_de_assinatura_e_tenta_limpar_o_orfao(modelo_
     }
     r = fp.finalizar_peca(entrada)
     assert r.status == "REFUSED"
-    assert r.error_code == "ARTIFACT_SIGNING_FAILED"
+    assert r.error_code == "ARTIFACT_STORAGE_FAILED"
     assert r.stage == "artifact_delivery"
     assert r.download_url is None
     assert r.documento_bytes is None
-    assert r.artefato_id  # opaco, não vazio -- para telemetria
-    assert r.limpeza_ok is True
-    assert len(transporte.excluiu) == 1
+    assert fake.objetos == {}
 
 
 @pytest.mark.docx_real

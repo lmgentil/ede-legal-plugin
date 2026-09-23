@@ -158,6 +158,13 @@ import preparar_contestacao  # noqa: E402
 # — nenhuma tool de descoberta própria neste gate, Decisão 7 da ADR-0018.)
 import finalizar_peca  # noqa: E402
 
+# Gate 6.6-F/G (ADR-0019, DELIVERY-CLIENT-01): o próprio EDE serve o
+# artefato em `/download/<token>` — exceção de autenticação EXPLÍCITA,
+# montada só em `construir_app_http` (ver docstring de download_route.py
+# para o mapa de autorização do serviço).
+import artifact_storage  # noqa: E402
+from download_route import DownloadArtefatoMiddleware  # noqa: E402
+
 NOME_SERVIDOR = "EDE Legal Plugin — MCP Server"
 
 
@@ -427,11 +434,13 @@ class EdeFinalizarPecaResposta(BaseModel):
     ADR-0018, provado insuficiente no Gate 6.6-D com Claude e ChatGPT
     reais — nenhum base64 em lugar nenhum desta resposta). ÚNICO content
     block da resposta, sucesso ou recusa; em sucesso, `download_url` é
-    uma URL HTTPS comum (assinatura V4 de curta duração) que o cliente
-    baixa fora do transporte MCP — nunca um segundo content block.
+    `https://<host canônico do EDE>/download/<token opaco>` (Gate
+    6.6-F/G — nunca mais uma URL V4 assinada do GCS, rejeitada por
+    DELIVERY-CLIENT-01), que o cliente baixa fora do transporte MCP —
+    nunca um segundo content block.
 
-    Nunca exposto: bucket, nome do objeto GCS, e-mail da service account
-    de assinatura, caminho local do Modelo Oficial, stack trace —
+    Nunca exposto: bucket, nome do objeto GCS, `artefato_id`, caminho
+    local do Modelo Oficial, stack trace —
     `error_code` é sempre um dos valores do vocabulário fechado de
     `scripts/finalizar_peca.CODIGOS_ERRO`.
 
@@ -451,8 +460,7 @@ class EdeFinalizarPecaResposta(BaseModel):
     expires_at: str | None = None
 
 
-def _registrar_finalizacao(resposta: EdeFinalizarPecaResposta, *, artefato_id: str | None = None,
-                            limpeza_ok: bool | None = None) -> None:
+def _registrar_finalizacao(resposta: EdeFinalizarPecaResposta, *, artefato_id: str | None = None) -> None:
     """Telemetria somente-metadado (auth_logging.py) — nunca levanta para
     o chamador da tool: um `capability_id` que o cliente inventou (nunca
     resolvido pelo registro) não é um valor do vocabulário fechado de
@@ -462,11 +470,10 @@ def _registrar_finalizacao(resposta: EdeFinalizarPecaResposta, *, artefato_id: s
     vocabulário fechado (garantido por `finalizar_peca._recusado`), nunca
     precisam do mesmo saneamento.
 
-    `artefato_id` (Gate 6.6-E) é o identificador opaco do objeto GCS —
-    nunca `download_url` (nem `resposta.download_url` nem a URL bruta)
-    chega a este ponto nem ao `registrar_evento`, por construção: a
-    assinatura desta função não aceita URL nenhuma, só o id opaco e o
-    booleano de limpeza."""
+    `artefato_id` é `sha256(token)` — identifica o objeto sem permitir
+    reconstruir o link; nunca `download_url` (nem `resposta.download_url`
+    nem o token) chega a este ponto nem ao `registrar_evento`, por
+    construção: o evento lista campo a campo e nenhum deles é a URL."""
     capability_id_seguro = (
         resposta.capability_id
         if resposta.capability_id in telemetria.CAPACIDADES_FINALIZACAO
@@ -480,7 +487,6 @@ def _registrar_finalizacao(resposta: EdeFinalizarPecaResposta, *, artefato_id: s
         codigo_erro_finalizacao=resposta.error_code,
         documento_tamanho_bytes=resposta.document_size,
         artefato_id=artefato_id,
-        artefato_limpeza_ok=limpeza_ok,
     )
 
 
@@ -497,23 +503,23 @@ def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent]:
     pronto, capacidade desconhecida/não pronta, decisão de bloco
     ausente, campo obrigatório ausente, sentinela de aceite/teste,
     falha de Template Lock/fidelidade/round-trip, documento acima do
-    limite de 8 MiB, ou falha de armazenamento/assinatura do artefato
-    (`ARTIFACT_STORAGE_FAILED`/`ARTIFACT_SIGNING_FAILED`).
+    limite de 8 MiB, ou entrega efêmera não configurada/falha de
+    armazenamento do artefato (`ARTIFACT_STORAGE_FAILED`).
 
     Resposta: SEMPRE um único content block, `TextContent` com o JSON de
     `EdeFinalizarPecaResposta` — nunca `EmbeddedResource`, nunca base64
     do documento (Gate 6.6-E substitui a Decisão 5 v1 da ADR-0018,
     provada insuficiente no Gate 6.6-D contra Claude e ChatGPT reais:
     nenhum dos dois hosts consegue consumir o blob inline nativamente).
-    Em sucesso, `download_url` é uma URL HTTPS comum — o download em si
-    acontece fora deste transporte MCP, sem OAuth do EDE (Gate 6.6-E
-    §36/§38: a URL assinada é uma capacidade portadora de curta duração,
-    não uma operação MCP autenticada).
+    Em sucesso, `download_url` é `https://<host do EDE>/download/<token>`
+    — o download acontece fora deste transporte MCP, sem OAuth (o token
+    opaco de 24h é uma capacidade portadora, ver download_route.py), e o
+    próprio EDE confere o SHA-256 antes de entregar os bytes.
 
     Privacidade: bytes do documento nunca são logados, nunca reabertos
     depois do upload; `document_sha256` é o único traço persistido do
-    conteúdo na telemetria, e a URL assinada em si nunca chega à
-    telemetria (só o id opaco do artefato — ver `_registrar_finalizacao`)."""
+    conteúdo na telemetria, e o token nunca chega à telemetria (só
+    `artefato_id` = sha256 do token — ver `_registrar_finalizacao`)."""
     try:
         resultado = finalizar_peca.finalizar_peca(entrada.model_dump(exclude_none=False))
     except Exception:
@@ -532,7 +538,7 @@ def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent]:
             status="REFUSED", capability_id=resultado.capability_id,
             stage=resultado.stage, error_code=resultado.error_code, motivo=resultado.motivo,
         )
-        _registrar_finalizacao(resposta, artefato_id=resultado.artefato_id, limpeza_ok=resultado.limpeza_ok)
+        _registrar_finalizacao(resposta, artefato_id=resultado.artefato_id)
         return [TextContent(type="text", text=resposta.model_dump_json(exclude_none=True))]
 
     resposta = EdeFinalizarPecaResposta(
@@ -641,7 +647,19 @@ def construir_app_http(servidor: MCPServer, config: EdeAuthConfig):
     do Protected Resource Metadata pelo catálogo completo de escopos
     (`scope_policy.escopos_anunciaveis`) — `config.required_scopes`
     (base do transporte, `AuthSettings.required_scopes`) permanece
-    inalterado, só `ede:health`."""
+    inalterado, só `ede:health`.
+
+    `DownloadArtefatoMiddleware` (Gate 6.6-F/G) fica por dentro da
+    telemetria e por fora do PRM e de toda a app do SDK: é a exceção de
+    autenticação EXPLÍCITA do serviço, restrita a `/download/<token>`
+    (autorização por capacidade portadora opaca). Ordem final, de fora
+    para dentro:
+
+        Telemetria -> Download(/download/*) -> PRM(caminho exato)
+          -> app do SDK [Authentication + AuthContext globais;
+                         RequireAuthMiddleware só em /mcp]
+
+    Nenhum outro caminho é afetado — `/mcp` continua exigindo OAuth."""
     app = servidor.streamable_http_app(
         streamable_http_path=config.caminho_mcp,
         transport_security=seguranca_de_transporte(config),
@@ -649,7 +667,41 @@ def construir_app_http(servidor: MCPServer, config: EdeAuthConfig):
     app = MetadadosRecursoProtegidoMiddleware(
         app, config, escopos_anunciaveis(config.required_scopes)
     )
+    app = DownloadArtefatoMiddleware(app)
     return TelemetriaSegurancaMiddleware(app, config)
+
+
+class ConfiguracaoDownloadInvalida(ValueError):
+    """`EDE_ARTEFATOS_DOWNLOAD_BASE_URL` incompatível com o serviço:
+    malformada, apontando para host diferente do host canônico OAuth, ou
+    presente num processo sem a camada OAuth (onde a rota `/download/`
+    nem é montada). Sempre fatal na subida — um link que não pode
+    funcionar nunca é emitido."""
+
+
+def validar_configuracao_download(config: EdeAuthConfig | None, env) -> None:
+    """Gate 6.6-F/G: a URL de download emitida por `ede_finalizar_peca`
+    precisa apontar para ESTE serviço, pelo host canônico. Ausente ->
+    nada a validar (a finalização recusa com `ARTIFACT_STORAGE_FAILED`,
+    fail-closed, sem subir o objeto)."""
+    bruto = (env.get(artifact_storage.ENV_ARTEFATOS_DOWNLOAD_BASE_URL) or "").strip()
+    if not bruto:
+        return
+    try:
+        origem = artifact_storage.validar_base_url_download(bruto)
+    except artifact_storage.ErroConfiguracaoArtefato as e:
+        raise ConfiguracaoDownloadInvalida(str(e)) from e
+    if config is None:
+        raise ConfiguracaoDownloadInvalida(
+            f"{artifact_storage.ENV_ARTEFATOS_DOWNLOAD_BASE_URL} exige a camada OAuth de aplicação: "
+            f"sem ela a rota /download/ não é montada e o link emitido não funcionaria."
+        )
+    host = origem[len("https://"):]
+    if host != config.canonical_host.lower():
+        raise ConfiguracaoDownloadInvalida(
+            f"{artifact_storage.ENV_ARTEFATOS_DOWNLOAD_BASE_URL} precisa usar o host canônico do "
+            f"serviço ({config.canonical_host}), nunca outro host."
+        )
 
 
 # Configuração resolvida UMA vez, no import. Erro de configuração
@@ -658,6 +710,7 @@ def construir_app_http(servidor: MCPServer, config: EdeAuthConfig):
 # capturar o erro e seguir sem auth — é exatamente a degradação
 # silenciosa que o gate proíbe.
 CONFIG_AUTH = carregar_config_do_ambiente()
+validar_configuracao_download(CONFIG_AUTH, os.environ)
 
 mcp = criar_servidor(CONFIG_AUTH)
 
@@ -729,6 +782,11 @@ def main() -> None:
             host=host,
             port=port,
             log_level=mcp.settings.log_level.lower(),
+            # Gate 6.6-F/G: o access log do uvicorn grava caminho + query
+            # string — `/download/<token>` vazaria a capacidade portadora.
+            # A telemetria de segurança (redigida) já registra toda
+            # requisição HTTP; o access log é redundante e é desligado.
+            access_log=False,
         )
     ).run()
 

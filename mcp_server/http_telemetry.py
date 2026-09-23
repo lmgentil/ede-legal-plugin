@@ -31,6 +31,15 @@ from auth_config import EdeAuthConfig
 import auth_logging as telemetria
 
 
+def caminho_para_log(caminho: str | None) -> str | None:
+    """`/download/<token>` -> `/download/<redacted>` (Gate 6.6-F/G): o
+    token é a capacidade portadora do link de download e nunca alcança a
+    telemetria. Todo outro caminho passa inalterado."""
+    if isinstance(caminho, str) and caminho.startswith(telemetria.PREFIXO_CAMINHO_DOWNLOAD):
+        return telemetria.CAMINHO_DOWNLOAD_REDIGIDO
+    return caminho
+
+
 class TelemetriaSegurancaMiddleware:
     """Registra um evento somente-metadado por requisição HTTP."""
 
@@ -64,8 +73,9 @@ class TelemetriaSegurancaMiddleware:
                     id_correlacao=correlacao,
                     metodo_http=scope.get("method"),
                     # `raw_path`/`query_string` NÃO são registrados: query
-                    # string é conteúdo controlado pelo cliente.
-                    caminho=scope.get("path"),
+                    # string é conteúdo controlado pelo cliente. A rota de
+                    # download carrega o token no caminho — sempre redigida.
+                    caminho=caminho_para_log(scope.get("path")),
                     status_http=codigo,
                     latencia_ms=decorrido,
                     resultado_auth=self._resultado_auth(scope, codigo),

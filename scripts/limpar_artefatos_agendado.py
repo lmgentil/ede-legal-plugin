@@ -32,9 +32,10 @@ agendada continua de onde esta parou).
 Uso:
     python scripts/limpar_artefatos_agendado.py [--json]
 
-Variáveis de ambiente exigidas: as mesmas de produção
-(`EDE_ARTEFATOS_GCS_BUCKET`, `EDE_ARTEFATOS_SIGNER_SA`) — nunca um
-caminho de configuração paralelo."""
+Variável de ambiente exigida: a mesma do serviço
+(`EDE_ARTEFATOS_GCS_BUCKET`) — nunca um caminho de configuração
+paralelo. (`EDE_ARTEFATOS_SIGNER_SA` só existia para a assinatura V4,
+substituída no Gate 6.6-F/G; é ignorada se presente.)"""
 from __future__ import annotations
 
 import argparse

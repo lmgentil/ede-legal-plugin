@@ -18,7 +18,9 @@ O que pode ser registrado (e por que é seguro):
                      com identidade do usuário ou do processo judicial;
   evento             categoria fixa e fechada (ver EVENTOS);
   metodo_http        verbo HTTP;
-  caminho            caminho da rota (nunca query string);
+  caminho            caminho da rota (nunca query string; a rota de
+                     download sempre aparece como `/download/<redacted>`
+                     — o token nunca alcança este campo);
   status_http        código de status;
   latencia_ms        duração;
   resultado_auth     categoria de autenticação (ver RESULTADOS_AUTH);
@@ -68,13 +70,23 @@ EVENTO_STARTUP: Final = "startup"
 EVENTO_REQUISICAO_HTTP: Final = "requisicao_http"
 EVENTO_AUTORIZACAO_FERRAMENTA: Final = "autorizacao_ferramenta"
 EVENTO_FINALIZACAO_PECA: Final = "finalizacao_peca"
+EVENTO_DOWNLOAD_ARTEFATO: Final = "download_artefato"
 
 EVENTOS: Final = frozenset({
     EVENTO_STARTUP,
     EVENTO_REQUISICAO_HTTP,
     EVENTO_AUTORIZACAO_FERRAMENTA,
     EVENTO_FINALIZACAO_PECA,
+    EVENTO_DOWNLOAD_ARTEFATO,
 })
+
+PREFIXO_CAMINHO_DOWNLOAD: Final = "/download/"
+CAMINHO_DOWNLOAD_REDIGIDO: Final = "/download/<redacted>"
+"""O caminho `/download/<token>` carrega a capacidade portadora (Gate
+6.6-F/G). Qualquer `caminho` sob este prefixo que não seja exatamente o
+valor redigido é recusado por `_validar_valor` — defesa em profundidade
+além da redação feita em `http_telemetry.py`: um defeito futuro que
+esqueça de redigir falha alto em vez de vazar o token."""
 
 AUTH_AUSENTE: Final = "ausente"
 AUTH_MALFORMADA: Final = "malformada"
@@ -177,8 +189,24 @@ CODIGOS_ERRO_FINALIZACAO: Final = frozenset({
     "RENDER_FAILED",
     "ARTIFACT_TOO_LARGE",
     "ARTIFACT_STORAGE_FAILED",
-    "ARTIFACT_SIGNING_FAILED",
     "ARTIFACT_DELIVERY_FAILED",
+})
+
+# Vocabulário FECHADO do evento de download (Gate 6.6-F/G) — mesma
+# disciplina de duplicação literal acima; a suíte prova igualdade com os
+# rótulos de `scripts/artifact_storage.py`.
+RESULTADOS_DOWNLOAD: Final = frozenset({
+    "entregue",
+    "nao_encontrado",
+    "integridade_divergente",
+    "indisponivel",
+})
+
+MOTIVOS_DOWNLOAD: Final = frozenset({
+    "token_malformado",
+    "objeto_inexistente",
+    "metadado_invalido",
+    "expirado",
 })
 
 CAMPOS_PERMITIDOS: Final = frozenset({
@@ -204,7 +232,8 @@ CAMPOS_PERMITIDOS: Final = frozenset({
     "codigo_erro_finalizacao",
     "documento_tamanho_bytes",
     "artefato_id",
-    "artefato_limpeza_ok",
+    "resultado_download",
+    "motivo_download",
 })
 """Allowlist FECHADA. Acrescentar campo aqui é decisão de segurança
 consciente, não detalhe de implementação — qualquer campo novo precisa
@@ -217,16 +246,19 @@ dado de caso — mesma natureza de `ferramenta`/`escopo_exigido`.
 nunca o conteúdo; ausente em toda resposta `REFUSED` (nenhum documento
 existe para medir).
 
-Gate 6.6-E: `artefato_id` é o identificador OPACO (uuid4 hex) do objeto
-GCS efêmero — nunca o nome do objeto (`artifacts/<id>.docx`), nunca o
-bucket, nunca a URL assinada (assinada ou não); presente só quando há um
-artefato de fato criado (sucesso, ou recusa por `ARTIFACT_SIGNING_
-FAILED` depois de um upload que teve sucesso). `artefato_limpeza_ok`
-existe só junto de `ARTIFACT_SIGNING_FAILED` — booleano indicando se o
-objeto órfão foi removido; NENHUM dos dois campos é ou pode conter uma
-URL: `_registrar_finalizacao` (mcp_server/server.py) não recebe nem
-repassa `download_url`/`expires_at` a este módulo, por construção da
-própria assinatura da função."""
+Gate 6.6-E, revisado no Gate 6.6-F/G: `artefato_id` é `sha256(token)`
+em hex (64 caracteres) — identifica o objeto efêmero sem permitir
+reconstruir o link de download; nunca o token, nunca o nome do objeto
+(`artifacts/<id>.docx`), nunca o bucket, nunca a URL.
+`_registrar_finalizacao` (mcp_server/server.py) não recebe nem repassa
+`download_url` a este módulo, por construção da própria assinatura da
+função. `resultado_download`/`motivo_download` são rótulos fechados do
+evento de download — o motivo fino de um 404 fica só aqui, nunca na
+resposta ao cliente (que é sempre o mesmo 404 uniforme).
+
+Histórico: `artefato_limpeza_ok` (Gate 6.6-E) existiu só junto de
+`ARTIFACT_SIGNING_FAILED`; ambos saíram quando a assinatura V4 deixou
+de fazer parte da entrega."""
 
 
 class CampoDeLogProibido(ValueError):
@@ -289,8 +321,18 @@ def _validar_valor(campo: str, valor: Any) -> Any:
             f"artefato_id deve ser um identificador opaco curto sem barras: {valor!r} "
             f"(uma barra sugeriria um caminho de objeto GCS vazando para o log)."
         )
-    if campo == "artefato_limpeza_ok" and not isinstance(valor, bool):
-        raise CampoDeLogProibido(f"artefato_limpeza_ok deve ser booleano: {valor!r}")
+    if campo == "resultado_download" and valor not in RESULTADOS_DOWNLOAD:
+        raise CampoDeLogProibido(f"resultado_download fora do vocabulário fechado: {valor!r}")
+    if campo == "motivo_download" and valor not in MOTIVOS_DOWNLOAD:
+        raise CampoDeLogProibido(f"motivo_download fora do vocabulário fechado: {valor!r}")
+    if campo == "caminho" and (
+        not isinstance(valor, str)
+        or (valor.startswith(PREFIXO_CAMINHO_DOWNLOAD) and valor != CAMINHO_DOWNLOAD_REDIGIDO)
+    ):
+        # Mensagem deliberadamente SEM o valor: ele pode ser o token.
+        raise CampoDeLogProibido(
+            "caminho sob /download/ precisa estar redigido — o token de download nunca alcança o log."
+        )
     return valor
 
 

@@ -1597,6 +1597,10 @@ async def test_escopo_apenas_legal_sem_health_nao_alcanca_finalizar_peca():
     assert CONTADOR_DISPATCH.total() == 0
 
 
+def metadado_content_type_docx():
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
 class _TransporteArtefatoFakeOAuth:
     """Gate 6.6-E — mesmo papel do fake redefinido em
     test_finalizar_peca.py/test_artifact_storage.py, uma terceira vez
@@ -1610,8 +1614,14 @@ class _TransporteArtefatoFakeOAuth:
     def enviar(self, object_name, dados, content_type, metadata):
         self.objetos[object_name] = (dados, content_type, dict(metadata))
 
-    def assinar_url(self, object_name, ttl_segundos, content_disposition, momento=None):
-        return f"https://storage.googleapis.com/bucket-fake-teste-oauth/{object_name}?assinado=1"
+    def obter_metadado(self, object_name):
+        if object_name not in self.objetos:
+            return None
+        _, content_type, metadata = self.objetos[object_name]
+        return dict(metadata), "1", content_type
+
+    def baixar(self, object_name, generation):
+        return self.objetos[object_name][0] if object_name in self.objetos else None
 
     def excluir(self, object_name):
         self.objetos.pop(object_name, None)
@@ -1643,7 +1653,10 @@ async def test_escopo_legal_finaliza_peca_com_sucesso_real(monkeypatch):
     os.environ["EDE_MODELO_OFICIAL_PATH"] = str(template_real)
     os.environ["EDE_MODELO_OFICIAL_SHA256"] = sha
     transporte_fake = _TransporteArtefatoFakeOAuth()
-    monkeypatch.setattr(ede.finalizar_peca, "_obter_transporte_artefato", lambda: transporte_fake)
+    # Um único ponto de injeção serve à finalização E à rota de download
+    # (Gate 6.6-F/G): ambas resolvem o transporte pelo Core.
+    monkeypatch.setattr(ede.artifact_storage, "obter_transporte_do_ambiente", lambda env: transporte_fake)
+    monkeypatch.setenv(ede.artifact_storage.ENV_ARTEFATOS_DOWNLOAD_BASE_URL, f"https://{h.HOST_CANONICO}")
     try:
         catalogo = _json.loads(
             (BASE / "templates" / "contestacao" / "blocos.json").read_text(encoding="utf-8")
@@ -1676,6 +1689,13 @@ async def test_escopo_legal_finaliza_peca_com_sucesso_real(monkeypatch):
         async with app_autenticada() as (app, config):
             async with h.cliente_mcp_protocolo(app, config, token) as cliente:
                 resultado = await cliente.call_tool("ede_finalizar_peca", {"entrada": entrada})
+            # Gate 6.6-F/G: o link devolvido é servido pela MESMA app, sem
+            # OAuth, e o parâmetro que o ChatGPT acrescenta não o invalida
+            # (DELIVERY-CLIENT-01).
+            url = json.loads(resultado.content[0].text)["download_url"]
+            async with h.cliente_mcp(app, config) as http:
+                download = await http.get(url)
+                download_utm = await http.get(f"{url}?utm_source=chatgpt.com")
     finally:
         os.environ.pop("EDE_MODELO_OFICIAL_PATH", None)
         os.environ.pop("EDE_MODELO_OFICIAL_SHA256", None)
@@ -1690,8 +1710,10 @@ async def test_escopo_legal_finaliza_peca_com_sucesso_real(monkeypatch):
     assert metadado["document_size"] and metadado["document_size"] <= 8 * 1024 * 1024
 
     # Nenhum base64/bytes do documento na resposta MCP — só metadado e
-    # uma URL HTTPS comum.
-    assert metadado["download_url"].startswith("https://")
+    # a URL opaca do próprio EDE (nunca uma URL V4 assinada do GCS).
+    assert metadado["download_url"].startswith(f"https://{h.HOST_CANONICO}/download/")
+    assert "?" not in metadado["download_url"]
+    assert "storage.googleapis.com" not in metadado["download_url"]
     assert metadado["expires_at"].endswith("Z")
     assert "blob" not in json.dumps(metadado)
 
@@ -1703,3 +1725,12 @@ async def test_escopo_legal_finaliza_peca_com_sucesso_real(monkeypatch):
     assert dados_armazenados[:2] == b"PK"
     assert content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     assert CONTADOR_DISPATCH.de("ede_finalizar_peca") == 1
+
+    # SHA entregue == SHA do renderer, com e sem o parâmetro do ChatGPT.
+    for resposta in (download, download_utm):
+        assert resposta.status_code == 200
+        assert hashlib.sha256(resposta.content).hexdigest() == metadado["document_sha256"]
+        assert len(resposta.content) == metadado["document_size"]
+        assert resposta.headers["content-type"] == metadado_content_type_docx()
+        assert resposta.headers["content-disposition"] == f'attachment; filename="{metadado["filename"]}"'
+    assert download.content == download_utm.content

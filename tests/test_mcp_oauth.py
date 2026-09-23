@@ -48,7 +48,9 @@ from auth_config import (  # noqa: E402
     ESCOPO_HEALTH,
     ESCOPO_LEGAL,
     NOME_SERVICO_PRODUCAO,
+    SERVICOS_CLOUD_RUN_ISENTOS_DE_AUTH,
     VAR_K_SERVICE,
+    CloudRunSemAuthInvalida,
     ConfiguracaoAuthInvalida,
     EdeAuthConfig,
     ProducaoSemAuthInvalida,
@@ -1425,18 +1427,16 @@ def test_G_producao_com_configuracao_malformada_recusa():
     assert not isinstance(excinfo.value, ProducaoSemAuthInvalida)
 
 
-def test_guard_e_especifico_do_nome_de_producao_nao_generico():
-    """O guard não deve disparar para nenhum outro nome de serviço —
-    nem por semelhança textual, nem por conter o nome de produção como
-    substring."""
-    for nome in (
-        "ede-mcp-staging",
-        "ede-oauth-proof-disposable",
-        "ede-mcp-dev",
-        "outro-ede-mcp",
-        "",
-    ):
-        assert carregar_config_do_ambiente({VAR_K_SERVICE: nome}) is None, nome
+def test_excecao_de_producao_e_especifica_do_nome_de_producao():
+    """`ProducaoSemAuthInvalida` (tipo e mensagem de produção) continua
+    exclusiva de `K_SERVICE == "ede-mcp"` — nenhum outro nome, nem por
+    semelhança textual nem por conter o nome de produção como substring,
+    recebe o erro de produção. (Gate 6.6-F: esses nomes agora falham
+    fechado com `CloudRunSemAuthInvalida` — ver seção 9-B.)"""
+    for nome in ("ede-mcp-homolog", "ede-mcp-dev", "outro-ede-mcp", "ede-oauth-proof-disposable"):
+        with pytest.raises(CloudRunSemAuthInvalida) as excinfo:
+            carregar_config_do_ambiente({VAR_K_SERVICE: nome})
+        assert not isinstance(excinfo.value, ProducaoSemAuthInvalida), nome
 
 
 def test_producao_sem_auth_e_subclasse_de_configuracao_invalida():
@@ -1444,6 +1444,89 @@ def test_producao_sem_auth_e_subclasse_de_configuracao_invalida():
     `ConfiguracaoAuthInvalida` — o guard não introduz um segundo
     contrato de erro paralelo."""
     assert issubclass(ProducaoSemAuthInvalida, ConfiguracaoAuthInvalida)
+
+
+# =====================================================================
+# 9-B. INV-CLOUD-RUN-AUTH-OBRIGATORIA — fail-closed por padrão em
+#      qualquer serviço Cloud Run (Gate 6.6-F, adendo ADR-0017)
+# =====================================================================
+#
+# Achado do Gate 6.6-F: o homolog permanente `ede-mcp-homolog`
+# (internet-facing, `allUsers`) só estava protegido pela presença manual
+# de EDE_MCP_AUTH_ENABLED=true. A regra deixou de ser "nome protegido" e
+# passou a ser "todo K_SERVICE exige OAuth, salvo isenção explícita".
+
+CONFIG_OAUTH_COMPLETA = {
+    "EDE_MCP_AUTH_ENABLED": "true",
+    "EDE_MCP_RESOURCE": h.RESOURCE_CANONICO,
+    "EDE_MCP_ISSUER": h.ISSUER,
+    "EDE_MCP_JWKS_URI": h.JWKS_URI,
+}
+
+
+def test_homolog_com_auth_habilitada_sobe():
+    config = carregar_config_do_ambiente({VAR_K_SERVICE: "ede-mcp-homolog", **CONFIG_OAUTH_COMPLETA})
+    assert config is not None
+    assert config.canonical_resource == h.RESOURCE_CANONICO
+
+
+@pytest.mark.parametrize("extra", [
+    {},
+    {"EDE_MCP_AUTH_ENABLED": "false"},
+    {"EDE_MCP_AUTH_ENABLED": "0"},
+    {"EDE_MCP_AUTH_ENABLED": ""},
+])
+def test_homolog_sem_auth_falha_fechado(extra):
+    with pytest.raises(CloudRunSemAuthInvalida):
+        carregar_config_do_ambiente({VAR_K_SERVICE: "ede-mcp-homolog", **extra})
+
+
+def test_homolog_habilitada_com_configuracao_ausente_falha_fechado():
+    """Auth ligada sem Resource/issuer/JWKS continua recusada pela
+    validação normal de EdeAuthConfig — o guard não a substitui."""
+    with pytest.raises(ConfiguracaoAuthInvalida):
+        carregar_config_do_ambiente({VAR_K_SERVICE: "ede-mcp-homolog", "EDE_MCP_AUTH_ENABLED": "true"})
+
+
+def test_homolog_com_config_pela_metade_falha_fechado():
+    with pytest.raises(ConfiguracaoAuthInvalida):
+        carregar_config_do_ambiente({VAR_K_SERVICE: "ede-mcp-homolog", "EDE_MCP_RESOURCE": h.RESOURCE_CANONICO})
+
+
+@pytest.mark.parametrize("nome", [
+    "ede-mcp-homolog", "ede-mcp-dev", "outro-ede-mcp", "ede-oauth-proof-disposable",
+    "servico-novo-qualquer", "ede-mcp-staging-2", "EDE-MCP-STAGING",
+])
+def test_qualquer_servico_cloud_run_nao_isento_falha_fechado(nome):
+    """Fail-closed por padrão: nome novo, inesperado, ou parecido com a
+    isenção (prefixo/caixa) nunca herda a isenção."""
+    with pytest.raises(CloudRunSemAuthInvalida):
+        carregar_config_do_ambiente({VAR_K_SERVICE: nome})
+
+
+def test_isencoes_sao_exatamente_o_staging_privado():
+    """Lista mínima e explícita — ampliar é decisão de segurança com ADR,
+    nunca efeito colateral de deploy."""
+    assert SERVICOS_CLOUD_RUN_ISENTOS_DE_AUTH == frozenset({"ede-mcp-staging"})
+    assert NOME_SERVICO_PRODUCAO not in SERVICOS_CLOUD_RUN_ISENTOS_DE_AUTH
+
+
+@pytest.mark.parametrize("valor", [None, "", "   "])
+def test_local_e_suite_sem_k_service_nao_regridem(valor):
+    env = {} if valor is None else {VAR_K_SERVICE: valor}
+    assert carregar_config_do_ambiente(env) is None
+
+
+def test_cloud_run_sem_auth_e_subclasse_de_configuracao_invalida_e_producao_herda():
+    assert issubclass(CloudRunSemAuthInvalida, ConfiguracaoAuthInvalida)
+    assert issubclass(ProducaoSemAuthInvalida, CloudRunSemAuthInvalida)
+
+
+def test_mensagem_de_producao_inalterada():
+    with pytest.raises(ProducaoSemAuthInvalida) as excinfo:
+        carregar_config_do_ambiente({VAR_K_SERVICE: NOME_SERVICO_PRODUCAO})
+    assert "INV-PRODUCAO-AUTH-OBRIGATORIA" in str(excinfo.value)
+    assert "INV-CLOUD-RUN-AUTH-OBRIGATORIA" not in str(excinfo.value)
 
 
 # =====================================================================

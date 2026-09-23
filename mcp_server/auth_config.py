@@ -115,7 +115,30 @@ Amarrado deliberadamente a este único nome — nunca generalizado para
 qualquer `K_SERVICE`: `ede-mcp-staging`, o serviço de prova descartável,
 desenvolvimento local e a suíte de testes continuam podendo rodar com a
 camada OAuth desligada, exatamente como antes (ADR-0016). Só o serviço
-que se anuncia como `ede-mcp` fica sob a obrigação desta seção."""
+que se anuncia como `ede-mcp` fica sob a obrigação desta seção.
+
+Gate 6.6-F (hardening): continua sendo o ÚNICO nome que levanta
+`ProducaoSemAuthInvalida` (mensagem e tipo de produção preservados), mas
+deixou de ser o único serviço Cloud Run sob obrigação de OAuth — ver
+`SERVICOS_CLOUD_RUN_ISENTOS_DE_AUTH` abaixo."""
+
+SERVICOS_CLOUD_RUN_ISENTOS_DE_AUTH: Final = frozenset({"ede-mcp-staging"})
+"""INV-CLOUD-RUN-AUTH-OBRIGATORIA (Gate 6.6-F, ADR-0017 adendo): todo
+processo rodando como serviço Cloud Run (`K_SERVICE` não vazio) exige a
+camada OAuth de aplicação — fail-closed POR PADRÃO, nunca por lista de
+nomes protegidos. Achado do Gate 6.6-F: o homolog permanente
+(`ede-mcp-homolog`, internet-facing com `allUsers`) só estava protegido
+pela presença manual de `EDE_MCP_AUTH_ENABLED=true`; um guard amarrado
+só a `ede-mcp` deixaria qualquer serviço novo ou com nome inesperado
+subir sem autenticação.
+
+A lista abaixo é a exceção, não a regra: só serviços que rodam
+deliberadamente sem OAuth de aplicação e ficam protegidos pelo IAM do
+próprio Cloud Run (ADR-0016). Comparação por igualdade exata — nunca
+prefixo/substring. Um nome ausente desta lista falha FECHADO; errar o
+nome aqui nunca abre um serviço, só o impede de subir sem auth.
+Acrescentar um nome é decisão de segurança explícita (revisão + ADR),
+nunca conveniência de deploy."""
 
 VARIAVEIS_DE_AUTH: Final = (
     VAR_RESOURCE,
@@ -144,7 +167,16 @@ class ConfiguracaoAuthInvalida(ValueError):
     em vez de servir rota protegida com identidade duvidosa."""
 
 
-class ProducaoSemAuthInvalida(ConfiguracaoAuthInvalida):
+class CloudRunSemAuthInvalida(ConfiguracaoAuthInvalida):
+    """INV-CLOUD-RUN-AUTH-OBRIGATORIA (Gate 6.6-F): o processo roda como
+    serviço Cloud Run (`K_SERVICE` presente) fora da lista explícita de
+    isenções (`SERVICOS_CLOUD_RUN_ISENTOS_DE_AUTH`) e a camada OAuth de
+    aplicação não está habilitada. Recusa de subida — um serviço Cloud
+    Run nunca alcança o dispatcher MCP sem autenticação por esquecimento
+    de configuração."""
+
+
+class ProducaoSemAuthInvalida(CloudRunSemAuthInvalida):
     """INV-PRODUCAO-AUTH-OBRIGATORIA (Gate 6.3-D3.1, ADR-0017):
     `K_SERVICE` identifica o serviço Cloud Run de produção
     (`NOME_SERVICO_PRODUCAO`) mas a camada OAuth de aplicação não está
@@ -431,6 +463,16 @@ def servico_de_producao(ambiente: Mapping[str, str] | None = None) -> bool:
     return (env.get(VAR_K_SERVICE) or "").strip() == NOME_SERVICO_PRODUCAO
 
 
+def servico_cloud_run_exige_auth(ambiente: Mapping[str, str] | None = None) -> bool:
+    """`True` quando o processo roda como serviço Cloud Run (`K_SERVICE`
+    não vazio) e o nome NÃO está em `SERVICOS_CLOUD_RUN_ISENTOS_DE_AUTH`
+    (Gate 6.6-F). `K_SERVICE` ausente/vazio é execução local, suíte de
+    testes ou contêiner fora do Cloud Run — comportamento inalterado."""
+    env = os.environ if ambiente is None else ambiente
+    nome = (env.get(VAR_K_SERVICE) or "").strip()
+    return bool(nome) and nome not in SERVICOS_CLOUD_RUN_ISENTOS_DE_AUTH
+
+
 def carregar_config_do_ambiente(
     ambiente: Mapping[str, str] | None = None,
 ) -> EdeAuthConfig | None:
@@ -438,9 +480,11 @@ def carregar_config_do_ambiente(
 
     Devolve `None` SOMENTE quando a camada OAuth de aplicação está
     deliberadamente desligada E nenhuma variável de auth foi fornecida
-    E o processo não é o serviço de produção. Qualquer outra combinação
-    levanta `ConfiguracaoAuthInvalida` (ou, especificamente em produção,
-    `ProducaoSemAuthInvalida`) — nunca devolve `None` por não ter
+    E o processo não roda como serviço Cloud Run sob obrigação de auth
+    (Gate 6.6-F: todo `K_SERVICE` fora da lista de isenções). Qualquer
+    outra combinação levanta `ConfiguracaoAuthInvalida` (especificamente
+    `ProducaoSemAuthInvalida` em produção e `CloudRunSemAuthInvalida` nos
+    demais serviços Cloud Run não isentos) — nunca devolve `None` por não ter
     conseguido montar a configuração, porque isso viraria rota protegida
     servida anonimamente (Gate 6.3-D2, condição de parada)."""
     env = os.environ if ambiente is None else ambiente
@@ -461,6 +505,14 @@ def carregar_config_do_ambiente(
                 f"OBRIGATORIA, ADR-0017) — ligue {VAR_AUTH_ENABLED} e configure "
                 f"Resource/issuer/JWKS. O serviço de produção nunca sobe com "
                 f"autenticação desligada."
+            )
+        if servico_cloud_run_exige_auth(env):
+            raise CloudRunSemAuthInvalida(
+                f"{VAR_K_SERVICE}={(env.get(VAR_K_SERVICE) or '').strip()!r}: todo "
+                f"serviço Cloud Run exige a camada OAuth de aplicação (INV-CLOUD-RUN-"
+                f"AUTH-OBRIGATORIA, Gate 6.6-F) — ligue {VAR_AUTH_ENABLED} e configure "
+                f"Resource/issuer/JWKS. Isenção só por decisão explícita em "
+                f"SERVICOS_CLOUD_RUN_ISENTOS_DE_AUTH."
             )
         return None
 

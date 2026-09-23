@@ -27,7 +27,7 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-011 | ABERTA | Primeira chamada viva do ChatGPT a `ede_finalizar_peca` (2026-09-22) | Declaração de interoperabilidade do finalizador com o ChatGPT (não bloqueia o runtime; o servidor já recusa quando a inflação estoura o limite) | Transporte do cliente ChatGPT inseriu quebras de linha nos valores de placeholder; abaixo do limite de densidade isso passaria sem detecção |
 | PEND-012 | ABERTA (escopo ampliado) | Gate 6.6-D, chamadas do ChatGPT e do Claude (2026-09-22) | Critério de entrega nativa do Gate 6.6-D, ENCERRADO como PARTIAL PASS com esta pendência aberta; não bloqueia o runtime nem motiva rollback | Nem ChatGPT nem Claude entregam o DOCX nativamente via `EmbeddedResource` — ChatGPT não expõe a URI `attachment://` (contorno do host preserva os bytes); Claude recusa explicitamente o tipo de mídia do DOCX (nenhum byte chega ao usuário) |
 | PEND-013 | APROVADA, execução ADIADA | Auditoria somente-leitura das revisões antigas com tag, Gate 6.6-D item 6 (2026-09-22) | Nenhuma (não bloqueia; execução deliberadamente adiada para depois da evidência de interoperabilidade viva do Claude) | Remoção das seis tags históricas do Cloud Run (`candidato`, `candidato-6-5-b`, `candidato-6-5-b2`, `candidato-6-5-c`, `candidato-6-5-c2`, `candidato-6-5-c4`) — aprovada em princípio como *pre-pilot hardening*, nenhuma removida ainda |
-| PEND-014 | CANDIDATO IMPLEMENTADO E PROVADO AO VIVO (Gate 6.6-E, incl. limpeza agendada); download ao vivo Claude/ChatGPT e ativação em produção NÃO autorizados | Fechamento do Gate 6.6-D como PARTIAL PASS (2026-09-22); implementação Gate 6.6-E mesma data | Gate de download ao vivo (Claude/ChatGPT); não bloqueia o runtime — produção continua em v1 até ativação explícita | Redesenho do mecanismo de entrega de artefato entre hosts — v2 (`scripts/artifact_storage.py`, GCS efêmero + URL V4 assinada de 24h) implementado, testado e verificado ao vivo: assinatura real, identidade de bytes, hard delete, e limpeza agendada horária (Cloud Scheduler -> Cloud Run Job) provisionada em homologação |
+| PEND-014 | Gate 6.6-E PASS; Gate 6.6-F Fase 1 (homolog permanente, server-side) PASS; Fase 2 (Claude/ChatGPT reais) PENDENTE; ativação em produção NÃO autorizada | Fechamento do Gate 6.6-D como PARTIAL PASS (2026-09-22); implementação Gate 6.6-E mesma data | Gate de download ao vivo (Claude/ChatGPT); não bloqueia o runtime — produção continua em v1 até ativação explícita | Redesenho do mecanismo de entrega de artefato entre hosts — v2 (`scripts/artifact_storage.py`, GCS efêmero + URL V4 assinada de 24h) implementado, testado e verificado ao vivo: assinatura real, identidade de bytes, hard delete, e limpeza agendada horária (Cloud Scheduler -> Cloud Run Job) provisionada em homologação |
 
 ---
 
@@ -756,7 +756,12 @@ Em aberto (execução deliberadamente adiada).
 
 ## PEND-014 — Redesenho do mecanismo de entrega de artefato entre hosts (candidato implementado, Gate 6.6-E)
 
-**Status:** CANDIDATO IMPLEMENTADO E VERIFICADO AO VIVO (continuação do
+**Status (2026-09-23):** Gate 6.6-E **PASS**; Gate 6.6-F Fase 1
+(homologação server-side em `ede-mcp-homolog`, permanente) **PASS**;
+Fase 2 (teste real com Claude/ChatGPT) **pendente**. Candidato canônico
+`sha256:14f493a0704b4fdbe078158e087463f7c32d3a532ab3cd03a6ae9cfb7e0836a3` (commit `b20c2cf`). Ver "Gate 6.6-F" abaixo.
+
+Histórico: CANDIDATO IMPLEMENTADO E VERIFICADO AO VIVO (continuação do
 Gate 6.6-E). `scripts/artifact_storage.py` (objeto GCS efêmero + URL V4
 assinada) implementado, testado (fake, sem rede) e verificado
 COMPLETAMENTE contra GCP real: upload, `signBlob`, download assinado,
@@ -819,6 +824,29 @@ Esta pendência nunca se resolve por ativação silenciosa — nenhuma
 mudança de IAM de runtime de produção nem configuração das variáveis
 `EDE_ARTEFATOS_GCS_*` na revisão de produção sem autorização explícita
 do usuário para esse passo específico (CLAUDE.md §6/§17/§24).
+
+### Gate 6.6-F (2026-09-23)
+
+* **Homolog permanente:** `ede-mcp-homolog`
+  (`https://ede-mcp-homolog-269134711029.southamerica-east1.run.app/mcp`),
+  SA dedicada `ede-mcp-homolog-runtime` com IAM mínimo escopado a bucket
+  (sem papel de projeto), `allUsers` concedido só após provar OAuth.
+* **OAuth separado:** Resource Descope `RS3Jhx0LU7dmcRV5GsKBNuZjj15nK`
+  (mesmo projeto), CIMD + DCR; isolamento de tokens entre ambientes
+  provado ao vivo nas duas direções.
+* **Candidato canônico:** `sha256:14f493a0704b4fdbe078158e087463f7c32d3a532ab3cd03a6ae9cfb7e0836a3` (commit `b20c2cf`, VERSION
+  `0.15.0`, CI [35809654081](https://github.com/lmgentil/ede-legal-plugin/actions/runs/35809654081) (1116 passed, 89 skipped, 0 failed)), com `INV-CLOUD-RUN-AUTH-OBRIGATORIA` (auth
+  obrigatória por padrão em todo serviço Cloud Run — adendo da
+  ADR-0017).
+* **Fase 1 PASS:** 401 sem credencial/credencial inválida antes do
+  dispatcher; `ede_health` READY 0.15.0; preparar e finalizar
+  sintéticos OK; URL V4 24h 200; SHA do download == SHA declarado;
+  DOCX íntegro; produção (`ede-mcp-00020-gum`, 0.14.0) intocada.
+* **Pendente (Fase 2):** conexão e uso reais em Claude e ChatGPT,
+  incluindo clique/download do link e abertura do DOCX. Resíduos a
+  remover pelo titular: dois clientes DCR "EDE Gate 6.6-F loopback
+  (homolog)" no Resource de homolog e as regras locais de IAM em
+  `.claude/settings.local.json`.
 
 ### Fechamento
 

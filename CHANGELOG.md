@@ -1253,6 +1253,28 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   Git, sem GitHub Release, sem rollout para advogados. Gate 6.6-E
   permanece `PASS`.
 
+### Gate 6.6-F — homolog permanente, Fase 1 server-side PASS, auth fail-closed em todo Cloud Run (VERSION permanece 0.15.0)
+
+- **Gate 6.6-E: PASS.** **Gate 6.6-F Fase 1 (Server-Side Homologation):
+  PASS**, aceito pelo usuário. Fase 2 (Claude/ChatGPT reais) pendente.
+- **Homolog permanente `ede-mcp-homolog`**
+  (`https://ede-mcp-homolog-269134711029.southamerica-east1.run.app/mcp`):
+  Resource OAuth Descope próprio (`RS3Jhx0LU7dmcRV5GsKBNuZjj15nK`, CIMD +
+  DCR), SA dedicada com IAM mínimo escopado a bucket, `allUsers` só
+  depois de provar OAuth obrigatório. Isolamento de tokens entre
+  homolog e produção provado ao vivo nas duas direções.
+- **`INV-CLOUD-RUN-AUTH-OBRIGATORIA`** (`mcp_server/auth_config.py`,
+  adendo da ADR-0017): todo processo com `K_SERVICE` exige OAuth de
+  aplicação por padrão (`CloudRunSemAuthInvalida`), salvo isenção
+  explícita (`SERVICOS_CLOUD_RUN_ISENTOS_DE_AUTH`, hoje só
+  `ede-mcp-staging`). Produção inalterada (`ProducaoSemAuthInvalida`,
+  mesma mensagem). Provado contra a imagem candidata exata (Cloud Build
+  `2d502901`, 7/7 cenários).
+- **Candidato canônico:** `sha256:14f493a0704b4fdbe078158e087463f7c32d3a532ab3cd03a6ae9cfb7e0836a3`
+  (commit `b20c2cf`, CI 35809654081), substitui `sha256:5486f4b2…`.
+- Produção intocada: `ede-mcp-00020-gum`, VERSION 0.14.0, 100% do
+  tráfego, IAM de runtime sem concessão nova.
+
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto
   o de produção (`K_SERVICE=ede-mcp`, ver acima). Desligada, o

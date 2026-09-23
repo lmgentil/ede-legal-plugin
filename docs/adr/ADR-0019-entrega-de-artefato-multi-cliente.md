@@ -1,6 +1,8 @@
 # ADR-0019 — Redesenho da entrega de artefato entre hosts MCP
 
-* **Status:** Candidato implementado e **verificado ao vivo** (Gate
+* **Status:** **Gate 6.6-E PASS; Gate 6.6-F Fase 1 (homologação
+  server-side) PASS; Fase 2 (Claude/ChatGPT reais) pendente** — ver
+  "Gate 6.6-F" abaixo. Histórico: Candidato implementado e **verificado ao vivo** (Gate
   6.6-E, continuação) — Candidata A (objeto GCS efêmero + URL V4
   assinada) implementada em `scripts/artifact_storage.py`, VERSION
   `0.15.0`, com suíte de unidade completa (transporte fake, sem rede) e
@@ -426,6 +428,54 @@ de segurança para esse caso. `LIMPEZA_ELEGIVEL_SEGUNDOS` permanece como
 documentação da relação usada para CALCULAR `expires_at` no upload
 (`created_at + TTL_DOWNLOAD_SEGUNDOS`), não mais como base de uma
 segunda comparação independente na decisão de limpeza.
+
+## Gate 6.6-F — homologação permanente e prova server-side (2026-09-23)
+
+**Gate 6.6-E: PASS** (implementação, hard delete, retenção, limpeza
+agendada e hardening de `download_expires_at`, seções acima).
+
+**Gate 6.6-F Fase 1 — Server-Side Homologation: PASS**, aceito pelo
+usuário. Superfície permanente `ede-mcp-homolog`, com OAuth separado
+(Resource Descope próprio), SA própria com IAM mínimo e `allUsers`
+concedido só depois de provar OAuth obrigatório. Contrato completo em
+`docs/mcp-producao-contrato.md` ("Homologação permanente").
+
+**Candidato canônico:** `mcp-server@sha256:14f493a0704b4fdbe078158e087463f7c32d3a532ab3cd03a6ae9cfb7e0836a3`, commit `b20c2cf`
+(inclui `INV-CLOUD-RUN-AUTH-OBRIGATORIA`, adendo da ADR-0017), CI
+[35809654081](https://github.com/lmgentil/ede-legal-plugin/actions/runs/35809654081) (1116 passed, 89 skipped, 0 failed), VERSION `0.15.0`. Substitui `sha256:5486f4b2…` (commit
+`dd26d77`), que foi o candidato da Fase 1 antes do hardening de auth.
+
+Provado ao vivo na Fase 1 (primeira rodada com `5486f4…`, reteste
+mínimo com o candidato canônico — ver relatório do gate):
+
+* sem Bearer, Bearer malformado e Bearer vazio -> 401 em `initialize`,
+  `tools/list` e `tools/call`, todos com `resultado_autz=nao_avaliada`
+  (nada alcança o dispatcher);
+* isolamento entre ambientes com tokens Descope reais obtidos por
+  authorization_code + PKCE: homolog->homolog 200; produção->homolog
+  401 (`issuer_invalido`, antes da abertura pública); homolog->produção
+  401; produção->produção 200 (só `initialize`, controle);
+* `ede_health` READY com `version 0.15.0`; `ede_preparar_contestacao`
+  OK; `ede_finalizar_peca` sintético OK;
+* URL V4 (`GOOG4-RSA-SHA256`, 86400 s) assinada pela SA de homolog;
+  download 200 com `Content-Type`/`Content-Disposition` corretos;
+  SHA-256 do download == `document_sha256` declarado; acesso não
+  assinado 403; DOCX íntegro (ZIP, XML bem formado, zero token
+  residual).
+
+**Política de entrega e retenção, inalterada:** URL assinada de 24h
+como capacidade portadora, sem OAuth do EDE no download; hard delete
+por limpeza oportunista + agendada horária; lifecycle de 2 dias como
+backstop assíncrono sem prazo garantido.
+
+**Produção inalterada:** `ede-mcp-00020-gum` (digest `63521b…`, VERSION
+`0.14.0`), 100% do tráfego, IAM da SA de runtime sem nenhuma concessão
+nova, v2 não ativado.
+
+**Fase 2 — pendente:** teste real com Claude e ChatGPT contra o
+homolog (conexão OAuth via CIMD/DCR do próprio cliente, chamada das
+ferramentas, clique e download do link, SHA local, abertura no Word).
+Só depois dela se discute ativação em produção, em passo próprio.
 
 ## Consequências desta ADR
 

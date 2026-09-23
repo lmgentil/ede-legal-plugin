@@ -51,6 +51,22 @@ serviço de prova descartável, desenvolvimento local e a suíte de testes
 continuam podendo rodar com a camada OAuth desligada, exatamente como
 antes (ADR-0016).
 
+**Endurecimento do Gate 6.6-F — `INV-CLOUD-RUN-AUTH-OBRIGATORIA`
+(adendo à ADR-0017).** O parágrafo acima descreve o guard original. A
+partir do commit `b20c2cf`, a obrigação de OAuth deixou de ser "só o
+nome de produção" e passou a ser **fail-closed por padrão em todo
+serviço Cloud Run**: qualquer processo com `K_SERVICE` não vazio recusa
+subir sem a camada OAuth de aplicação (`CloudRunSemAuthInvalida`), salvo
+a lista explícita e mínima `SERVICOS_CLOUD_RUN_ISENTOS_DE_AUTH` — hoje
+somente `ede-mcp-staging` (privado por IAM, ADR-0016). Motivo: o
+homolog permanente `ede-mcp-homolog` é internet-facing (`allUsers`) e
+não pode depender da presença manual de `EDE_MCP_AUTH_ENABLED=true`.
+Produção inalterada: `ede-mcp` continua levantando
+`ProducaoSemAuthInvalida`, mesma mensagem (hoje subclasse de
+`CloudRunSemAuthInvalida`). `K_SERVICE` ausente/vazio (local, suíte,
+contêiner fora do Cloud Run) sem mudança. `ede-oauth-proof-disposable`
+usa imagem própria (`ede-proof-disposable`), fora deste código.
+
 ## Pendências explícitas para o Gate 6.3-D3.2
 
 1. Criar o Resource Descope de produção e capturar `issuer`/`jwks_uri`
@@ -87,8 +103,10 @@ contrato congelado, não injetados em revisão alguma.
 IAM: `ede-mcp-runtime@ede-legal-mcp-01.iam.gserviceaccount.com` tem
 `roles/storage.objectViewer` escopado **só** a este bucket (nenhum papel
 de projeto, confirmado por auditoria `gcloud projects get-iam-policy`
-sem resultado para esta SA). Nenhuma outra identidade humana ou de
-serviço recebeu permissão nova neste bucket.
+sem resultado para esta SA). Única outra identidade com acesso a este
+bucket: `ede-mcp-homolog-runtime` (`roles/storage.objectViewer`,
+concedida no Gate 6.6-F para o homolog permanente — ver seção
+"Homologação permanente" abaixo).
 
 `EDE_MODELO_OFICIAL_PATH`/`EDE_MODELO_OFICIAL_SHA256` (modo local, Gate
 6.4-A) **nunca** são definidas em produção — a presença de qualquer uma
@@ -166,6 +184,61 @@ assinado continua negado, `gcloud storage ls --soft-deleted` para o
 objeto devolve vazio, e não há geração não corrente possível
 (versionamento desligado). Nenhum item permanece só estrutural/
 unitário.
+
+## Homologação permanente — `ede-mcp-homolog` (Gate 6.6-F)
+
+Superfície **permanente** de homologação, internet-facing, separada de
+produção em serviço, identidade, Resource OAuth e IAM. Serve à prova
+server-side (Fase 1, **PASS**) e aos testes reais com Claude/ChatGPT
+(Fase 2, **pendente**). Não é produção: nenhum advogado usa este
+endereço, e a ativação v2 em produção continua exigindo autorização
+própria.
+
+| Item | Valor |
+|---|---|
+| Serviço Cloud Run | `ede-mcp-homolog` (`southamerica-east1`), labels `gate=6-6-f`, `status=homolog-candidate` |
+| URL canônica / Resource | `https://ede-mcp-homolog-269134711029.southamerica-east1.run.app/mcp` |
+| Imagem (candidato canônico) | `southamerica-east1-docker.pkg.dev/ede-legal-mcp-01/ede-mcp/mcp-server@sha256:14f493a0704b4fdbe078158e087463f7c32d3a532ab3cd03a6ae9cfb7e0836a3` (commit `b20c2cf`, VERSION `0.15.0`) |
+| Revisão | `ede-mcp-homolog-00005-8mp` |
+| Service account | `ede-mcp-homolog-runtime@ede-legal-mcp-01.iam.gserviceaccount.com` — dedicada, **nunca** a SA de produção |
+| Invoker | `allUsers` (`roles/run.invoker`) — só depois de provar OAuth obrigatório; a camada de aplicação recusa tudo sem Bearer válido |
+
+**OAuth separado (Resource Descope próprio, mesmo projeto Descope):**
+
+| Variável | Valor |
+|---|---|
+| `EDE_MCP_AUTH_ENABLED` | `true` (e, desde o hardening acima, obrigatório por código — o serviço não sobe sem ele) |
+| `EDE_MCP_RESOURCE` | `https://ede-mcp-homolog-269134711029.southamerica-east1.run.app/mcp` |
+| `EDE_MCP_ISSUER` | `https://api.descope.com/v1/apps/agentic/P3JJtIbHdYGjY2UYLFS04lMD23Ul/RS3Jhx0LU7dmcRV5GsKBNuZjj15nK` |
+| `EDE_MCP_JWKS_URI` | `https://api.descope.com/P3JJtIbHdYGjY2UYLFS04lMD23Ul/.well-known/jwks.json` (do projeto, compartilhado) |
+| `EDE_MCP_REQUIRED_SCOPES` | `ede:health` (`ede:legal` exigido por ferramenta, igual a produção) |
+| `EDE_MCP_CANONICAL_HOST` | `ede-mcp-homolog-269134711029.southamerica-east1.run.app` |
+
+Resource Descope de homologação: `RS3Jhx0LU7dmcRV5GsKBNuZjj15nK`, criado
+manualmente pelo titular no console (nenhuma Management Key, client
+secret ou access key). CIMD habilitado (approved domains `*`), DCR
+habilitado, espelhando produção. O JWKS é do projeto, então a
+separação entre ambientes está no `iss` (um Resource por ambiente) e no
+`aud` — provado ao vivo: token de produção válido recusado pelo homolog
+com `motivo=issuer_invalido`; token de homolog recusado por produção.
+
+**Modelo Oficial e artefatos:** mesmas variáveis congeladas de
+produção para o Modelo Oficial (bucket/objeto/geração
+`1789696822240267`/SHA-256 acima); `EDE_ARTEFATOS_GCS_BUCKET=
+ede-legal-mcp-01-artefatos-efemeros`, `EDE_ARTEFATOS_SIGNER_SA=
+ede-mcp-homolog-runtime@…` (auto-impersonation).
+
+**IAM da SA de homolog (mínima, nenhum papel de projeto):**
+`roles/storage.objectViewer` só no bucket do Modelo Oficial;
+`roles/storage.objectAdmin` só no bucket de artefatos;
+`roles/iam.serviceAccountTokenCreator` sobre ela mesma (`signBlob`
+keyless). A SA de runtime de produção **não** recebeu nada neste gate.
+
+**Entrega e retenção:** a política da seção "Artefatos efêmeros" acima
+vale integralmente — URL V4 de 24h, hard delete, limpeza oportunista +
+agendada horária (`ede-artefatos-limpeza-homolog`), lifecycle de 2 dias
+como backstop assíncrono. O homolog compartilha o bucket e a limpeza
+agendada já provados no Gate 6.6-E.
 
 ## Confirmação do hostname determinístico
 

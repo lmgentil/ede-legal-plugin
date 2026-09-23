@@ -238,3 +238,35 @@ Este princípio governa o runbook de rollback detalhado nos Gates
   independentemente desta ADR conforme os Gates de implementação
   avançam (D3.2 preenche os valores reais de issuer/JWKS ainda hoje
   documentados como pendentes).
+
+## Adendo — Gate 6.6-F: `INV-CLOUD-RUN-AUTH-OBRIGATORIA` (2026-09-23)
+
+**Contexto.** O guard original (Gate 6.3-D3.1) tornava o OAuth
+obrigatório só quando `K_SERVICE == "ede-mcp"`. O Gate 6.6-F criou uma
+superfície de homologação **permanente e internet-facing**
+(`ede-mcp-homolog`, `allUsers`) que rodava a mesma imagem; a proteção
+dela dependia só de `EDE_MCP_AUTH_ENABLED=true` ter sido lembrada no
+deploy. Acrescentar mais um nome à lista protegida repetiria a
+fragilidade: o próximo serviço novo ou com nome inesperado subiria
+aberto.
+
+**Decisão.** Fail-closed por padrão: todo processo com `K_SERVICE` não
+vazio (variável injetada pela plataforma Cloud Run, nunca esquecível)
+exige a camada OAuth de aplicação, salvo isenção explícita em
+`SERVICOS_CLOUD_RUN_ISENTOS_DE_AUTH` (`mcp_server/auth_config.py`),
+hoje somente `ede-mcp-staging` (privado por IAM, ADR-0016). Comparação
+por igualdade exata. Errar ou omitir um nome na lista nunca abre um
+serviço — só o impede de subir sem auth. Ampliar a lista é decisão de
+segurança explícita, com revisão deste adendo.
+
+**Alternativa descartada.** Variável declarativa de ambiente
+(`EDE_MCP_ENVIRONMENT=production|homologation`) — tem a mesma fraqueza
+do problema original: omiti-la desliga a proteção.
+
+**Consequências.** `ede-mcp` preserva exatamente o comportamento
+anterior (`ProducaoSemAuthInvalida`, mesma mensagem; a classe passa a
+herdar de `CloudRunSemAuthInvalida`, ainda `ConfiguracaoAuthInvalida`).
+Local, suíte e contêiner fora do Cloud Run (sem `K_SERVICE`) não mudam.
+Qualquer serviço Cloud Run novo que use a imagem do MCP precisa
+configurar OAuth ou ser isento por decisão registrada. Implementado no
+commit `b20c2cf`.

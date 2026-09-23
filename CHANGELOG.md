@@ -1196,6 +1196,63 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - **Suíte completa:** 1179 passam, 1 falha preexistente e não
   relacionada (`skills/docx` local, ausente no clone limpo da CI).
 
+### Gate 6.6-E hardening final — fecha a corrida entre expiração real da URL e elegibilidade de limpeza
+- **Achado real do usuário, corrigido na origem.** `assinar_url()`
+  capturava seu próprio `datetime.now()` DEPOIS do upload já ter
+  terminado — como assinar sempre ocorre depois de enviar (a própria
+  latência de rede do upload), a expiração criptográfica real da URL
+  (`X-Goog-Date + X-Goog-Expires`) ficava sempre um pouco DEPOIS do
+  `expires_at` gravado no metadado. Uma varredura de limpeza rodando
+  exatamente nessa janela — mesmo pequena — poderia excluir o objeto
+  enquanto a URL emitida para ele ainda era tecnicamente válida.
+- **Solução: instante único compartilhado, não um segundo campo de
+  metadado.** Avaliada e descartada a alternativa de gravar um novo
+  `download_expires_at` a partir do instante real de assinatura (exigiria
+  uma segunda escrita de rede pós-assinatura, um modo de falha novo, e
+  ainda deixaria uma janela menor, mas real). Em vez disso,
+  `entregar_artefato_efemero` captura `agora` UMA vez e passa esse
+  MESMO valor como `momento` explícito para `assinar_url()` — novo
+  parâmetro opcional em `TransporteArtefato.assinar_url`/
+  `TransporteGcsReal.assinar_url`/`_construir_url_assinada_v4`
+  (`momento: datetime | None = None`; `None` preserva o relógio interno
+  para assinaturas sem vínculo de metadado, como os testes de expiração
+  já existentes). `X-Goog-Date` passa a ser EXATAMENTE o instante
+  gravado em `created_at`/`expires_at` — a expiração real da URL e o
+  `expires_at` do metadado tornam-se o MESMO valor, não uma aproximação.
+- **`limpar_artefatos_elegiveis` decide por `expires_at`, nunca mais
+  recalcula a partir de `created_at`** (essa reconstrução é exatamente
+  o que reabriria a corrida). Metadado ausente ou malformado é
+  fail-safe — objeto ignorado nesta varredura, nunca excluído por
+  incerteza; o backstop de lifecycle continua sendo a rede de
+  segurança para esse caso. `LIMPEZA_ELEGIVEL_SEGUNDOS` permanece como
+  documentação de como `expires_at` é calculado no upload, não mais
+  como base de uma segunda comparação independente.
+- **Verificado AO VIVO, não só em teste de unidade:** pipeline completo
+  real (render -> upload -> assinatura) contra o bucket de
+  homologação, com uma service account temporária criada, usada e
+  removida ao final. `expires_at` do metadado e `X-Goog-Date +
+  X-Goog-Expires` extraídos da URL real bateram exatamente
+  (`2026-09-24T00:50:37Z` nos dois lados); download real funcionou
+  (200) logo em seguida; objeto de teste removido ao final.
+- **Testes novos** em `tests/test_artifact_storage.py`: `expires_at`
+  malformado é fail-safe (ignorado); regressão direta da corrida —
+  objeto "velho" por `created_at` mas com `expires_at` ainda no futuro
+  NUNCA é excluído; espelho — objeto "jovem" por `created_at` mas com
+  `expires_at` já no passado É excluído; `assinar_url()` recebe
+  exatamente o mesmo instante gravado no metadado;
+  `_construir_url_assinada_v4` com `momento` explícito determina
+  `X-Goog-Date`/`credential_scope` byte a byte. Helpers de teste de
+  limpeza (`tests/test_artifact_storage.py`,
+  `tests/test_limpar_artefatos_agendado.py`) passam a gravar `expires_at`
+  coerente com `created_at + TTL_DOWNLOAD_SEGUNDOS`, refletindo o
+  comportamento real pós-correção. Suíte completa: 1184 passam, 1 falha
+  preexistente e não relacionada (`skills/docx` local).
+- **Nenhuma mudança de produção.** `ede-mcp-00020-gum`/`0.14.0`/100%
+  intocados; IAM de runtime de produção inalterado; toda IAM temporária
+  desta prova foi removida e confirmada removida; sem deploy, sem tag
+  Git, sem GitHub Release, sem rollout para advogados. Gate 6.6-E
+  permanece `PASS`.
+
 ### Notas
 - A camada é **opt-in** (`EDE_MCP_AUTH_ENABLED`) em todo serviço exceto
   o de produção (`K_SERVICE=ede-mcp`, ver acima). Desligada, o

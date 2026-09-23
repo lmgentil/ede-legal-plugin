@@ -380,6 +380,53 @@ unitário — todos têm prova viva.
    (estimativas atuais no relatório do Gate 6.6-E combinam medição real
    pontual com preço público de lista, não uso medido em produção).
 
+### Hardening pós-fechamento — corrida entre expiração real da URL e elegibilidade de limpeza
+
+Achado do usuário depois do Gate 6.6-E fechar: `assinar_url()`
+capturava seu próprio `datetime.now()` internamente, DEPOIS do upload
+já ter terminado. Como assinatura sempre ocorre depois do upload (a
+própria latência de rede do envio), a expiração criptográfica real da
+URL (`X-Goog-Date + X-Goog-Expires`) ficava sempre um pouco DEPOIS do
+`expires_at` gravado no metadado do objeto no momento do upload. Uma
+varredura de limpeza (oportunista ou agendada) rodando exatamente
+nessa janela — por menor que fosse — poderia excluir o objeto enquanto
+a URL emitida para ele ainda era, tecnicamente, criptograficamente
+válida: violação direta da invariante "artefato nunca fica elegível
+para limpeza antes de sua autorização de download emitida ter
+expirado".
+
+**Solução escolhida — instante único compartilhado, não um segundo
+campo de metadado.** A alternativa óbvia (gravar `download_expires_at`
+a partir do instante REAL de assinatura, com uma escrita de metadado
+adicional depois de assinar) foi considerada e descartada por ser mais
+complexa sem necessidade: exigiria uma segunda chamada de rede (PATCH
+de metadado pós-assinatura), um novo modo de falha (a escrita da
+correção falhar depois da assinatura ter funcionado), e ainda deixaria
+uma janela — menor, mas real — entre o upload original e essa
+correção. A solução implementada é mais simples e fecha a corrida por
+construção: `entregar_artefato_efemero` captura `agora` UMA vez e passa
+esse MESMO valor como `momento` explícito para `assinar_url()`
+(`TransporteArtefato.assinar_url(..., momento=None)`, novo parâmetro
+opcional — `None` preserva o relógio interno para quem assina sem
+vínculo de metadado, como os próprios testes de expiração deste
+módulo). `X-Goog-Date` na URL passa a ser EXATAMENTE o mesmo instante
+gravado em `created_at`/`expires_at` — a expiração real da URL e o
+`expires_at` do metadado tornam-se o MESMO valor, não uma aproximação
+com margem. **Verificado ao vivo** (não só em teste de unidade):
+`expires_at` do metadado e `X-Goog-Date + X-Goog-Expires` extraídos da
+URL real devolvida pelo pipeline completo bateram exatamente
+(`2026-09-24T00:50:37Z` dos dois lados).
+
+`limpar_artefatos_elegiveis` foi ajustada para decidir por `expires_at`
+diretamente (nunca recalcular a partir de `created_at` — essa
+reconstrução é exatamente o que reabriria a corrida). Metadado ausente
+OU malformado é fail-safe: o objeto é ignorado nesta varredura, nunca
+excluído por incerteza — o backstop de lifecycle continua sendo a rede
+de segurança para esse caso. `LIMPEZA_ELEGIVEL_SEGUNDOS` permanece como
+documentação da relação usada para CALCULAR `expires_at` no upload
+(`created_at + TTL_DOWNLOAD_SEGUNDOS`), não mais como base de uma
+segunda comparação independente na decisão de limpeza.
+
 ## Consequências desta ADR
 
 * Código, testes e bucket de homologação existem (Gate 6.6-E); nenhuma

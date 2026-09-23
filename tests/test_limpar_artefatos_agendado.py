@@ -40,11 +40,16 @@ class _FakeTransporte:
 
 
 def _inserir_objeto_velho(transporte, artefato_id, idade_segundos, agora):
+    """`expires_at` (não só `created_at`) é o campo decisivo desde o
+    hardening pós-fechamento do Gate 6.6-E — objeto sem ele é ignorado
+    por fail-safe, nunca excluído."""
     criado_em = agora - dt.timedelta(seconds=idade_segundos)
+    expira_em = criado_em + dt.timedelta(seconds=ast.TTL_DOWNLOAD_SEGUNDOS)
     nome = ast._nome_objeto(artefato_id)
     transporte.objetos[nome] = (
         b"x", ast.CONTENT_TYPE_DOCX,
-        {"artifact_id": artefato_id, "created_at": criado_em.strftime("%Y-%m-%dT%H:%M:%SZ")},
+        {"artifact_id": artefato_id, "created_at": criado_em.strftime("%Y-%m-%dT%H:%M:%SZ"),
+         "expires_at": expira_em.strftime("%Y-%m-%dT%H:%M:%SZ")},
     )
 
 

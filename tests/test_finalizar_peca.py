@@ -232,7 +232,7 @@ class _TransporteArtefatoFake:
     def enviar(self, object_name, dados, content_type, metadata):
         self.objetos[object_name] = (dados, content_type, dict(metadata))
 
-    def assinar_url(self, object_name, ttl_segundos, content_disposition):
+    def assinar_url(self, object_name, ttl_segundos, content_disposition, momento=None):
         return f"https://storage.googleapis.com/bucket-fake-teste/{object_name}?assinado=1"
 
     def excluir(self, object_name):
@@ -445,7 +445,7 @@ def test_pipeline_rejeita_por_falha_de_assinatura_e_tenta_limpar_o_orfao(modelo_
         def enviar(self, object_name, dados, content_type, metadata):
             pass  # upload "funciona"
 
-        def assinar_url(self, object_name, ttl_segundos, content_disposition):
+        def assinar_url(self, object_name, ttl_segundos, content_disposition, momento=None):
             raise ast.ErroAssinaturaArtefato("iam_signblob_status_inesperado", artefato_id="", limpeza_ok=None)
 
         def excluir(self, object_name):

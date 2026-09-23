@@ -46,8 +46,8 @@ class _FakeTransporte:
             raise ast.ErroArmazenamentoArtefato("gcs_status_inesperado")
         self.objetos[object_name] = (dados, content_type, dict(metadata))
 
-    def assinar_url(self, object_name, ttl_segundos, content_disposition):
-        self.chamadas_assinar.append((object_name, ttl_segundos, content_disposition))
+    def assinar_url(self, object_name, ttl_segundos, content_disposition, momento=None):
+        self.chamadas_assinar.append((object_name, ttl_segundos, content_disposition, momento))
         if self._falhar_assinatura:
             raise ast.ErroAssinaturaArtefato("iam_signblob_status_inesperado", artefato_id="", limpeza_ok=None)
         return f"https://storage.googleapis.com/bucket-fake/{object_name}?assinado=1"
@@ -120,8 +120,33 @@ def test_object_metadata_contem_so_campos_seguros():
 def test_content_disposition_usa_o_nome_de_arquivo_neutro_do_cliente():
     transporte = _FakeTransporte()
     ast.entregar_artefato_efemero(DOCX_FAKE, SHA_FAKE, FILENAME, transporte)
-    (_, _, disposicao), = transporte.chamadas_assinar
+    (_, _, disposicao, _), = transporte.chamadas_assinar
     assert disposicao == f'attachment; filename="{FILENAME}"'
+
+
+def test_assinatura_usa_o_mesmo_instante_gravado_no_metadado():
+    """Hardening pós-fechamento do Gate 6.6-E: a assinatura NUNCA pode
+    usar um instante diferente do que foi gravado em `created_at`/
+    `expires_at` -- é exatamente essa igualdade que fecha a corrida
+    entre a expiração real da URL e a elegibilidade de limpeza. Prova
+    aqui no nível de orquestração (`entregar_artefato_efemero`); o
+    algoritmo de baixo nível já é coberto por
+    `test_construir_url_assinada_v4_estrutura_e_determinismo_do_string_to_sign`
+    com `momento` explícito."""
+    transporte = _FakeTransporte()
+    entrega = ast.entregar_artefato_efemero(DOCX_FAKE, SHA_FAKE, FILENAME, transporte)
+    _, _, metadata = transporte.objetos[f"artifacts/{entrega.artefato_id}.docx"]
+    (_, _, _, momento_assinatura), = transporte.chamadas_assinar
+
+    criado_em = dt.datetime.strptime(metadata["created_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc)
+    expira_em = dt.datetime.strptime(metadata["expires_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc)
+
+    assert momento_assinatura is not None
+    # `created_at` é `momento_assinatura` truncado a segundos (mesmo
+    # `strftime` usado para os dois) -- compara truncando os dois lados
+    # igualmente, nunca microssegundos contra segundos.
+    assert momento_assinatura.replace(microsecond=0) == criado_em
+    assert expira_em - criado_em == dt.timedelta(seconds=ast.TTL_DOWNLOAD_SEGUNDOS)
 
 
 # ==================================================================== TTL
@@ -139,7 +164,7 @@ def test_ttl_de_producao_e_sempre_a_constante_do_modulo():
 
     transporte = _FakeTransporte()
     ast.entregar_artefato_efemero(DOCX_FAKE, SHA_FAKE, FILENAME, transporte)
-    (_, ttl_usado, _), = transporte.chamadas_assinar
+    (_, ttl_usado, _, _), = transporte.chamadas_assinar
     assert ttl_usado == 86400
 
 
@@ -237,6 +262,22 @@ def test_construir_url_assinada_v4_estrutura_e_determinismo_do_string_to_sign():
     assert len(linhas[3]) == 64  # hash SHA-256 em hex
 
 
+def test_momento_explicito_e_usado_no_lugar_do_relogio_interno():
+    """Hardening pós-fechamento do Gate 6.6-E — `momento` explícito
+    determina `X-Goog-Date`/`credential_scope` byte a byte; sem ele, o
+    default preserva o comportamento anterior (relógio interno), usado
+    pelos testes de expiração real deste módulo, que não têm metadado
+    de objeto para se alinhar."""
+    fixo = dt.datetime(2026, 1, 15, 10, 30, 0, tzinfo=dt.timezone.utc)
+
+    url = ast._construir_url_assinada_v4(
+        "b", "artifacts/x.docx", "sa@x.iam.gserviceaccount.com", 900, None,
+        lambda sts: b"\x00", momento=fixo,
+    )
+    assert "X-Goog-Date=20260115T103000Z" in url
+    assert "20260115%2Fauto%2Fstorage%2Fgoog4_request" in url
+
+
 def test_canonical_uri_preserva_barras_internas_do_object_name():
     """`artifacts/<uuid>.docx` tem uma barra interna que precisa
     sobreviver ao escapamento (safe="/~"), nunca virar %2F."""
@@ -303,17 +344,23 @@ def test_expires_at_e_exatamente_ttl_de_producao_apos_agora():
 
 # ==================================================== limpeza oportunista
 
-def _objeto_com_idade(transporte, artefato_id, idade_segundos, agora):
+def _objeto_com_idade(transporte, artefato_id, idade_segundos, agora, expira_em=None):
     """Insere um objeto fake diretamente no backend, com `created_at`
     calculado para ter exatamente `idade_segundos` em relação a `agora`
     — sem passar por `entregar_artefato_efemero` (que sempre usa "agora"
-    real)."""
+    real). `expires_at` é derivado de `created_at + TTL_DOWNLOAD_
+    SEGUNDOS` por padrão (o caso correto, pós-hardening) — um valor
+    explícito em `expira_em` permite simular metadado divergente
+    (assinatura tardia, metadado malformado etc.)."""
     criado_em = agora - dt.timedelta(seconds=idade_segundos)
+    if expira_em is None:
+        expira_em = criado_em + dt.timedelta(seconds=ast.TTL_DOWNLOAD_SEGUNDOS)
     nome = ast._nome_objeto(artefato_id)
     transporte.objetos[nome] = (
         DOCX_FAKE, ast.CONTENT_TYPE_DOCX,
         {"artifact_id": artefato_id, "created_at": criado_em.strftime("%Y-%m-%dT%H:%M:%SZ"),
-         "expires_at": "irrelevante-para-este-teste", "sha256": SHA_FAKE},
+         "expires_at": expira_em if isinstance(expira_em, str) else expira_em.strftime("%Y-%m-%dT%H:%M:%SZ"),
+         "sha256": SHA_FAKE},
     )
     return nome
 
@@ -343,7 +390,10 @@ def test_limpeza_no_limiar_exato_ainda_nao_e_elegivel():
     assert nome in transporte.objetos
 
 
-def test_limpeza_ignora_objeto_sem_metadado_created_at():
+def test_limpeza_ignora_objeto_sem_metadado_expires_at():
+    """Fail-safe (Gate 6.6-E, hardening pós-fechamento §7): metadado
+    ausente nunca é inferido/recalculado -- o objeto é só ignorado,
+    nunca excluído por incerteza."""
     transporte = _FakeTransporte()
     nome = "artifacts/sem-metadado.docx"
     transporte.objetos[nome] = (DOCX_FAKE, ast.CONTENT_TYPE_DOCX, {"sha256": SHA_FAKE})
@@ -351,6 +401,51 @@ def test_limpeza_ignora_objeto_sem_metadado_created_at():
     assert nome in transporte.objetos
     assert resultado["inspecionados"] == 1
     assert resultado["excluidos"] == 0
+
+
+def test_limpeza_ignora_objeto_com_expires_at_malformado():
+    """Mesmo fail-safe para metadado PRESENTE mas ilegível -- nunca
+    tentar "consertar"/reinterpretar, só ignorar."""
+    transporte = _FakeTransporte()
+    agora = dt.datetime.now(dt.timezone.utc)
+    nome = _objeto_com_idade(transporte, "malformadooooooooooooooooooooo", 100000, agora,
+                              expira_em="isto-nao-e-uma-data")
+    resultado = ast.limpar_artefatos_elegiveis(transporte, agora=agora)
+    assert nome in transporte.objetos
+    assert resultado["excluidos"] == 0
+
+
+def test_limpeza_nunca_exclui_antes_da_autorizacao_de_download_expirar():
+    """Regressão direta da corrida corrigida no hardening pós-fechamento:
+    um objeto "velho" o bastante por `created_at` (idade > TTL) mas cujo
+    `expires_at` ainda está no FUTURO (ex.: a assinatura real ocorreu
+    depois do upload, por atraso de rede) NUNCA pode ser excluído --
+    mesmo que uma comparação ingênua baseada só em `created_at` diria
+    que sim. A decisão é sempre por `expires_at`, nunca recalculada."""
+    transporte = _FakeTransporte()
+    agora = dt.datetime.now(dt.timezone.utc)
+    expira_no_futuro = agora + dt.timedelta(seconds=5)
+    nome = _objeto_com_idade(transporte, "corridaaaaaaaaaaaaaaaaaaaaaaaaa",
+                              ast.TTL_DOWNLOAD_SEGUNDOS + 100, agora,
+                              expira_em=expira_no_futuro)
+    resultado = ast.limpar_artefatos_elegiveis(transporte, agora=agora)
+    assert nome in transporte.objetos
+    assert resultado["excluidos"] == 0
+
+
+def test_limpeza_exclui_assim_que_expires_at_e_ultrapassado_mesmo_com_created_at_recente():
+    """Espelho do teste acima: o que importa é `expires_at`, nunca
+    `created_at` sozinho -- um objeto "jovem" por `created_at` mas cujo
+    `expires_at` já passou (metadado seria inconsistente, mas a função
+    não tenta adivinhar por quê) é elegível."""
+    transporte = _FakeTransporte()
+    agora = dt.datetime.now(dt.timezone.utc)
+    ja_expirou = agora - dt.timedelta(seconds=1)
+    nome = _objeto_com_idade(transporte, "jaexpiroooooooooooooooooooooooo", 10, agora,
+                              expira_em=ja_expirou)
+    resultado = ast.limpar_artefatos_elegiveis(transporte, agora=agora)
+    assert nome not in transporte.objetos
+    assert resultado["excluidos"] == 1
 
 
 def test_limpeza_nunca_inspeciona_fora_do_prefixo_artifacts():

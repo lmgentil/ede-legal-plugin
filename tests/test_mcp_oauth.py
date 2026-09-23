@@ -1527,7 +1527,7 @@ class _TransporteArtefatoFakeOAuth:
     def enviar(self, object_name, dados, content_type, metadata):
         self.objetos[object_name] = (dados, content_type, dict(metadata))
 
-    def assinar_url(self, object_name, ttl_segundos, content_disposition):
+    def assinar_url(self, object_name, ttl_segundos, content_disposition, momento=None):
         return f"https://storage.googleapis.com/bucket-fake-teste-oauth/{object_name}?assinado=1"
 
     def excluir(self, object_name):

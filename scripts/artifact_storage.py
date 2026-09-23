@@ -150,7 +150,8 @@ class TransporteArtefato(Protocol):
 
     def enviar(self, object_name: str, dados: bytes, content_type: str, metadata: dict) -> None: ...
 
-    def assinar_url(self, object_name: str, ttl_segundos: int, content_disposition: str) -> str: ...
+    def assinar_url(self, object_name: str, ttl_segundos: int, content_disposition: str,
+                     momento: "_dt.datetime | None" = None) -> str: ...
 
     def excluir(self, object_name: str) -> bool:
         """Retorna True se o objeto foi removido (ou já não existia —
@@ -166,10 +167,18 @@ class TransporteArtefato(Protocol):
 
 
 LIMPEZA_ELEGIVEL_SEGUNDOS = TTL_DOWNLOAD_SEGUNDOS
-"""Limiar de elegibilidade da limpeza — EXATAMENTE `TTL_DOWNLOAD_
-SEGUNDOS` (24h), sem margem adicional (decisão explícita do usuário,
-Gate 6.6-E continuação — "USER RETENTION DECISION — HARD DELETE
-REQUIRED": elegibilidade "imediatamente após a janela de 24h expirar").
+"""EXATAMENTE `TTL_DOWNLOAD_SEGUNDOS` (24h), sem margem adicional
+(decisão explícita do usuário: elegibilidade "imediatamente após a
+janela de 24h expirar"). Documenta a relação usada para CALCULAR
+`expires_at` no momento do upload (`entregar_artefato_efemero`) — a
+DECISÃO de elegibilidade em `limpar_artefatos_elegiveis` não recalcula
+isto a partir de `created_at`; ela lê `expires_at` diretamente do
+metadado (hardening pós-fechamento do Gate 6.6-E — ver docstring de
+`limpar_artefatos_elegiveis` para o motivo: uma comparação baseada só
+em `created_at` reabriria a corrida entre a expiração real da URL
+assinada e a elegibilidade de limpeza que este valor pretende
+fechar).
+
 A retenção NORMAL total (criação -> exclusão de fato) não é este
 número sozinho — é este limiar SOMADO à cadência do mecanismo que
 executa a varredura (ver `limpar_artefatos_elegiveis`): com cadência de
@@ -262,7 +271,7 @@ def _quote(s: str, safe: str = "~") -> str:
 
 def _construir_url_assinada_v4(bucket: str, object_name: str, signer_sa: str,
                                 ttl_segundos: int, content_disposition: str | None,
-                                assinar_bytes) -> str:
+                                assinar_bytes, momento: "_dt.datetime | None" = None) -> str:
     """Constrói uma URL V4 assinada manualmente, seguindo exatamente o
     algoritmo publicado em
     docs.cloud.google.com/storage/docs/access-control/signing-urls-manually
@@ -280,12 +289,29 @@ def _construir_url_assinada_v4(bucket: str, object_name: str, signer_sa: str,
 
     `assinar_bytes` é injetável (produção: `signBlob` real; testes: uma
     assinatura RSA determinística local ou uma função fake) — a
-    corretude do ALGORITMO (bytes exatos do `string_to_sign`) é testável
-    sem rede; a corretude do RESULTADO FINAL contra o GCS real depende
-    de uma verificação viva, registrada como item de risco residual no
-    relatório do Gate 6.6-E até essa verificação ser concluída."""
+    corretude do ALGORITMO (bytes exatos do `string_to_sign`) já foi
+    verificada ao vivo contra o GCS real (Gate 6.6-E, continuação).
+
+    `momento` (Gate 6.6-E, hardening pós-fechamento — corrige uma
+    condição de corrida real: sem isto, `X-Goog-Date` usava um
+    `datetime.now()` capturado DEPOIS do upload, então a expiração
+    criptográfica real da URL (`X-Goog-Date + X-Goog-Expires`) ficava
+    sempre um pouco DEPOIS do `expires_at` gravado no metadado do
+    objeto — o atraso de rede do próprio upload. Uma varredura de
+    limpeza rodando exatamente nessa janela poderia excluir o objeto
+    enquanto a URL emitida para ele ainda era, tecnicamente,
+    criptograficamente válida). Quando o chamador passa `momento`
+    explícito (`entregar_artefato_efemero` sempre passa — o MESMO
+    instante já usado para `created_at`/`expires_at`), `X-Goog-Date`
+    passa a ser EXATAMENTE esse instante, então a expiração real da URL
+    e o `expires_at` do metadado tornam-se o MESMO valor, não uma
+    aproximação — a limpeza nunca pode ficar à frente da autorização
+    real, por construção, não por margem. `None` (default) preserva o
+    comportamento anterior para quem assina sem vínculo com metadado
+    (ex.: os testes de expiração deste módulo, que usam TTL curto e não
+    gravam objeto algum)."""
     host = "storage.googleapis.com"
-    agora = _dt.datetime.now(_dt.timezone.utc)
+    agora = momento if momento is not None else _dt.datetime.now(_dt.timezone.utc)
     datestamp = agora.strftime("%Y%m%d")
     timestamp = agora.strftime("%Y%m%dT%H%M%SZ")
     credential_scope = f"{datestamp}/auto/storage/goog4_request"
@@ -361,7 +387,8 @@ class TransporteGcsReal:
         if resposta.status_code not in (200, 201):
             raise ErroArmazenamentoArtefato("gcs_status_inesperado")
 
-    def assinar_url(self, object_name: str, ttl_segundos: int, content_disposition: str) -> str:
+    def assinar_url(self, object_name: str, ttl_segundos: int, content_disposition: str,
+                     momento: "_dt.datetime | None" = None) -> str:
         import httpx2
 
         credenciais = _credenciais_e_token()
@@ -389,7 +416,8 @@ class TransporteGcsReal:
             return base64.b64decode(resposta.json()["signedBlob"])
 
         return _construir_url_assinada_v4(
-            self._bucket, object_name, self._signer_sa, ttl_segundos, content_disposition, _sign_blob
+            self._bucket, object_name, self._signer_sa, ttl_segundos, content_disposition, _sign_blob,
+            momento=momento,
         )
 
     def excluir(self, object_name: str) -> bool:
@@ -467,7 +495,13 @@ def entregar_artefato_efemero(document_bytes: bytes, sha256_hex: str, filename_c
 
     disposicao = f'attachment; filename="{filename_cliente}"'
     try:
-        url = transporte.assinar_url(object_name, TTL_DOWNLOAD_SEGUNDOS, disposicao)
+        # `momento=agora` -- MESMO instante gravado em `created_at`/
+        # `expires_at` acima, nunca um novo `datetime.now()` interno
+        # capturado depois do upload (ver docstring de
+        # `_construir_url_assinada_v4` -- hardening pós-fechamento do
+        # Gate 6.6-E: fecha a corrida entre a expiração real da URL e a
+        # elegibilidade de limpeza baseada em metadado).
+        url = transporte.assinar_url(object_name, TTL_DOWNLOAD_SEGUNDOS, disposicao, momento=agora)
     except ErroAssinaturaArtefato as e:
         limpeza_ok = None
         try:
@@ -499,15 +533,36 @@ def limpar_artefatos_elegiveis(transporte: TransporteArtefato,
     (1) oportunista, disparada por `finalizar_peca.py` depois de cada
     sucesso — cobre o caso comum, mas sozinha não garante nada sem
     tráfego; (2) `scripts/limpar_artefatos_agendado.py`, um entrypoint
-    standalone pensado para ser invocado por um mecanismo de agendamento
-    externo (Cloud Scheduler -> Cloud Run Job/endpoint autenticado, não
-    provisionado nesta rodada — ver ADR-0019) com cadência horária, que
-    é o que torna a retenção normal ~24-25h mesmo sem nenhuma
-    finalização acontecendo. Varre SÓ o prefixo `artifacts/`, lê SÓ o
-    metadado seguro já gravado no upload (`created_at`) — nunca conteúdo,
-    nunca nome de arquivo do cliente, nunca dado de caso — e exclui
-    objetos cuja idade já ultrapassa `LIMPEZA_ELEGIVEL_SEGUNDOS`.
-    Processa no máximo `LIMPEZA_MAX_OBJETOS_POR_VARREDURA` por chamada.
+    standalone invocado por um mecanismo de agendamento externo (Cloud
+    Scheduler -> Cloud Run Job, provisionado e provado em homologação —
+    ver ADR-0019) com cadência horária, que é o que torna a retenção
+    normal ~24-25h mesmo sem nenhuma finalização acontecendo. Varre SÓ
+    o prefixo `artifacts/`, lê SÓ o metadado seguro já gravado no
+    upload — nunca conteúdo, nunca nome de arquivo do cliente, nunca
+    dado de caso. Processa no máximo `LIMPEZA_MAX_OBJETOS_POR_VARREDURA`
+    por chamada.
+
+    **Elegibilidade é decidida por `expires_at`, nunca recalculada a
+    partir de `created_at` (hardening pós-fechamento do Gate 6.6-E).**
+    Achado real: `assinar_url()` capturava seu próprio `datetime.now()`
+    internamente, DEPOIS do upload já ter terminado — então a expiração
+    criptográfica real da URL (`X-Goog-Date + X-Goog-Expires`) ficava
+    sempre um pouco DEPOIS do `expires_at` gravado no metadado (o atraso
+    de rede do próprio upload). Se a limpeza comparasse `created_at +
+    LIMPEZA_ELEGIVEL_SEGUNDOS`, uma varredura rodando exatamente nessa
+    janela poderia excluir o objeto enquanto a URL emitida para ele
+    ainda era, tecnicamente, válida — violando a invariante "artefato
+    nunca fica elegível para limpeza antes de sua autorização de
+    download emitida ter expirado". Corrigido na origem, não aqui:
+    `entregar_artefato_efemero` agora assina com `momento=` o MESMO
+    instante gravado em `created_at`/`expires_at` (ver sua docstring),
+    então `expires_at` passa a ser EXATAMENTE a expiração real da URL, e
+    esta função só precisa comparar `agora >= expires_at` — sem
+    reconstruir esse valor a partir de outro campo, sem introduzir uma
+    segunda fonte de verdade. **Metadado ausente ou malformado é
+    fail-safe: o objeto é ignorado nesta varredura, nunca excluído por
+    incerteza** — o backstop de lifecycle continua sendo a rede de
+    segurança para esse caso, não uma exclusão apressada aqui.
 
     **Best-effort por design, nunca bloqueia a finalização que a
     disparou:** o chamador (`finalizar_peca.py`) invoca isto DEPOIS de
@@ -530,18 +585,17 @@ def limpar_artefatos_elegiveis(transporte: TransporteArtefato,
     objetos = transporte.listar("artifacts/", LIMPEZA_MAX_OBJETOS_POR_VARREDURA)
     for nome_objeto, metadata in objetos:
         resultado["inspecionados"] += 1
-        criado_em_str = (metadata or {}).get("created_at")
-        if not criado_em_str:
-            continue  # sem o metadado esperado -- nunca inferido, só ignorado
+        expira_em_str = (metadata or {}).get("expires_at")
+        if not expira_em_str:
+            continue  # metadado ausente -- fail-safe, nunca excluído por incerteza
         try:
-            criado_em = _dt.datetime.strptime(
-                criado_em_str, "%Y-%m-%dT%H:%M:%SZ"
+            expira_em = _dt.datetime.strptime(
+                expira_em_str, "%Y-%m-%dT%H:%M:%SZ"
             ).replace(tzinfo=_dt.timezone.utc)
         except ValueError:
-            continue
-        idade_segundos = (agora - criado_em).total_seconds()
-        if idade_segundos < LIMPEZA_ELEGIVEL_SEGUNDOS:
-            continue
+            continue  # metadado malformado -- mesmo fail-safe
+        if agora < expira_em:
+            continue  # autorização de download ainda não expirou
         if transporte.excluir(nome_objeto):
             resultado["excluidos"] += 1
         else:

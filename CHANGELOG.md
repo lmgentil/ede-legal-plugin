@@ -7,6 +7,26 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### ADR-0021 — dados derivados pelo sistema no finalizador V1 (pré-deploy, homolog não atualizado)
+- **Contrato V1 (manifesto 1.1.0, arquivo novo; 1.0.0 preservado):** o
+  finalizador calcula `JUIZO` (DataJud/IBGE), `TEMPESTIVIDADE_CASO` (a
+  partir de `marco_tempestividade`, tipo `DISPONIBILIZACAO`), `LOCAL_DATA`
+  (America/Bahia) e `VALOR_TOTAL_PROVEITO_ECONOMICO` (Decimal, a partir de
+  `pedidos_economicos`) e recusa esses campos vindos do host.
+- **Novos campos públicos de `ede_finalizar_peca`:** `marco_tempestividade`,
+  `pedidos_economicos`, `zonas` (com `base_documental`),
+  `juizo_confirmado_advogado`. `topicos`/`fatos_publicos` seguem só SIM/NÃO.
+- **Resultados novos:** intempestivo → `NEEDS_INPUT` (nunca peça);
+  DataJud indisponível → `NEEDS_INPUT` com exceção de confirmação humana;
+  código `DERIVED_DATA_UNAVAILABLE`; estágios `tempestividade`,
+  `enderecamento`, `valor_da_causa`, `zonas`.
+- **Gratuidade** sem gate factual, com aviso não bloqueante; **zonas**
+  genéricas pelo MCP (PEND-015); trava de cobertura do calendário até
+  19/12/2026 no fluxo MCP (PEND-017); "R$ R$" confirmado e corrigido no V1
+  (PEND-018; legado inalterado).
+- **Contrato legado inalterado** (recusa as entradas novas, nunca consulta
+  o DataJud). Produção intocada.
+
 ### Gate cross-client da Topic Matrix — PASS (homolog, 24/09/2026)
 - **Claude e ChatGPT: PASS.** Schema novo de `ede_finalizar_peca`
   (`topicos`/`fatos_publicos`) visível nos dois; fixture positiva `OK`

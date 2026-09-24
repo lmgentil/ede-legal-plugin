@@ -30,8 +30,8 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-014 | Gate 6.6-E PASS; Gate 6.6-F Fase 1 PASS; Fase 2 (Claude/ChatGPT reais) PARTIAL PASS (DELIVERY-CLIENT-01); URL opaca do EDE implementada e provada server-side no homolog; cliques reais pendentes; ativação em produção NÃO autorizada | Fechamento do Gate 6.6-D como PARTIAL PASS (2026-09-22); implementação Gate 6.6-E mesma data | Gate de download ao vivo (Claude/ChatGPT); não bloqueia o runtime — produção continua em v1 até ativação explícita | Redesenho do mecanismo de entrega de artefato entre hosts — v2 (`scripts/artifact_storage.py`, GCS efêmero + URL V4 assinada de 24h) implementado, testado e verificado ao vivo: assinatura real, identidade de bytes, hard delete, e limpeza agendada horária (Cloud Scheduler -> Cloud Run Job) provisionada em homologação |
 | PEND-015 | ABERTA, prioridade alta (design aprovado — ADR-0021) | Gate V1 homolog (2026-09-24) | Orquestração voltada ao advogado; tópico de valor da causa (frase fixa sem continuação) | Zonas VLA redigidas pelo host ainda não aceitas pelo MCP — suporte genérico aprovado |
 | PEND-016 | ABERTA (design aprovado — ADR-0021) | Gate V1 homolog (2026-09-24) | Tratar a tempestividade via MCP como calculada pelo Core | Tempestividade a partir da data de disponibilização ainda não integrada ao finalizador MCP |
-| PEND-017 | ABERTA | Primeiro caso real / ADR-0021 (2026-09-24) | Contestação cujo prazo saia de 2026 | Calendário forense só cobre 2026; contagem não verifica o ano |
-| PEND-018 | ABERTA (não confirmada em render) | Primeiro caso real / ADR-0021 (2026-09-24) | Homologação da ADR-0021 | Possível "R$ R$" nos valores do tópico de valor da causa |
+| PEND-017 | TRAVA no fluxo MCP (pré-deploy); ABERTA no fluxo local | Primeiro caso real / ADR-0021 (2026-09-24) | Contestação cujo prazo saia de 2026 | Calendário forense só cobre 2026; contagem não verifica o ano |
+| PEND-018 | CORRIGIDA no V1 (pré-deploy); ABERTA no legado | Primeiro caso real / ADR-0021 (2026-09-24) | Homologação da ADR-0021 | Possível "R$ R$" nos valores do tópico de valor da causa |
 
 ---
 
@@ -913,6 +913,14 @@ tópico de impugnação ao valor da causa sai com a frase fixa "In casu, a
 petição inicial cumula:" sem continuação. **Critério de fechamento:**
 zonas aceitas e validadas pelo MCP, testes, homolog e smoke
 cross-client.
+**Implementação (24/09/2026, pré-deploy):** finalizador aceita
+`zonas = {conteudo: {ZONA: {conteudo, fatos}}, base_documental: [fatos
+com fonte]}` — a base documental vai dentro do próprio campo para que a
+checagem de proveniência (fonte na base, número documental no documento
+citado) continue integral no MCP. Validação extraída para
+`scripts/zonas_conteudo.py`, a mesma do fluxo local. Render real da
+zona de composição do proveito aprovado localmente. Falta homolog e
+smoke cross-client.
 **Situação:** `ede_finalizar_peca` não recebe conteúdo de Zona de
 Complementação; toda zona sai vazia (SDT removido), como antes. O
 manifesto V1 declara, por zona, Skills autorizadas/vedadas, fontes e
@@ -943,6 +951,9 @@ Topic Matrix); o Core deriva a publicação, conta o prazo e gera
 `NEEDS_INPUT`, nunca peça. **Critério de fechamento:** cálculo integrado
 ao finalizador MCP, testes (sexta→segunda, feriado, recesso, trava de
 ano, intempestivo) e smoke cross-client aprovado no homolog.
+**Implementação (24/09/2026, pré-deploy):** integrada e testada
+localmente (`tests/test_adr0021_dados_derivados.py`); falta homolog e
+smoke cross-client.
 
 ## PEND-017 — Calendário forense só cobre 2026; contagem não verifica o ano
 
@@ -953,12 +964,29 @@ sem conferir se a contagem permanece dentro do ano coberto: um prazo que
 cruze para 2027 seria contado sem feriados/recesso de 2027.
 **Decisão:** trava de ano fail-closed (recusa com o dado faltante) junto
 com a implementação da ADR-0021; calendário de 2027 só com fonte oficial
-verificada. **Bloqueia:** gerar Contestação cujo prazo saia de 2026
+verificada.
+**Implementação (24/09/2026):** o calendário declara `cobertura`
+2026-01-01 a **2026-12-19** (a partir de 20/12 corre a suspensão do art.
+220 do CPC e o recesso 2026/2027, de decreto ainda não transcrito);
+disponibilização, publicação ou contagem fora da janela são recusadas no
+fluxo MCP (`verificar_cobertura=True`). **O fluxo local da Skill ainda
+não aplica a trava** (parâmetro desligado por padrão para não mudar o
+comportamento existente) — pendência mantida para ele. **Bloqueia:** gerar Contestação cujo prazo saia de 2026
 enquanto não houver calendário verificado do ano seguinte.
 
 ## PEND-018 — Possível duplicação "R$ R$" no tópico de valor da causa
 
-**Status (2026-09-24):** aberta (ADR-0021); não confirmada em render.
+**Status (2026-09-24):** **confirmada** em render real e **corrigida no
+contrato V1**; aberta para o contrato legado.
+**Reprodução:** finalizador anterior à correção, Modelo V1 local, tópico
+2.6 incluído → "montante de R$ R$ 15.000,00" e "para R$ R$ 14.997,63".
+O modelo legado tem o mesmo "R$" fixo antes dos dois placeholders.
+**Correção (V1):** o manifesto 1.1.0 declara
+`simbolo_monetario_no_texto_fixo` nesses dois campos; o Core valida o
+valor no formato "R$ 1.234,56" e o insere sem o símbolo. Regressão em
+`test_valor_da_causa_sem_r_duplicado_e_com_zona_de_composicao`. **Legado
+não alterado** (proibido pela ADR-0021): segue afetado se o tópico 2.6
+for incluído em produção.
 **Situação:** o texto fixo do tópico 2.6 traz "R$ {{VALOR_DA_CAUSA}}" e
 "R$ {{VALOR_TOTAL_PROVEITO_ECONOMICO}}", enquanto os validadores exigem
 que o valor já venha como "R$ 10.000,00" — resultado provável "R$ R$".

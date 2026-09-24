@@ -170,3 +170,30 @@ round-trip; Modelo Oficial V1 (DOCX) e catálogo V1 inalterados.
 * PEND-016 só fecha com o cálculo integrado ao MCP e aprovado no smoke
   cross-client. Abertas PEND-017 (calendário fora de 2026 / trava de
   ano) e PEND-018 ("R$ R$").
+
+## Notas de implementação (24/09/2026, pré-deploy)
+
+* Manifesto V1 **1.1.0** em arquivo novo
+  (`templates/contestacao/v1/manifesto-1.1.0.json`); o 1.0.0 fica
+  intacto no repositório, como exige a ADR-0020, e não entra na imagem.
+* `zonas` carrega a própria `base_documental` (fatos com fonte, mesmo
+  contrato de `ede_preparar_contestacao`): sem ela a checagem de
+  proveniência das zonas perderia a verificação de fonte e de número
+  documental. Nenhum quinto campo público foi criado.
+* Recusados do host no V1: só os quatro campos desta ADR (`JUIZO`,
+  `TEMPESTIVIDADE_CASO`, `LOCAL_DATA`, `VALOR_TOTAL_PROVEITO_ECONOMICO`)
+  e os estados `EXISTE_DISCREPANCIA_VALOR_CAUSA`/
+  `EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS`. O marcador manual
+  `TELAS_DA_TITULARIDADE`, também marcado como do Core no manifesto,
+  segue como antes (fora do escopo).
+* O Core não classifica a diferença do valor da causa como "material":
+  devolve os números exatos no aviso; a qualificação jurídica é do host
+  e a decisão, do advogado (nenhuma heurística jurídica em Python).
+* Exibição do juízo na preparação: **não implementada** — exigiria um
+  campo novo em `ede_preparar_contestacao` (número do processo), não
+  aprovado; o finalizador segue autoritativo.
+* `ZoneInfo("America/Bahia")` provado na imagem pinada
+  (`python:3.12-slim@sha256:78387bc3…`, Debian 13.6, tzdata do sistema
+  2026b) pelo Cloud Build `cb73793a-4c42-4c52-a52c-94b30e7bc931`:
+  nenhuma dependência nova.
+

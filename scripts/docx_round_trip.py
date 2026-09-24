@@ -244,6 +244,30 @@ def extrair_valores_gerados(template_xml: str, gerado_xml: str, catalogo: dict,
             i += 1
             continue
 
+        if len(ms) > 1:
+            # Vários placeholders no mesmo parágrafo (achado do gate V1:
+            # tópico 2.4, CONTA_CONTRATO + NOME_TITULAR_DA_UC). Antes, só o
+            # prefixo do 1º e o sufixo do último eram âncoras — todo o miolo,
+            # inclusive o texto fixo intermediário, era atribuído ao 1º
+            # placeholder e o 2º nunca era localizado. Agora a âncora exige,
+            # na ordem, TODOS os segmentos fixos, com uma captura por
+            # ocorrência; sem casamento integral (^...$), nenhuma ocorrência
+            # do parágrafo é capturada -> "âncora não bateu" (fail-closed).
+            segmentos = [texto_t[:ms[0].start()]]
+            segmentos += [texto_t[a.end():b.start()] for a, b in zip(ms, ms[1:])]
+            segmentos.append(texto_t[ms[-1].end():])
+            padrao = re.compile("^" + "(.*?)".join(re.escape(s) for s in segmentos) + "$", re.DOTALL)
+            m = padrao.match(_texto_bruto_paragrafo(paras_g[j], tags_linked)) if j < len(paras_g) else None
+            m_negrito = padrao.match(textos_g_negrito[j]) if m and j < len(paras_g) else None
+            for k, ocorrencia in enumerate(ms, start=1):
+                nome_k = ocorrencia.group(1)
+                if nomes_alvo is None or nome_k in nomes_alvo:
+                    valor = (m_negrito or m).group(k) if m else None
+                    capturas.setdefault(nome_k, []).append(valor)
+            i += 1
+            j += 1
+            continue
+
         # placeholder embutido em texto fixo: prefixo/sufixo vivem no
         # MESMO parágrafo gerado — casa por regex derivada do template
         # (mesma técnica de docx_fidelidade_independente, com grupo de

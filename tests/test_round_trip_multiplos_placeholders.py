@@ -105,10 +105,10 @@ class _Transporte:
 
 def _preparar(monkeypatch, caminho: Path, sha_exigido: str | None = None):
     if not caminho.is_file():
-        pytest.skip(f"{caminho.name} não disponível localmente (asset privado, ADR-0009).")
+        pytest.skip(f"{caminho} não instalado localmente — asset institucional externo (ADR-0009).")
     sha = hashlib.sha256(caminho.read_bytes()).hexdigest()
     if sha_exigido and sha != sha_exigido:
-        pytest.skip("Modelo local com SHA diferente do aprovado.")
+        pytest.fail(f"Modelo local com SHA-256 {sha} diferente do aprovado {sha_exigido}.")
     for var in ("EDE_MODELO_OFICIAL_GCS_BUCKET", "EDE_MODELO_OFICIAL_GCS_OBJECT", "EDE_MODELO_OFICIAL_GCS_GENERATION"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("EDE_MODELO_OFICIAL_PATH", str(caminho))

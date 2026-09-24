@@ -328,13 +328,20 @@ def test_telemetria_aceita_needs_input_e_estagio_topic_matrix():
 
 # ======================================================== render real (B, F-P)
 
-def _caminho_modelo_v1() -> Path | None:
-    candidatos = [os.environ.get("EDE_TEST_MODELO_V1_PATH"),
-                  str(BASE / "templates" / "contestacao" / "v1" / "modelo-oficial.docx")]
-    for c in candidatos:
-        if c and Path(c).is_file() and hashlib.sha256(Path(c).read_bytes()).hexdigest() == V1.modelo_sha256:
-            return Path(c)
-    return None
+CAMINHO_MODELO_V1 = Path(os.environ.get("EDE_TEST_MODELO_V1_PATH")
+                         or BASE / "templates" / "contestacao" / "v1" / "modelo-oficial.docx")
+
+
+def _caminho_modelo_v1() -> Path:
+    """SKIP (razão canônica ADR-0009) só quando o asset não está
+    instalado; presente com SHA diferente do aprovado é FALHA — nunca um
+    modelo errado escondido atrás de um SKIP."""
+    if not CAMINHO_MODELO_V1.is_file():
+        pytest.skip(f"{CAMINHO_MODELO_V1} não instalado localmente — asset institucional externo (ADR-0009).")
+    sha = hashlib.sha256(CAMINHO_MODELO_V1.read_bytes()).hexdigest()
+    if sha != V1.modelo_sha256:
+        pytest.fail(f"Modelo V1 local com SHA-256 {sha} diferente do aprovado {V1.modelo_sha256}.")
+    return CAMINHO_MODELO_V1
 
 
 class _TransporteFake:
@@ -355,8 +362,6 @@ class _TransporteFake:
 @pytest.fixture
 def modelo_v1_local(monkeypatch):
     caminho = _caminho_modelo_v1()
-    if caminho is None:
-        pytest.skip("Modelo Oficial V1 (asset privado, ADR-0009) não disponível localmente com o SHA aprovado.")
     for var in ("EDE_MODELO_OFICIAL_GCS_BUCKET", "EDE_MODELO_OFICIAL_GCS_OBJECT", "EDE_MODELO_OFICIAL_GCS_GENERATION"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("EDE_MODELO_OFICIAL_PATH", str(caminho))

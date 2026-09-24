@@ -126,4 +126,10 @@ correção só vai para produção depois de provada no homolog.
 * Não concluído por este gate: orquestração voltada ao advogado
   (PEND-015, PEND-016); reconexão dos clientes ao schema novo e smoke
   cross-client — próximo gate.
+* Gate cross-client da Topic Matrix (24/09/2026): **`PARTIAL`**. Claude
+  PASS (schema novo visível; fixture positiva `OK` com download e
+  SHA-256 `d8097a2b…` conferidos; fixture negativa `NEEDS_INPUT`).
+  ChatGPT BLOCKED só por schema/cache do cliente (`topicos`/
+  `fatos_publicos` ainda não visíveis), fixtures não executadas lá.
+  Detalhe em `docs/mcp-producao-contrato.md`.
 

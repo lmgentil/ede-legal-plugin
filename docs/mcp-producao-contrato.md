@@ -260,6 +260,37 @@ ainda exibia o schema antigo (sem `topicos`/`fatos_publicos`, cache de
 `tools/list`), mas repassou os campos — reconexão dos clientes e smoke
 cross-client do schema novo são o próximo gate.
 
+**Gate cross-client da Topic Matrix — `PARTIAL` (24/09/2026).** Nenhuma
+alteração de código, homolog ou produção; mesma revisão `00007-4rm`.
+
+* **Claude — PASS.** Após reconexão, o conector claude.ai de homolog
+  expõe o schema novo de `ede_finalizar_peca` (`topicos` e
+  `fatos_publicos` visíveis). `ede_health` READY, VERSION 0.16.0,
+  modelo v1, catálogo `3d710366…`, manifesto 1.0.0 `f703966d…`.
+  - Fixture positiva (dados fictícios; CDC, 2.4 e evolução SIM, demais
+    NÃO; corte SIM, licitude NÃO; gates `UC_TITULARIDADE_TERCEIRO_
+    COMPROVADA`/`EVOLUCAO_CONSUMO_DOCUMENTADA` verdadeiros) → `OK`, 5
+    `dados_nao_bloqueantes`, `document_sha256`
+    `d8097a2b3a5dfd63455fd29b33067478a9dd1dc974a323d668e8ede4c2f1e7c5`,
+    1.757.690 bytes.
+  - Download `/download/<token>`: HTTP 200, 1.757.690 bytes, content-type
+    DOCX, SHA-256 local idêntico ao informado pelo servidor, ZIP
+    íntegro, nenhum `{{` residual, nenhuma tag BLOCO/SUBBLOCO/ZONA,
+    tópico de inaplicabilidade do CDC e titular da UC presentes.
+  - Fixture negativa (licitude SIM, corte NÃO, demais NÃO) →
+    `NEEDS_INPUT`, estágio `topic_matrix`, pendência em linguagem
+    jurídica pedindo confirmação do corte ou resposta NÃO; nenhum
+    documento emitido.
+* **ChatGPT — BLOCKED (schema/cache do cliente).** O schema de
+  `ede_finalizar_peca` visível no ChatGPT ainda expõe apenas
+  `capability_id`, `placeholders`, `estado_processual` e
+  `block_decisions`; `topicos` e `fatos_publicos` não aparecem. Por
+  decisão do titular, nenhuma fixture foi executada no ChatGPT enquanto
+  o schema novo não estiver visível. O bloqueio é do cliente, não do
+  servidor (o mesmo `tools/list` já é consumido corretamente pelo
+  Claude). Fechar o gate como `PASS` exige repetir as mesmas fixtures
+  no ChatGPT depois que ele atualizar o schema.
+
 **Artefatos:** `EDE_ARTEFATOS_GCS_BUCKET=
 ede-legal-mcp-01-artefatos-efemeros`, `EDE_ARTEFATOS_SIGNER_SA=
 ede-mcp-homolog-runtime@…` (auto-impersonation).

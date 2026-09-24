@@ -252,7 +252,7 @@ jobs:
         run: |
           docker run --rm ede-mcp:ci sh -c '
             set -e
-            for p in skills skills/docx tests docs .git .claude .claude-plugin .env ede-private jurisprudencia; do
+            for p in skills/docx tests docs .git .claude .claude-plugin .env ede-private jurisprudencia; do
               if [ -e "/app/$p" ] || [ -e "/$p" ]; then
                 echo "ENCONTRADO INDEVIDAMENTE NA IMAGEM: $p"
                 exit 1

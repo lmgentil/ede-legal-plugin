@@ -325,3 +325,24 @@ def test_manifesto_declara_exatamente_os_diretorios_copiados():
     import json
     manifesto = json.loads((BASE / "rag" / "corpus_manifest.json").read_text(encoding="utf-8"))
     assert set(manifesto["diplomas"]) == {"CPC", "CC", "CDC", "L8987", "L9427", "REN1000"}
+
+
+def test_workflow_protege_skills_por_allowlist_e_nao_por_proibicao_geral():
+    """ADR-0021 (achado do CI 36054784072): a imagem leva exatamente dois
+    arquivos da skill de calendário. A proibição geral do passo de testes
+    negativos não pode barrar `skills` inteiro (reprovaria a imagem
+    correta); a proteção é a allowlist `achados_skills`, que aceita só
+    esses dois arquivos, e `skills/docx` continua proibido."""
+    laco = re.search(r"for p in ([^;]+); do", WORKFLOW_HOMOLOGACAO)
+    assert laco, "laço de proibições gerais não encontrado no workflow"
+    proibidos = laco.group(1).split()
+    assert "skills" not in proibidos
+    assert "skills/docx" in proibidos
+    bloco = re.search(r"achados_skills=\$\(find /app/skills -type f(.*?)2>/dev/null", WORKFLOW_HOMOLOGACAO, re.DOTALL)
+    assert bloco, "allowlist achados_skills não encontrada no workflow"
+    permitidos = set(re.findall(r'! -path "\*/([^"]+)"', bloco.group(1)))
+    assert permitidos == {
+        "calendario-forense-tjba-2026/scripts/calcular_tempestividade.py",
+        "calendario-forense-tjba-2026/feriados_forenses_tjba_2026.json",
+    }
+

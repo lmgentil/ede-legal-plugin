@@ -7,13 +7,15 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
-### Gate cross-client da Topic Matrix — PARTIAL (homolog, 24/09/2026)
-- **Claude: PASS.** Schema novo de `ede_finalizar_peca` visível;
-  fixture positiva `OK` (download HTTP 200, SHA-256 `d8097a2b…`
-  conferido); fixture negativa (licitude SIM, corte NÃO) `NEEDS_INPUT`.
-- **ChatGPT: BLOCKED** por schema/cache do cliente (`topicos`/
-  `fatos_publicos` ainda não expostos); nenhuma fixture executada.
-- Sem alteração de código, homolog ou produção.
+### Gate cross-client da Topic Matrix — PASS (homolog, 24/09/2026)
+- **Claude e ChatGPT: PASS.** Schema novo de `ede_finalizar_peca`
+  (`topicos`/`fatos_publicos`) visível nos dois; fixture positiva `OK`
+  com o mesmo SHA-256 `d8097a2b…` e download/abertura do DOCX
+  conferidos; fixture negativa (licitude SIM, corte NÃO) `NEEDS_INPUT`.
+- O bloqueio inicial do ChatGPT era cache/snapshot de schema do cliente,
+  resolvido por refresh/reconexão do app.
+- Sem alteração de código, Modelo Oficial, catálogo, manifesto, homolog
+  ou produção (`ede-mcp-00020-gum`, 100%).
 
 ### Modelo Oficial V1 no homolog — Topic Matrix (ADR-0020, VERSION 0.16.0)
 - **Contrato versionado por SHA** (`scripts/modelo_oficial_versoes.py`):

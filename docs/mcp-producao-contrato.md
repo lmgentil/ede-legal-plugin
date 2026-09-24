@@ -260,36 +260,48 @@ ainda exibia o schema antigo (sem `topicos`/`fatos_publicos`, cache de
 `tools/list`), mas repassou os campos — reconexão dos clientes e smoke
 cross-client do schema novo são o próximo gate.
 
-**Gate cross-client da Topic Matrix — `PARTIAL` (24/09/2026).** Nenhuma
-alteração de código, homolog ou produção; mesma revisão `00007-4rm`.
+**Gate cross-client da Topic Matrix — `PASS` (24/09/2026).** Nenhuma
+alteração de código, Modelo Oficial, catálogo, manifesto, homolog ou
+produção; mesma revisão `00007-4rm`, VERSION 0.16.0. O schema publicado
+pelo servidor para `ede_finalizar_peca` contém `capability_id`,
+`placeholders`, `topicos`, `fatos_publicos`, `block_decisions` e
+`estado_processual`; `block_decisions` segue opcional por
+compatibilidade e não é exigido no Modelo V1 quando a matriz é usada.
 
-* **Claude — PASS.** Após reconexão, o conector claude.ai de homolog
-  expõe o schema novo de `ede_finalizar_peca` (`topicos` e
-  `fatos_publicos` visíveis). `ede_health` READY, VERSION 0.16.0,
-  modelo v1, catálogo `3d710366…`, manifesto 1.0.0 `f703966d…`.
-  - Fixture positiva (dados fictícios; CDC, 2.4 e evolução SIM, demais
-    NÃO; corte SIM, licitude NÃO; gates `UC_TITULARIDADE_TERCEIRO_
-    COMPROVADA`/`EVOLUCAO_CONSUMO_DOCUMENTADA` verdadeiros) → `OK`, 5
-    `dados_nao_bloqueantes`, `document_sha256`
+Fixtures (dados fictícios): **positiva** — CDC, 2.4 e evolução SIM,
+demais NÃO; corte SIM, licitude NÃO; gates
+`UC_TITULARIDADE_TERCEIRO_COMPROVADA`/`EVOLUCAO_CONSUMO_DOCUMENTADA`
+verdadeiros; **negativa** — licitude SIM, corte NÃO, demais NÃO.
+
+* **Claude — PASS.** Após reconexão, `topicos` e `fatos_publicos`
+  visíveis. `ede_health` READY, modelo v1, catálogo `3d710366…`,
+  manifesto 1.0.0 `f703966d…`.
+  - Positiva → `OK`, 5 `dados_nao_bloqueantes`, `document_sha256`
     `d8097a2b3a5dfd63455fd29b33067478a9dd1dc974a323d668e8ede4c2f1e7c5`,
-    1.757.690 bytes.
-  - Download `/download/<token>`: HTTP 200, 1.757.690 bytes, content-type
-    DOCX, SHA-256 local idêntico ao informado pelo servidor, ZIP
-    íntegro, nenhum `{{` residual, nenhuma tag BLOCO/SUBBLOCO/ZONA,
-    tópico de inaplicabilidade do CDC e titular da UC presentes.
-  - Fixture negativa (licitude SIM, corte NÃO, demais NÃO) →
-    `NEEDS_INPUT`, estágio `topic_matrix`, pendência em linguagem
-    jurídica pedindo confirmação do corte ou resposta NÃO; nenhum
+    1.757.690 bytes. Download `/download/<token>`: HTTP 200, content-type
+    DOCX, SHA-256 local idêntico ao do servidor, ZIP íntegro, nenhum
+    `{{` residual, nenhuma tag BLOCO/SUBBLOCO/ZONA.
+  - Negativa → `NEEDS_INPUT`, estágio `topic_matrix`, pendência em
+    linguagem jurídica (confirmar o corte ou responder NÃO); nenhum
     documento emitido.
-* **ChatGPT — BLOCKED (schema/cache do cliente).** O schema de
-  `ede_finalizar_peca` visível no ChatGPT ainda expõe apenas
-  `capability_id`, `placeholders`, `estado_processual` e
-  `block_decisions`; `topicos` e `fatos_publicos` não aparecem. Por
-  decisão do titular, nenhuma fixture foi executada no ChatGPT enquanto
-  o schema novo não estiver visível. O bloqueio é do cliente, não do
-  servidor (o mesmo `tools/list` já é consumido corretamente pelo
-  Claude). Fechar o gate como `PASS` exige repetir as mesmas fixtures
-  no ChatGPT depois que ele atualizar o schema.
+* **ChatGPT — PASS** (execução e verificação relatadas pelo titular).
+  O bloqueio anterior era cache/snapshot de schema do **cliente**: o
+  servidor MCP já publicava o schema novo, e após refresh/reconexão do
+  app no ChatGPT `topicos` e `fatos_publicos` passaram a ser exibidos.
+  Nenhuma alteração de código, modelo, catálogo, manifesto, homolog ou
+  produção foi necessária para resolver o bloqueio.
+  - Positiva → `OK`, `document_sha256` `d8097a2b…` e `document_size`
+    1.757.690, idênticos aos do Claude; `download_url` gerado, link
+    clicável funcionou, DOCX baixado e aberto normalmente.
+  - Negativa → `NEEDS_INPUT`, estágio `topic_matrix`; inconsistência
+    licitude SIM + corte NÃO detectada; pendência em linguagem jurídica,
+    sem identificadores internos na mensagem ao advogado.
+* **Comparação:** os dois hosts aceitaram o contrato V1, reconheceram
+  `topicos`/`fatos_publicos`, renderizaram a positiva (mesmo SHA-256) e
+  bloquearam a negativa. Comportamento funcionalmente equivalente, sem
+  divergência de decisão estrutural.
+
+Produção permaneceu `ede-mcp-00020-gum`, 100% do tráfego.
 
 **Artefatos:** `EDE_ARTEFATOS_GCS_BUCKET=
 ede-legal-mcp-01-artefatos-efemeros`, `EDE_ARTEFATOS_SIGNER_SA=

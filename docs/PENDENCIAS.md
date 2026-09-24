@@ -28,6 +28,10 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-012 | ABERTA (escopo ampliado) | Gate 6.6-D, chamadas do ChatGPT e do Claude (2026-09-22) | Critério de entrega nativa do Gate 6.6-D, ENCERRADO como PARTIAL PASS com esta pendência aberta; não bloqueia o runtime nem motiva rollback | Nem ChatGPT nem Claude entregam o DOCX nativamente via `EmbeddedResource` — ChatGPT não expõe a URI `attachment://` (contorno do host preserva os bytes); Claude recusa explicitamente o tipo de mídia do DOCX (nenhum byte chega ao usuário) |
 | PEND-013 | APROVADA, execução ADIADA | Auditoria somente-leitura das revisões antigas com tag, Gate 6.6-D item 6 (2026-09-22) | Nenhuma (não bloqueia; execução deliberadamente adiada para depois da evidência de interoperabilidade viva do Claude) | Remoção das seis tags históricas do Cloud Run (`candidato`, `candidato-6-5-b`, `candidato-6-5-b2`, `candidato-6-5-c`, `candidato-6-5-c2`, `candidato-6-5-c4`) — aprovada em princípio como *pre-pilot hardening*, nenhuma removida ainda |
 | PEND-014 | Gate 6.6-E PASS; Gate 6.6-F Fase 1 PASS; Fase 2 (Claude/ChatGPT reais) PARTIAL PASS (DELIVERY-CLIENT-01); URL opaca do EDE implementada e provada server-side no homolog; cliques reais pendentes; ativação em produção NÃO autorizada | Fechamento do Gate 6.6-D como PARTIAL PASS (2026-09-22); implementação Gate 6.6-E mesma data | Gate de download ao vivo (Claude/ChatGPT); não bloqueia o runtime — produção continua em v1 até ativação explícita | Redesenho do mecanismo de entrega de artefato entre hosts — v2 (`scripts/artifact_storage.py`, GCS efêmero + URL V4 assinada de 24h) implementado, testado e verificado ao vivo: assinatura real, identidade de bytes, hard delete, e limpeza agendada horária (Cloud Scheduler -> Cloud Run Job) provisionada em homologação |
+| PEND-015 | ABERTA, prioridade alta (design aprovado — ADR-0021) | Gate V1 homolog (2026-09-24) | Orquestração voltada ao advogado; tópico de valor da causa (frase fixa sem continuação) | Zonas VLA redigidas pelo host ainda não aceitas pelo MCP — suporte genérico aprovado |
+| PEND-016 | ABERTA (design aprovado — ADR-0021) | Gate V1 homolog (2026-09-24) | Tratar a tempestividade via MCP como calculada pelo Core | Tempestividade a partir da data de disponibilização ainda não integrada ao finalizador MCP |
+| PEND-017 | ABERTA | Primeiro caso real / ADR-0021 (2026-09-24) | Contestação cujo prazo saia de 2026 | Calendário forense só cobre 2026; contagem não verifica o ano |
+| PEND-018 | ABERTA (não confirmada em render) | Primeiro caso real / ADR-0021 (2026-09-24) | Homologação da ADR-0021 | Possível "R$ R$" nos valores do tópico de valor da causa |
 
 ---
 
@@ -900,6 +904,15 @@ Em aberto (avaliação em andamento).
 (**PASS** no homolog, `ede-mcp-homolog-00007-4rm`, ADR-0020) sem esta
 funcionalidade, conforme decisão D3 do usuário — confirmado no smoke
 real que as zonas saem vazias e o restante da peça é gerado normalmente.
+**Atualização (24/09/2026, ADR-0021):** prioridade **alta**. Design
+aprovado: suporte **genérico** a zonas no finalizador MCP (input
+`zonas`, só zonas `VARIAVEL_LLM_AUTORIZADA` do manifesto ativo com
+bloco-pai incluído, validações e `compor_zonas` existentes
+reaproveitados). Motivo concreto do primeiro caso real: sem a zona, o
+tópico de impugnação ao valor da causa sai com a frase fixa "In casu, a
+petição inicial cumula:" sem continuação. **Critério de fechamento:**
+zonas aceitas e validadas pelo MCP, testes, homolog e smoke
+cross-client.
 **Situação:** `ede_finalizar_peca` não recebe conteúdo de Zona de
 Complementação; toda zona sai vazia (SDT removido), como antes. O
 manifesto V1 declara, por zona, Skills autorizadas/vedadas, fontes e
@@ -923,4 +936,33 @@ gate o valor continua vindo do host, validado só pelos backstops
 existentes. Nenhum cálculo novo foi misturado à ativação.
 **Bloqueia:** tratar a tempestividade da Contestação via MCP como
 calculada pelo Core.
+**Atualização (24/09/2026, ADR-0021):** design aprovado — o advogado
+informa só a data de disponibilização (`marco_tempestividade`, fora da
+Topic Matrix); o Core deriva a publicação, conta o prazo e gera
+`TEMPESTIVIDADE_CASO` (texto do host recusado); intempestivo →
+`NEEDS_INPUT`, nunca peça. **Critério de fechamento:** cálculo integrado
+ao finalizador MCP, testes (sexta→segunda, feriado, recesso, trava de
+ano, intempestivo) e smoke cross-client aprovado no homolog.
+
+## PEND-017 — Calendário forense só cobre 2026; contagem não verifica o ano
+
+**Status (2026-09-24):** aberta (ADR-0021).
+**Situação:** `skills/calendario-forense-tjba-2026/` só tem o calendário
+de 2026 (`verificado: true`), e `calcular_tempestividade` conta os dias
+sem conferir se a contagem permanece dentro do ano coberto: um prazo que
+cruze para 2027 seria contado sem feriados/recesso de 2027.
+**Decisão:** trava de ano fail-closed (recusa com o dado faltante) junto
+com a implementação da ADR-0021; calendário de 2027 só com fonte oficial
+verificada. **Bloqueia:** gerar Contestação cujo prazo saia de 2026
+enquanto não houver calendário verificado do ano seguinte.
+
+## PEND-018 — Possível duplicação "R$ R$" no tópico de valor da causa
+
+**Status (2026-09-24):** aberta (ADR-0021); não confirmada em render.
+**Situação:** o texto fixo do tópico 2.6 traz "R$ {{VALOR_DA_CAUSA}}" e
+"R$ {{VALOR_TOTAL_PROVEITO_ECONOMICO}}", enquanto os validadores exigem
+que o valor já venha como "R$ 10.000,00" — resultado provável "R$ R$".
+Nenhum smoke anterior incluiu o tópico 2.6. **Critério:** render real
+do tópico, correção no Core (nunca no texto fixo) e teste de regressão
+antes de homologar a ADR-0021.
 

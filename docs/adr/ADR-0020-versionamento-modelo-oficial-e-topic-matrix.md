@@ -46,6 +46,12 @@ do DOCX) e o fluxo local da Skill.
    é imutável (SHA aprovado) e mantém `state_linked` em quatro blocos,
    `scripts/topic_matrix.py` entrega ao motor `fato AND SIM` nesses
    vínculos — `state_linked` vira só o veículo mecânico.
+   **Emendada pela ADR-0021 (24/09/2026, design aprovado, implementação
+   pendente):** a revogação da gratuidade deixa de ter gate factual —
+   SIM basta; deferimento não documentado vira aviso não bloqueante. A
+   Topic Matrix passa a ser, por invariante, só SIM/NÃO
+   (`INV-TOPIC-MATRIX-SO-SIM-NAO`); dados processuais têm campos
+   próprios.
 4. **`NEEDS_INPUT` como terceiro resultado do finalizador**, antes de
    qualquer render, com `pendencias` em linguagem jurídica (sem id de
    bloco, tag, placeholder ou chave de estado). Em `OK`,
@@ -85,6 +91,9 @@ correção só vai para produção depois de provada no homolog.
 * Tempestividade E2 — PEND-016 (D4); `TEMPESTIVIDADE_CASO` segue vindo
   do host.
 * Orquestração voltada ao advogado não é declarada concluída.
+* Correções do primeiro caso real (dados derivados pelo sistema:
+  juízo, tempestividade, data da peça, proveito econômico, zonas pelo
+  MCP) — ADR-0021.
 
 ## Consequências
 

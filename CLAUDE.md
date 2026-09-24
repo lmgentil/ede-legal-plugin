@@ -363,6 +363,29 @@ Etapa 5.2") — resumo operacional aqui:
   continuam vinculados só à prova, e sem prova saem sozinhos, com aviso
   não bloqueante (`dados_nao_bloqueantes`). Nenhuma mensagem ao advogado
   expõe tag SDT, id de bloco, placeholder ou chave de estado.
+  **Emenda ADR-0021 (24/09/2026, design aprovado, implementação
+  pendente):** a revogação da gratuidade deixa de ter gate factual — SIM
+  do advogado basta; deferimento não localizado nos documentos vira só
+  aviso não bloqueante (`dados_nao_bloqueantes`), nunca pergunta nem
+  bloqueio. Risco conhecido, fora do escopo: o texto fixo do tópico
+  pressupõe o deferimento. Os outros três vínculos seguem com gate.
+- **INV-TOPIC-MATRIX-SO-SIM-NAO** (ADR-0021) — a Topic Matrix contém
+  exclusivamente decisões jurídicas SIM/NÃO do advogado (`topicos`);
+  `fatos_publicos` continua SIM/NÃO e separado. Data, valor, número de
+  processo, marco de tempestividade, pedidos econômicos, conteúdo de
+  zona e confirmação excepcional de juízo têm campos próprios no
+  finalizador — nunca dentro da Topic Matrix, e `topic_matrix.py` não
+  aceita outros tipos.
+- **INV-NAO-PERGUNTAR-DERIVAVEL** (ADR-0021) — depois da Topic Matrix, o
+  sistema extrai, calcula e consulta; ao advogado só se pergunta decisão
+  de tópico, fato público SIM/NÃO do manifesto, data de disponibilização
+  (tempestividade) e as exceções fail-closed previstas (DataJud
+  indisponível, intempestividade, conflito documental real). Nunca
+  perguntar juízo, data da peça, texto de tempestividade, proveito
+  econômico/discrepância do valor da causa ou documento concessivo da
+  gratuidade. `JUIZO`, `TEMPESTIVIDADE_CASO`, `LOCAL_DATA` e
+  `VALOR_TOTAL_PROVEITO_ECONOMICO` são calculados pelo Core no fluxo MCP
+  e recusados se vierem do host (SPEC-0001 §64).
 - **INV-CORTE-GATE-HUMANO** (Etapa 5.5, 3ª correção arquitetural) —
   `LICITUDE_CORTE_SUSPENSAO` é `decision_mode: "humano"` com
   `requires_fact: {"key": "CORTE_EFETIVO"}` no catálogo: suporte fático
@@ -683,6 +706,14 @@ chamáveis por este script, mesma limitação de sempre): "nova tentativa"
 é sempre a orquestração (Skill `contestacao` reformula só o conteúdo da
 zona e roda o pipeline de novo).
 
+**Zonas pelo MCP (ADR-0021, PEND-015 — design aprovado, implementação
+pendente):** suporte **genérico**, nunca solução exclusiva de uma zona.
+O finalizador aceita `zonas` só para as declaradas
+`VARIAVEL_LLM_AUTORIZADA` no manifesto ativo e com bloco-pai incluído;
+host redige, Core valida (as mesmas validações desta seção) e posiciona
+(`compor_zonas`). Template Lock, fidelidade e round-trip inalterados.
+Primeiro uso: composição do proveito econômico (tópico 2.6).
+
 ---
 
 ## 8. Tempestividade
@@ -734,6 +765,20 @@ recebe prosa jurídica natural e curta, nunca dump robótico
 ("TEMPESTIVO: termo inicial ..., termo final ..."), nunca data em
 formato ISO, nunca menção à Lei 9.099/95/Juizado Especial. Backstop
 lexical em `scripts/validate_placeholder_semantics.py` (não exaustivo).
+
+**Tempestividade no fluxo MCP (ADR-0021, SPEC-0001 §64 — design
+aprovado, implementação pendente; fecha PEND-016 quando integrada e
+aprovada cross-client)** — o advogado informa só a **data de
+disponibilização** (`marco_tempestividade`, tipo `DISPONIBILIZACAO`,
+único nesta versão, fora da Topic Matrix). O Core deriva a publicação
+(primeiro dia útil seguinte, CPC art. 224 §§2º-3º, calendário TJBA
+verificado), conta os 15 dias úteis e gera `TEMPESTIVIDADE_CASO`, com a
+data corrente em `America/Bahia` como data do ato; texto enviado pelo
+host é recusado. Calendário do ano não verificado ou contagem que saia
+do ano coberto → recusa, nunca contagem sem feriados (PEND-017).
+**Resultado intempestivo nunca gera peça nem o texto "a presente
+Contestação é intempestiva"**: `NEEDS_INPUT` com marco, publicação e
+termo final, aguardando decisão humana.
 
 ---
 
@@ -1034,6 +1079,19 @@ verdade da denominação da unidade judiciária. O plugin não deve expandir,
 corrigir, reinterpretar ou substituir automaticamente abreviações ou a
 nomenclatura oficial retornada pela fonte.
 
+**Fluxo MCP e exceção de indisponibilidade (ADR-0021, design aprovado,
+implementação pendente):** o finalizador MCP resolve `JUIZO` pelo
+DataJud/IBGE e recusa `JUIZO` vindo do host; resposta normal do DataJud
+é autoritativa, sem pergunta ao advogado e sem override. **Única
+exceção:** DataJud/IBGE indisponível ou com erro de transporte →
+`NEEDS_INPUT`; o advogado pode então confirmar o endereçamento
+(`juizo_confirmado_advogado`), aceito só se o DataJud falhar de novo na
+mesma chamada; se o DataJud responder e divergir, `NEEDS_INPUT` com a
+divergência, nunca escolha silenciosa. Processo não encontrado, resposta
+ambígua ou sem órgão julgador continuam fail-closed, sem exceção. Quando
+simples, `ede_preparar_contestacao` também resolve o juízo para exibição
+prévia; a resolução autoritativa é a do finalizador.
+
 ### Calibração final de conteúdo (Etapa 5.3, achados do Teste Real 01-B)
 
 Sete achados reais e suas correções — detalhe completo em
@@ -1059,7 +1117,9 @@ Sete achados reais e suas correções — detalhe completo em
   excluído pelo motor composicional (`validar_pedidos_composicionais`,
   determinístico).
 - **`LOCAL_DATA` sempre Salvador**, independentemente da comarca do
-  processo.
+  processo. No fluxo MCP (ADR-0021, implementação pendente) é calculado
+  pelo Core — "Salvador, <data corrente>", "1º" no dia 1, fuso IANA
+  `America/Bahia` (nunca offset fixo) — e recusado se vier do host.
 
 ### Normalização visual de parágrafos e contrato atômico da irregularidade (Etapa 5.3-B)
 

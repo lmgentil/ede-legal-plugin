@@ -110,10 +110,15 @@
 !scripts/finalizar_peca.py
 !scripts/artifact_storage.py
 !scripts/limpar_artefatos_agendado.py
+!scripts/modelo_oficial_versoes.py
+!scripts/topic_matrix.py
 !templates
 !templates/contestacao
 !templates/contestacao/schema.json
 !templates/contestacao/blocos.json
+!templates/contestacao/v1
+!templates/contestacao/v1/blocos.json
+!templates/contestacao/v1/manifesto.json
 !rag
 !rag/legal_validation
 !rag/legal_validation/models.py

@@ -69,6 +69,7 @@ from docx_block_engine import (  # noqa: E402
 from docx_package import PacoteDocxAbortada, extrair_pacote_docx  # noqa: E402
 from docx_template_engine import carregar_schema  # noqa: E402
 from instalar_modelo_oficial import validar_contrato_modelo  # noqa: E402
+import modelo_oficial_versoes as mov  # noqa: E402
 
 Status = Literal["READY", "NOT_READY", "NOT_CONFIGURED", "ERROR"]
 
@@ -479,7 +480,7 @@ def adquirir_bytes_modelo_oficial() -> bytes:
 
 def avaliar_modelo_oficial(
     schema_path: Path = SCHEMA_PADRAO,
-    catalogo_path: Path = CATALOGO_PADRAO,
+    catalogo_path: Path | None = None,
 ) -> ResultadoReadiness:
     """Modelo Oficial da Contestação (asset privado externo, ADR-0009)
     está provisionado, íntegro (SHA-256 pinado) e estruturalmente
@@ -501,6 +502,27 @@ def avaliar_modelo_oficial(
     except ModeloOficialIndisponivel as e:
         return ResultadoReadiness(e.status, e.detail)
 
-    return _validar_conteudo_modelo_oficial(
+    # ADR-0020: sem catálogo explícito, o contrato é o da versão que
+    # corresponde ao SHA pinado (legado quando desconhecido — mesmo
+    # comportamento anterior). Catálogo/manifesto da versão divergentes
+    # do SHA fixado no plugin nunca são usados.
+    versao = None
+    if catalogo_path is None:
+        versao = mov.resolver_versao(sha_esperado)
+        try:
+            mov.verificar_integridade(versao)
+        except mov.IntegridadeVersaoModelo:
+            return ResultadoReadiness(
+                "ERROR",
+                "Contrato versionado (catálogo/manifesto) do Modelo Oficial "
+                "configurado diverge do fixado no plugin — instalação do "
+                "plugin comprometida.",
+            )
+        catalogo_path = versao.catalogo_path
+
+    resultado = _validar_conteudo_modelo_oficial(
         conteudo, sha_esperado, schema_path, catalogo_path
     )
+    if versao is not None and resultado.status == "READY":
+        return ResultadoReadiness("READY", f"{resultado.detail} ({mov.descrever_versao(versao)})")
+    return resultado

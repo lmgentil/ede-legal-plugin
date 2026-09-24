@@ -341,8 +341,8 @@ bloco, com proveniência:
 
 Blocos `CONTAINER_DERIVED` (ex.: `PRELIMINARES`), o inline vinculado
 (`INLINE:COM_RECONVENCAO`) e todo bloco/subbloco `state_linked`
-(`PRELIMINAR_REVOGACAO_GRATUIDADE`, ver INV-GRATUIDADE-LINKED abaixo, e
-os cinco vínculos novos da Etapa 5.8-G — §4A-1 mais abaixo)
+(`PRELIMINAR_REVOGACAO_GRATUIDADE`, ver INV-TOPIC-MATRIX-DECISAO-ADVOGADO
+abaixo, e os cinco vínculos novos da Etapa 5.8-G — §4A-1 mais abaixo)
 **nunca recebem decisão manual** — seus estados são derivados
 automaticamente pelo motor a partir dos filhos/bloco vinculado/estado
 processual (`docx_block_engine.validar_e_resolver_decisoes`); incluí-los
@@ -377,47 +377,32 @@ existência de `VALOR_FRA`/irregularidade/tese favorável. Fluxo obrigatório:
    (`decisao_ausente`/`decisao_indeterminada`) aborta o pipeline
    (`PIPELINE_ABORTED`, `stage=block_composition`). Nunca presuma SIM.
 
-### INV-GRATUIDADE-LINKED (Etapa 5.2, corrigida) — vínculo determinístico, não decisão
+### INV-TOPIC-MATRIX-DECISAO-ADVOGADO — o advogado decide, o fato é só gate (substitui INV-GRATUIDADE-LINKED)
 
-**`PRELIMINAR_REVOGACAO_GRATUIDADE` não é decisão sua nem do estrategista
-— nunca registre uma entrada para ela em `decisoes_blocos.json`.** No
-catálogo, `decision_mode: "state_linked"` com `linked_fact:
-"GRATUIDADE_CONCEDIDA"`: o estado do bloco **é** o estado processual,
-resolvido inteiramente por `docx_block_engine.py` a partir de
-`estado_processual.json` (mesmo diretório do caso; ausente conta como
-`{}`):
+Decisão D1 do gate V1 (ADR-0020): `PRELIMINAR_REVOGACAO_GRATUIDADE`,
+`PRELIMINAR_AUSENCIA_INTERESSE_AGIR`, `PRELIMINAR_ILEGITIMIDADE_ATIVA_
+TERCEIRO` e `PRELIMINAR_IMPUGNACAO_VALOR_CAUSA` **não entram mais
+automaticamente** quando o fato existe. No catálogo continuam
+`decision_mode: "state_linked"`, mas só como veículo mecânico: o que
+você grava em `estado_processual.json` para o `linked_fact` desses
+blocos é a conjunção **fato comprovado AND decisão SIM do advogado**.
 
-```json
-{
-  "GRATUIDADE_CONCEDIDA": {"valor": true, "fonte_documento": "decisao-fls-20.pdf", "pagina": 2}
-}
-```
+1. Resolva o fato a partir dos documentos, com proveniência — **nunca
+   por ocorrência lexical** ("requer gratuidade" não é concessão).
+2. Fato ausente/falso → grave `false`; não há o que perguntar.
+3. Fato `"INDETERMINADO"` → pergunte ao advogado para esclarecer; nunca
+   decida em silêncio.
+4. Fato `true` → pergunte ao advogado (`AskUserQuestion`, SIM/NÃO,
+   pelo nome público do tópico — ex.: "Impugnar a gratuidade de justiça
+   concedida ao autor?"), a menos que ele já tenha respondido no pedido.
+   SIM → grave `true`; NÃO → grave `false` (tópico excluído, mesmo com o
+   fato existente).
+5. Nunca registre entrada para esses blocos em `decisoes_blocos.json` —
+   o motor continua rejeitando (`decisao_invalida`).
 
-Contrato determinístico, sem etapa intermediária de "elegibilidade +
-decisão estratégica":
-
-- `GRATUIDADE_CONCEDIDA: true` → `PRELIMINAR_REVOGACAO_GRATUIDADE = INCLUIR`,
-  automaticamente.
-- `GRATUIDADE_CONCEDIDA` ausente, `false`, ou não confirmada (**mero
-  pedido de gratuidade, declaração de hipossuficiência sem decisão, ou
-  pedido pendente**) → `EXCLUIR`, automaticamente. Só decisão/ato
-  processual inequívoco de concessão conta como `true` — ausência simples
-  de informação NUNCA vira ambiguidade, resolve para `false`/`EXCLUIR`.
-- `GRATUIDADE_CONCEDIDA: "INDETERMINADO"` (documentos genuinamente
-  contraditórios ou insuficientes para determinar se houve concessão) →
-  o motor aborta (`PIPELINE_ABORTED`, `stage=block_composition`,
-  `decisao_indeterminada`) — pergunte ao advogado antes de prosseguir,
-  nunca decida silenciosamente.
-- Se, por engano, `decisoes_blocos.json` incluir uma entrada para
-  `PRELIMINAR_REVOGACAO_GRATUIDADE`, o motor **rejeita explicitamente**
-  (`stage=block_composition`, `decisao_invalida`) — nunca ignora a
-  decisão indevida em silêncio, mesmo que ela coincida com o estado real.
-
-Resolva `GRATUIDADE_CONCEDIDA` a partir dos documentos do caso (mesma
-disciplina de proveniência de §5) — **nunca por ocorrência lexical**
-("requer gratuidade" não vira `GRATUIDADE_CONCEDIDA: true`). Você (e o
-estrategista) podem desenvolver o conteúdo/argumentação do bloco quando
-ele já estiver presente — mas não decidem se ele existe.
+Você (e o estrategista) podem desenvolver o conteúdo do bloco quando ele
+estiver presente — a decisão de existência é do advogado, sob gate
+factual.
 
 ### INV-CORTE-GATE-HUMANO — gate fático + decisão humana (Etapa 5.5, 3ª correção arquitetural)
 
@@ -500,14 +485,15 @@ fático **e** decisão humana, nenhum dos dois dispensa o outro.
 
 ### §4A-1 — Tópicos 2.3, 2.4 e 2.6: vínculos determinísticos (Etapa 5.8-G)
 
-Diferente de `LICITUDE_CORTE_SUSPENSAO`, estes três tópicos são
-`state_linked` puro — **mesma filosofia de `INV-GRATUIDADE-LINKED`
-acima, nunca a de `INV-CORTE-GATE-HUMANO`**: o fato comprovado já é
-suficiente para incluir a tese, sem pergunta adicional ao advogado
-(decisão de produto tomada nesta etapa — não reabra essa discussão sem
-autorização expressa). **Nunca registre decisão manual para nenhum dos
-três em `decisoes_blocos.json`** — o motor rejeita explicitamente
-(`decisao_invalida`), igual a `PRELIMINAR_REVOGACAO_GRATUIDADE`.
+**Revisado pela decisão D1 do gate V1 (24/09/2026, ADR-0020 —
+INV-TOPIC-MATRIX-DECISAO-ADVOGADO acima):** o fato comprovado deixou de
+bastar para incluir a tese. Estes três tópicos seguem a mesma regra da
+gratuidade: fato comprovado é só gate, e a inclusão depende de SIM do
+advogado; grave no `linked_fact` a conjunção `fato AND SIM`. As
+definições de fato abaixo continuam valendo como **gate** — onde dizem
+"→ `INCLUIR`", leia "→ elegível; pergunte ao advogado". **Nunca
+registre decisão manual para nenhum dos três em `decisoes_blocos.json`**
+— o motor rejeita explicitamente (`decisao_invalida`).
 
 **`PRELIMINAR_AUSENCIA_INTERESSE_AGIR` (2.3)** — `linked_fact:
 "AUSENCIA_TENTATIVA_ADMINISTRATIVA_COMPROVADA"`:
@@ -1671,10 +1657,11 @@ permanecer `INDETERMINADO`** — pergunta ao advogado quando resolvível,
 relata a pendência e para quando não for. **Não decide reconvenção por
 conta própria nem deixa o estrategista decidir sozinho** — sempre
 pergunta SIM/NÃO ao advogado (INV-RECONVENCAO-AUTORIZACAO-EXPRESSA, §4A).
-**Nem decide, registra ou tenta influenciar a existência de
-`PRELIMINAR_REVOGACAO_GRATUIDADE`** — vinculado deterministicamente a
-`GRATUIDADE_CONCEDIDA` em `estado_processual.json`, nunca a uma decisão
-em `decisoes_blocos.json` (INV-GRATUIDADE-LINKED, §4A). **Já
+**Nem decide sozinho a existência de `PRELIMINAR_REVOGACAO_GRATUIDADE`**
+(nem de 2.3/2.4/2.6) — `GRATUIDADE_CONCEDIDA` é só gate; a inclusão é
+decisão SIM/NÃO do advogado, gravada como `fato AND SIM` em
+`estado_processual.json`, nunca em `decisoes_blocos.json`
+(INV-TOPIC-MATRIX-DECISAO-ADVOGADO, §4A). **Já
 `LICITUDE_CORTE_SUSPENSAO` é diferente**: `CORTE_EFETIVO` (também em
 `estado_processual.json`) só condiciona a *elegibilidade* do bloco —
 mesmo com `CORTE_EFETIVO: true` comprovado, a inclusão continua exigindo

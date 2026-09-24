@@ -336,20 +336,40 @@ Etapa 5.2") — resumo operacional aqui:
   legislação relacionada; exige suporte fático/processual concreto, com
   proveniência. Princípio geral, majoritariamente comportamental — dois
   blocos específicos (abaixo) têm mecanismo determinístico.
-- **INV-GRATUIDADE-LINKED** — `PRELIMINAR_REVOGACAO_GRATUIDADE` **não é
-  decisão do estrategista** (nem livre, nem sob gate): é vinculada
-  deterministicamente ao estado processual `GRATUIDADE_CONCEDIDA`
-  (`decision_mode: "state_linked"`, `linked_fact` no catálogo) — o estado
-  do bloco *é* o estado processual (`true`→`INCLUIR`, `false`/
-  ausente→`EXCLUIR`, `"INDETERMINADO"`→aborta). Decisão manual para este
-  bloco em `decisoes_blocos.json` é rejeitada explicitamente. Distinto de
-  `requires_fact` (mecanismo de gate fático que só restringe `INCLUIR`,
-  sem dispensar decisão manual — usado por `LICITUDE_CORTE_SUSPENSAO`
-  abaixo) — este é vínculo, não gate.
+- **INV-TOPIC-MATRIX-DECISAO-ADVOGADO** (gate de ativação do Modelo
+  Oficial V1, decisão D1 do usuário, 24/09/2026; ADR-0020) — **substitui
+  INV-GRATUIDADE-LINKED.** Os tópicos condicionais da Contestação são
+  decididos pelo **advogado**, SIM/NÃO; o fato processual atua **somente
+  como gate**, nunca como decisão. NÃO → tópico excluído, mesmo que o
+  fato exista. SIM → o tópico só entra se o gate factual correspondente
+  estiver satisfeito (`true`, com proveniência). SIM sem suporte (fato
+  ausente, falso ou `"INDETERMINADO"`) → `NEEDS_INPUT` em linguagem
+  jurídica, nunca inclusão silenciosa, nunca fato inventado, nunca falta
+  de prova convertida em fato negativo. Vale em especial para os quatro
+  tópicos que antes eram vínculo automático — revogação da gratuidade
+  (`GRATUIDADE_CONCEDIDA`), ausência de interesse de agir
+  (`AUSENCIA_TENTATIVA_ADMINISTRATIVA_COMPROVADA`), ilegitimidade ativa
+  (`UC_TITULARIDADE_TERCEIRO_COMPROVADA`) e impugnação ao valor da causa
+  (`EXISTE_DISCREPANCIA_VALOR_CAUSA`). `decision_mode: "state_linked"`
+  permanece no catálogo **só como veículo mecânico**: o valor entregue ao
+  motor para o `linked_fact` desses blocos é sempre `fato comprovado AND
+  decisão SIM do advogado` — nunca o fato sozinho. No MCP (Modelo
+  Oficial V1) isso é feito deterministicamente por
+  `scripts/topic_matrix.py` a partir do manifesto versionado (14
+  perguntas públicas + fato público `corte_efetivo`); no fluxo local da
+  Skill `contestacao` (contrato legado), a Skill pergunta ao advogado e
+  grava a conjunção em `estado_processual.json`. Subblocos factuais
+  (ex.: registro fotográfico, conformidade do art. 590) não são tópicos:
+  continuam vinculados só à prova, e sem prova saem sozinhos, com aviso
+  não bloqueante (`dados_nao_bloqueantes`). Nenhuma mensagem ao advogado
+  expõe tag SDT, id de bloco, placeholder ou chave de estado.
 - **INV-CORTE-GATE-HUMANO** (Etapa 5.5, 3ª correção arquitetural) —
   `LICITUDE_CORTE_SUSPENSAO` é `decision_mode: "humano"` com
   `requires_fact: {"key": "CORTE_EFETIVO"}` no catálogo: suporte fático
-  **e** decisão humana, nenhum dos dois dispensa o outro. `CORTE_EFETIVO:
+  **e** decisão humana, nenhum dos dois dispensa o outro (é o padrão que
+  INV-TOPIC-MATRIX-DECISAO-ADVOGADO, acima, generalizou para todos os
+  tópicos; no MCP V1, fato de corte e decisão do tópico são entradas
+  públicas separadas, nenhuma inferida da outra). `CORTE_EFETIVO:
   false`/ausente→`EXCLUIR` automático, sem perguntar ao advogado (nada a
   decidir sobre tese sem suporte fático). `CORTE_EFETIVO:
   "INDETERMINADO"`→aborta (`decisao_indeterminada`), com ou sem decisão
@@ -405,8 +425,9 @@ manualmente as etapas internas do pipeline.
   execução só pode interromper antes do DOCX por: (a) decisão humana
   obrigatória ainda não respondida — Reconvenção
   (INV-RECONVENCAO-AUTORIZACAO-EXPRESSA) ou licitude de corte/suspensão
-  com `CORTE_EFETIVO: true` (INV-CORTE-GATE-HUMANO), perguntando SOMENTE
-  a decisão pendente, nunca as duas por hábito, e nunca de novo se o
+  com `CORTE_EFETIVO: true` (INV-CORTE-GATE-HUMANO), ou decisão SIM/NÃO
+  de tópico com gate factual satisfeito (INV-TOPIC-MATRIX-DECISAO-
+  ADVOGADO), perguntando SOMENTE a decisão pendente, nunca as duas por hábito, e nunca de novo se o
   advogado já respondeu no pedido inicial; ou (b) fail-closed
   técnico/fático real já previsto neste documento (bloco `INDETERMINADO`,
   tempestividade sem marco, `JUIZO` não resolvível via DataJud, valor

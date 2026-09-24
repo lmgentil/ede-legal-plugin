@@ -1,0 +1,704 @@
+{
+  "manifesto_versao": "1.0.0",
+  "capability_id": "contestacao.irregularidade_consumo",
+  "resolucao_publica": {
+    "tipo_peca": "contestacao",
+    "objeto": "irregularidade"
+  },
+  "modelo_oficial": {
+    "sha256": "1e2aa2a52c3341e680acd674658b41c27004a27f5f99c7343643d4d254747a9e",
+    "status": "APROVADO",
+    "catalogo_blocos": "blocos.json",
+    "catalogo_sha256": "3d710366ab4b06a223712c304ebfb3cfef9ea9206ff025dcd6eb8f973d7b2ac2"
+  },
+  "modos_conteudo": [
+    "FIXO_ESTRUTURAL",
+    "TEXTO_FIXO_CONTROLADO",
+    "VARIAVEL_LLM_AUTORIZADA",
+    "CALCULADO_PELO_CORE",
+    "DADO_DOCUMENTAL",
+    "TOPICO_ADICIONAL_LLM_AUTORIZADA"
+  ],
+  "skills_globais_obrigatorias": {
+    "estrategista-contestacao-ede": "análise, coerência, riscos e matriz de impugnação — nunca decide inclusão/exclusão (D3)"
+  },
+  "entradas_factuais_publicas": [
+    {
+      "chave": "corte_efetivo",
+      "nome_publico": "Corte/suspensão efetivamente ocorrido",
+      "pergunta": "Houve corte ou suspensão efetiva do fornecimento?",
+      "tipo": "SIM_NAO",
+      "alimenta_fato": "CORTE_EFETIVO",
+      "obrigatorio": true,
+      "nota": "P1: fato separado da decisão de incluir a tese; nenhum dos dois é inferido do outro."
+    }
+  ],
+  "dados_bloqueantes_capability": [
+    "peticao_inicial",
+    "numero_processo_cnj_valido",
+    "juizo_datajud",
+    "autor",
+    "toi_tipo_irregularidade",
+    "marco_tempestividade"
+  ],
+  "topicos_decisao_advogado": [
+    {
+      "chave": "inaplicabilidade_cdc",
+      "nome_publico": "Inaplicabilidade do CDC",
+      "pergunta": "Alegar a inaplicabilidade do CDC (inexistência de relação de consumo)?",
+      "topic_id": "PRELIMINAR_CDC_INAPLICAVEL",
+      "container": "PRELIMINARES",
+      "gate_factual": [],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        }
+      ],
+      "vincula": [
+        "SUBBLOCO_ONUS_NAO_DESTINATARIO_FINAL",
+        "SUBBLOCO_ONUS_ENTES_ESTRUTURADOS"
+      ],
+      "campos_documentais": []
+    },
+    {
+      "chave": "revogacao_gratuidade",
+      "nome_publico": "Revogação da gratuidade de justiça",
+      "pergunta": "Impugnar a gratuidade de justiça concedida ao autor?",
+      "topic_id": "PRELIMINAR_REVOGACAO_GRATUIDADE",
+      "container": "PRELIMINARES",
+      "gate_factual": [
+        "GRATUIDADE_CONCEDIDA"
+      ],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        }
+      ],
+      "campos_documentais": [
+        "decisao_gratuidade"
+      ]
+    },
+    {
+      "chave": "ausencia_interesse_agir",
+      "nome_publico": "Ausência de interesse de agir",
+      "pergunta": "Alegar ausência de interesse de agir por falta de prévia tentativa administrativa?",
+      "topic_id": "PRELIMINAR_AUSENCIA_INTERESSE_AGIR",
+      "container": "PRELIMINARES",
+      "gate_factual": [
+        "AUSENCIA_TENTATIVA_ADMINISTRATIVA_COMPROVADA"
+      ],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        },
+        {
+          "parte": "ZONA_PRETENSAO_RESISTIDA",
+          "modo": "VARIAVEL_LLM_AUTORIZADA",
+          "llm": true,
+          "opcional": true,
+          "skills": [
+            "redator-peca-processual-elite"
+          ],
+          "fontes": [
+            "fatos_com_proveniencia"
+          ],
+          "validacoes": [
+            "paragrafo_380",
+            "ancoragem_zona",
+            "continuidade_zona"
+          ]
+        }
+      ],
+      "campos_documentais": [
+        "historico_protocolos_administrativos"
+      ]
+    },
+    {
+      "chave": "ilegitimidade_ativa_titularidade",
+      "nome_publico": "Ilegitimidade ativa: UC em nome de terceiro",
+      "pergunta": "Alegar ilegitimidade ativa por estar a unidade consumidora em nome de terceiro?",
+      "topic_id": "PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO",
+      "container": "PRELIMINARES",
+      "gate_factual": [
+        "UC_TITULARIDADE_TERCEIRO_COMPROVADA"
+      ],
+      "subblocos_derivados": [
+        {
+          "id": "SUBBLOCO_AUSENCIA_TRANSFERENCIA_TITULARIDADE",
+          "fato": "AUSENCIA_TRANSFERENCIA_TITULARIDADE_COMPROVADA"
+        }
+      ],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        },
+        {
+          "parte": "CONTA_CONTRATO",
+          "modo": "DADO_DOCUMENTAL",
+          "llm": false
+        },
+        {
+          "parte": "NOME_TITULAR_DA_UC",
+          "modo": "DADO_DOCUMENTAL",
+          "llm": false
+        },
+        {
+          "parte": "TELAS_DA_TITULARIDADE",
+          "modo": "CALCULADO_PELO_CORE",
+          "llm": false,
+          "nota": "marcador de pós-edição manual"
+        },
+        {
+          "parte": "ZONA_TITULARIDADE_UC",
+          "modo": "VARIAVEL_LLM_AUTORIZADA",
+          "llm": true,
+          "opcional": true,
+          "skills": [
+            "redator-peca-processual-elite"
+          ],
+          "fontes": [
+            "fatos_com_proveniencia"
+          ],
+          "validacoes": [
+            "paragrafo_380",
+            "ancoragem_zona",
+            "continuidade_zona"
+          ]
+        }
+      ],
+      "campos_documentais": [
+        "fatura_ou_cadastro_uc",
+        "conta_contrato",
+        "titular_uc"
+      ]
+    },
+    {
+      "chave": "inepcia_inicial",
+      "nome_publico": "Inépcia da petição inicial",
+      "pergunta": "Alegar inépcia da inicial por ausência de documentos fundamentais?",
+      "topic_id": "PRELIMINAR_INEPCIA_INICIAL",
+      "container": "PRELIMINARES",
+      "gate_factual": [
+        "DEFICIENCIAS_INICIAL_DOCUMENTADAS"
+      ],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        },
+        {
+          "parte": "SINOPSE_FATOS_NUCLEO_OBJETO",
+          "modo": "VARIAVEL_LLM_AUTORIZADA",
+          "llm": true,
+          "skills": [
+            "redator-peca-processual-elite"
+          ],
+          "validacoes": [
+            "fragmento_curto",
+            "semantica"
+          ]
+        },
+        {
+          "parte": "ZONA_FUNDAMENTACAO_INEPCIA",
+          "modo": "VARIAVEL_LLM_AUTORIZADA",
+          "llm": true,
+          "opcional": true,
+          "skills": [
+            "redator-peca-processual-elite"
+          ],
+          "fontes": [
+            "fatos_com_proveniencia"
+          ],
+          "validacoes": [
+            "paragrafo_380",
+            "ancoragem_zona",
+            "continuidade_zona"
+          ]
+        }
+      ],
+      "campos_documentais": [
+        "peticao_inicial",
+        "rol_documentos_inicial"
+      ]
+    },
+    {
+      "chave": "impugnacao_valor_causa",
+      "nome_publico": "Impugnação ao valor da causa",
+      "pergunta": "Impugnar o valor atribuído à causa?",
+      "topic_id": "PRELIMINAR_IMPUGNACAO_VALOR_CAUSA",
+      "container": "PRELIMINARES",
+      "gate_factual": [
+        "EXISTE_DISCREPANCIA_VALOR_CAUSA"
+      ],
+      "subblocos_derivados": [
+        {
+          "id": "SUBBLOCO_CUMULACAO_PEDIDOS",
+          "fato": "EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS"
+        }
+      ],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        },
+        {
+          "parte": "VALOR_DA_CAUSA",
+          "modo": "DADO_DOCUMENTAL",
+          "llm": false
+        },
+        {
+          "parte": "VALOR_TOTAL_PROVEITO_ECONOMICO",
+          "modo": "CALCULADO_PELO_CORE",
+          "llm": false
+        },
+        {
+          "parte": "ZONA_COMPOSICAO_PROVEITO_ECONOMICO",
+          "modo": "VARIAVEL_LLM_AUTORIZADA",
+          "llm": true,
+          "opcional": true,
+          "skills": [
+            "redator-peca-processual-elite"
+          ],
+          "fontes": [
+            "fatos_com_proveniencia"
+          ],
+          "validacoes": [
+            "paragrafo_380",
+            "ancoragem_zona",
+            "aritmetica_decimal",
+            "continuidade_zona"
+          ]
+        }
+      ],
+      "campos_documentais": [
+        "valor_da_causa",
+        "valores_dos_pedidos"
+      ]
+    },
+    {
+      "chave": "evolucao_consumo",
+      "nome_publico": "Evolução do consumo após a regularização",
+      "pergunta": "Sustentar a evolução do consumo após a regularização?",
+      "topic_id": "EVOLUCAO_CONSUMO",
+      "container": "MERITO",
+      "gate_factual": [
+        "EVOLUCAO_CONSUMO_DOCUMENTADA"
+      ],
+      "subblocos_derivados": [
+        {
+          "id": "SUBBLOCO_LEVANTAMENTO_CARGA",
+          "fato": "LEVANTAMENTO_CARGA_DOCUMENTADO"
+        }
+      ],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        }
+      ],
+      "campos_documentais": [
+        "historico_consumo_antes_depois",
+        "levantamento_carga"
+      ]
+    },
+    {
+      "chave": "dever_legal_fiscalizacao",
+      "nome_publico": "Dever legal de fiscalização",
+      "pergunta": "Sustentar o dever legal de fiscalização da concessionária?",
+      "topic_id": "DEVER_LEGAL_FISCALIZACAO",
+      "container": "MERITO",
+      "gate_factual": [],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        }
+      ],
+      "campos_documentais": []
+    },
+    {
+      "chave": "desnecessidade_aviso_previo",
+      "nome_publico": "Desnecessidade de aviso prévio à inspeção",
+      "pergunta": "Sustentar a desnecessidade de aviso prévio à inspeção?",
+      "topic_id": "DESNECESSIDADE_AVISO_PREVIO",
+      "container": "MERITO",
+      "gate_factual": [],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        }
+      ],
+      "campos_documentais": []
+    },
+    {
+      "chave": "calculos_recuperacao_consumo",
+      "nome_publico": "Regularidade dos cálculos de recuperação",
+      "pergunta": "Sustentar a regularidade dos cálculos de recuperação de consumo?",
+      "topic_id": "CALCULOS_RECUPERACAO_CONSUMO",
+      "container": "MERITO",
+      "gate_factual": [
+        "FATURA_RECUPERACAO_DOCUMENTADA"
+      ],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        },
+        {
+          "parte": "ZONA_METODOLOGIA_APURACAO",
+          "modo": "VARIAVEL_LLM_AUTORIZADA",
+          "llm": true,
+          "opcional": true,
+          "requer_fato_zona": "METODOLOGIA_APURACAO_DOCUMENTADA",
+          "skills": [
+            "redator-peca-processual-elite"
+          ],
+          "skills_vedadas": [
+            "humanizer-pt-br"
+          ],
+          "fontes": [
+            "fatos_com_proveniencia",
+            "memorial_calculo",
+            "memorial_faturamento"
+          ],
+          "validacoes": [
+            "paragrafo_380",
+            "ancoragem_zona",
+            "aritmetica_decimal",
+            "unidades",
+            "continuidade_zona"
+          ]
+        }
+      ],
+      "campos_documentais": [
+        "memorial_calculo",
+        "memorial_faturamento"
+      ]
+    },
+    {
+      "chave": "licitude_cobranca_corte",
+      "nome_publico": "Licitude da cobrança e do corte/suspensão",
+      "pergunta": "Incluir o tópico sobre a licitude da cobrança e do corte/suspensão?",
+      "topic_id": "LICITUDE_CORTE_SUSPENSAO",
+      "container": "RAIZ",
+      "gate_factual": [
+        "CORTE_EFETIVO"
+      ],
+      "nota_gate": "CORTE_EFETIVO vem de entradas_factuais_publicas.corte_efetivo ou de prova documental; nunca desta resposta.",
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        }
+      ],
+      "campos_documentais": [
+        "registro_operacional_corte"
+      ]
+    },
+    {
+      "chave": "nexo_causal_indemonstrado",
+      "nome_publico": "Nexo causal indemonstrado",
+      "pergunta": "Sustentar a ausência de nexo causal?",
+      "topic_id": "NEXO_CAUSAL_INDEMONSTRADO",
+      "container": "RAIZ",
+      "gate_factual": [],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        }
+      ],
+      "campos_documentais": []
+    },
+    {
+      "chave": "descabimento_dano_moral",
+      "nome_publico": "Descabimento de dano moral",
+      "pergunta": "Impugnar o pedido de indenização por dano moral?",
+      "topic_id": "DESCABIMENTO_DANO_MORAL",
+      "container": "RAIZ",
+      "gate_factual": [
+        "PEDIDO_DANO_MORAL_NA_INICIAL"
+      ],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        },
+        {
+          "parte": "VALOR_DANO_MORAL_PRETENDIDO",
+          "modo": "DADO_DOCUMENTAL",
+          "llm": false
+        }
+      ],
+      "campos_documentais": [
+        "pedido_dano_moral",
+        "valor_dano_moral"
+      ]
+    },
+    {
+      "chave": "reconvencao_cobranca_debito",
+      "nome_publico": "Reconvenção para cobrança do débito",
+      "pergunta": "Formular reconvenção para cobrança do débito apurado?",
+      "topic_id": "RECONVENCAO",
+      "container": "RAIZ",
+      "vincula": [
+        "INLINE_COM_RECONVENCAO"
+      ],
+      "gate_factual": [
+        "VALOR_FRA_DOCUMENTADO"
+      ],
+      "conteudo": [
+        {
+          "parte": "texto_fixo",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        },
+        {
+          "parte": "VALOR_FRA",
+          "modo": "DADO_DOCUMENTAL",
+          "llm": false
+        },
+        {
+          "parte": "IRREGULARIDADE_ENCONTRADA",
+          "modo": "DADO_DOCUMENTAL",
+          "llm": false
+        }
+      ],
+      "campos_documentais": [
+        "fatura_recuperacao",
+        "memorial_calculo"
+      ]
+    }
+  ],
+  "secoes_incondicionais": [
+    {
+      "id": "enderecamento",
+      "conteudo": [
+        {
+          "parte": "JUIZO",
+          "modo": "CALCULADO_PELO_CORE",
+          "llm": false,
+          "fonte": "DataJud"
+        }
+      ]
+    },
+    {
+      "id": "identificacao",
+      "conteudo": [
+        {
+          "parte": "NUMERO_PROCESSO",
+          "modo": "DADO_DOCUMENTAL",
+          "llm": false
+        },
+        {
+          "parte": "AUTOR",
+          "modo": "DADO_DOCUMENTAL",
+          "llm": false
+        },
+        {
+          "parte": "qualificacao_e_titulo",
+          "modo": "FIXO_ESTRUTURAL",
+          "llm": false
+        }
+      ]
+    },
+    {
+      "id": "tempestividade",
+      "conteudo": [
+        {
+          "parte": "TEMPESTIVIDADE_CASO",
+          "modo": "CALCULADO_PELO_CORE",
+          "llm": false,
+          "skills": [
+            "calendario-forense-tjba-2026"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "legalidade_procedimentos",
+      "conteudo": [
+        {
+          "parte": "SINOPSE_FATOS",
+          "modo": "VARIAVEL_LLM_AUTORIZADA",
+          "llm": true,
+          "skills": [
+            "redator-peca-processual-elite",
+            "humanizer-pt-br"
+          ],
+          "validacoes": [
+            "sinopse_estritamente_autoral",
+            "paragrafo_380"
+          ]
+        },
+        {
+          "parte": "REALIDADE_FATICA",
+          "modo": "VARIAVEL_LLM_AUTORIZADA",
+          "llm": true,
+          "skills": [
+            "estrategista-contestacao-ede",
+            "redator-peca-processual-elite",
+            "humanizer-pt-br"
+          ],
+          "validacoes": [
+            "nao_repeticao_fatica",
+            "paragrafo_380"
+          ]
+        },
+        {
+          "parte": "IRREGULARIDADE_ENCONTRADA",
+          "modo": "DADO_DOCUMENTAL",
+          "llm": false
+        },
+        {
+          "parte": "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE",
+          "modo": "VARIAVEL_LLM_AUTORIZADA",
+          "llm": true,
+          "skills": [
+            "estrategista-contestacao-ede",
+            "redator-peca-processual-elite",
+            "humanizer-pt-br"
+          ],
+          "validacoes": [
+            "nao_repeticao_fatica",
+            "paragrafo_380"
+          ]
+        },
+        {
+          "parte": "texto_normativo_art_590",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        }
+      ],
+      "subblocos_derivados": [
+        {
+          "id": "SUBBLOCO_CONFORMIDADE_ART_590",
+          "fato": "PROCEDIMENTO_ART_590_DOCUMENTADO",
+          "aviso_se_omitido": "Não foi comprovada nos documentos a observância integral das providências do art. 590; a afirmação correspondente foi omitida."
+        },
+        {
+          "id": "SUBBLOCO_REGISTRO_FOTOGRAFICO",
+          "fato": "REGISTRO_FOTOGRAFICO_DOCUMENTADO",
+          "contem": [
+            "FOTOS_DA_IRREGULARIADE"
+          ],
+          "aviso_se_omitido": "Não foram localizadas fotografias da irregularidade; a remissão às imagens foi omitida."
+        },
+        {
+          "id": "SUBBLOCO_ACOMPANHAMENTO_INSPECAO",
+          "fato": "INSPECAO_ACOMPANHADA_DOCUMENTADA",
+          "aviso_se_omitido": "Não foi comprovado o acompanhamento da inspeção pelo representante da unidade; a afirmação foi omitida."
+        },
+        {
+          "id": "SUBBLOCO_NOTIFICACAO_ADMINISTRATIVA",
+          "fato": "NOTIFICACAO_AUTORA_DOCUMENTADA",
+          "aviso_se_omitido": "Não foi comprovada a entrega da documentação à parte Autora; a afirmação foi omitida."
+        }
+      ]
+    },
+    {
+      "id": "onus_probatorio",
+      "conteudo": [
+        {
+          "parte": "texto_fixo_generico",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        }
+      ],
+      "subblocos_vinculados": [
+        {
+          "id": "SUBBLOCO_ONUS_NAO_DESTINATARIO_FINAL",
+          "vinculo": "inaplicabilidade_cdc"
+        },
+        {
+          "id": "SUBBLOCO_ONUS_ENTES_ESTRUTURADOS",
+          "vinculo": "inaplicabilidade_cdc"
+        }
+      ]
+    },
+    {
+      "id": "requerimentos",
+      "conteudo": [
+        {
+          "parte": "PEDIDOS_FINAIS",
+          "modo": "VARIAVEL_LLM_AUTORIZADA",
+          "llm": true,
+          "skills": [
+            "redator-peca-processual-elite",
+            "humanizer-pt-br"
+          ],
+          "validacoes": [
+            "pedidos_composicionais"
+          ]
+        },
+        {
+          "parte": "pedidos_fixos",
+          "modo": "TEXTO_FIXO_CONTROLADO",
+          "llm": false
+        }
+      ]
+    },
+    {
+      "id": "fecho",
+      "conteudo": [
+        {
+          "parte": "LOCAL_DATA",
+          "modo": "CALCULADO_PELO_CORE",
+          "llm": false
+        },
+        {
+          "parte": "assinatura",
+          "modo": "FIXO_ESTRUTURAL",
+          "llm": false
+        }
+      ]
+    }
+  ],
+  "topicos_adicionais": {
+    "status": "NOT_SUPPORTED",
+    "decisao": "D1"
+  },
+  "orientacoes_adicionais": {
+    "aplica_se_a": "somente partes VARIAVEL_LLM_AUTORIZADA",
+    "cria_topico": false
+  },
+  "posicao_template": {
+    "_nota": "Só o manifesto conhece posição/numeração; nunca expostas no input público.",
+    "PRELIMINAR_CDC_INAPLICAVEL": "2.1",
+    "PRELIMINAR_REVOGACAO_GRATUIDADE": "2.2",
+    "PRELIMINAR_AUSENCIA_INTERESSE_AGIR": "2.3",
+    "PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO": "2.4",
+    "PRELIMINAR_INEPCIA_INICIAL": "2.5",
+    "PRELIMINAR_IMPUGNACAO_VALOR_CAUSA": "2.6",
+    "legalidade_procedimentos": "3.1",
+    "EVOLUCAO_CONSUMO": "3.1 (após registro fotográfico, sem título)",
+    "DEVER_LEGAL_FISCALIZACAO": "3.2",
+    "DESNECESSIDADE_AVISO_PREVIO": "3.3",
+    "CALCULOS_RECUPERACAO_CONSUMO": "3.4",
+    "LICITUDE_CORTE_SUSPENSAO": "IV (4.1)",
+    "NEXO_CAUSAL_INDEMONSTRADO": "V",
+    "DESCABIMENTO_DANO_MORAL": "VI",
+    "onus_probatorio": "VII",
+    "RECONVENCAO": "VIII (8.1)",
+    "requerimentos": "IX",
+    "_numeracao": "dinâmica (docx_numeracao_engine); os números acima são os do modelo com todos os tópicos incluídos"
+  }
+}

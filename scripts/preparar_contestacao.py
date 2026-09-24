@@ -56,6 +56,8 @@ BASE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from docx_block_engine import ComposicaoAbortada, carregar_catalogo, validar_catalogo  # noqa: E402
+import modelo_oficial_versoes as mov  # noqa: E402
+import topic_matrix as tm  # noqa: E402
 from docx_context_engine import ContextoAbortada, extrair_contexto  # noqa: E402
 from docx_package import PacoteDocxAbortada, extrair_pacote_docx  # noqa: E402
 from docx_template_engine import carregar_schema  # noqa: E402
@@ -1117,6 +1119,35 @@ def _montar_blocos_modelo(catalogo: dict, estado: dict) -> list:
     return resultado
 
 
+def _montar_topic_matrix(manifesto: dict | None) -> dict | None:
+    """ADR-0020: a Topic Matrix pública vem só do manifesto da versão
+    ativa (`None` no contrato legado). Perguntas SIM/NÃO para o advogado
+    e, para o host, as partes que a LLM pode redigir com as Skills
+    autorizadas/vedadas e as validações que o servidor aplica."""
+    if manifesto is None:
+        return None
+    publico = tm.descrever_topic_matrix_publica(manifesto)
+    partes = []
+    grupos = [t.get("conteudo") or [] for t in manifesto.get("topicos_decisao_advogado") or []]
+    grupos += [s.get("conteudo") or [] for s in manifesto.get("secoes_incondicionais") or []]
+    for conteudo in grupos:
+        for c in conteudo:
+            if c.get("llm"):
+                partes.append({
+                    "parte": c["parte"],
+                    "modo": c["modo"],
+                    "skills": c.get("skills", []),
+                    "skills_vedadas": c.get("skills_vedadas", []),
+                    "validacoes": c.get("validacoes", []),
+                })
+    publico["partes_redigiveis_llm"] = partes
+    publico["topicos_adicionais"] = (manifesto.get("topicos_adicionais") or {}).get("status")
+    publico["orientacao"] = ("Pergunte ao advogado cada tópico e cada fato público (SIM/NÃO) e envie "
+                              "as respostas em 'topicos'/'fatos_publicos' do finalizador. Nunca mostre "
+                              "ao advogado ids de bloco, tags, placeholders ou chaves de estado.")
+    return publico
+
+
 # ---------------------------------------------------- contexto institucional
 
 def _obter_contexto_institucional_gerativo(schema: dict, catalogo: dict) -> dict | None:
@@ -1164,7 +1195,7 @@ def _obter_contexto_institucional_gerativo(schema: dict, catalogo: dict) -> dict
 def preparar_contexto_contestacao(
     entrada: dict,
     schema_path: Path = SCHEMA_PADRAO,
-    catalogo_path: Path = CATALOGO_PADRAO,
+    catalogo_path: Path | None = None,
 ) -> ResultadoPreparacao:
     """Núcleo determinístico do Gate 6.5-A — CORE puro, sem I/O de rede
     além da aquisição (já validada) do Modelo Oficial. Chamada pelo
@@ -1181,8 +1212,14 @@ def preparar_contexto_contestacao(
     if erro_entrada is not None:
         return erro_entrada
 
+    # ADR-0020: sem catálogo explícito, vale o contrato da versão do
+    # Modelo Oficial pinada no ambiente (o mesmo que a finalização usa).
+    versao = mov.resolver_versao_do_ambiente() if catalogo_path is None else None
+    if versao is not None:
+        catalogo_path = versao.catalogo_path
+
     resultado_rag = lr.avaliar_corpus_rag()
-    resultado_modelo = lr.avaliar_modelo_oficial(schema_path, catalogo_path)
+    resultado_modelo = lr.avaliar_modelo_oficial(schema_path, None if versao is not None else catalogo_path)
     contestacao_pronta = resultado_rag.status == "READY" and resultado_modelo.status == "READY"
 
     if not contestacao_pronta:
@@ -1198,7 +1235,10 @@ def preparar_contexto_contestacao(
         schema = carregar_schema(schema_path)
         catalogo = carregar_catalogo(catalogo_path)
         validar_catalogo(catalogo)
-    except (OSError, ValueError, ComposicaoAbortada) as e:
+        manifesto = mov.carregar_manifesto(versao) if versao is not None else None
+        if manifesto is not None:
+            tm.verificar_compatibilidade(manifesto, catalogo)
+    except (OSError, ValueError, ComposicaoAbortada, mov.IntegridadeVersaoModelo, tm.ManifestoIncompativel) as e:
         return _abortado("institutional_schema",
                           f"schema/catálogo institucional do próprio plugin "
                           f"inválido: {e}")
@@ -1286,6 +1326,7 @@ def preparar_contexto_contestacao(
         "questoes_juridicas": questoes,
         "fontes_legais": fontes_legais,
         "blocos_modelo": blocos_modelo,
+        "topic_matrix": _montar_topic_matrix(manifesto),
         "contexto_institucional": contexto_institucional or {},
         "regras_institucionais": list(REGRAS_INSTITUCIONAIS),
         "restricoes": {

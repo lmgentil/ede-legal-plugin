@@ -149,8 +149,11 @@ MOTIVOS: Final = frozenset({
 
 RESULTADO_FINALIZACAO_OK: Final = "OK"
 RESULTADO_FINALIZACAO_REFUSED: Final = "REFUSED"
+RESULTADO_FINALIZACAO_NEEDS_INPUT: Final = "NEEDS_INPUT"
 
-RESULTADOS_FINALIZACAO: Final = frozenset({RESULTADO_FINALIZACAO_OK, RESULTADO_FINALIZACAO_REFUSED})
+RESULTADOS_FINALIZACAO: Final = frozenset({
+    RESULTADO_FINALIZACAO_OK, RESULTADO_FINALIZACAO_REFUSED, RESULTADO_FINALIZACAO_NEEDS_INPUT,
+})
 
 # Vocabulário FECHADO de `capability_id`, `estagio_finalizacao` e
 # `codigo_erro_finalizacao` (Gate 6.6-C, ADR-0018) — DELIBERADAMENTE
@@ -174,6 +177,7 @@ ESTAGIOS_FINALIZACAO: Final = frozenset({
     "post_render_fidelity",
     "round_trip",
     "artifact_delivery",
+    "topic_matrix",
 })
 
 CODIGOS_ERRO_FINALIZACAO: Final = frozenset({

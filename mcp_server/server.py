@@ -426,6 +426,19 @@ class EdeFinalizarPecaEntrada(BaseModel):
         dict[str, bool | Literal["INDETERMINADO"]],
         Field(max_length=finalizar_peca.MAX_CHAVES_POR_DICIONARIO_ENTRADA),
     ] = {}
+    topicos: Annotated[
+        dict[str, Literal["SIM", "NAO"]],
+        Field(max_length=finalizar_peca.MAX_CHAVES_POR_DICIONARIO_ENTRADA,
+              description="Respostas do advogado à matriz de tópicos (chaves públicas de "
+                          "pacote.topic_matrix.topicos em ede_preparar_contestacao). Exigido, no "
+                          "lugar de block_decisions, quando o Modelo Oficial configurado usa a matriz."),
+    ] = {}
+    fatos_publicos: Annotated[
+        dict[str, Literal["SIM", "NAO"]],
+        Field(max_length=finalizar_peca.MAX_CHAVES_POR_DICIONARIO_ENTRADA,
+              description="Fatos informados pelo advogado (pacote.topic_matrix.fatos_publicos), "
+                          "ex.: corte_efetivo. Nunca inferidos da decisão de incluir um tópico."),
+    ] = {}
 
 
 class EdeFinalizarPecaResposta(BaseModel):
@@ -447,12 +460,17 @@ class EdeFinalizarPecaResposta(BaseModel):
     O cliente nunca escolhe bucket/TTL/chave de objeto/modo de entrega
     (Gate 6.6-E §48) — só recebe o resultado."""
 
-    status: Literal["OK", "REFUSED"]
+    status: Literal["OK", "REFUSED", "NEEDS_INPUT"]
     capability_id: str | None = None
     schema_version: str | None = None
     stage: str | None = None
     error_code: str | None = None
     motivo: str | None = None
+    pendencias: list[str] | None = None
+    """Só em NEEDS_INPUT (ADR-0020): o que perguntar ao advogado, em
+    linguagem jurídica — nenhum documento é gerado."""
+    dados_nao_bloqueantes: list[str] | None = None
+    """Só em OK: trechos factuais omitidos por falta de prova."""
     document_sha256: str | None = None
     document_size: int | None = None
     filename: str | None = None
@@ -533,6 +551,14 @@ def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent]:
         _registrar_finalizacao(resposta)
         return [TextContent(type="text", text=resposta.model_dump_json(exclude_none=True))]
 
+    if resultado.status == "NEEDS_INPUT":
+        resposta = EdeFinalizarPecaResposta(
+            status="NEEDS_INPUT", capability_id=resultado.capability_id, stage=resultado.stage,
+            motivo=resultado.motivo, pendencias=list(resultado.pendencias),
+        )
+        _registrar_finalizacao(resposta)
+        return [TextContent(type="text", text=resposta.model_dump_json(exclude_none=True))]
+
     if resultado.status != "OK":
         resposta = EdeFinalizarPecaResposta(
             status="REFUSED", capability_id=resultado.capability_id,
@@ -550,6 +576,7 @@ def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent]:
         filename=resultado.filename,
         download_url=resultado.download_url,
         expires_at=resultado.download_expires_at,
+        dados_nao_bloqueantes=list(resultado.dados_nao_bloqueantes) or None,
     )
     _registrar_finalizacao(resposta, artefato_id=resultado.artefato_id)
     return [TextContent(type="text", text=resposta.model_dump_json(exclude_none=True))]

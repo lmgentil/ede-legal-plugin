@@ -178,6 +178,11 @@ COPY --chown=10001:10001 scripts/docx_fidelidade_independente.py scripts/docx_fi
 COPY --chown=10001:10001 scripts/docx_round_trip.py scripts/docx_round_trip.py
 COPY --chown=10001:10001 scripts/capability_registry.py scripts/capability_registry.py
 COPY --chown=10001:10001 scripts/finalizar_peca.py scripts/finalizar_peca.py
+# ADR-0020: registro de versões do Modelo Oficial (contrato por SHA
+# pinado) e tradução da Topic Matrix pública — Core puro, importados por
+# legal_readiness/preparar_contestacao/finalizar_peca.
+COPY --chown=10001:10001 scripts/modelo_oficial_versoes.py scripts/modelo_oficial_versoes.py
+COPY --chown=10001:10001 scripts/topic_matrix.py scripts/topic_matrix.py
 
 # Gate 6.6-E (ADR-0019): entrega v2 do artefato -- objeto GCS efêmero +
 # URL HTTPS assinada, substitui o EmbeddedResource inline v1 (Decisão 5
@@ -202,6 +207,10 @@ COPY --chown=10001:10001 scripts/limpar_artefatos_agendado.py scripts/limpar_art
 # nesta imagem nem em nenhuma outra).
 COPY --chown=10001:10001 templates/contestacao/schema.json templates/contestacao/schema.json
 COPY --chown=10001:10001 templates/contestacao/blocos.json templates/contestacao/blocos.json
+# Contrato da V1 (ADR-0020): catálogo + manifesto públicos, fixados por
+# SHA-256; o .docx da V1 continua fora de qualquer imagem (ADR-0009).
+COPY --chown=10001:10001 templates/contestacao/v1/blocos.json templates/contestacao/v1/blocos.json
+COPY --chown=10001:10001 templates/contestacao/v1/manifesto.json templates/contestacao/v1/manifesto.json
 
 # Gate 6.5-A: só `models.py` de rag/legal_validation/ (o construtor
 # `fonte_juridica()`, puro dict, sem import algum) — nunca o pacote

@@ -804,7 +804,19 @@ PLACEHOLDER_BLOCO_DONO = {
 PLACEHOLDERS_MARCADOR_MANUAL = ("FOTOS_DA_IRREGULARIADE", "TELAS_DA_TITULARIDADE")
 
 
-def validar_modo_producao_final(dados: dict, estados_blocos: dict) -> list:
+def placeholders_por_visibilidade(bloco_dono_extra: dict | None = None) -> tuple[tuple, dict]:
+    """(sempre visíveis, {placeholder: bloco dono}) para uma versão do
+    Modelo Oficial. `bloco_dono_extra` (ADR-0020) move placeholders do
+    conjunto sempre visível para dentro de um bloco condicional — ex.:
+    na V1, `FOTOS_DA_IRREGULARIADE` vive em `SUBBLOCO_REGISTRO_
+    FOTOGRAFICO`. Sem argumento, é exatamente o contrato legado."""
+    extra = dict(bloco_dono_extra or {})
+    sempre = tuple(n for n in PLACEHOLDERS_SEMPRE_VISIVEIS if n not in extra)
+    return sempre, {**PLACEHOLDER_BLOCO_DONO, **extra}
+
+
+def validar_modo_producao_final(dados: dict, estados_blocos: dict,
+                                bloco_dono_extra: dict | None = None) -> list:
     """Gate fail-closed do modo PRODUÇÃO-FINAL (Gate 6.6-A §7/§25) — nunca
     chamado implicitamente pelo pipeline de geração; é um portão adicional
     e explícito antes de entregar o DOCX como peça pronta.
@@ -828,13 +840,14 @@ def validar_modo_producao_final(dados: dict, estados_blocos: dict) -> list:
                 f"nunca é válido em produção-final (peça pronta para "
                 f"protocolo): {valor!r}")
 
-    for nome in PLACEHOLDERS_SEMPRE_VISIVEIS:
+    sempre_visiveis, bloco_dono = placeholders_por_visibilidade(bloco_dono_extra)
+    for nome in sempre_visiveis:
         valor = dados.get(nome)
         if valor is None or not str(valor).strip():
             erros.append(f"{nome}: obrigatório em produção-final (sempre "
                          f"visível no Modelo Oficial) e está vazio/ausente")
 
-    for nome, bloco in PLACEHOLDER_BLOCO_DONO.items():
+    for nome, bloco in bloco_dono.items():
         if estados_blocos.get(bloco) != "INCLUIR":
             continue  # bloco não ativo nesta geração: placeholder inalcançável, nunca exigido
         valor = dados.get(nome)

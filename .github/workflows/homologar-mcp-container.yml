@@ -277,13 +277,15 @@ jobs:
               ! -name "docx_fidelidade_independente.py" ! -name "docx_round_trip.py" \
               ! -name "capability_registry.py" ! -name "finalizar_peca.py" \
               ! -name "artifact_storage.py" ! -name "limpar_artefatos_agendado.py" \
+              ! -name "modelo_oficial_versoes.py" ! -name "topic_matrix.py" \
               2>/dev/null || true)
             if [ -n "$achados_scripts" ]; then
               echo "ARQUIVO INESPERADO EM /app/scripts NA IMAGEM: $achados_scripts"
               exit 1
             fi
             achados_templates=$(find /app/templates -type f ! -path "*/contestacao/schema.json" \
-              ! -path "*/contestacao/blocos.json" 2>/dev/null || true)
+              ! -path "*/contestacao/blocos.json" ! -path "*/contestacao/v1/blocos.json" \
+              ! -path "*/contestacao/v1/manifesto.json" 2>/dev/null || true)
             if [ -n "$achados_templates" ]; then
               echo "ARQUIVO INESPERADO EM /app/templates NA IMAGEM: $achados_templates"
               exit 1

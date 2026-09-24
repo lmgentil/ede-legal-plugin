@@ -893,3 +893,30 @@ do usuário para esse passo específico (CLAUDE.md §6/§17/§24).
 ### Fechamento
 
 Em aberto (avaliação em andamento).
+
+## PEND-015 — Zonas VLA redigidas pela LLM do host ainda não são aceitas pelo MCP (D3 do gate V1)
+
+**Status (2026-09-24):** aberta, fora do escopo do gate de ativação da
+V1 (decisão D3 do usuário).
+**Situação:** `ede_finalizar_peca` não recebe conteúdo de Zona de
+Complementação; toda zona sai vazia (SDT removido), como antes. O
+manifesto V1 declara, por zona, Skills autorizadas/vedadas, fontes e
+validações (`paragrafo_380`, `ancoragem_zona`, `aritmetica_decimal`,
+`unidades`, `continuidade_zona`), e `ede_preparar_contestacao` já publica
+essa lista em `pacote.topic_matrix.partes_redigiveis_llm` — mas nenhuma
+dessas validações roda pelo caminho MCP. **Bloqueia:** declarar concluída
+a orquestração voltada ao advogado. **Não bloqueia:** os placeholders
+variáveis já suportados, que seguem funcionando. Nenhuma LLM no servidor
+(ADR-0015).
+
+## PEND-016 — Tempestividade E2 não implementada (D4 do gate V1)
+
+**Status (2026-09-24):** aberta, fora do escopo do gate de ativação da
+V1 (decisão D4 do usuário).
+**Situação:** o manifesto V1 marca `TEMPESTIVIDADE_CASO` como
+`CALCULADO_PELO_CORE` (com `calendario-forense-tjba-2026`), mas neste
+gate o valor continua vindo do host, validado só pelos backstops
+existentes. Nenhum cálculo novo foi misturado à ativação.
+**Bloqueia:** tratar a tempestividade da Contestação via MCP como
+calculada pelo Core.
+

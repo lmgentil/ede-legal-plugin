@@ -50,6 +50,8 @@ import docx_block_engine as be  # noqa: E402
 import docx_fidelidade_independente as fi  # noqa: E402
 import docx_round_trip as rt  # noqa: E402
 import legal_readiness as lr  # noqa: E402
+import modelo_oficial_versoes as mov  # noqa: E402
+import topic_matrix as tm  # noqa: E402
 import validate_paragrafos as vp  # noqa: E402
 import validate_placeholder_semantics as vs  # noqa: E402
 from docx_block_engine import ComposicaoAbortada, carregar_catalogo, validar_catalogo  # noqa: E402
@@ -90,7 +92,11 @@ cliente."""
 
 # ------------------------------------------------------------------ erros
 
-Status = Literal["OK", "REFUSED"]
+Status = Literal["OK", "REFUSED", "NEEDS_INPUT"]
+"""`NEEDS_INPUT` (ADR-0020): falta uma resposta SIM/NÃO da Topic Matrix
+ou o suporte factual de um tópico marcado SIM — nunca documento, nunca
+inclusão silenciosa; `pendencias` diz, em linguagem jurídica, o que
+perguntar ao advogado."""
 
 CODIGOS_ERRO = frozenset({
     "CAPABILITY_NOT_FOUND",
@@ -132,6 +138,7 @@ ETAPAS = frozenset({
     "post_render_fidelity",
     "round_trip",
     "artifact_delivery",
+    "topic_matrix",
 })
 """Estágio seguro (Gate 6.6-C §19) — identifica ONDE, nunca O QUÊ (nunca
 conteúdo de fato/placeholder)."""
@@ -161,6 +168,12 @@ class ResultadoFinalizacao:
     autorizar download. Não confundir com exclusão do objeto: o link
     para de funcionar neste instante; o objeto é excluído pela limpeza
     (~24-25h) ou, no pior caso, pelo backstop de lifecycle."""
+    pendencias: tuple[str, ...] = ()
+    """Só em `NEEDS_INPUT`: perguntas/pendências em linguagem jurídica
+    (nunca id de bloco, tag, placeholder ou chave de estado interno)."""
+    dados_nao_bloqueantes: tuple[str, ...] = ()
+    """Só em `OK`: trechos factuais omitidos por falta de prova (a peça
+    foi gerada sem eles; o advogado decide se complementa)."""
     artefato_id: str | None = None
     """`sha256(token)` — identificador do objeto que não permite
     reconstruir o link. NUNCA serializado na resposta pública ao cliente
@@ -289,6 +302,11 @@ def _validar_forma_entrada(entrada: dict) -> ResultadoFinalizacao | None:
     ):
         return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
                           "'estado_processual' deve ser {FATO: true|false|'INDETERMINADO'}", capability_id)
+    for campo in ("topicos", "fatos_publicos"):
+        valor = entrada.get(campo) or {}
+        if not isinstance(valor, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in valor.items()):
+            return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                              f"'{campo}' deve ser {{CHAVE_PUBLICA: 'SIM'|'NAO'}}", capability_id)
     return None
 
 
@@ -309,8 +327,9 @@ def _validar_rascunho_estruturado(placeholders: dict, schema: dict, capability_i
     return None
 
 
-def _validar_producao_final(placeholders: dict, estados_blocos: dict, capability_id: str) -> ResultadoFinalizacao | None:
-    erros = vs.validar_modo_producao_final(placeholders, estados_blocos)
+def _validar_producao_final(placeholders: dict, estados_blocos: dict, capability_id: str,
+                            bloco_dono_extra: dict | None = None) -> ResultadoFinalizacao | None:
+    erros = vs.validar_modo_producao_final(placeholders, estados_blocos, bloco_dono_extra)
     if not erros:
         return None
     if any("sentinela de modo ACEITE" in e for e in erros):
@@ -328,13 +347,44 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
     block_decisions: dict = entrada.get("block_decisions") or {}
     estado_processual: dict = entrada.get("estado_processual") or {}
 
+    # ADR-0020: o contrato (catálogo + manifesto) é o da versão do Modelo
+    # Oficial pinada no ambiente — nunca escolhido pelo cliente.
+    versao = mov.resolver_versao_do_ambiente()
     try:
-        catalogo = carregar_catalogo(CATALOGO_PADRAO)
+        manifesto = mov.carregar_manifesto(versao)
+        catalogo = carregar_catalogo(versao.catalogo_path)
         validar_catalogo(catalogo)
         schema = carregar_schema(SCHEMA_PADRAO)
-    except (OSError, ValueError, ComposicaoAbortada) as e:
+        if manifesto is not None:
+            tm.verificar_compatibilidade(manifesto, catalogo)
+    except (OSError, ValueError, ComposicaoAbortada, mov.IntegridadeVersaoModelo, tm.ManifestoIncompativel):
         return _recusado("official_model_readiness", "OFFICIAL_MODEL_NOT_READY",
                           "Catálogo/schema institucional do plugin não está em condições de uso.", capability_id)
+
+    topicos: dict = entrada.get("topicos") or {}
+    fatos_publicos: dict = entrada.get("fatos_publicos") or {}
+    if manifesto is None:
+        if topicos or fatos_publicos:
+            return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                              "O Modelo Oficial configurado não usa a matriz de tópicos; "
+                              "informe as decisões em 'block_decisions'.", capability_id)
+    else:
+        if block_decisions:
+            return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                              "Com o Modelo Oficial configurado, as decisões são informadas por tópico "
+                              "('topicos', SIM/NAO), nunca por bloco.", capability_id)
+        traducao = tm.traduzir(manifesto, catalogo, topicos, fatos_publicos, estado_processual)
+        if traducao.status == "INVALID":
+            return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                              "; ".join(traducao.erros)[:500], capability_id)
+        if traducao.status == "NEEDS_INPUT":
+            return ResultadoFinalizacao(
+                status="NEEDS_INPUT", capability_id=capability_id, stage="topic_matrix",
+                motivo="Faltam decisões ou suporte factual para compor a peça.",
+                pendencias=traducao.pendencias,
+            )
+        block_decisions = traducao.block_decisions
+        estado_processual = traducao.estado_processual_motor
 
     erro = _validar_rascunho_estruturado(placeholders, schema, capability_id)
     if erro is not None:
@@ -353,11 +403,12 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
         codigo, motivo = _classificar_etapa_engine(e.stage)
         return _recusado_por_codigo(codigo, motivo, capability_id)
 
-    erro = _validar_producao_final(placeholders, estados_blocos, capability_id)
+    erro = _validar_producao_final(placeholders, estados_blocos, capability_id,
+                                   versao.placeholder_bloco_dono_extra)
     if erro is not None:
         return erro
 
-    resultado_modelo = lr.avaliar_modelo_oficial(SCHEMA_PADRAO, CATALOGO_PADRAO)
+    resultado_modelo = lr.avaliar_modelo_oficial(SCHEMA_PADRAO, versao.catalogo_path)
     if resultado_modelo.status != "READY":
         return _recusado("official_model_readiness", "OFFICIAL_MODEL_NOT_READY",
                           f"Modelo Oficial não está pronto (status={resultado_modelo.status}).", capability_id)
@@ -375,7 +426,7 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
         saida = tmp / "peca-finalizada.docx"
 
         relatorio = be.gerar_peca_com_blocos(
-            template_efemero, SCHEMA_PADRAO, CATALOGO_PADRAO, placeholders, decisoes_blocos, saida,
+            template_efemero, SCHEMA_PADRAO, versao.catalogo_path, placeholders, decisoes_blocos, saida,
             fatos_processuais=estado_processual,
         )
         if relatorio["status"] != "OK":
@@ -412,8 +463,9 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
 
         extraido = rt.extrair_valores_gerados(template_xml, gerado_xml, catalogo, estados_blocos, estados_zonas,
                                                nomes=list(placeholders))
-        alcancaveis = set(vs.PLACEHOLDERS_SEMPRE_VISIVEIS) | {
-            nome for nome, bloco in vs.PLACEHOLDER_BLOCO_DONO.items() if estados_blocos.get(bloco) == "INCLUIR"
+        sempre_visiveis, bloco_dono = vs.placeholders_por_visibilidade(versao.placeholder_bloco_dono_extra)
+        alcancaveis = set(sempre_visiveis) | {
+            nome for nome, bloco in bloco_dono.items() if estados_blocos.get(bloco) == "INCLUIR"
         }
         alcancaveis &= set(placeholders)
         divergencias_rt = rt.comparar_round_trip(placeholders, extraido, alcancaveis)
@@ -466,6 +518,7 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
             download_url=entrega.download_url,
             download_expires_at=entrega.expires_at,
             artefato_id=entrega.artefato_id,
+            dados_nao_bloqueantes=tm.dados_nao_bloqueantes(manifesto, estados_blocos) if manifesto else (),
         )
 
 

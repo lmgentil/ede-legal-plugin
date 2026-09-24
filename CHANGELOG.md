@@ -7,6 +7,35 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Modelo Oficial V1 no homolog — Topic Matrix (ADR-0020, VERSION 0.16.0)
+- **Contrato versionado por SHA** (`scripts/modelo_oficial_versoes.py`):
+  o SHA pinado do Modelo Oficial escolhe catálogo e manifesto; SHA legado
+  ou desconhecido mantém o contrato anterior. V1: catálogo
+  `templates/contestacao/v1/blocos.json` (`3d710366…`) e manifesto 1.0.0
+  `APROVADO` (`f703966d…`), ambos fixados por SHA-256 e sem conversão de
+  fim de linha (`.gitattributes`).
+- **Topic Matrix** (`scripts/topic_matrix.py`): 14 decisões SIM/NÃO +
+  fato `corte_efetivo`, lidas só do manifesto. `ede_finalizar_peca`
+  aceita `topicos`/`fatos_publicos` e devolve o novo status
+  **`NEEDS_INPUT`** (estágio `topic_matrix`, `pendencias` em linguagem
+  jurídica) quando falta resposta ou suporte factual; em `OK`, lista
+  `dados_nao_bloqueantes` (subblocos factuais omitidos sem prova).
+  `ede_preparar_contestacao` publica a matriz em `pacote.topic_matrix`.
+- **INV-TOPIC-MATRIX-DECISAO-ADVOGADO** substitui INV-GRATUIDADE-LINKED:
+  o advogado decide, o fato é só gate (gratuidade, interesse de agir,
+  ilegitimidade ativa e valor da causa incluídos). CLAUDE.md, SPEC §63 e
+  Skill `contestacao` atualizados.
+- **Corrigido:** round-trip com vários placeholders no mesmo parágrafo
+  (tópico 2.4 sempre `ROUND_TRIP_FAILED`, defeito preexistente e
+  fail-closed, também no modelo atual). Correção só no homolog; sem
+  hotfix de produção.
+- **Modelo V1 persistido** em objeto GCS novo (`modelo-oficial/v1/`,
+  geração `1790263782666106`), sem sobrescrever o vigente.
+- Pendências novas: PEND-015 (zonas VLA pelo MCP), PEND-016
+  (tempestividade E2).
+- Testes: `tests/test_topic_matrix_v1.py`,
+  `tests/test_round_trip_multiplos_placeholders.py`.
+
 ### Adicionado
 - **OAuth de aplicação no EDE MCP Server** (Gate 6.3-D2, ADR-0016). O EDE
   passa a ser Resource Server OAuth 2.0; Descope é o Authorization

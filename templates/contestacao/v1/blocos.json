@@ -1,0 +1,485 @@
+{
+  "template": "modelo-oficial.docx",
+  "version": "1.0.0",
+  "descricao": "Catálogo estrutural dos blocos condicionais/container da Contestação — fonte única de verdade da hierarquia SDT do template real (Etapa 5). Motor documental (scripts/docx_block_engine.py) valida e executa deterministicamente contra este catálogo; nunca decide conteúdo jurídico por conta própria (INV-COMPOSICAO-BLOCOS, SPEC-0001 §5).",
+  "_nota_auditoria_etapa5": "Blocos/container/inline auditados diretamente no corpo (w:body) do modelo-oficial.docx (Etapas 4-A a 4-D, migração/validação Etapa 5). Índices de w:body auditados não fazem parte deste arquivo (são posição física do XML, não contrato) — apenas os w:tag dos SDTs resultantes, que é o que o motor lê em runtime.",
+  "estados_validos": [
+    "INCLUIR",
+    "EXCLUIR",
+    "INDETERMINADO"
+  ],
+  "tipos_validos": [
+    "FIXO",
+    "CONDICIONAL_PADRAO",
+    "CONDICIONAL_HIBRIDO",
+    "CONTAINER_DERIVED"
+  ],
+  "_nota_zones": "Etapa 5.8-B (INV-ZONA-COMPLEMENTACAO, ADR-0010, SPEC-0001 §58). Zona de Complementação é a TERCEIRA categoria de zona de intervenção textual, ao lado de bloco e placeholder — e não é nenhuma das duas. Não tem decision_mode, não entra em derived_rule, não provoca inclusão de container nem do bloco-pai, e NUNCA é perguntada ao advogado; também nunca entra em editable_placeholders (os 13 continuam exatamente 13). É NORMALMENTE VAZIA: só existe na peça quando há suporte fático documentado (requires_facts) E o Redator, aplicando o teste de necessidade, produziu conteúdo. Declarar decision_mode, children, derived_rule, linked_to, linked_fact, parent ou cardinality numa zona é erro de catálogo. Não existe ZONA_COMPLEMENTACAO_GENERICA e não deve passar a existir; toda zona futura exige autorização expressa do usuário.",
+  "tipos_conteudo_zona_validos": [
+    "dado_documental"
+  ],
+  "fixed_components": [
+    {
+      "id": "TIMBRADO",
+      "descricao": "Cabeçalho/rodapé institucional EDE — nunca removível, sem tag SDT (fora do corpo editável)."
+    },
+    {
+      "id": "ENDERECAMENTO",
+      "descricao": "Juízo/qualificação inicial da peça — placeholders {{JUIZO}}/{{NUMERO_PROCESSO}}/{{AUTOR}}, sem SDT."
+    },
+    {
+      "id": "QUALIFICACAO",
+      "descricao": "Qualificação da Ré (NEOENERGIA COELBA) — texto fixo do template, sem SDT."
+    },
+    {
+      "id": "TEMPESTIVIDADE",
+      "descricao": "Seção 1, placeholder {{TEMPESTIVIDADE_CASO}} — INV-TEMPESTIVIDADE-MARCO, sem SDT."
+    },
+    {
+      "id": "TESE_CENTRAL_MERITO",
+      "descricao": "Narrativa fática/técnica central (TOI, submedição, ANEEL 1.000/2021) — sem SDT, fixa para este tipo de caso (ver schema.json descricao)."
+    },
+    {
+      "id": "ONUS_PROBATORIO",
+      "descricao": "Seção de ônus da prova (CPC art. 373) — sem SDT."
+    },
+    {
+      "id": "REQUERIMENTOS",
+      "descricao": "Seção final de pedidos, {{PEDIDOS_FINAIS}}/{{LOCAL_DATA}} — sem SDT."
+    }
+  ],
+  "blocks": [
+    {
+      "id": "PRELIMINARES",
+      "tag": "BLOCO:PRELIMINARES",
+      "tipo": "CONTAINER_DERIVED",
+      "parent": null,
+      "children": [
+        "PRELIMINAR_CDC_INAPLICAVEL",
+        "PRELIMINAR_REVOGACAO_GRATUIDADE",
+        "PRELIMINAR_AUSENCIA_INTERESSE_AGIR",
+        "PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO",
+        "PRELIMINAR_INEPCIA_INICIAL",
+        "PRELIMINAR_IMPUGNACAO_VALOR_CAUSA"
+      ],
+      "decision_mode": "derived",
+      "derived_rule": "ANY_CHILD_INCLUDED",
+      "placeholders": [],
+      "dependencies": [],
+      "_nota_etapa_5_8_g": "Etapa 5.8-G — fix de correção estrutural. 2.3/2.4/2.5/2.6 são fisicamente TOPO no DOCX (auditado: BLOCO:PRELIMINAR_AUSENCIA_INTERESSE_AGIR etc. não estão aninhados dentro do <w:sdt> de BLOCO:PRELIMINARES — só 2.1/2.2 estão), mas 'children'/'derived_rule' aqui são puramente LÓGICOS: decidem se o badge nível-1 'II — DAS PRELIMINARES' (numeração nativa numId=17, que vive dentro do <w:sdt> de PRELIMINARES) sobrevive, e não exigem nesting físico — a composição estrutural real (docx_block_engine._compor_sdts_do_corpo) processa cada <w:sdt> pela posição real na árvore, independente deste catálogo. Sem este children, PRELIMINARES seria EXCLUIR (badge removido) sempre que 2.1 e 2.2 estivessem EXCLUIR, mesmo com 2.3–2.6 fisicamente presentes e INCLUIR — tópico órfão, sem cabeçalho de seção. Com os 6 filhos, ANY_CHILD_INCLUDED garante que o badge sobrevive sempre que qualquer preliminar (2.1 a 2.6) estiver INCLUIR.",
+      "cardinality": "ONE"
+    },
+    {
+      "id": "PRELIMINAR_CDC_INAPLICAVEL",
+      "tag": "BLOCO:PRELIMINAR_CDC_INAPLICAVEL",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": "PRELIMINARES",
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "PRELIMINAR_REVOGACAO_GRATUIDADE",
+      "tag": "BLOCO:PRELIMINAR_REVOGACAO_GRATUIDADE",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": "PRELIMINARES",
+      "children": [],
+      "decision_mode": "state_linked",
+      "linked_fact": "GRATUIDADE_CONCEDIDA",
+      "_nota_decision_mode": "INV-GRATUIDADE-LINKED (correção pontual pós-Etapa 5.2): vínculo DETERMINÍSTICO ao estado processual GRATUIDADE_CONCEDIDA — não é decisão do estrategista (decision_mode NUNCA foi 'estrategista' com um gate por cima; é 'state_linked' puro, mesma família de 'linked', só que estado processual -> bloco em vez de bloco -> bloco). GRATUIDADE_CONCEDIDA=true -> INCLUIR; false (inclusive ausência, mero pedido, ou declaração de hipossuficiência sem decisão) -> EXCLUIR; 'INDETERMINADO' (documentos contraditórios) -> aborta para interação com o advogado. O estrategista NÃO decide a existência deste bloco em decisoes_blocos.json (decisão manual é rejeitada) — pode apenas desenvolver o conteúdo/argumentação quando o bloco já estiver presente. Resolvido pela Skill `contestacao` em estado_processual.json, nunca por busca lexical.",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "PRELIMINAR_AUSENCIA_INTERESSE_AGIR",
+      "tag": "BLOCO:PRELIMINAR_AUSENCIA_INTERESSE_AGIR",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": "PRELIMINARES",
+      "children": [],
+      "decision_mode": "state_linked",
+      "linked_fact": "AUSENCIA_TENTATIVA_ADMINISTRATIVA_COMPROVADA",
+      "_nota_decision_mode": "Etapa 5.8-G, tópico 2.3. AUSENCIA_TENTATIVA_ADMINISTRATIVA_COMPROVADA=true quando os autos não trazem prévia tentativa de resolução administrativa nem pretensão resistida (protocolo idôneo, resposta da concessionária, reclamação formal) -> INCLUIR; false/ausente (houve tentativa/resistência documentada) -> EXCLUIR; 'INDETERMINADO' -> aborta. Renomeado do rascunho original do pedido (HOUVE_PREVIA_TENTATIVA_ADMINISTRATIVA) porque state_linked mapeia true->INCLUIR sempre — manter o nome original inverteria a polaridade. Resolvido pela Skill `contestacao` a partir dos documentos, nunca por busca lexical.",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO",
+      "tag": "BLOCO:PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": "PRELIMINARES",
+      "children": [],
+      "decision_mode": "state_linked",
+      "linked_fact": "UC_TITULARIDADE_TERCEIRO_COMPROVADA",
+      "_nota_decision_mode": "Etapa 5.8-G, tópico 2.4. UC_TITULARIDADE_TERCEIRO_COMPROVADA=true quando a fatura/cadastro operacional mostra a UC em nome de pessoa diversa da parte autora -> INCLUIR; false/ausente (titular é a própria autora) -> EXCLUIR; 'INDETERMINADO' -> aborta. Reframed como booleano (era um enum de 3 valores AUTOR/TERCEIRO/INDETERMINADO no rascunho original do pedido) porque _estado_fato_processual só aceita true/false/'INDETERMINADO' — mesma semântica jurídica, contrato mecânico compatível com o motor existente.",
+      "placeholders": [
+        "CONTA_CONTRATO",
+        "NOME_TITULAR_DA_UC",
+        "TELAS_DA_TITULARIDADE"
+      ],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "SUBBLOCO_AUSENCIA_TRANSFERENCIA_TITULARIDADE",
+      "tag": "SUBBLOCO:AUSENCIA_TRANSFERENCIA_TITULARIDADE",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "state_linked",
+      "linked_fact": "AUSENCIA_TRANSFERENCIA_TITULARIDADE_COMPROVADA",
+      "_nota_decision_mode": "Etapa 5.8-G — subbloco fisicamente aninhado dentro do <w:sdt> de BLOCO:PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO (auditado no DOCX), mas 'parent': null aqui — subbloco não é 'children' lógico do bloco-pai (só CONTAINER_DERIVED pode declarar children; PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO é CONDICIONAL_PADRAO). A remoção em cascata quando o bloco-pai é EXCLUIR é automática e puramente estrutural (o subbloco é descendente físico do <w:sdt> removido), não depende deste campo. AUSENCIA_TRANSFERENCIA_TITULARIDADE_COMPROVADA=true quando os autos comprovam que não houve pedido/efetivação de transferência de titularidade -> INCLUIR; false/ausente (transferência comprovada) -> EXCLUIR; 'INDETERMINADO' -> aborta. Sempre exige decisão/fato resolvido (decision_mode manual), mesmo quando o bloco-pai já será EXCLUIR — nesse caso o resultado é descartado junto com o pai, mas o pipeline não dispensa a resolução do fato.",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "PRELIMINAR_INEPCIA_INICIAL",
+      "tag": "BLOCO:PRELIMINAR_INEPCIA_INICIAL",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": "PRELIMINARES",
+      "children": [],
+      "decision_mode": "estrategista",
+      "_nota_decision_mode": "Etapa 5.8-G, tópico 2.5. NÃO é state_linked: a combinação materialmente relevante entre narrativa genérica, ausência de individualização tempo/modo/lugar e ausência de documentos essenciais/prova mínima é juízo jurídico do estrategista, não um fato binário mecanicamente resolvível (o motor não tem derived_rule para combinar fatos crus). Os fatos candidatos (INICIAL_NARRATIVA_GENERICA, AUSENCIA_DOCUMENTOS_ESSENCIAIS, AUSENCIA_INDIVIDUALIZACAO_FATICA, AUSENCIA_PROTOCOLOS, AUSENCIA_PROVA_MINIMA) são proveniência em fatos.json, não chaves de estado_processual.json — informam a decisão em decisoes_blocos.json, não a determinam sozinhos. INCLUIR só com causa de pedir efetivamente insuficiente; inicial individualizada + documentos suficientes -> EXCLUIR; decisão ausente/INDETERMINADO -> aborta (fail-closed padrão de qualquer bloco 'estrategista').",
+      "placeholders": [
+        "SINOPSE_FATOS_NUCLEO_OBJETO"
+      ],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "PRELIMINAR_IMPUGNACAO_VALOR_CAUSA",
+      "tag": "BLOCO:PRELIMINAR_IMPUGNACAO_VALOR_CAUSA",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": "PRELIMINARES",
+      "children": [],
+      "decision_mode": "state_linked",
+      "linked_fact": "EXISTE_DISCREPANCIA_VALOR_CAUSA",
+      "_nota_decision_mode": "Etapa 5.8-G, tópico 2.6. EXISTE_DISCREPANCIA_VALOR_CAUSA=true quando o valor da causa fixado na inicial diverge da soma dos pedidos com conteúdo econômico -> INCLUIR; false -> EXCLUIR; 'INDETERMINADO' -> aborta. A aritmética (soma de VALORES_PEDIDOS x VALOR_CAUSA_INICIAL) é feita manualmente pela Skill `contestacao`, que escreve o booleano já resolvido em estado_processual.json — nenhum helper Python novo nesta etapa (decisão expressa do usuário); NUNCA decisão do estrategista por conta própria nem inferência de plausibilidade.",
+      "_nota_valor_total_proveito_economico": "Correção pontual (09/09/2026): VALOR_TOTAL_PROVEITO_ECONOMICO vive dentro deste próprio SDT, na frase de pedido ('...retificar o valor da causa para R$ {{VALOR_TOTAL_PROVEITO_ECONOMICO}}, determinando-se a intimação...') — é a mesma soma já calculada para resolver EXISTE_DISCREPANCIA_VALOR_CAUSA acima, nunca um novo cálculo. Sem 'dependencies' aqui (mesmo padrão de VALOR_DANO_MORAL_PRETENDIDO): INCLUIR sem o dado é pego automaticamente por scripts/docx_template_engine.py sobre a XML já composta; EXCLUIR remove o SDT inteiro, placeholder nunca cobrado.",
+      "placeholders": [
+        "VALOR_DA_CAUSA",
+        "VALOR_TOTAL_PROVEITO_ECONOMICO"
+      ],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "SUBBLOCO_CUMULACAO_PEDIDOS",
+      "tag": "SUBBLOCO:CUMULACAO_PEDIDOS",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "state_linked",
+      "linked_fact": "EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS",
+      "_nota_decision_mode": "Etapa 5.8-G — subbloco fisicamente aninhado dentro do <w:sdt> de BLOCO:PRELIMINAR_IMPUGNACAO_VALOR_CAUSA (auditado no DOCX); 'parent': null pelo mesmo motivo de SUBBLOCO_AUSENCIA_TRANSFERENCIA_TITULARIDADE acima. EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS=true quando há efetiva cumulação de pedidos com componentes econômicos distintos -> INCLUIR; false/ausente (pedido econômico único) -> EXCLUIR; 'INDETERMINADO' -> aborta. ZONA_COMPOSICAO_PROVEITO_ECONOMICO (zones, abaixo) está aninhada DENTRO deste subbloco no DOCX real, não em PRELIMINAR_IMPUGNACAO_VALOR_CAUSA — bloco_pai da zona reflete isso.",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "DEVER_LEGAL_FISCALIZACAO",
+      "tag": "BLOCO:DEVER_LEGAL_FISCALIZACAO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "DESNECESSIDADE_AVISO_PREVIO",
+      "tag": "BLOCO:DESNECESSIDADE_AVISO_PREVIO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "CALCULOS_RECUPERACAO_CONSUMO",
+      "tag": "BLOCO:CALCULOS_RECUPERACAO_CONSUMO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "EVOLUCAO_CONSUMO",
+      "tag": "BLOCO:EVOLUCAO_CONSUMO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "_nota": "Bloco inteiramente de texto fixo institucional — não possui mais placeholder próprio (ARGUMENTACAO_EVOLUCAO_DE_CONSUMO_FIXA removido em correção pontual; o modelo oficial já traz a argumentação de evolução de consumo pronta). INCLUIR/EXCLUIR continua decisão da etapa estratégica, agora só sobre a pertinência do bloco inteiro, sem preenchimento algum.",
+      "cardinality": "ONE"
+    },
+    {
+      "id": "LICITUDE_CORTE_SUSPENSAO",
+      "tag": "BLOCO:LICITUDE_CORTE_SUSPENSAO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "humano",
+      "placeholders": [],
+      "dependencies": [],
+      "requires_fact": {
+        "key": "CORTE_EFETIVO",
+        "descricao": "INV-CORTE-GATE-HUMANO (correção arquitetural pós-Teste Real, substitui o vínculo determinístico puro adotado antes: mesmo com corte efetivo comprovado, a inclusão da tese não pode ser automática — é decisão reservada ao advogado). CORTE_EFETIVO=false/ausente -> EXCLUIR automático, SEM perguntar (nada a decidir sobre tese sem suporte fático — não desperdiça interação humana). CORTE_EFETIVO='INDETERMINADO' -> aborta (decisao_indeterminada), com ou sem decisão registrada. CORTE_EFETIVO=true SEM decisão em decisoes_blocos.json -> aborta (decisao_ausente) — a Skill contestacao interpreta isso como 'pergunte ao advogado: Deseja incluir o tópico relativo à licitude do corte/suspensão?'. CORTE_EFETIVO=true COM decisão humana registrada -> INCLUIR/EXCLUIR conforme a resposta. Mera ameaça, aviso, pedido de restabelecimento isolado, inadimplência/débito NUNCA configuram CORTE_EFETIVO=true. Resolvido pela Skill `contestacao` a partir de evidência que a Ré não contradiga (nunca da alegação isolada e não corroborada da autora, nunca por busca lexical)."
+      },
+      "cardinality": "ONE"
+    },
+    {
+      "id": "NEXO_CAUSAL_INDEMONSTRADO",
+      "tag": "BLOCO:NEXO_CAUSAL_INDEMONSTRADO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "DESCABIMENTO_DANO_MORAL",
+      "tag": "BLOCO:DESCABIMENTO_DANO_MORAL",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "estrategista",
+      "placeholders": [
+        "VALOR_DANO_MORAL_PRETENDIDO"
+      ],
+      "dependencies": [],
+      "_nota_placeholder": "Correção — dano moral pretendido: VALOR_DANO_MORAL_PRETENDIDO vive dentro deste SDT ('...no valor de {{VALOR_DANO_MORAL_PRETENDIDO}}, contudo...'). Sem 'dependencies' aqui, DIFERENTE de RECONVENCAO/VALOR_FRA acima — não é um gate adicional: como o placeholder está fisicamente dentro do próprio conteúdo do bloco, INCLUIR sem o dado é pego automaticamente por scripts/docx_template_engine.py (validar_placeholders, 'placeholders do template sem dado fornecido') sobre a XML já composta; EXCLUIR remove o SDT inteiro antes da substituição, então o placeholder nunca é cobrado. Nenhuma regra 'obrigatorio_nao_sentinela' se aplica: diferente de VALOR_FRA, pedido de dano moral sem quantificação ('a ser arbitrado pelo Juízo') é legítimo e não deve virar fail-closed.",
+      "cardinality": "ONE"
+    },
+    {
+      "id": "RECONVENCAO",
+      "tag": "BLOCO:RECONVENCAO",
+      "tipo": "CONDICIONAL_HIBRIDO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "humano",
+      "_nota_decision_mode": "INV-RECONVENCAO-AUTORIZACAO-EXPRESSA (Etapa 5.2): decision_mode mudou de 'estrategista' para 'humano' — a possibilidade material de reconvenção pode ser identificada pela análise estratégica, mas a decisão de apresentá-la é reservada ao advogado (AskUserQuestion na Skill `contestacao`, SIM/NÃO explícito). Mesmo contrato de decisoes_blocos.json de antes; sem resposta o bloco fica ausente/INDETERMINADO e o fail-closed já existente aborta o pipeline.",
+      "placeholders": [
+        "VALOR_FRA",
+        "IRREGULARIDADE_ENCONTRADA"
+      ],
+      "dependencies": [
+        {
+          "placeholder": "VALOR_FRA",
+          "quando": "INCLUIR",
+          "regra": "obrigatorio_nao_sentinela",
+          "_nota": "PoC 4-C: INCLUIR exige VALOR_FRA com valor real (não a sentinela 'NÃO INFORMADO'); EXCLUIR marca VALOR_FRA como not_applicable — contrato validado em scripts/validate_placeholder_semantics.py, não deve ser duplicado aqui."
+        }
+      ],
+      "linked_inline": [
+        "INLINE:COM_RECONVENCAO"
+      ],
+      "cardinality": "ONE"
+    },
+    {
+      "id": "INLINE_COM_RECONVENCAO",
+      "tag": "INLINE:COM_RECONVENCAO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "linked",
+      "linked_to": "RECONVENCAO",
+      "_nota": "Título da peça (' COM RECONVENÇÃO', run variável após 'CONTESTAÇÃO' fixo). Não é decidido de forma independente — espelha exatamente a decisão de RECONVENCAO (INCLUIR/EXCLUIR iguais). Duas ocorrências no DOCX (mc:Choice + mc:Fallback), tratadas como uma unidade lógica.",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "MC_PAIR"
+    },
+    {
+      "id": "SUBBLOCO_CONFORMIDADE_ART_590",
+      "tag": "SUBBLOCO:CONFORMIDADE_ART_590",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "state_linked",
+      "linked_fact": "PROCEDIMENTO_ART_590_DOCUMENTADO",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE",
+      "_nota": "Topic Matrix A1 (candidato): afirmação factual omitida sem prova."
+    },
+    {
+      "id": "SUBBLOCO_REGISTRO_FOTOGRAFICO",
+      "tag": "SUBBLOCO:REGISTRO_FOTOGRAFICO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "state_linked",
+      "linked_fact": "REGISTRO_FOTOGRAFICO_DOCUMENTADO",
+      "placeholders": [
+        "FOTOS_DA_IRREGULARIADE"
+      ],
+      "dependencies": [],
+      "cardinality": "ONE",
+      "_nota": "Topic Matrix A1 (candidato): afirmação factual omitida sem prova."
+    },
+    {
+      "id": "SUBBLOCO_ACOMPANHAMENTO_INSPECAO",
+      "tag": "SUBBLOCO:ACOMPANHAMENTO_INSPECAO",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "state_linked",
+      "linked_fact": "INSPECAO_ACOMPANHADA_DOCUMENTADA",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE",
+      "_nota": "Topic Matrix A1 (candidato): afirmação factual omitida sem prova."
+    },
+    {
+      "id": "SUBBLOCO_NOTIFICACAO_ADMINISTRATIVA",
+      "tag": "SUBBLOCO:NOTIFICACAO_ADMINISTRATIVA",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "state_linked",
+      "linked_fact": "NOTIFICACAO_AUTORA_DOCUMENTADA",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE",
+      "_nota": "Topic Matrix A1 (candidato): afirmação factual omitida sem prova."
+    },
+    {
+      "id": "SUBBLOCO_LEVANTAMENTO_CARGA",
+      "tag": "SUBBLOCO:LEVANTAMENTO_CARGA",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "state_linked",
+      "linked_fact": "LEVANTAMENTO_CARGA_DOCUMENTADO",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE",
+      "_nota": "Topic Matrix A1 (candidato): afirmação factual omitida sem prova."
+    },
+    {
+      "id": "SUBBLOCO_ONUS_NAO_DESTINATARIO_FINAL",
+      "tag": "SUBBLOCO:ONUS_NAO_DESTINATARIO_FINAL",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "linked",
+      "linked_to": "PRELIMINAR_CDC_INAPLICAVEL",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE",
+      "_nota": "Topic Matrix A2 (candidato): espelha inaplicabilidade_cdc."
+    },
+    {
+      "id": "SUBBLOCO_ONUS_ENTES_ESTRUTURADOS",
+      "tag": "SUBBLOCO:ONUS_ENTES_ESTRUTURADOS",
+      "tipo": "CONDICIONAL_PADRAO",
+      "parent": null,
+      "children": [],
+      "decision_mode": "linked",
+      "linked_to": "PRELIMINAR_CDC_INAPLICAVEL",
+      "placeholders": [],
+      "dependencies": [],
+      "cardinality": "ONE",
+      "_nota": "Topic Matrix A2 (candidato): espelha inaplicabilidade_cdc."
+    }
+  ],
+  "zones": [
+    {
+      "id": "ZONA_METODOLOGIA_APURACAO",
+      "tag": "ZONA:METODOLOGIA_APURACAO",
+      "bloco_pai": "CALCULOS_RECUPERACAO_CONSUMO",
+      "finalidade": "Conectar a fundamentação normativa fixa do tópico 3.4 (arts. 326, 595 e 596 da REN ANEEL 1.000/2021, já integralmente transcritos no modelo) aos dados concretos da apuração DESTE processo: critério/inciso do art. 595 efetivamente aplicado, período de irregularidade considerado, ciclos de faturamento, base documental da apuração (memória de cálculo/memorial de faturamento) e, quando necessário à compreensão do cálculo, a quantidade de energia recuperada. NÃO cria tese jurídica nova, NÃO repete a lista dos incisos, NÃO reproduz os arts. 595/596, NÃO reencena a irregularidade (isso é DESENVOLVIMENTO_TECNICO_IRREGULARIDADE) nem a contraposição fática (REALIDADE_FATICA).",
+      "tipo_conteudo": "dado_documental",
+      "requires_facts": [
+        "METODOLOGIA_APURACAO_DOCUMENTADA"
+      ],
+      "max_paragrafos": 3,
+      "max_caracteres_paragrafo": 380,
+      "max_caracteres_total": 1000,
+      "exige_proveniencia": true,
+      "comportamento_vazia": "remover_sdt",
+      "_nota_limites": "Recalibração da Etapa 5.8-C. Os limites originais (2 parágrafos / 400 caracteres totais) tornavam MECANICAMENTE IMPOSSÍVEL a complementação materialmente útil que a zona existe para produzir: demonstrar a aplicação concreta do critério do art. 595 exige nomear inciso, ciclos, consumos, período, diferença apurada e valor — o exemplo-alvo da própria Etapa 5.8-C soma 896 caracteres e reprovava em dois pontos. `max_caracteres_paragrafo` permanece 380 (INV-PARAGRAFO-380 é invariante do projeto, nascida de achado real da Etapa 5.2 — parágrafos excessivamente extensos; não é relaxada aqui). O que foi ampliado é só o teto AGREGADO, e a ampliação é paga por `exige_proveniencia`: a zona pode ser mais longa porque cada dado factual passou a ser rastreável a documento, não porque a IA ganhou liberdade de redação. O risco nº 1 mapeado na Etapa 5.8-A (zona virar válvula de escape para argumentação que não coube em outro campo) continua contido: argumentação não tem número, e conteúdo sem nenhum dado ancorado é rejeitado. Etapa 5.8-C.1: os NÚMEROS não mudaram (3 parágrafos, 380 por parágrafo, 1000 no total), mas o teto por parágrafo passou a ser contado SEM ESPAÇOS (caracteres efetivos: letras, números e pontuação; espaço, tabulação e quebra interna ficam de fora) — o limite material não foi relaxado, passou a medir texto em vez de espaçamento. `max_caracteres_total` continua contado em caracteres BRUTOS; as duas contagens estão explicitadas nas mensagens de erro de validate_paragrafos.py.",
+      "_nota_requires_facts": "Auditoria da Etapa 5.8-B (§4 do pedido): o pipeline produz DOIS contratos factuais distintos — (a) `fatos.json`, lista de fatos em prosa com proveniência (validate_fatos.py), sem chaves consultáveis; (b) `estado_processual.json`, o ÚNICO contrato de fato COM CHAVE, resolvido por docx_block_engine._estado_fato_processual em TRUE/FALSE/INDETERMINADO, hoje com duas chaves (GRATUIDADE_CONCEDIDA, CORTE_EFETIVO). Como a regra de ativação exige a tri-estabilidade (INDETERMINADO -> aborta, §7.3), o gate desta zona reutiliza integralmente o mecanismo (b) — nenhum contrato novo, nenhum validador novo, nenhum arquivo novo de fato. Nenhuma das duas chaves existentes trata de metodologia de apuração, então UMA chave nova é introduzida: METODOLOGIA_APURACAO_DOCUMENTADA — true quando os autos contêm memória de cálculo/memorial de faturamento que identifica o critério e o período da apuração; false/ausente quando não contêm (zona EXCLUIR automático, sem perguntar); 'INDETERMINADO' quando os documentos são contraditórios (aborta). Resolvida pela Skill `contestacao` a partir dos documentos, com proveniência em `fatos.json`, NUNCA por busca lexical.",
+      "_nota_conteudo": "tipo_conteudo restrito a 'dado_documental' neste piloto — 'complemento_factual' NÃO está liberado (§4 do pedido da Etapa 5.8-B).",
+      "_nota_proveniencia": "Etapa 5.8-C.1: cada dado de `zonas.json` declara tipo/valor/unidade/fonte/natureza (documental|derivado), com `operacao` (soma/subtracao/multiplicacao/media sobre outros `tipo`s declarados) quando mantém relação matemática com outros dados, e `metodologia` {descricao,fonte} quando o documento oficial explica uma diferença que a conta simples não reproduz. A verificação aritmética (Decimal, nunca float para dinheiro) é CONTROLE DE COERÊNCIA, nunca recálculo da cobrança: Memorial de Cálculo e Memorial de Faturamento são a fonte de verdade dos valores da apuração, e estimativa regulamentar não é arbitrariedade. Ver SPEC-0001 §59."
+    },
+    {
+      "id": "ZONA_PRETENSAO_RESISTIDA",
+      "tag": "ZONA:PRETENSAO_RESISTIDA",
+      "bloco_pai": "PRELIMINAR_AUSENCIA_INTERESSE_AGIR",
+      "finalidade": "Descrever de forma objetiva e documental a ausência de requerimento administrativo prévio ou a inexistência de resistência concreta da Ré, individualizando o caso (ex.: ausência de protocolo, ausência de reclamação formal, ausência de resposta impugnada). NÃO repete a tese jurídica do tópico 2.3 (interesse de agir, art. 17/330/485 do CPC, Tema 350 STF — isso é texto institucional fixo), e NÃO transforma mera ausência de prova em afirmação categórica sem proveniência.",
+      "tipo_conteudo": "dado_documental",
+      "requires_facts": [
+        "AUSENCIA_TENTATIVA_ADMINISTRATIVA_COMPROVADA"
+      ],
+      "max_paragrafos": 2,
+      "max_caracteres_paragrafo": 380,
+      "max_caracteres_total": 700,
+      "exige_proveniencia": true,
+      "comportamento_vazia": "remover_sdt",
+      "_nota_etapa_5_8_g": "requires_facts reaproveita o mesmo linked_fact que decide a inclusão do bloco 2.3 (PRELIMINAR_AUSENCIA_INTERESSE_AGIR é state_linked) — quando a cascata de resolver_estados_zonas chega a checar requires_facts, o bloco-pai já está INCLUIR, o que só é possível se esse fato já for TRUE; não há redundância inventada, é a mesma evidência que já sustenta o bloco."
+    },
+    {
+      "id": "ZONA_TITULARIDADE_UC",
+      "tag": "ZONA:TITULARIDADE_UC",
+      "bloco_pai": "PRELIMINAR_ILEGITIMIDADE_ATIVA_TERCEIRO",
+      "finalidade": "Individualizar documentalmente a divergência entre a parte autora e o titular formal da unidade consumidora, quando o texto fixo do tópico 2.4 e os placeholders atômicos (CONTA_CONTRATO, NOME_TITULAR_DA_UC) não forem suficientes — ex.: data do cadastro, histórico de faturas em nome do titular, ausência de qualquer registro em nome da autora.",
+      "tipo_conteudo": "dado_documental",
+      "requires_facts": [
+        "UC_TITULARIDADE_TERCEIRO_COMPROVADA"
+      ],
+      "max_paragrafos": 2,
+      "max_caracteres_paragrafo": 380,
+      "max_caracteres_total": 700,
+      "exige_proveniencia": true,
+      "comportamento_vazia": "remover_sdt",
+      "_nota_etapa_5_8_g": "Mesmo raciocínio de ZONA_PRETENSAO_RESISTIDA: reaproveita o linked_fact do bloco-pai 2.4."
+    },
+    {
+      "id": "ZONA_FUNDAMENTACAO_INEPCIA",
+      "tag": "ZONA:FUNDAMENTACAO_INEPCIA",
+      "bloco_pai": "PRELIMINAR_INEPCIA_INICIAL",
+      "finalidade": "Individualizar quais deficiências concretas da petição inicial foram identificadas nos autos (documento ausente, protocolo ausente, data ausente, narrativa genérica, ausência de laudo, ausência de fatura impugnada, ausência de comprovação do dano) — sempre com proveniência, nunca checklist fictício genérico.",
+      "tipo_conteudo": "dado_documental",
+      "requires_facts": [
+        "DEFICIENCIAS_INICIAL_DOCUMENTADAS"
+      ],
+      "max_paragrafos": 3,
+      "max_caracteres_paragrafo": 380,
+      "max_caracteres_total": 1000,
+      "exige_proveniencia": true,
+      "comportamento_vazia": "remover_sdt",
+      "_nota_etapa_5_8_g": "PRELIMINAR_INEPCIA_INICIAL é 'estrategista' (não state_linked — ver nota do bloco), então esta zona precisa de fato PRÓPRIO (não pode reaproveitar um linked_fact que não existe): DEFICIENCIAS_INICIAL_DOCUMENTADAS=true quando os autos permitem apontar, com proveniência, ao menos uma deficiência concreta da inicial; false/ausente -> zona EXCLUIR sem perguntar; 'INDETERMINADO' -> aborta. Independente da decisão INCLUIR/EXCLUIR do bloco 2.6 em si, que continua sendo do estrategista."
+    },
+    {
+      "id": "ZONA_COMPOSICAO_PROVEITO_ECONOMICO",
+      "tag": "ZONA:COMPOSICAO_PROVEITO_ECONOMICO",
+      "bloco_pai": "SUBBLOCO_CUMULACAO_PEDIDOS",
+      "finalidade": "Descrever a composição documental dos pedidos que formam o proveito econômico real da demanda, quando há efetiva cumulação de pedidos (SUBBLOCO_CUMULACAO_PEDIDOS = INCLUIR). A zona NÃO calcula: apenas explica valores já extraídos/documentados e comparados deterministicamente (EXISTE_DISCREPANCIA_VALOR_CAUSA, resolvido pela Skill fora do motor documental).",
+      "tipo_conteudo": "dado_documental",
+      "requires_facts": [
+        "EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS"
+      ],
+      "max_paragrafos": 3,
+      "max_caracteres_paragrafo": 380,
+      "max_caracteres_total": 1000,
+      "exige_proveniencia": true,
+      "comportamento_vazia": "remover_sdt",
+      "_nota_etapa_5_8_g": "bloco_pai é o SUBBLOCO, não o bloco 2.6 — auditado no DOCX real (ZONA:COMPOSICAO_PROVEITO_ECONOMICO está aninhada dentro do <w:sdt> de SUBBLOCO:CUMULACAO_PEDIDOS, não diretamente no de BLOCO:PRELIMINAR_IMPUGNACAO_VALOR_CAUSA). _validar_zonas_contra_template exige que bloco_pai bata com o ancestral físico real — declarar PRELIMINAR_IMPUGNACAO_VALOR_CAUSA aqui abortaria com zona_bloco_pai_divergente. Consequência arquitetural correta: se não há cumulação de pedidos, não há o que compor, então a zona nem existe (cascata: SUBBLOCO_CUMULACAO_PEDIDOS EXCLUIR -> zona EXCLUIR)."
+    }
+  ]
+}

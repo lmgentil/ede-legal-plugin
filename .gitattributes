@@ -1,0 +1,5 @@
+# Contrato versionado do Modelo Oficial V1 (catálogo + manifesto) é
+# fixado por SHA-256 em scripts/modelo_oficial_versoes.py — os bytes
+# precisam sobreviver idênticos a qualquer checkout (core.autocrlf no
+# Windows, LF no CI/Cloud Run). Sem conversão de fim de linha.
+templates/contestacao/v1/*.json -text

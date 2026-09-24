@@ -1,7 +1,10 @@
 # ADR-0020 — Versionamento do Modelo Oficial e Topic Matrix pública
 
-* **Status:** Aceito — ativação **só no homolog** (`ede-mcp-homolog`).
-  Produção inalterada (`ede-mcp-00020-gum`, contrato legado).
+* **Status:** Aceito — **gate V1 homolog PASS (24/09/2026)**. Ativo
+  **só no homolog**: `ede-mcp-homolog-00007-4rm`, imagem
+  `sha256:0145c5e263dbb78f94dd71adc3e1291dc516a0330fd25aacaadcb6871b74fbf1` (commit `799be4c`, VERSION `0.16.0`). Produção
+  inalterada (`ede-mcp-00020-gum`, 100%, contrato legado). Ver
+  "Resultado do gate" ao final.
 * **Data:** 2026-09-24
 * **Relacionados:** ADR-0009 (Modelo Oficial externo), ADR-0015 (Core ×
   adapter MCP, sem LLM no servidor), ADR-0017 (aquisição pinada por
@@ -91,3 +94,36 @@ correção só vai para produção depois de provada no homolog.
   própria.
 * Uma versão futura do modelo = nova entrada no registro + catálogo e
   manifesto fixados por SHA, nunca edição da versão anterior.
+
+## Resultado do gate (24/09/2026) — MODELO OFICIAL V1 HOMOLOG — PASS
+
+| Item | Valor |
+|---|---|
+| Commits | `42fde5c` (round-trip), `fd8ec64` (V1/Topic Matrix), `799be4c` (razão de SKIP dos testes) |
+| CI | run `36025055593`: 1228 passed, 101 skipped, 0 failed |
+| Imagem | `mcp-server@sha256:0145c5e263dbb78f94dd71adc3e1291dc516a0330fd25aacaadcb6871b74fbf1` |
+| Revisão | `ede-mcp-homolog-00007-4rm`, 100% |
+| Modelo V1 | `1e2aa2a52c3341e680acd674658b41c27004a27f5f99c7343643d4d254747a9e` (geração `1790263782666106`) |
+| Catálogo | `3d710366ab4b06a223712c304ebfb3cfef9ea9206ff025dcd6eb8f973d7b2ac2` |
+| Manifesto | 1.0.0 `f703966d0e05ad0ae79a7bd680ada6b2d720bff76125c4793b42d3cec0414a5b` |
+
+* Suíte específica local 57/57 (A–P com render real contra a V1 +
+  regressões do round-trip no modelo atual e na V1). Suíte completa
+  local: única falha a preexistente `test_gate_contestacao` (`skills/docx`
+  local), idêntica e não relacionada.
+* Um primeiro run de CI (`36024193184`) falhou no gate `docx_real`:
+  testes novos pulavam com razão fora do padrão ADR-0009. Corrigido em
+  `799be4c` (razão canônica; modelo V1 local com SHA divergente passa a
+  FALHAR, nunca a pular).
+* Smoke real (conector claude.ai de homolog): `ede_health` READY v1;
+  `NEEDS_INPUT` sem respostas (14 perguntas + corte) e para SIM sem
+  gate (licitude com corte NÃO; reconvenção sem valor do débito); render
+  real com 2.4 incluído → `OK` + `dados_nao_bloqueantes`;
+  `/download/<token>` HTTP 200, SHA-256 idêntico, ZIP/Word válido.
+* Correção do round-trip validada ao vivo (2.4 renderiza); não
+  aplicada em produção.
+* Produção permaneceu `ede-mcp-00020-gum`, 100% do tráfego.
+* Não concluído por este gate: orquestração voltada ao advogado
+  (PEND-015, PEND-016); reconexão dos clientes ao schema novo e smoke
+  cross-client — próximo gate.
+

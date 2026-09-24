@@ -896,8 +896,10 @@ Em aberto (avaliação em andamento).
 
 ## PEND-015 — Zonas VLA redigidas pela LLM do host ainda não são aceitas pelo MCP (D3 do gate V1)
 
-**Status (2026-09-24):** aberta, fora do escopo do gate de ativação da
-V1 (decisão D3 do usuário).
+**Status (2026-09-24):** aberta. Gate de ativação da V1 concluído
+(**PASS** no homolog, `ede-mcp-homolog-00007-4rm`, ADR-0020) sem esta
+funcionalidade, conforme decisão D3 do usuário — confirmado no smoke
+real que as zonas saem vazias e o restante da peça é gerado normalmente.
 **Situação:** `ede_finalizar_peca` não recebe conteúdo de Zona de
 Complementação; toda zona sai vazia (SDT removido), como antes. O
 manifesto V1 declara, por zona, Skills autorizadas/vedadas, fontes e
@@ -911,8 +913,10 @@ variáveis já suportados, que seguem funcionando. Nenhuma LLM no servidor
 
 ## PEND-016 — Tempestividade E2 não implementada (D4 do gate V1)
 
-**Status (2026-09-24):** aberta, fora do escopo do gate de ativação da
-V1 (decisão D4 do usuário).
+**Status (2026-09-24):** aberta. Gate de ativação da V1 concluído
+(**PASS** no homolog, `ede-mcp-homolog-00007-4rm`, ADR-0020) sem E2,
+conforme decisão D4 do usuário — no smoke real `TEMPESTIVIDADE_CASO` foi
+fornecido pelo host, como antes.
 **Situação:** o manifesto V1 marca `TEMPESTIVIDADE_CASO` como
 `CALCULADO_PELO_CORE` (com `calendario-forense-tjba-2026`), mas neste
 gate o valor continua vindo do host, validado só pelos backstops

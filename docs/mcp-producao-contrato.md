@@ -118,7 +118,7 @@ o modo GCS em `scripts/legal_readiness.py` (ver docstring do módulo).
 Mesma disciplina do bloco acima: o bucket **já existe de fato**
 (candidato/homologação, criado no Gate 6.6-E), mas as duas variáveis
 abaixo **não estão aplicadas a nenhuma revisão de produção** — a
-revisão corrente (`ede-mcp-00020-gum`, 100% do tráfego) não tem nenhuma
+revisão corrente (`ede-mcp-00020-gum`, 100% do tráfego — confirmado inalterado ao fim do gate V1, 24/09/2026: geração 21, imagem `63521b14…`, Modelo Oficial `53adf880…`) não tem nenhuma
 delas definida, então `ede_finalizar_peca` em produção hoje recusa com
 `ARTIFACT_STORAGE_FAILED` (`scripts/artifact_storage.ErroConfiguracaoArtefato`)
 até a ativação ser explicitamente autorizada.
@@ -199,8 +199,8 @@ própria.
 |---|---|
 | Serviço Cloud Run | `ede-mcp-homolog` (`southamerica-east1`), labels `gate=6-6-f`, `status=homolog-candidate` |
 | URL canônica / Resource | `https://ede-mcp-homolog-269134711029.southamerica-east1.run.app/mcp` |
-| Imagem (candidato canônico) | `southamerica-east1-docker.pkg.dev/ede-legal-mcp-01/ede-mcp/mcp-server@sha256:14f493a0704b4fdbe078158e087463f7c32d3a532ab3cd03a6ae9cfb7e0836a3` (commit `b20c2cf`, VERSION `0.15.0`) |
-| Revisão | `ede-mcp-homolog-00005-8mp` |
+| Imagem | `southamerica-east1-docker.pkg.dev/ede-legal-mcp-01/ede-mcp/mcp-server@sha256:0145c5e263dbb78f94dd71adc3e1291dc516a0330fd25aacaadcb6871b74fbf1` (commit `799be4c`, VERSION `0.16.0`, gate de ativação do Modelo Oficial V1, ADR-0020). Histórico: `sha256:14f493a0…` (`b20c2cf`, 0.15.0, `00005-8mp`), `sha256:f5d21ad6…` (`0e57ee5`, `00006-n5d`) |
+| Revisão | `ede-mcp-homolog-00007-4rm` (100% do tráfego, 24/09/2026). Anteriores: `00006-n5d`, `00005-8mp` |
 | Service account | `ede-mcp-homolog-runtime@ede-legal-mcp-01.iam.gserviceaccount.com` — dedicada, **nunca** a SA de produção |
 | Invoker | `allUsers` (`roles/run.invoker`) — só depois de provar OAuth obrigatório; a camada de aplicação recusa tudo sem Bearer válido |
 
@@ -223,9 +223,44 @@ separação entre ambientes está no `iss` (um Resource por ambiente) e no
 `aud` — provado ao vivo: token de produção válido recusado pelo homolog
 com `motivo=issuer_invalido`; token de homolog recusado por produção.
 
-**Modelo Oficial e artefatos:** mesmas variáveis congeladas de
-produção para o Modelo Oficial (bucket/objeto/geração
-`1789696822240267`/SHA-256 acima); `EDE_ARTEFATOS_GCS_BUCKET=
+**Modelo Oficial (desde `00007-4rm`, gate V1 — ADR-0020):** o homolog
+**diverge da produção** no Modelo Oficial. Mesmo bucket privado, objeto
+novo, sem sobrescrever o vigente:
+
+| Variável | Valor no homolog |
+|---|---|
+| `EDE_MODELO_OFICIAL_GCS_BUCKET` | `ede-legal-mcp-01-modelo-oficial-privado` (inalterado) |
+| `EDE_MODELO_OFICIAL_GCS_OBJECT` | `modelo-oficial/v1/modelo-oficial.docx` |
+| `EDE_MODELO_OFICIAL_GCS_GENERATION` | `1790263782666106` (1.803.017 bytes, criado com `--if-generation-match=0`) |
+| `EDE_MODELO_OFICIAL_SHA256` | `1e2aa2a52c3341e680acd674658b41c27004a27f5f99c7343643d4d254747a9e` |
+
+Contrato resolvido por esse SHA (`scripts/modelo_oficial_versoes.py`):
+catálogo `templates/contestacao/v1/blocos.json`
+(`3d710366ab4b06a223712c304ebfb3cfef9ea9206ff025dcd6eb8f973d7b2ac2`) e
+manifesto 1.0.0 `APROVADO`
+(`f703966d0e05ad0ae79a7bd680ada6b2d720bff76125c4793b42d3cec0414a5b`),
+ambos confirmados ao vivo por `ede_health`. Nenhuma IAM nova: a SA de
+homolog já tinha `objectViewer` no bucket. O objeto vigente
+(`modelo-oficial/modelo-oficial.docx#1789696822240267`, SHA
+`53adf880…`) segue intacto e é o que a produção usa.
+
+**Resultado do gate V1 (PASS, 24/09/2026):** CI run `36025055593`
+(1228 passed, 101 skipped, 0 failed; `docx_real` só SKIP legítimo
+ADR-0009); suíte específica local 57/57 (cenários A–P com render real +
+regressões do round-trip para múltiplos placeholders no mesmo
+parágrafo). Smoke real pelo conector claude.ai de homolog:
+`ede_health` READY com modelo v1; `ede_finalizar_peca` sem respostas →
+`NEEDS_INPUT` com as 14 perguntas + corte; render real com CDC, 2.4 e
+evolução SIM (corte SIM, licitude NÃO) → `OK` com 3
+`dados_nao_bloqueantes`; `/download/<token>` HTTP 200, 1.773.298 bytes,
+SHA-256 idêntico ao informado pelo servidor, ZIP/Word válido, sem
+placeholder ou tag residual; corte NÃO + licitude SIM e reconvenção SIM
+sem valor do débito → `NEEDS_INPUT`. Observação: o conector claude.ai
+ainda exibia o schema antigo (sem `topicos`/`fatos_publicos`, cache de
+`tools/list`), mas repassou os campos — reconexão dos clientes e smoke
+cross-client do schema novo são o próximo gate.
+
+**Artefatos:** `EDE_ARTEFATOS_GCS_BUCKET=
 ede-legal-mcp-01-artefatos-efemeros`, `EDE_ARTEFATOS_SIGNER_SA=
 ede-mcp-homolog-runtime@…` (auto-impersonation).
 

@@ -35,6 +35,17 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   (tempestividade E2).
 - Testes: `tests/test_topic_matrix_v1.py`,
   `tests/test_round_trip_multiplos_placeholders.py`.
+- **Resultado do gate — MODELO OFICIAL V1 HOMOLOG — PASS (24/09/2026).**
+  Suíte específica 57/57; CI `36025055593`: 1228 passed, 101 skipped, 0
+  failed. Imagem `sha256:0145c5e263dbb78f94dd71adc3e1291dc516a0330fd25aacaadcb6871b74fbf1` (commit `799be4c`), implantada **só** em
+  `ede-mcp-homolog-00007-4rm` (100%), com Modelo V1 `1e2aa2a5…747a9e`
+  (geração `1790263782666106`), catálogo `3d710366…`, manifesto 1.0.0
+  `f703966d…`. Smoke real (conector claude.ai): `ede_health` READY v1,
+  Topic Matrix com `NEEDS_INPUT` e render real (tópico 2.4 incluído,
+  round-trip aprovado), `/download/<token>` HTTP 200 com SHA-256
+  idêntico e ZIP/Word válido. Produção intocada: `ede-mcp-00020-gum`,
+  100%. Próximo gate: reconexão dos clientes ao schema novo e smoke
+  cross-client.
 
 ### Adicionado
 - **OAuth de aplicação no EDE MCP Server** (Gate 6.3-D2, ADR-0016). O EDE

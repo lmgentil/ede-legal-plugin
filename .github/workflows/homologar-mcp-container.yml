@@ -278,6 +278,9 @@ jobs:
               ! -name "capability_registry.py" ! -name "finalizar_peca.py" \
               ! -name "artifact_storage.py" ! -name "limpar_artefatos_agendado.py" \
               ! -name "modelo_oficial_versoes.py" ! -name "topic_matrix.py" \
+              ! -name "datajud_client.py" ! -name "dados_derivados.py" \
+              ! -name "proveito_economico.py" ! -name "tempestividade_texto.py" \
+              ! -name "zonas_conteudo.py" \
               2>/dev/null || true)
             if [ -n "$achados_scripts" ]; then
               echo "ARQUIVO INESPERADO EM /app/scripts NA IMAGEM: $achados_scripts"
@@ -285,9 +288,16 @@ jobs:
             fi
             achados_templates=$(find /app/templates -type f ! -path "*/contestacao/schema.json" \
               ! -path "*/contestacao/blocos.json" ! -path "*/contestacao/v1/blocos.json" \
-              ! -path "*/contestacao/v1/manifesto.json" 2>/dev/null || true)
+              ! -path "*/contestacao/v1/manifesto-1.1.0.json" 2>/dev/null || true)
             if [ -n "$achados_templates" ]; then
               echo "ARQUIVO INESPERADO EM /app/templates NA IMAGEM: $achados_templates"
+              exit 1
+            fi
+            achados_skills=$(find /app/skills -type f \
+              ! -path "*/calendario-forense-tjba-2026/scripts/calcular_tempestividade.py" \
+              ! -path "*/calendario-forense-tjba-2026/feriados_forenses_tjba_2026.json" 2>/dev/null || true)
+            if [ -n "$achados_skills" ]; then
+              echo "ARQUIVO INESPERADO EM /app/skills NA IMAGEM: $achados_skills"
               exit 1
             fi
             achados_rag=$(find /app/rag -maxdepth 1 -type f ! -name "corpus_manifest.json" 2>/dev/null || true)

@@ -32,6 +32,13 @@ Regras (todas fail-closed, nenhuma heurística jurídica):
 - Subblocos factuais sem prova são omitidos pelo próprio motor (vínculo
   `state_linked`, fato ausente -> EXCLUIR); este módulo só produz o aviso
   não bloqueante correspondente.
+- Tópico sem gate, mas com `suporte_informativo` no manifesto (ADR-0021:
+  revogação da gratuidade): SIM inclui o tópico; se o fato informado pelo
+  host não for `true`, só um aviso não bloqueante — nunca pergunta, nunca
+  bloqueio. O aviso é lido do fato ANTES de o vínculo mecânico
+  `state_linked` sobrescrevê-lo.
+- A Topic Matrix é só SIM/NÃO (INV-TOPIC-MATRIX-SO-SIM-NAO): dados de
+  outro tipo têm campos próprios no finalizador, nunca aqui.
 
 Nenhuma mensagem expõe tag SDT, id de bloco, placeholder ou chave de
 estado interno: só `nome_publico`/`pergunta` do manifesto e as
@@ -93,6 +100,9 @@ class ResultadoTopicMatrix:
     estado_processual_motor: dict = field(default_factory=dict)
     pendencias: tuple[str, ...] = ()
     erros: tuple[str, ...] = ()
+    avisos: tuple[str, ...] = ()
+    """Não bloqueantes (ADR-0021), só em OK: vão para
+    `dados_nao_bloqueantes` da resposta."""
 
 
 def _topicos(manifesto: dict) -> list[dict]:
@@ -118,6 +128,10 @@ def verificar_compatibilidade(manifesto: dict, catalogo: dict) -> None:
         for fato in t.get("gate_factual", []):
             if fato not in DESCRICAO_SUPORTE_FACTUAL:
                 raise ManifestoIncompativel(f"fato de gate sem descrição pública: {fato}")
+        info = t.get("suporte_informativo")
+        if info is not None and (not isinstance(info, dict) or not info.get("fato")
+                                 or not str(info.get("aviso_se_nao_documentado") or "").strip()):
+            raise ManifestoIncompativel(f"tópico {t['chave']}: suporte_informativo malformado")
     manuais = {b["id"] for b in por_id.values() if b["decision_mode"] in ("estrategista", "humano")}
     if manuais - manuais_cobertos:
         raise ManifestoIncompativel("bloco de decisão manual sem pergunta pública na Topic Matrix")
@@ -200,6 +214,7 @@ def traduzir(manifesto: dict, catalogo: dict, topicos: dict, fatos_publicos: dic
 
     estado_motor = {**estado_processual, **fatos_resolvidos}
     block_decisions = {}
+    avisos = []
     for t in _topicos(manifesto):
         resposta = topicos.get(t["chave"])
         if resposta is None:
@@ -213,6 +228,9 @@ def traduzir(manifesto: dict, catalogo: dict, topicos: dict, fatos_publicos: dic
                     pendencias.append(_pendencia_suporte(t["nome_publico"], f, estado_motor.get(f)))
             if faltas:
                 continue
+            info = t.get("suporte_informativo")
+            if info and estado_processual.get(info["fato"]) is not True:
+                avisos.append(info["aviso_se_nao_documentado"])
         if bloco["decision_mode"] == "state_linked":
             estado_motor[bloco["linked_fact"]] = incluir
         else:
@@ -220,7 +238,8 @@ def traduzir(manifesto: dict, catalogo: dict, topicos: dict, fatos_publicos: dic
 
     if pendencias:
         return ResultadoTopicMatrix(status="NEEDS_INPUT", pendencias=tuple(dict.fromkeys(pendencias)))
-    return ResultadoTopicMatrix(status="OK", block_decisions=block_decisions, estado_processual_motor=estado_motor)
+    return ResultadoTopicMatrix(status="OK", block_decisions=block_decisions, estado_processual_motor=estado_motor,
+                                avisos=tuple(avisos))
 
 
 def dados_nao_bloqueantes(manifesto: dict, estados_blocos: dict) -> tuple[str, ...]:

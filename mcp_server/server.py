@@ -397,6 +397,63 @@ def ede_preparar_contestacao(entrada: PrepararContestacaoEntrada) -> PrepararCon
 MIME_TYPE_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
+class MarcoTempestividade(BaseModel):
+    """ADR-0021: o advogado informa só a data de disponibilização; o Core
+    deriva a publicação, conta o prazo e redige a tempestividade."""
+
+    tipo: Literal["DISPONIBILIZACAO"]
+    data: str = Field(..., pattern=r"^\d{2}/\d{2}/\d{4}$", description="DD/MM/AAAA")
+
+
+class PedidoEconomico(BaseModel):
+    """Pedido economicamente mensurável extraído da petição inicial pelo
+    host, com a fonte. `valor` ausente = pedido sem valor quantificado
+    (nunca somado como zero)."""
+
+    descricao: str = Field(..., max_length=300)
+    valor: str | None = Field(None, max_length=40, description="Formato monetário brasileiro, ex.: R$ 1.234,56")
+    fonte: str = Field(..., max_length=preparar_contestacao.MAX_SOURCE_DOCUMENT_CHARS)
+
+
+class OperacaoZona(BaseModel):
+    op: Literal["soma", "subtracao", "multiplicacao", "media"]
+    operandos: Annotated[list[Annotated[str, Field(max_length=80)]], Field(max_length=12)]
+
+
+class MetodologiaZona(BaseModel):
+    descricao: str = Field(..., max_length=500)
+    fonte: str = Field(..., max_length=preparar_contestacao.MAX_SOURCE_DOCUMENT_CHARS)
+
+
+class FatoZona(BaseModel):
+    """Mesmo contrato de proveniência de `zonas.json` (Etapa 5.8-C.1)."""
+
+    tipo: str = Field(..., max_length=80)
+    valor: str = Field(..., max_length=80)
+    unidade: str | None = Field(None, max_length=40)
+    fonte: str = Field(..., max_length=preparar_contestacao.MAX_SOURCE_DOCUMENT_CHARS)
+    natureza: Literal["documental", "derivado"]
+    operacao: OperacaoZona | None = None
+    metodologia: MetodologiaZona | None = None
+
+
+class ConteudoZona(BaseModel):
+    conteudo: str = Field(..., max_length=3000)
+    fatos: Annotated[list[FatoZona], Field(max_length=20)]
+
+
+class ZonasEntrada(BaseModel):
+    """Zonas de complementação redigidas pelo host (PEND-015, ADR-0021):
+    só as declaradas no manifesto; `base_documental` são os fatos do caso
+    com fonte (o mesmo contrato de `ede_preparar_contestacao`), contra os
+    quais o Core confere a proveniência de cada dado da zona."""
+
+    conteudo: Annotated[dict[str, ConteudoZona], Field(max_length=finalizar_peca.MAX_ZONAS)] = {}
+    base_documental: Annotated[
+        list[FatoEntrada], Field(max_length=finalizar_peca.MAX_BASE_DOCUMENTAL)
+    ] = []
+
+
 class EdeFinalizarPecaEntrada(BaseModel):
     """Entrada estruturada do finalizador genérico (Decisão 2 da
     ADR-0018). O cliente escolhe uma CAPACIDADE jurídica, nunca um
@@ -439,6 +496,19 @@ class EdeFinalizarPecaEntrada(BaseModel):
               description="Fatos informados pelo advogado (pacote.topic_matrix.fatos_publicos), "
                           "ex.: corte_efetivo. Nunca inferidos da decisão de incluir um tópico."),
     ] = {}
+    marco_tempestividade: MarcoTempestividade | None = Field(
+        None, description="Data de disponibilização informada pelo advogado; o sistema calcula a "
+                          "tempestividade (nunca envie TEMPESTIVIDADE_CASO).")
+    pedidos_economicos: Annotated[
+        list[PedidoEconomico], Field(max_length=finalizar_peca.MAX_PEDIDOS_ECONOMICOS)
+    ] | None = Field(None, description="Pedidos da inicial com valor e fonte; exigido quando a impugnação "
+                                       "ao valor da causa é SIM. O sistema soma e compara.")
+    zonas: ZonasEntrada | None = Field(
+        None, description="Conteúdo das zonas autorizadas (pacote.topic_matrix.partes_redigiveis_llm).")
+    juizo_confirmado_advogado: str | None = Field(
+        None, max_length=finalizar_peca.MAX_JUIZO_CONFIRMADO_CHARS,
+        description="Só depois de NEEDS_INPUT por indisponibilidade do DataJud; usado apenas se ele "
+                    "continuar indisponível.")
 
 
 class EdeFinalizarPecaResposta(BaseModel):

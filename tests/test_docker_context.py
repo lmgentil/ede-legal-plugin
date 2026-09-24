@@ -191,8 +191,39 @@ def test_modulos_core_do_gate_6_5_a_liberados():
     for caminho in esperados:
         assert caminho in DOCKERIGNORE_PERMITIDOS
         assert caminho in origens_copiadas
-    for proibido in ("scripts/gerar_contestacao.py", "scripts/datajud_client.py"):
-        assert proibido not in DOCKERIGNORE_PERMITIDOS
+    # ADR-0021: `datajud_client.py` passou a entrar na imagem para o
+    # FINALIZADOR resolver JUIZO; a preparação continua sem consultar o
+    # DataJud (provado em test_preparacao_continua_sem_datajud abaixo).
+    assert "scripts/gerar_contestacao.py" not in DOCKERIGNORE_PERMITIDOS
+
+
+def test_preparacao_continua_sem_datajud():
+    """Gate 6.5-A §11 continua valendo para `ede_preparar_contestacao`:
+    o módulo não importa o cliente DataJud (ADR-0021 só muda o
+    finalizador)."""
+    fonte = (BASE / "scripts" / "preparar_contestacao.py").read_text(encoding="utf-8")
+    assert "import datajud_client" not in fonte and "from datajud_client" not in fonte
+
+
+def test_modulos_core_da_adr_0021_liberados():
+    """Dados derivados pelo sistema no finalizador V1 (ADR-0021): cliente
+    DataJud, data da peça, proveito econômico, redação da tempestividade,
+    zonas, e só os dois arquivos da skill de calendário usados no cálculo."""
+    esperados = {
+        "scripts/datajud_client.py",
+        "scripts/dados_derivados.py",
+        "scripts/proveito_economico.py",
+        "scripts/tempestividade_texto.py",
+        "scripts/zonas_conteudo.py",
+        "skills/calendario-forense-tjba-2026/scripts/calcular_tempestividade.py",
+        "skills/calendario-forense-tjba-2026/feriados_forenses_tjba_2026.json",
+        "templates/contestacao/v1/manifesto-1.1.0.json",
+    }
+    origens_copiadas = {origem for origem, _ in _linhas_copy()}
+    for caminho in esperados:
+        assert caminho in DOCKERIGNORE_PERMITIDOS, caminho
+        assert caminho in origens_copiadas, caminho
+    assert "skills/calendario-forense-tjba-2026/SKILL.md" not in DOCKERIGNORE_PERMITIDOS
 
 
 def test_modulos_core_do_gate_6_6_c_liberados():
@@ -203,9 +234,9 @@ def test_modulos_core_do_gate_6_6_c_liberados():
     Gate 6.6-A) e `docx_fidelidade_independente.py`/`docx_round_trip.py`
     (verificação pós-render que nunca chama as funções de composição/
     substituição do próprio renderer, Gate 6.6-A) — nenhum esquecido
-    silenciosamente. `gerar_contestacao.py`/`datajud_client.py` continuam
-    de fora: o finalizador nunca resolve `JUIZO`/tempestividade, só
-    compõe e renderiza a partir de um rascunho já estruturado."""
+    silenciosamente. `gerar_contestacao.py` continua de fora. (Até a
+    ADR-0021 o `datajud_client.py` também ficava: o finalizador passou a
+    resolver `JUIZO` e a tempestividade — ver teste da ADR-0021.)"""
     esperados = {
         "scripts/finalizar_peca.py",
         "scripts/capability_registry.py",
@@ -218,8 +249,7 @@ def test_modulos_core_do_gate_6_6_c_liberados():
     for caminho in esperados:
         assert caminho in DOCKERIGNORE_PERMITIDOS
         assert caminho in origens_copiadas
-    for proibido in ("scripts/gerar_contestacao.py", "scripts/datajud_client.py"):
-        assert proibido not in DOCKERIGNORE_PERMITIDOS
+    assert "scripts/gerar_contestacao.py" not in DOCKERIGNORE_PERMITIDOS
 
 
 def test_modulos_core_do_gate_6_6_e_liberados():

@@ -1145,6 +1145,18 @@ def _montar_topic_matrix(manifesto: dict | None) -> dict | None:
     publico["orientacao"] = ("Pergunte ao advogado cada tópico e cada fato público (SIM/NÃO) e envie "
                               "as respostas em 'topicos'/'fatos_publicos' do finalizador. Nunca mostre "
                               "ao advogado ids de bloco, tags, placeholders ou chaves de estado.")
+    # ADR-0021 (INV-NAO-PERGUNTAR-DERIVAVEL): entradas estruturadas fora da
+    # Topic Matrix e o que o sistema calcula sozinho.
+    estruturadas = manifesto.get("entradas_estruturadas_publicas")
+    if estruturadas:
+        publico["entradas_estruturadas"] = estruturadas
+        publico["orientacao"] += (
+            " Ao advogado pergunte somente: os tópicos, os fatos públicos e a data de disponibilização "
+            "(marco_tempestividade). Nunca pergunte o juízo, a data da peça, o texto de tempestividade, o "
+            "proveito econômico ou a decisão que concedeu a gratuidade: o sistema os obtém ou calcula e "
+            "recusa esses campos se vierem do host. Extraia da inicial os pedidos econômicos com fonte "
+            "(pedidos_economicos) quando a impugnação ao valor da causa for SIM. Só envie "
+            "juizo_confirmado_advogado depois de uma pendência por indisponibilidade do DataJud.")
     return publico
 
 

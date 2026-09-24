@@ -144,7 +144,7 @@ def test_modelo_atual_ilegitimidade_ativa_renderiza_e_passa_round_trip(monkeypat
     catalogo = json.loads((BASE / "templates" / "contestacao" / "blocos.json").read_text(encoding="utf-8"))
     decisoes = {b["id"]: "EXCLUIR" for b in catalogo["blocks"] if b["decision_mode"] in ("estrategista", "humano")}
     fatos = {"UC_TITULARIDADE_TERCEIRO_COMPROVADA": True}
-    r = fp.finalizar_peca({"capability_id": T.CAP, "placeholders": T._placeholders(),
+    r = fp.finalizar_peca({"capability_id": T.CAP, "placeholders": T._placeholders_legado(),
                            "block_decisions": decisoes, "estado_processual": fatos})
     assert r.status == "OK", (r.stage, r.error_code, r.motivo)
     estados = be.validar_e_resolver_decisoes(catalogo, {k: {"decisao": v} for k, v in decisoes.items()}, fatos)
@@ -156,10 +156,12 @@ def test_modelo_atual_ilegitimidade_ativa_renderiza_e_passa_round_trip(monkeypat
 def test_v1_ilegitimidade_ativa_renderiza_e_passa_round_trip(monkeypatch):
     caminho = BASE / "templates" / "contestacao" / "v1" / "modelo-oficial.docx"
     _preparar(monkeypatch, caminho, T.V1.modelo_sha256)
+    T._injetar_derivados(monkeypatch)  # ADR-0021: DataJud e relógio injetados, nunca a API real
     topicos = {**T._todos("NAO"), "ilegitimidade_ativa_titularidade": "SIM"}
     fatos = {"UC_TITULARIDADE_TERCEIRO_COMPROVADA": True}
     r = fp.finalizar_peca({"capability_id": T.CAP, "placeholders": T._placeholders(), "topicos": topicos,
-                           "fatos_publicos": {"corte_efetivo": "NAO"}, "estado_processual": fatos})
+                           "fatos_publicos": {"corte_efetivo": "NAO"}, "estado_processual": fatos,
+                           "marco_tempestividade": T.MARCO})
     assert r.status == "OK", (r.stage, r.error_code, r.motivo, r.pendencias)
     trad = T.tm.traduzir(T.MANIFESTO, T.CATALOGO, topicos, {"corte_efetivo": "NAO"}, fatos)
     estados = be.validar_e_resolver_decisoes(

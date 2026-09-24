@@ -95,10 +95,40 @@ def _todos(resposta):
     return {k: resposta for k in CHAVES}
 
 
+INFORMATIVOS = {t["suporte_informativo"]["fato"] for t in MANIFESTO["topicos_decisao_advogado"]
+                if t.get("suporte_informativo")}
+
+
 def _fatos_todos_verdadeiros():
     return {**{g: True for g in GATES}, **{f: True for f in FATOS_SUBBLOCOS.values()},
+            **{f: True for f in INFORMATIVOS},
             "AUSENCIA_TRANSFERENCIA_TITULARIDADE_COMPROVADA": True,
             "EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS": True}
+
+
+# ADR-0021: o finalizador V1 deriva JUIZO (DataJud, injetado), a
+# tempestividade (a partir da disponibilização), a data da peça (relógio
+# injetado) e o proveito econômico (a partir dos pedidos).
+MARCO = {"tipo": "DISPONIBILIZACAO", "data": "01/09/2026"}
+JUIZO_FAKE = "AO JUÍZO DA VARA DE TESTE DA COMARCA DE SALVADOR"
+PEDIDOS = [{"descricao": "declaração de inexistência do débito", "valor": "R$ 2.097,63", "fonte": "inicial"},
+           {"descricao": "indenização por danos morais", "valor": "R$ 12.900,00", "fonte": "inicial"}]
+RESERVADOS = set(MANIFESTO["estados_reservados_ao_core"])
+
+
+def _injetar_derivados(monkeypatch):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    monkeypatch.setattr(fp, "_obter_resolvedor_juizo",
+                        lambda: (lambda numero, cache_path=None: {"juizo": JUIZO_FAKE}))
+    monkeypatch.setattr(fp, "_agora", lambda: datetime(2026, 9, 10, 12, 0, tzinfo=ZoneInfo("America/Bahia")))
+
+
+def _extras(topicos):
+    extras = {"marco_tempestividade": MARCO}
+    if topicos.get("impugnacao_valor_causa") == "SIM":
+        extras["pedidos_economicos"] = PEDIDOS
+    return extras
 
 
 # ====================================================== contrato versionado
@@ -107,13 +137,16 @@ def test_catalogo_e_manifesto_v1_batem_com_os_sha256_aprovados():
     assert hashlib.sha256(V1.catalogo_path.read_bytes()).hexdigest() == \
         "3d710366ab4b06a223712c304ebfb3cfef9ea9206ff025dcd6eb8f973d7b2ac2"
     assert hashlib.sha256(V1.manifesto_path.read_bytes()).hexdigest() == \
+        "42308f8a3f7c52461b0094979426e67fcdb577629fd7683e6d48d048c37c28d6"
+    # ADR-0020: manifesto imutável — o 1.0.0 continua no repositório, byte a byte.
+    assert hashlib.sha256((V1.manifesto_path.parent / "manifesto.json").read_bytes()).hexdigest() == \
         "f703966d0e05ad0ae79a7bd680ada6b2d720bff76125c4793b42d3cec0414a5b"
     assert V1.modelo_sha256 == "1e2aa2a52c3341e680acd674658b41c27004a27f5f99c7343643d4d254747a9e"
     mov.verificar_integridade(V1)
 
 
 def test_manifesto_v1_definitivo_e_environment_neutral():
-    assert MANIFESTO["manifesto_versao"] == "1.0.0"
+    assert MANIFESTO["manifesto_versao"] == "1.1.0"
     assert MANIFESTO["modelo_oficial"]["status"] == "APROVADO"
     assert MANIFESTO["modelo_oficial"]["catalogo_blocos"] == "blocos.json"
     texto = V1.manifesto_path.read_text(encoding="utf-8")
@@ -290,6 +323,7 @@ def ambiente_v1(monkeypatch):
     monkeypatch.delenv("EDE_MODELO_OFICIAL_GCS_OBJECT", raising=False)
     monkeypatch.delenv("EDE_MODELO_OFICIAL_GCS_GENERATION", raising=False)
     monkeypatch.setenv("EDE_MODELO_OFICIAL_SHA256", V1.modelo_sha256)
+    _injetar_derivados(monkeypatch)
 
 
 def test_finalizador_v1_devolve_needs_input_antes_de_qualquer_render(ambiente_v1):
@@ -368,15 +402,14 @@ def modelo_v1_local(monkeypatch):
     monkeypatch.setenv("EDE_MODELO_OFICIAL_SHA256", V1.modelo_sha256)
     monkeypatch.setattr(fp, "_obter_transporte_artefato", lambda: _TransporteFake())
     monkeypatch.setattr(fp, "_obter_base_url_download", lambda: "https://ede.example.test")
+    _injetar_derivados(monkeypatch)
     return caminho
 
 
 def _placeholders():
     return {
-        "JUIZO": "AO JUÍZO DA VARA CÍVEL DA COMARCA DE SALVADOR/BA (DADOS FICTÍCIOS DE TESTE)",
         "NUMERO_PROCESSO": "0000000-00.0000.0.00.0000",
         "AUTOR": "FULANO DE TAL (DADOS FICTÍCIOS DE TESTE)",
-        "TEMPESTIVIDADE_CASO": "Tempestiva, conforme certidão de intimação.",
         "SINOPSE_FATOS": "Síntese fictícia dos fatos, apenas para teste automatizado.",
         "REALIDADE_FATICA": "Linha fictícia da realidade fática.",
         "IRREGULARIDADE_ENCONTRADA": "ligação direta (dado fictício de teste)",
@@ -385,19 +418,29 @@ def _placeholders():
         "VALOR_FRA": "R$ 1.234,56 (dado fictício de teste)",
         "VALOR_DANO_MORAL_PRETENDIDO": "R$ 10.000,00 (dado fictício de teste)",
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
-        "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
         "SINOPSE_FATOS_NUCLEO_OBJETO": "Objeto fictício de teste (dado fictício de teste).",
         "CONTA_CONTRATO": "0000000000 (dado fictício de teste)",
         "NOME_TITULAR_DA_UC": "CICLANO DE TAL (DADOS FICTÍCIOS DE TESTE)",
         "TELAS_DA_TITULARIDADE": "[INSERIR MANUALMENTE AS TELAS/DOCUMENTOS DA TITULARIDADE DA UC]",
         "VALOR_DA_CAUSA": "R$ 10.000,00",
-        "VALOR_TOTAL_PROVEITO_ECONOMICO": "R$ 15.000,00 (dado fictício de teste)",
     }
 
 
+def _placeholders_legado():
+    """Contrato legado (produção): o host continua enviando os quatro
+    campos que o V1 deriva — ADR-0021 não muda o legado."""
+    return {**_placeholders(),
+            "JUIZO": "AO JUÍZO DA VARA CÍVEL DA COMARCA DE SALVADOR/BA (DADOS FICTÍCIOS DE TESTE)",
+            "TEMPESTIVIDADE_CASO": "Tempestiva, conforme certidão de intimação.",
+            "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
+            "VALOR_TOTAL_PROVEITO_ECONOMICO": "R$ 15.000,00 (dado fictício de teste)"}
+
+
 def _finalizar(topicos, corte, fatos):
+    fatos = {k: v for k, v in fatos.items() if k not in RESERVADOS}  # derivados pelo Core (ADR-0021)
     r = fp.finalizar_peca({"capability_id": CAP, "placeholders": _placeholders(), "topicos": topicos,
-                           "fatos_publicos": {"corte_efetivo": corte}, "estado_processual": fatos})
+                           "fatos_publicos": {"corte_efetivo": corte}, "estado_processual": fatos,
+                           **_extras(topicos)})
     assert r.status == "OK", (r.status, r.stage, r.error_code, r.motivo, r.pendencias)
     return r
 
@@ -432,7 +475,9 @@ def _checar_documento(r, estados_esperados_subblocos):
 def test_B_K_M_O_P_tudo_sim_com_fatos_gera_docx_completo(modelo_v1_local):
     r = _finalizar(_todos("SIM"), "SIM", _fatos_todos_verdadeiros())
     corpo = _checar_documento(r, {sb: True for sb in FRASES})
-    assert r.dados_nao_bloqueantes == ()
+    # único aviso: o resultado da conferência do valor da causa (ADR-0021)
+    assert len(r.dados_nao_bloqueantes) == 1
+    assert r.dados_nao_bloqueantes[0].startswith("Impugnação ao valor da causa:")
     assert "A média de consumo da unidade consumidora aumentou" in corpo
     assert "COM RECONVENÇÃO" in corpo.upper()
 
@@ -490,7 +535,8 @@ def test_L_sem_prova_fotografica_o_placeholder_de_fotos_nao_e_exigido(modelo_v1_
     dados = _placeholders()
     dados.pop("FOTOS_DA_IRREGULARIADE")
     r = fp.finalizar_peca({"capability_id": CAP, "placeholders": dados, "topicos": _todos("NAO"),
-                           "fatos_publicos": {"corte_efetivo": "NAO"}, "estado_processual": {}})
+                           "fatos_publicos": {"corte_efetivo": "NAO"}, "estado_processual": {},
+                           "marco_tempestividade": MARCO})
     assert r.status == "OK", (r.stage, r.error_code, r.motivo)
     assert any("fotografias" in a for a in r.dados_nao_bloqueantes)
 
@@ -512,7 +558,8 @@ def test_N_template_lock_reprova_alteracao_de_texto_fixo(modelo_v1_local, monkey
     # 1ª chamada = geração; 2ª = recomputação independente do Template Lock.
     monkeypatch.setattr(be, "substituir_placeholders", _adulterador(be.substituir_placeholders, True))
     r = fp.finalizar_peca({"capability_id": CAP, "placeholders": _placeholders(), "topicos": _todos("NAO"),
-                           "fatos_publicos": {"corte_efetivo": "NAO"}, "estado_processual": {}})
+                           "fatos_publicos": {"corte_efetivo": "NAO"}, "estado_processual": {},
+                           "marco_tempestividade": MARCO})
     assert r.status == "REFUSED" and r.error_code == "TEMPLATE_LOCK_FAILED"
     assert r.documento_bytes is None
 
@@ -523,7 +570,8 @@ def test_O_fidelidade_independente_pega_adulteracao_que_engana_o_lock(modelo_v1_
     # a fidelidade independente, que nunca chama o renderer, reprova.
     monkeypatch.setattr(be, "substituir_placeholders", _adulterador(be.substituir_placeholders, False))
     r = fp.finalizar_peca({"capability_id": CAP, "placeholders": _placeholders(), "topicos": _todos("NAO"),
-                           "fatos_publicos": {"corte_efetivo": "NAO"}, "estado_processual": {}})
+                           "fatos_publicos": {"corte_efetivo": "NAO"}, "estado_processual": {},
+                           "marco_tempestividade": MARCO})
     assert r.status == "REFUSED" and r.stage == "post_render_fidelity"
     assert r.documento_bytes is None
 

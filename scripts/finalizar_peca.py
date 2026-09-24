@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import sys
 import tempfile
 from dataclasses import dataclass, field
@@ -44,8 +45,19 @@ from typing import Literal
 BASE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+sys.path.insert(0, str(BASE / "skills" / "calendario-forense-tjba-2026" / "scripts"))
+
 import artifact_storage as ast  # noqa: E402
 import capability_registry as cr  # noqa: E402
+import datajud_client  # noqa: E402
+import dados_derivados as dd  # noqa: E402
+import proveito_economico as pe  # noqa: E402
+import tempestividade_texto as tt  # noqa: E402
+import zonas_conteudo as zc  # noqa: E402
+from calcular_tempestividade import (INTEMPESTIVO, PENDENTE, calcular_tempestividade,  # noqa: E402
+                                     derivar_publicacao)
+from docx_context_engine import ContextoAbortada, extrair_contexto_do_template  # noqa: E402
+from validate_fatos import normalizar_conteudo_zona  # noqa: E402
 import docx_block_engine as be  # noqa: E402
 import docx_fidelidade_independente as fi  # noqa: E402
 import docx_round_trip as rt  # noqa: E402
@@ -96,7 +108,9 @@ Status = Literal["OK", "REFUSED", "NEEDS_INPUT"]
 """`NEEDS_INPUT` (ADR-0020): falta uma resposta SIM/NÃO da Topic Matrix
 ou o suporte factual de um tópico marcado SIM — nunca documento, nunca
 inclusão silenciosa; `pendencias` diz, em linguagem jurídica, o que
-perguntar ao advogado."""
+perguntar ao advogado. Desde a ADR-0021 também: data de disponibilização
+ausente, resultado intempestivo, DataJud indisponível (sem confirmação)
+ou divergente da confirmação do advogado."""
 
 CODIGOS_ERRO = frozenset({
     "CAPABILITY_NOT_FOUND",
@@ -112,6 +126,7 @@ CODIGOS_ERRO = frozenset({
     "ARTIFACT_TOO_LARGE",
     "ARTIFACT_STORAGE_FAILED",
     "ARTIFACT_DELIVERY_FAILED",
+    "DERIVED_DATA_UNAVAILABLE",
 })
 """Vocabulário FECHADO (Gate 6.6-C §18/§21; Gate 6.6-E acrescentou
 ARTIFACT_STORAGE_FAILED) — o adapter MCP nunca devolve um código fora
@@ -121,6 +136,10 @@ requisição. ARTIFACT_STORAGE_FAILED é entrega efêmera não configurada ou
 upload ao bucket falhou (nenhum link é devolvido).
 ARTIFACT_DELIVERY_FAILED permanece só para a falha pré-existente de
 reabrir o DOCX gerado para fidelidade independente.
+DERIVED_DATA_UNAVAILABLE (ADR-0021): um dado que o sistema calcula
+(tempestividade, endereçamento) não pôde ser obtido com segurança —
+calendário fora da cobertura verificada, processo não localizado no
+DataJud etc. Nunca vira "gerar mesmo assim".
 
 Histórico: `ARTIFACT_SIGNING_FAILED` (Gate 6.6-E) existiu enquanto a
 entrega dependia de assinatura V4 (`signBlob`); removido do vocabulário
@@ -139,6 +158,10 @@ ETAPAS = frozenset({
     "round_trip",
     "artifact_delivery",
     "topic_matrix",
+    "tempestividade",
+    "enderecamento",
+    "valor_da_causa",
+    "zonas",
 })
 """Estágio seguro (Gate 6.6-C §19) — identifica ONDE, nunca O QUÊ (nunca
 conteúdo de fato/placeholder)."""
@@ -258,6 +281,9 @@ _ESTAGIOS_BLOCK_COMPOSITION_CLIENTE = {
 _ESTAGIOS_ZONA_CLIENTE = {
     "zona_indeterminada": ("INPUT_VALIDATION_FAILED",
                             "estado_processual contém um fato indeterminado que bloqueia a composição."),
+    "zona_incoerente": ("INPUT_VALIDATION_FAILED",
+                         "Conteúdo informado para zona cujo tópico não foi incluído ou sem o suporte "
+                         "factual exigido."),
 }
 
 
@@ -307,6 +333,28 @@ def _validar_forma_entrada(entrada: dict) -> ResultadoFinalizacao | None:
         if not isinstance(valor, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in valor.items()):
             return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
                               f"'{campo}' deve ser {{CHAVE_PUBLICA: 'SIM'|'NAO'}}", capability_id)
+    # ADR-0021: entradas estruturadas próprias (nunca dentro da Topic Matrix).
+    marco = entrada.get("marco_tempestividade")
+    if marco is not None and not (isinstance(marco, dict)
+                                  and all(isinstance(marco.get(k), str) for k in ("tipo", "data"))):
+        return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                          "'marco_tempestividade' deve ser {tipo: 'DISPONIBILIZACAO', data: 'DD/MM/AAAA'}",
+                          capability_id)
+    pedidos = entrada.get("pedidos_economicos")
+    if pedidos is not None and not (isinstance(pedidos, list) and all(isinstance(x, dict) for x in pedidos)):
+        return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                          "'pedidos_economicos' deve ser uma lista de {descricao, valor, fonte}", capability_id)
+    zonas = entrada.get("zonas")
+    if zonas is not None and not (isinstance(zonas, dict)
+                                  and isinstance(zonas.get("conteudo") or {}, dict)
+                                  and isinstance(zonas.get("base_documental") or [], list)):
+        return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                          "'zonas' deve ser {conteudo: {ZONA: {conteudo, fatos}}, base_documental: [...]}",
+                          capability_id)
+    juizo_confirmado = entrada.get("juizo_confirmado_advogado")
+    if juizo_confirmado is not None and not isinstance(juizo_confirmado, str):
+        return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                          "'juizo_confirmado_advogado' deve ser texto", capability_id)
     return None
 
 
@@ -339,6 +387,162 @@ def _validar_producao_final(placeholders: dict, estados_blocos: dict, capability
                       "Placeholder obrigatório ausente ou vazio para esta composição.", capability_id)
 
 
+# ------------------------------------------ dados derivados (ADR-0021, V1)
+
+CAMPOS_NOVOS_V1 = ("marco_tempestividade", "pedidos_economicos", "zonas", "juizo_confirmado_advogado")
+"""Entradas estruturadas do contrato com manifesto (ADR-0021) — fora da
+Topic Matrix por invariante (INV-TOPIC-MATRIX-SO-SIM-NAO)."""
+
+DERIVADOS_ADR_0021 = frozenset({"JUIZO", "TEMPESTIVIDADE_CASO", "LOCAL_DATA", "VALOR_TOTAL_PROVEITO_ECONOMICO"})
+"""Placeholders que o finalizador V1 deriva e recusa do host. Outras
+partes que o manifesto marca como do Core (ex.: marcadores manuais de
+fotos/telas) seguem o tratamento anterior — fora do escopo da ADR-0021."""
+
+TIPOS_MARCO_SUPORTADOS = ("DISPONIBILIZACAO",)
+PRAZO_CONTESTACAO_DIAS = 15
+FUNDAMENTO_PRAZO = "art. 335 do CPC (procedimento comum)"
+MAX_JUIZO_CONFIRMADO_CHARS = 300
+MAX_PEDIDOS_ECONOMICOS = pe.MAX_PEDIDOS
+MAX_ZONAS = 8
+MAX_BASE_DOCUMENTAL = 30
+
+
+def _agora():
+    """Relógio injetável (testes). `None` = agora, em America/Bahia: é a
+    data da peça e a data do ato para a tempestividade."""
+    return None
+
+
+def _obter_resolvedor_juizo():
+    """Ponto único de injeção do DataJud — testes nunca chamam a API real."""
+    return datajud_client.resolver_juizo
+
+
+def _partes_do_manifesto(manifesto: dict):
+    for t in manifesto.get("topicos_decisao_advogado") or []:
+        for c in t.get("conteudo") or []:
+            yield t, c
+    for sec in manifesto.get("secoes_incondicionais") or []:
+        for c in sec.get("conteudo") or []:
+            yield None, c
+
+
+def _placeholders_calculados(manifesto: dict) -> set:
+    return {c["parte"] for _, c in _partes_do_manifesto(manifesto)
+            if c.get("modo") == "CALCULADO_PELO_CORE" and not c["parte"].startswith("ZONA_")}
+
+
+def _zonas_autorizadas(manifesto: dict) -> set:
+    return {c["parte"] for _, c in _partes_do_manifesto(manifesto)
+            if c["parte"].startswith("ZONA_") and c.get("modo") == "VARIAVEL_LLM_AUTORIZADA"}
+
+
+def _placeholders_com_simbolo_no_texto_fixo(manifesto: dict) -> set:
+    return {c["parte"] for _, c in _partes_do_manifesto(manifesto) if c.get("simbolo_monetario_no_texto_fixo")}
+
+
+def _topico_do_proveito(manifesto: dict):
+    for t in manifesto.get("topicos_decisao_advogado") or []:
+        if t.get("entrada_estruturada") == "pedidos_economicos":
+            return t
+    return None
+
+
+def _data_br(d) -> str:
+    return d.strftime("%d/%m/%Y")
+
+
+def _parse_data_br(texto):
+    from datetime import datetime as _dt
+    try:
+        return _dt.strptime(str(texto or "").strip(), "%d/%m/%Y").date()
+    except ValueError:
+        return None
+
+
+def _derivar_tempestividade(marco, hoje, capability_id):
+    """-> (texto | None, pendencia | None, recusa | None). Intempestivo
+    nunca gera texto nem peça: vira pendência com marco, publicação e
+    termo final (ADR-0021, Decisão 4)."""
+    from datetime import date as _date
+    if not marco:
+        return None, ("Informe a data de disponibilização da intimação/citação no Diário de Justiça "
+                      "eletrônico (DD/MM/AAAA), para o cálculo da tempestividade."), None
+    if marco.get("tipo") not in TIPOS_MARCO_SUPORTADOS:
+        return None, None, _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                                     "marco_tempestividade: nesta versão só o tipo DISPONIBILIZACAO é suportado.",
+                                     capability_id)
+    disponibilizacao = _parse_data_br(marco.get("data"))
+    if disponibilizacao is None:
+        return None, None, _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                                     "marco_tempestividade: data inválida; use DD/MM/AAAA.", capability_id)
+    if disponibilizacao > hoje:
+        return None, None, _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                                     "marco_tempestividade: a data de disponibilização é posterior à data atual.",
+                                     capability_id)
+    publicacao, motivo = derivar_publicacao(disponibilizacao)
+    if publicacao is None:
+        return None, None, _recusado("tempestividade", "DERIVED_DATA_UNAVAILABLE",
+                                     f"Tempestividade não calculada: {motivo}.", capability_id)
+    r = calcular_tempestividade(data_pratica_ato=hoje, data_publicacao=publicacao,
+                                prazo_legal_dias=PRAZO_CONTESTACAO_DIAS, tipo_prazo="uteis",
+                                fundamento_normativo=FUNDAMENTO_PRAZO, verificar_cobertura=True)
+    if r.status == PENDENTE:
+        return None, None, _recusado("tempestividade", "DERIVED_DATA_UNAVAILABLE",
+                                     f"Tempestividade não calculada: {r.motivo_pendencia}.", capability_id)
+    if r.status == INTEMPESTIVO:
+        termo_final = _date.fromisoformat(r.termo_final)
+        return None, (f"Pelo cálculo automático, com disponibilização em {_data_br(disponibilizacao)} e "
+                      f"publicação em {_data_br(publicacao)}, o prazo de 15 (quinze) dias úteis para a "
+                      f"contestação (art. 335 do CPC) encerrou-se em {_data_br(termo_final)}. A peça não "
+                      f"foi gerada: confirme a data de disponibilização informada ou decida como "
+                      f"prosseguir."), None
+    return tt._redigir_tempestividade_natural(r), None, None
+
+
+def _derivar_juizo(numero_processo, confirmado, capability_id):
+    """-> (juizo | None, pendencia | None, recusa | None, aviso | None).
+    DataJud respondendo é autoritativo; confirmação humana só vale se ele
+    estiver indisponível NESTA chamada (ADR-0021, exceção da
+    INV-JUIZO-DATAJUD)."""
+    resolver = _obter_resolvedor_juizo()
+    confirmado = (confirmado or "").strip()
+    try:
+        with tempfile.TemporaryDirectory() as tmp:  # sem cache persistente entre requisições
+            juizo = resolver(numero_processo, cache_path=Path(tmp) / "juizo_cache.json")["juizo"]
+    except datajud_client.JuizoResolutionError as e:
+        if e.codigo == datajud_client.TAG_INDISPONIVEL:
+            if confirmado:
+                return (confirmado, None, None,
+                        "O DataJud/CNJ estava indisponível; o endereçamento usado foi o confirmado pelo advogado.")
+            return None, ("O serviço DataJud/CNJ está indisponível no momento, e o endereçamento não pôde ser "
+                          "obtido automaticamente. Tente novamente mais tarde ou confirme a unidade judiciária "
+                          "(juízo e comarca) do processo."), None, None
+        if e.codigo == datajud_client.TAG_ERRO_AUTENTICACAO:
+            motivo = "O DataJud/CNJ recusou a credencial pública do sistema; é necessária atualização do plugin."
+        else:
+            motivo = f"Endereçamento não identificado com segurança pelo DataJud/CNJ: {e.motivo}"
+        return None, None, _recusado("enderecamento", "DERIVED_DATA_UNAVAILABLE", motivo[:500], capability_id), None
+    if confirmado and confirmado.upper() != juizo.strip().upper():
+        return None, (f"O endereçamento obtido do DataJud/CNJ (\"{juizo}\") diverge do confirmado "
+                      f"(\"{confirmado}\"). O DataJud está respondendo normalmente; confirme qual é o "
+                      f"correto antes de prosseguir."), None, None
+    return juizo, None, None, None
+
+
+def _derivar_proveito(pedidos, valor_da_causa, capability_id):
+    """-> (valor_total_formatado, cumulacao, aviso), ou uma recusa."""
+    try:
+        r = pe.calcular_proveito(pedidos, valor_da_causa)
+    except pe.EntradaProveitoInvalida as e:
+        return _recusado("valor_da_causa", "INPUT_VALIDATION_FAILED", f"pedidos_economicos: {e}", capability_id)
+    if r.pedidos_quantificados == 0:
+        return _recusado("valor_da_causa", "MISSING_REQUIRED_FIELD",
+                         "Nenhum pedido com valor quantificado na petição inicial; o proveito econômico não "
+                         "pode ser calculado a partir dos autos.", capability_id)
+    return pe.formatar_brl(r.total), r.cumulacao_economica, f"Impugnação ao valor da causa: {r.resumo()}"
+
+
 # --------------------------------------------------------------- adaptador
 
 def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.Capacidade) -> ResultadoFinalizacao:
@@ -363,16 +567,57 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
 
     topicos: dict = entrada.get("topicos") or {}
     fatos_publicos: dict = entrada.get("fatos_publicos") or {}
+    novos = [c for c in CAMPOS_NOVOS_V1 if entrada.get(c) not in (None, "", [], {})]
+    avisos: list = []
+    conteudo_zonas: dict = {}
+    base_documental: list = []
+    textos_zonas_previos: dict = {}
+    simbolo_no_texto_fixo: set = set()
     if manifesto is None:
-        if topicos or fatos_publicos:
+        if topicos or fatos_publicos or novos:
             return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
-                              "O Modelo Oficial configurado não usa a matriz de tópicos; "
-                              "informe as decisões em 'block_decisions'.", capability_id)
+                              "O Modelo Oficial configurado não usa a matriz de tópicos nem as entradas "
+                              "estruturadas; informe as decisões em 'block_decisions'.", capability_id)
     else:
         if block_decisions:
             return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
                               "Com o Modelo Oficial configurado, as decisões são informadas por tópico "
                               "('topicos', SIM/NAO), nunca por bloco.", capability_id)
+
+        # ADR-0021: o que o sistema calcula nunca vem do host.
+        calculados = DERIVADOS_ADR_0021
+        if not calculados <= _placeholders_calculados(manifesto):
+            return _recusado("official_model_readiness", "OFFICIAL_MODEL_NOT_READY",
+                              "Manifesto não declara como calculados pelo Core os campos que o sistema deriva.",
+                              capability_id)
+        enviados = sorted(calculados & set(placeholders))
+        if enviados:
+            return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                              f"Os campos {enviados} são calculados pelo sistema e não devem ser enviados "
+                              f"pelo host.", capability_id)
+        reservados = sorted(set(manifesto.get("estados_reservados_ao_core") or []) & set(estado_processual))
+        if reservados:
+            return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                              f"Os estados {reservados} são derivados pelo sistema e não devem ser enviados "
+                              f"pelo host.", capability_id)
+
+        # Zonas: só as autorizadas pelo manifesto; a validação completa
+        # (proveniência, limites, semântica, continuidade) roda depois,
+        # quando o texto institucional adjacente já pode ser lido.
+        zonas_in = entrada.get("zonas") or {}
+        conteudo_zonas = dict(zonas_in.get("conteudo") or {})
+        base_documental = list(zonas_in.get("base_documental") or [])
+        nao_autorizadas = sorted(set(conteudo_zonas) - _zonas_autorizadas(manifesto))
+        if nao_autorizadas:
+            return _recusado("zonas", "INPUT_VALIDATION_FAILED",
+                              f"Zona(s) não autorizada(s) pelo manifesto: {nao_autorizadas}.", capability_id)
+        if len(conteudo_zonas) > MAX_ZONAS or len(base_documental) > MAX_BASE_DOCUMENTAL:
+            return _recusado("zonas", "INPUT_VALIDATION_FAILED", "Entrada de zonas acima do limite.", capability_id)
+        textos_zonas_previos = {z: normalizar_conteudo_zona(v)[0] for z, v in conteudo_zonas.items()}
+        if any(textos_zonas_previos.values()) and not base_documental:
+            return _recusado("zonas", "INPUT_VALIDATION_FAILED",
+                              "Conteúdo de zona exige a base documental do caso (fatos com fonte).", capability_id)
+
         traducao = tm.traduzir(manifesto, catalogo, topicos, fatos_publicos, estado_processual)
         if traducao.status == "INVALID":
             return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
@@ -384,7 +629,66 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
                 pendencias=traducao.pendencias,
             )
         block_decisions = traducao.block_decisions
-        estado_processual = traducao.estado_processual_motor
+        estado_processual = dict(traducao.estado_processual_motor)
+        avisos.extend(traducao.avisos)
+        placeholders = dict(placeholders)
+        simbolo_no_texto_fixo = _placeholders_com_simbolo_no_texto_fixo(manifesto)
+
+        # Proveito econômico (tópico com entrada estruturada `pedidos_economicos`).
+        topico_proveito = _topico_do_proveito(manifesto)
+        pedidos = entrada.get("pedidos_economicos") or []
+        if topico_proveito is not None and topicos.get(topico_proveito["chave"]) == "SIM":
+            if not pedidos:
+                return _recusado("valor_da_causa", "MISSING_REQUIRED_FIELD",
+                                  "Com a impugnação ao valor da causa, informe em 'pedidos_economicos' os pedidos "
+                                  "extraídos da petição inicial, com valor e fonte.", capability_id)
+            if not str(placeholders.get("VALOR_DA_CAUSA") or "").strip():
+                return _recusado("valor_da_causa", "MISSING_REQUIRED_FIELD",
+                                  "Valor atribuído à causa ausente.", capability_id)
+            resultado = _derivar_proveito(pedidos, placeholders["VALOR_DA_CAUSA"], capability_id)
+            if isinstance(resultado, ResultadoFinalizacao):
+                return resultado
+            total, cumulacao, aviso = resultado
+            placeholders["VALOR_TOTAL_PROVEITO_ECONOMICO"] = total
+            estado_processual["EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS"] = cumulacao
+            avisos.append(aviso)
+        elif pedidos:
+            return _recusado("valor_da_causa", "INPUT_VALIDATION_FAILED",
+                              "'pedidos_economicos' informado, mas a impugnação ao valor da causa não foi "
+                              "incluída.", capability_id)
+
+        # Tempestividade e endereçamento: pendências juntas, uma pergunta só.
+        hoje = dd.hoje_institucional(_agora())
+        pendencias, etapa_pendencia = [], None
+        texto_tempestividade, pendencia, recusa = _derivar_tempestividade(
+            entrada.get("marco_tempestividade"), hoje, capability_id)
+        if recusa is not None:
+            return recusa
+        if pendencia:
+            pendencias.append(pendencia)
+            etapa_pendencia = "tempestividade"
+        numero_processo = str(placeholders.get("NUMERO_PROCESSO") or "").strip()
+        if not numero_processo:
+            return _recusado("production_final_validation", "MISSING_REQUIRED_FIELD",
+                              "Número do processo ausente; é necessário para o endereçamento.", capability_id)
+        juizo, pendencia, recusa, aviso = _derivar_juizo(
+            numero_processo, entrada.get("juizo_confirmado_advogado"), capability_id)
+        if recusa is not None:
+            return recusa
+        if pendencia:
+            pendencias.append(pendencia)
+            etapa_pendencia = etapa_pendencia or "enderecamento"
+        if aviso:
+            avisos.append(aviso)
+        if pendencias:
+            return ResultadoFinalizacao(
+                status="NEEDS_INPUT", capability_id=capability_id, stage=etapa_pendencia,
+                motivo="Faltam dados para calcular a tempestividade ou o endereçamento.",
+                pendencias=tuple(pendencias),
+            )
+        placeholders["TEMPESTIVIDADE_CASO"] = texto_tempestividade
+        placeholders["JUIZO"] = juizo
+        placeholders["LOCAL_DATA"] = f"{dd.LOCAL_INSTITUCIONAL}, {dd.data_por_extenso(hoje)}"
 
     erro = _validar_rascunho_estruturado(placeholders, schema, capability_id)
     if erro is not None:
@@ -398,7 +702,8 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
         return _recusado_por_codigo(codigo, motivo, capability_id)
 
     try:
-        estados_zonas = be.resolver_estados_zonas(catalogo, estados_blocos, None, estado_processual)
+        estados_zonas = be.resolver_estados_zonas(catalogo, estados_blocos, textos_zonas_previos or None,
+                                                  estado_processual)
     except ComposicaoAbortada as e:
         codigo, motivo = _classificar_etapa_engine(e.stage)
         return _recusado_por_codigo(codigo, motivo, capability_id)
@@ -407,6 +712,14 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
                                    versao.placeholder_bloco_dono_extra)
     if erro is not None:
         return erro
+
+    # PEND-018: onde o texto fixo já traz "R$" antes do placeholder, o valor
+    # (validado acima no formato "R$ 1.234,56") entra no documento sem o
+    # símbolo — declarado no manifesto, nunca adivinhado. Legado inalterado.
+    placeholders_render = {
+        k: (re.sub(r"^\s*R\$\s?", "", v) if k in simbolo_no_texto_fixo else v)
+        for k, v in placeholders.items()
+    }
 
     resultado_modelo = lr.avaliar_modelo_oficial(SCHEMA_PADRAO, versao.catalogo_path)
     if resultado_modelo.status != "READY":
@@ -425,9 +738,22 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
         template_efemero.write_bytes(modelo_bytes)
         saida = tmp / "peca-finalizada.docx"
 
+        texto_por_zona = None
+        if any(textos_zonas_previos.values()):
+            try:
+                contexto = extrair_contexto_do_template(template_efemero, versao.catalogo_path)
+            except (ContextoAbortada, ComposicaoAbortada):
+                return _recusado("official_model_readiness", "OFFICIAL_MODEL_NOT_READY",
+                                  "Contexto institucional das zonas não pôde ser lido do Modelo Oficial.",
+                                  capability_id)
+            texto_por_zona, _, erro_zonas = zc.validar_conteudo_zonas(
+                conteudo_zonas, catalogo, base_documental, contexto)
+            if erro_zonas is not None:
+                return _recusado("zonas", "INPUT_VALIDATION_FAILED", erro_zonas[:500], capability_id)
+
         relatorio = be.gerar_peca_com_blocos(
-            template_efemero, SCHEMA_PADRAO, versao.catalogo_path, placeholders, decisoes_blocos, saida,
-            fatos_processuais=estado_processual,
+            template_efemero, SCHEMA_PADRAO, versao.catalogo_path, placeholders_render, decisoes_blocos, saida,
+            fatos_processuais=estado_processual, conteudo_zonas=texto_por_zona,
         )
         if relatorio["status"] != "OK":
             etapa_engine = relatorio.get("etapa", "")
@@ -462,13 +788,13 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
                                          capability_id, stage="post_render_fidelity")
 
         extraido = rt.extrair_valores_gerados(template_xml, gerado_xml, catalogo, estados_blocos, estados_zonas,
-                                               nomes=list(placeholders))
+                                               nomes=list(placeholders_render))
         sempre_visiveis, bloco_dono = vs.placeholders_por_visibilidade(versao.placeholder_bloco_dono_extra)
         alcancaveis = set(sempre_visiveis) | {
             nome for nome, bloco in bloco_dono.items() if estados_blocos.get(bloco) == "INCLUIR"
         }
-        alcancaveis &= set(placeholders)
-        divergencias_rt = rt.comparar_round_trip(placeholders, extraido, alcancaveis)
+        alcancaveis &= set(placeholders_render)
+        divergencias_rt = rt.comparar_round_trip(placeholders_render, extraido, alcancaveis)
         if divergencias_rt:
             return _recusado("round_trip", "ROUND_TRIP_FAILED",
                               "O conteúdo do documento gerado não corresponde ao rascunho aceito.", capability_id)
@@ -518,7 +844,8 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
             download_url=entrega.download_url,
             download_expires_at=entrega.expires_at,
             artefato_id=entrega.artefato_id,
-            dados_nao_bloqueantes=tm.dados_nao_bloqueantes(manifesto, estados_blocos) if manifesto else (),
+            dados_nao_bloqueantes=(tm.dados_nao_bloqueantes(manifesto, estados_blocos) + tuple(avisos)
+                                   if manifesto else ()),
         )
 
 

@@ -183,6 +183,20 @@ COPY --chown=10001:10001 scripts/finalizar_peca.py scripts/finalizar_peca.py
 # legal_readiness/preparar_contestacao/finalizar_peca.
 COPY --chown=10001:10001 scripts/modelo_oficial_versoes.py scripts/modelo_oficial_versoes.py
 COPY --chown=10001:10001 scripts/topic_matrix.py scripts/topic_matrix.py
+# ADR-0021: dados que o próprio sistema deriva no finalizador V1 —
+# endereçamento (DataJud/IBGE, stdlib HTTP, sem dependência nova), data
+# da peça (zoneinfo; a base IANA vem do tzdata do Debian desta imagem,
+# provado no Cloud Build cb73793a), proveito econômico (Decimal),
+# redação da tempestividade e validação compartilhada das zonas.
+COPY --chown=10001:10001 scripts/datajud_client.py scripts/datajud_client.py
+COPY --chown=10001:10001 scripts/dados_derivados.py scripts/dados_derivados.py
+COPY --chown=10001:10001 scripts/proveito_economico.py scripts/proveito_economico.py
+COPY --chown=10001:10001 scripts/tempestividade_texto.py scripts/tempestividade_texto.py
+COPY --chown=10001:10001 scripts/zonas_conteudo.py scripts/zonas_conteudo.py
+# Cálculo de prazo e calendário TJBA verificado (só estes dois arquivos
+# da skill — nunca SKILL.md nem outras skills).
+COPY --chown=10001:10001 skills/calendario-forense-tjba-2026/scripts/calcular_tempestividade.py skills/calendario-forense-tjba-2026/scripts/calcular_tempestividade.py
+COPY --chown=10001:10001 skills/calendario-forense-tjba-2026/feriados_forenses_tjba_2026.json skills/calendario-forense-tjba-2026/feriados_forenses_tjba_2026.json
 
 # Gate 6.6-E (ADR-0019): entrega v2 do artefato -- objeto GCS efêmero +
 # URL HTTPS assinada, substitui o EmbeddedResource inline v1 (Decisão 5
@@ -210,7 +224,9 @@ COPY --chown=10001:10001 templates/contestacao/blocos.json templates/contestacao
 # Contrato da V1 (ADR-0020): catálogo + manifesto públicos, fixados por
 # SHA-256; o .docx da V1 continua fora de qualquer imagem (ADR-0009).
 COPY --chown=10001:10001 templates/contestacao/v1/blocos.json templates/contestacao/v1/blocos.json
-COPY --chown=10001:10001 templates/contestacao/v1/manifesto.json templates/contestacao/v1/manifesto.json
+# Manifesto ativo da V1 é o 1.1.0 (ADR-0021); o 1.0.0 fica só no
+# repositório como histórico, não é lido em runtime.
+COPY --chown=10001:10001 templates/contestacao/v1/manifesto-1.1.0.json templates/contestacao/v1/manifesto-1.1.0.json
 
 # Gate 6.5-A: só `models.py` de rag/legal_validation/ (o construtor
 # `fonte_juridica()`, puro dict, sem import algum) — nunca o pacote

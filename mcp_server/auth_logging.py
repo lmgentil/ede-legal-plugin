@@ -178,6 +178,10 @@ ESTAGIOS_FINALIZACAO: Final = frozenset({
     "round_trip",
     "artifact_delivery",
     "topic_matrix",
+    "tempestividade",
+    "enderecamento",
+    "valor_da_causa",
+    "zonas",
 })
 
 CODIGOS_ERRO_FINALIZACAO: Final = frozenset({
@@ -194,6 +198,7 @@ CODIGOS_ERRO_FINALIZACAO: Final = frozenset({
     "ARTIFACT_TOO_LARGE",
     "ARTIFACT_STORAGE_FAILED",
     "ARTIFACT_DELIVERY_FAILED",
+    "DERIVED_DATA_UNAVAILABLE",
 })
 
 # Vocabulário FECHADO do evento de download (Gate 6.6-F/G) — mesma

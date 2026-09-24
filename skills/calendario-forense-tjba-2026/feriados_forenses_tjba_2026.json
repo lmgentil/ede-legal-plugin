@@ -1,6 +1,11 @@
 {
   "_leia_isto_primeiro": "Dados transcritos de skills/calendario-forense-tjba-2026/SKILL.md (a skill do usuário, autoridade sobre este calendário). Este JSON é só uma representação estruturada para uso programático por scripts/calcular_tempestividade.py — em caso de divergência, o SKILL.md é a fonte.",
   "verificado": true,
+  "cobertura": {
+    "inicio": "2026-01-01",
+    "fim": "2026-12-19",
+    "_nota": "PEND-017 (ADR-0021): janela em que este calendário responde por todos os feriados e suspensões. Termina em 19/12/2026 porque a partir de 20/12/2026 corre a suspensão de prazos do art. 220 do CPC e o recesso 2026/2027, disciplinados por decreto do TJBA do exercício seguinte, não transcrito aqui. Contagem que saia desta janela é recusada pelo fluxo MCP (verificar_cobertura=True), nunca feita sem esses dados."
+  },
   "fonte_oficial": "Decreto Judiciário TJBA nº 1050, de 04/12/2025 (DJE de 05/12/2025) — https://www7.tjba.jus.br/secao/lerPublicacao.wsp?tmp.mostrarDiv=sim&tmp.id=41093&tmp.secao=9",
   "data_verificacao": "conforme skills/calendario-forense-tjba-2026/SKILL.md — válido apenas para 2026",
   "feriados_forenses": [

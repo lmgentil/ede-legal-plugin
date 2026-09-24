@@ -51,7 +51,10 @@ sys.path.insert(0, str(BASE / "scripts"))
 sys.path.insert(0, str(BASE / "rag"))
 sys.path.insert(0, str(BASE / "skills" / "calendario-forense-tjba-2026" / "scripts"))
 
-from calcular_tempestividade import INTEMPESTIVO, PENDENTE, TEMPESTIVO, calcular_tempestividade  # noqa: E402
+from calcular_tempestividade import INTEMPESTIVO, PENDENTE, TEMPESTIVO, calcular_tempestividade  # noqa: E402,F401
+# Redação da tempestividade compartilhada com o finalizador MCP (ADR-0021)
+# — mesmo texto nos dois fluxos, nunca uma segunda versão.
+from tempestividade_texto import _data_br, _redigir_tempestividade_natural  # noqa: E402,F401
 import datajud_client  # noqa: E402
 from docx_block_engine import (  # noqa: E402
     ComposicaoAbortada,
@@ -64,18 +67,13 @@ from docx_block_engine import (  # noqa: E402
 from docx_context_engine import ContextoAbortada, extrair_contexto_do_template  # noqa: E402
 from docx_template_engine import carregar_schema, garantir_utf8  # noqa: E402
 from legal_validation import validar_citacao  # noqa: E402
-from validate_fatos import (  # noqa: E402
-    normalizar_conteudo_zona,
-    validar_fatos,
-    validar_proveniencia_zona,
-)
+from validate_fatos import validar_fatos  # noqa: E402
 from validate_paragrafos import (  # noqa: E402
     validar_densidade_blocos,
-    validar_densidade_zonas,
     validar_paragrafos_placeholders,
 )
-from validate_placeholder_semantics import (validar_semantica, validar_semantica_zonas,  # noqa: E402
-                                             validar_continuidade_zonas)
+from zonas_conteudo import validar_conteudo_zonas  # noqa: E402
+from validate_placeholder_semantics import validar_semantica  # noqa: E402
 
 TEMPLATE_PADRAO = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
 SCHEMA_PADRAO = BASE / "templates" / "contestacao" / "schema.json"
@@ -331,45 +329,6 @@ def _etapa_tempestividade(caso: Path, stages: list):
     return _redigir_tempestividade_natural(r)
 
 
-def _data_br(data_iso: str) -> str:
-    """"YYYY-MM-DD" -> "DD/MM/YYYY" (nunca ISO na redação final)."""
-    from datetime import datetime as _dt
-    return _dt.strptime(data_iso, "%Y-%m-%d").strftime("%d/%m/%Y")
-
-
-def _redigir_tempestividade_natural(r) -> str:
-    """Transforma o resultado determinístico de calcular_tempestividade()
-    em prosa jurídica curta e institucional (Etapa 5.5 §3) — nunca
-    algoritmo/cálculo interno/input/advogado/sistema/JSON/calendário como
-    ferramenta/proveniência verbalizados na peça.
-
-    r.status já não pode ser PENDENTE aqui (_etapa_tempestividade aborta
-    antes de chamar esta função) — só resta TEMPESTIVO/INTEMPESTIVO, e o
-    resultado precisa declarar explicitamente qual dos dois é o caso
-    (nunca uma frase ambígua que sirva para ambos — regressão real do
-    formato robótico antigo, que ao menos prefixava "INTEMPESTIVO:")."""
-    marco = _data_br(r.termo_inicial)
-    termo_final = _data_br(r.termo_final)
-    if r.status == TEMPESTIVO:
-        return (
-            f"A presente Contestação é tempestiva. Considerado o marco "
-            f"processual ocorrido em {marco} e a contagem do prazo de 15 "
-            f"(quinze) dias úteis, nos termos do art. 335 do Código de "
-            f"Processo Civil, o prazo defensivo encerra-se em "
-            f"{termo_final}, razão pela qual a defesa é apresentada "
-            f"tempestivamente.")
-    if r.status == INTEMPESTIVO:
-        return (
-            f"Considerado o marco processual ocorrido em {marco} e a "
-            f"contagem do prazo de 15 (quinze) dias úteis, nos termos do "
-            f"art. 335 do Código de Processo Civil, o prazo defensivo "
-            f"encerrou-se em {termo_final}, de modo que a presente "
-            f"Contestação é intempestiva.")
-    raise ValueError(f"status de tempestividade não reconhecido: {r.status!r} — "
-                      f"fail-closed, nunca gerar redação para um status "
-                      f"desconhecido/ambíguo.")
-
-
 def _etapa_estrategia(caso: Path, stages: list):
     caminho = caso / "estrategia.md"
     if not caminho.exists():
@@ -595,53 +554,14 @@ def _etapa_zonas(caso: Path, stages: list, catalogo_path: Path, fatos: list = No
     except ComposicaoAbortada as e:
         return _abortar(stages, e.stage, e.motivo)
 
-    # Etapa 5.8-C — proveniência: normaliza o contrato estruturado
-    # ({"conteudo": ..., "fatos": [...]}) e confere que nenhum dado
-    # numérico do texto existe sem lastro documental declarado. As fontes
-    # aceitas são as MESMAS que já sustentam a peça (`fatos.json`) — a
-    # zona não abre uma base probatória própria. Etapa 5.8-C.1: `fatos`
-    # inteiro (não só os nomes dos documentos), porque a checagem passou a
-    # exigir que o dado documental esteja NAQUELE documento.
-    zonas_catalogo = {z["id"]: z for z in catalogo.get("zones", [])}
-    texto_por_zona, proveniencia, erros_proveniencia = {}, {}, []
-    for zid, bruto in sorted(conteudo.items()):
-        texto, fatos_zona, erros_forma = normalizar_conteudo_zona(bruto)
-        erros_proveniencia.extend(f"{zid}: {e}" for e in erros_forma)
-        texto_por_zona[zid] = texto
-        if not texto:
-            continue
-        proveniencia[zid] = fatos_zona
-        if zonas_catalogo.get(zid, {}).get("exige_proveniencia", True):
-            erros_proveniencia.extend(
-                validar_proveniencia_zona(texto, fatos_zona, zid, fatos))
-    if erros_proveniencia:
-        return _abortar(stages, "zonas",
-                         f"proveniência do conteúdo de zona inválida: {erros_proveniencia}")
-
-    ok_densidade, erros_densidade = validar_densidade_zonas(texto_por_zona, catalogo.get("zones", []))
-    if not ok_densidade:
-        return _abortar(stages, "zonas",
-                         f"conteúdo de zona fora dos limites do catálogo: {erros_densidade}")
-
-    ok_semantica, erros_semantica = validar_semantica_zonas(texto_por_zona)
-    if not ok_semantica:
-        return _abortar(stages, "zonas",
-                         f"conteúdo de zona semanticamente inválido: {erros_semantica}")
-
-    # Etapa 5.8-D.1 — INV-CONTINUIDADE-ZONA: a zona precisa ser
-    # continuação natural do texto institucional adjacente (TEXTO
-    # INSTITUCIONAL ANTERIOR -> ZONA -> TEXTO INSTITUCIONAL POSTERIOR).
-    # Fail-closed: nunca exclui a zona nem toca o texto institucional —
-    # devolve o motivo para a Skill `contestacao` reformular só o
-    # conteúdo da zona (não há mecanismo de retry automático no código:
-    # Skills não são chamáveis por este script, mesma limitação de
-    # sempre; "nova tentativa" é a orquestração, não um loop em Python).
-    ok_continuidade, erros_continuidade = validar_continuidade_zonas(
-        texto_por_zona, contexto_institucional or {})
-    if not ok_continuidade:
-        return _abortar(stages, "zonas",
-                         f"zona repete abertura do texto institucional adjacente "
-                         f"(INV-CONTINUIDADE-ZONA): {erros_continuidade}")
+    # Etapa 5.8-C/5.8-C.1 (proveniência contra `fatos.json` inteiro),
+    # densidade, semântica e, desde a 5.8-D.1, INV-CONTINUIDADE-ZONA — a
+    # mesma sequência que o finalizador MCP usa (ADR-0021), extraída para
+    # `zonas_conteudo.validar_conteudo_zonas` sem mudança de regra.
+    texto_por_zona, proveniencia, erro = validar_conteudo_zonas(
+        conteudo, catalogo, fatos, contexto_institucional)
+    if erro is not None:
+        return _abortar(stages, "zonas", erro)
 
     preenchidas = sorted(k for k, v in texto_por_zona.items() if v.strip())
     stages.append({"name": "zonas", "status": "ok", "fonte": str(caminho),

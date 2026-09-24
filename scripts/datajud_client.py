@@ -115,6 +115,14 @@ DATAJUD_API_KEY_PADRAO = "cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZG
 # nunca cai para JUIZO gerativo, nunca busca/inventa nova chave sozinho.
 TAG_ERRO_AUTENTICACAO = "DATAJUD_AUTH_ERROR"
 
+# Marcador de INDISPONIBILIDADE (falha transitória persistente depois dos
+# retries: timeout, erro de conexão, HTTP 5xx). É o único caso em que o
+# finalizador MCP admite confirmação humana do endereçamento (ADR-0021,
+# exceção da INV-JUIZO-DATAJUD); processo não encontrado, resposta
+# ambígua, sem órgão julgador ou credencial inválida NÃO recebem este
+# código e continuam fail-closed.
+TAG_INDISPONIVEL = "DATAJUD_INDISPONIVEL"
+
 # CNJ Resolução 65/2008: segmento 8 (Justiça Estadual), TR 01-27 na ordem
 # alfabética do nome do Estado/Distrito Federal. Alias real confirmado
 # contra datajud-wiki.cnj.jus.br/api-publica/endpoints/ (todos seguem
@@ -136,7 +144,8 @@ class JuizoResolutionError(Exception):
     """Fail-closed único desta camada — nunca presume JUIZO. `motivo` é a
     mensagem destinada ao advogado/operador (stage=juizo_datajud).
     `codigo`, quando presente, distingue casos com tratamento próprio —
-    hoje só `TAG_ERRO_AUTENTICACAO` (chave inválida/expirada)."""
+    `TAG_ERRO_AUTENTICACAO` (chave inválida/expirada) e `TAG_INDISPONIVEL`
+    (serviço fora do ar depois dos retries)."""
 
     def __init__(self, motivo: str, codigo: str = None):
         self.motivo = motivo
@@ -233,7 +242,8 @@ def _fazer_requisicao(req: urllib.request.Request, timeout: int, tentativas: int
             ultimo_erro = e
         if tentativa < tentativas:
             time.sleep(min(2 ** (tentativa - 1), 4))
-    raise JuizoResolutionError(f"{nome_servico} indisponível após {tentativas} tentativa(s): {ultimo_erro}")
+    raise JuizoResolutionError(f"{nome_servico} indisponível após {tentativas} tentativa(s): {ultimo_erro}",
+                               codigo=TAG_INDISPONIVEL)
 
 
 def _post_json(url: str, body: dict, headers: dict, timeout: int, tentativas: int, nome_servico: str) -> dict:

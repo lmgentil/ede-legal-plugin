@@ -88,10 +88,56 @@ def contar_termo_final_dias_uteis(termo_inicial: date, prazo_dias: int,
     return dia
 
 
+def cobertura_do_calendario(calendario: dict):
+    """Janela (inicio, fim) em que o calendário verificado responde por
+    TODOS os feriados e suspensões — fora dela nenhuma contagem é
+    confiável (PEND-017). `None` se o calendário não a declara."""
+    c = calendario.get("cobertura")
+    if not isinstance(c, dict) or not c.get("inicio") or not c.get("fim"):
+        return None
+    return _para_data(c["inicio"]), _para_data(c["fim"])
+
+
+def _dia_util(dia: date, feriados: set, suspensoes: list) -> bool:
+    return dia.weekday() < 5 and dia not in feriados and not _em_suspensao(dia, suspensoes)
+
+
+def derivar_publicacao(data_disponibilizacao, caminho_calendario: Path = CALENDARIO_PADRAO):
+    """Publicação = primeiro dia útil seguinte à disponibilização no
+    Diário de Justiça eletrônico (CPC art. 224, §§ 2º e 3º). O prazo, por
+    sua vez, começa no primeiro dia útil seguinte à publicação — o que
+    `contar_termo_final_dias_uteis` já faz a partir do termo inicial.
+
+    Devolve (data_publicacao, None) ou (None, motivo) — nunca presume:
+    calendário não verificado, sem janela de cobertura, ou
+    disponibilização/publicação fora dela é motivo de recusa."""
+    calendario = carregar_calendario(caminho_calendario)
+    if not calendario.get("verificado"):
+        return None, "calendário forense não verificado — publicação não pode ser derivada"
+    cobertura = cobertura_do_calendario(calendario)
+    if cobertura is None:
+        return None, "calendário forense sem janela de cobertura declarada"
+    inicio, fim = cobertura
+    disponibilizacao = _para_data(data_disponibilizacao)
+    if not inicio <= disponibilizacao <= fim:
+        return None, (f"data de disponibilização fora do período coberto pelo calendário forense "
+                      f"verificado ({inicio.strftime('%d/%m/%Y')} a {fim.strftime('%d/%m/%Y')})")
+    feriados = {_para_data(d) for d in calendario.get("feriados_forenses", [])}
+    suspensoes = calendario.get("suspensoes", [])
+    dia = disponibilizacao + timedelta(days=1)
+    while not _dia_util(dia, feriados, suspensoes):
+        dia += timedelta(days=1)
+    if dia > fim:
+        return None, (f"a publicação derivada ultrapassa o período coberto pelo calendário forense "
+                      f"verificado (até {fim.strftime('%d/%m/%Y')})")
+    return dia, None
+
+
 def calcular_tempestividade(data_pratica_ato, data_publicacao=None,
                              data_ciencia=None, prazo_legal_dias=None,
                              tipo_prazo="uteis", fundamento_normativo=None,
-                             caminho_calendario: Path = CALENDARIO_PADRAO
+                             caminho_calendario: Path = CALENDARIO_PADRAO,
+                             verificar_cobertura: bool = False
                              ) -> ResultadoTempestividade:
     """
     data_pratica_ato: data em que o ato processual foi/será praticado
@@ -152,6 +198,19 @@ def calcular_tempestividade(data_pratica_ato, data_publicacao=None,
     else:
         r.motivo_pendencia = f"tipo_prazo desconhecido: {tipo_prazo!r}"
         return r
+
+    if verificar_cobertura:
+        # PEND-017 (ADR-0021): fora da janela do calendário verificado a
+        # contagem ignoraria feriados/suspensões não cadastrados (ex.:
+        # recesso a partir de 20/12, CPC art. 220) — recusa, nunca conta.
+        cobertura = cobertura_do_calendario(calendario)
+        if cobertura is None or not (cobertura[0] <= termo_inicial and termo_final <= cobertura[1]):
+            limite = cobertura[1].strftime("%d/%m/%Y") if cobertura else "não declarado"
+            r.motivo_pendencia = (
+                f"a contagem do prazo ultrapassa o período coberto pelo calendário forense "
+                f"verificado (até {limite}); é necessário o calendário oficial do período seguinte")
+            r.termo_inicial = str(termo_inicial)
+            return r
 
     ato = _para_data(data_pratica_ato)
     status = TEMPESTIVO if ato <= termo_final else INTEMPESTIVO

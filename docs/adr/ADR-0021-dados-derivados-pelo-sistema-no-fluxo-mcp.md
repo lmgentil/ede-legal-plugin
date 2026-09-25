@@ -197,3 +197,18 @@ round-trip; Modelo Oficial V1 (DOCX) e catálogo V1 inalterados.
   2026b) pelo Cloud Build `cb73793a-4c42-4c52-a52c-94b30e7bc931`:
   nenhuma dependência nova.
 
+## Ajuste pós-smoke — política de chamada ao DataJud (0.17.1)
+
+O smoke no homolog (`00008-bnf`, 0.17.0) classificou o DataJud como
+indisponível em todas as chamadas: com 3 tentativas de 10 s, nenhuma
+resposta chegava a tempo. Medição direta (25/09/2026): 4 respostas 200 em
+5 (21,2 s; 39,5 s; 57,1 s; 37,1 s), um 429 e, antes, um 504 depois de
+~60 s. Nova política: **uma requisição por consulta**, conexão 5 s,
+leitura 65 s, **sem retry** (evita multiplicar a carga no CNJ). 429, 5xx,
+timeout e falha de conexão passam a ser indisponibilidade — antes, o 429
+caía como erro definitivo e recusaria em vez de oferecer o fallback. O
+fallback humano e a INV-JUIZO-DATAJUD ficam exatamente como aprovados.
+**Pendente:** prova real end-to-end do DataJud no homolog depois do deploy
+da 0.17.1. Risco: uma resolução pode levar até ~130 s (DataJud + IBGE) no
+pior caso, o que pode exceder o tempo de espera de alguns clientes MCP.
+

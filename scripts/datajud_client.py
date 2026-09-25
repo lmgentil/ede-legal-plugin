@@ -83,11 +83,12 @@ Uso via CLI (teste real isolado, sem gerar peça):
     python scripts/datajud_client.py --numero-processo 8000099-11.2026.8.05.0080
 """
 import argparse
+import functools
 import gzip
+import http.client
 import json
 import os
 import re
-import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -96,8 +97,17 @@ from pathlib import Path
 DATAJUD_BASE_URL = "https://api-publica.datajud.cnj.jus.br"
 IBGE_MUNICIPIO_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/municipios/{codigo}"
 
-_TIMEOUT_PADRAO = 10  # segundos, por requisição
-_TENTATIVAS_PADRAO = 3  # 1 tentativa inicial + até 2 retries em falha transitória
+# Política de chamada (correção pós-smoke da ADR-0021, VERSION 0.17.1):
+# UMA requisição por consulta, sem retry automático. Medido em 25/09/2026
+# contra o DataJud real: 4 respostas 200 em 5 tentativas, em 21,2 s,
+# 39,5 s, 57,1 s e 37,1 s; nenhuma abaixo de 10 s; um 429 e, antes, um
+# 504 depois de ~60 s. A política anterior (3 tentativas x 10 s) nunca
+# recebia a resposta e ainda multiplicava a carga no CNJ. Conexão tem
+# limite curto (servidor fora do ar aparece logo); leitura tem limite
+# longo (servidor lento ainda responde).
+_TIMEOUT_CONEXAO_PADRAO = 5  # segundos para abrir a conexão TCP/TLS
+_TIMEOUT_PADRAO = 65  # segundos de leitura da resposta
+_TENTATIVAS_PADRAO = 1  # mantido na assinatura por compatibilidade; sempre 1
 _CACHE_PADRAO = Path(__file__).parent.parent / ".cache" / "datajud" / "juizo_cache.json"
 
 # PONTO CANÔNICO ÚNICO da chave pública DataJud (Etapa 5.5 — decisão
@@ -115,8 +125,8 @@ DATAJUD_API_KEY_PADRAO = "cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZG
 # nunca cai para JUIZO gerativo, nunca busca/inventa nova chave sozinho.
 TAG_ERRO_AUTENTICACAO = "DATAJUD_AUTH_ERROR"
 
-# Marcador de INDISPONIBILIDADE (falha transitória persistente depois dos
-# retries: timeout, erro de conexão, HTTP 5xx). É o único caso em que o
+# Marcador de INDISPONIBILIDADE (HTTP 429, HTTP 5xx, timeout de leitura
+# ou falha de conexão/DNS, sem nova tentativa). É o único caso em que o
 # finalizador MCP admite confirmação humana do endereçamento (ADR-0021,
 # exceção da INV-JUIZO-DATAJUD); processo não encontrado, resposta
 # ambígua, sem órgão julgador ou credencial inválida NÃO recebem este
@@ -213,37 +223,72 @@ def _salvar_cache(cache_path: Path, cache: dict) -> None:
 
 
 # --------------------------------------------------------------- HTTP (stdlib só)
+class _ConexaoHTTPS(http.client.HTTPSConnection):
+    """Conexão com limites SEPARADOS: `timeout` (o do construtor) vale
+    para abrir a conexão; depois dela, o socket passa a usar o limite de
+    leitura."""
+
+    def __init__(self, *args, timeout_leitura=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._timeout_leitura = timeout_leitura
+
+    def connect(self):
+        super().connect()
+        if self._timeout_leitura is not None:
+            self.sock.settimeout(self._timeout_leitura)
+
+
+class _HandlerHTTPS(urllib.request.HTTPSHandler):
+    def __init__(self, timeout_leitura):
+        super().__init__()
+        self._timeout_leitura = timeout_leitura
+
+    def https_open(self, req):
+        return self.do_open(functools.partial(_ConexaoHTTPS, timeout_leitura=self._timeout_leitura),
+                            req, context=self._context)
+
+
+def _abrir_url(req: urllib.request.Request, timeout_conexao: float, timeout_leitura: float):
+    """Ponto ÚNICO de rede deste módulo (testes o substituem — nenhuma
+    suíte automatizada chama a API real). Abre UMA conexão."""
+    opener = urllib.request.build_opener(_HandlerHTTPS(timeout_leitura))
+    return opener.open(req, timeout=timeout_conexao)
+
+
 def _fazer_requisicao(req: urllib.request.Request, timeout: int, tentativas: int, nome_servico: str) -> dict:
-    """POST/GET com retry limitado só para falha transitória (timeout,
-    erro de conexão, HTTP 5xx) — erro 4xx (auth, not found, bad request)
-    nunca é retentado, pois retry não resolve."""
-    ultimo_erro = None
-    for tentativa in range(1, tentativas + 1):
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                bruto = resp.read()
-                if resp.headers.get("Content-Encoding", "").lower() == "gzip":
-                    bruto = gzip.decompress(bruto)
-                return json.loads(bruto.decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            if e.code in (401, 403):
-                raise JuizoResolutionError(
-                    f"{nome_servico} rejeitou a credencial (HTTP {e.code}: {e.reason}) — "
-                    f"a chave pública pode ter sido rotacionada pelo CNJ. Atualize "
-                    f"DATAJUD_API_KEY_PADRAO em scripts/datajud_client.py (ou defina "
-                    f"DATAJUD_API_KEY como override) com a chave vigente em "
-                    f"https://datajud-wiki.cnj.jus.br/api-publica/acesso/ — nunca "
-                    f"inventada/buscada automaticamente.",
-                    codigo=TAG_ERRO_AUTENTICACAO)
-            if 400 <= e.code < 500:
-                raise JuizoResolutionError(f"{nome_servico} retornou HTTP {e.code}: {e.reason}")
-            ultimo_erro = e
-        except (urllib.error.URLError, TimeoutError, OSError) as e:
-            ultimo_erro = e
-        if tentativa < tentativas:
-            time.sleep(min(2 ** (tentativa - 1), 4))
-    raise JuizoResolutionError(f"{nome_servico} indisponível após {tentativas} tentativa(s): {ultimo_erro}",
-                               codigo=TAG_INDISPONIVEL)
+    """UMA requisição, sem retry (política da versão 0.17.1 — ver
+    _TIMEOUT_PADRAO). `timeout` é o limite de leitura; a conexão usa
+    _TIMEOUT_CONEXAO_PADRAO. `tentativas` fica na assinatura só por
+    compatibilidade e é ignorado.
+
+    Indisponibilidade (TAG_INDISPONIVEL — a única que abre a confirmação
+    humana no finalizador, ADR-0021): HTTP 429 (limite de requisições do
+    CNJ), HTTP 5xx, timeout e erro de conexão/DNS. Credencial recusada
+    (401/403) e demais 4xx continuam falhas definitivas."""
+    try:
+        with _abrir_url(req, _TIMEOUT_CONEXAO_PADRAO, timeout) as resp:
+            bruto = resp.read()
+            if resp.headers.get("Content-Encoding", "").lower() == "gzip":
+                bruto = gzip.decompress(bruto)
+            return json.loads(bruto.decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        if e.code in (401, 403):
+            raise JuizoResolutionError(
+                f"{nome_servico} rejeitou a credencial (HTTP {e.code}: {e.reason}) — "
+                f"a chave pública pode ter sido rotacionada pelo CNJ. Atualize "
+                f"DATAJUD_API_KEY_PADRAO em scripts/datajud_client.py (ou defina "
+                f"DATAJUD_API_KEY como override) com a chave vigente em "
+                f"https://datajud-wiki.cnj.jus.br/api-publica/acesso/ — nunca "
+                f"inventada/buscada automaticamente.",
+                codigo=TAG_ERRO_AUTENTICACAO) from e
+        if e.code == 429 or e.code >= 500:
+            raise JuizoResolutionError(f"{nome_servico} indisponível (HTTP {e.code}: {e.reason}); "
+                                       f"sem nova tentativa automática", codigo=TAG_INDISPONIVEL) from e
+        raise JuizoResolutionError(f"{nome_servico} retornou HTTP {e.code}: {e.reason}") from e
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise JuizoResolutionError(f"{nome_servico} indisponível (sem resposta dentro do limite ou falha de "
+                                   f"conexão: {e}); sem nova tentativa automática",
+                                   codigo=TAG_INDISPONIVEL) from e
 
 
 def _post_json(url: str, body: dict, headers: dict, timeout: int, tentativas: int, nome_servico: str) -> dict:

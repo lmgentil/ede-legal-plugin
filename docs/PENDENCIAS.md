@@ -954,6 +954,9 @@ ano, intempestivo) e smoke cross-client aprovado no homolog.
 **Implementação (24/09/2026, pré-deploy):** integrada e testada
 localmente (`tests/test_adr0021_dados_derivados.py`); falta homolog e
 smoke cross-client.
+**Homolog (25/09/2026, 0.17.0, `00008-bnf`):** smoke do servidor PASS
+para tempestividade; DataJud real ainda não provado (serviço do CNJ
+degradado; política de chamada corrigida na 0.17.1, pendente de deploy).
 
 ## PEND-017 — Calendário forense só cobre 2026; contagem não verifica o ano
 

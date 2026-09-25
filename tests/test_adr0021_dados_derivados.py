@@ -296,6 +296,24 @@ def test_datajud_indisponivel_com_confirmacao_segue(v1, monkeypatch):
     assert len(resolvedor.chamadas) == 1  # tentou o DataJud de novo nesta chamada
 
 
+def test_429_real_do_cliente_datajud_vira_pendencia_de_fallback_com_uma_chamada(v1, monkeypatch):
+    """Integração da política 0.17.1: cliente DataJud REAL (só a rede
+    simulada) recebendo 429 -> indisponibilidade -> NEEDS_INPUT de
+    endereçamento, sem segunda chamada ao CNJ."""
+    import urllib.error
+    chamadas = []
+
+    def abrir(req, timeout_conexao, timeout_leitura):
+        chamadas.append(req.full_url)
+        raise urllib.error.HTTPError(req.full_url, 429, "Too Many Requests", {}, None)
+    monkeypatch.setattr(datajud_client, "_abrir_url", abrir)
+    monkeypatch.setattr(fp, "_obter_resolvedor_juizo", lambda: datajud_client.resolver_juizo)
+    ph = {**T._placeholders(), "NUMERO_PROCESSO": "8000099-11.2026.8.05.0080"}  # CNJ válido (TJBA), fictício
+    r = fp.finalizar_peca(_entrada(placeholders=ph))
+    assert r.status == "NEEDS_INPUT" and r.stage == "enderecamento"
+    assert len(chamadas) == 1 and "datajud" in chamadas[0]
+
+
 def test_datajud_de_volta_e_divergente_nunca_escolhe_sozinho(v1):
     r = fp.finalizar_peca(_entrada(juizo_confirmado_advogado="AO JUÍZO DA OUTRA VARA DA COMARCA DE ILHÉUS"))
     assert r.status == "NEEDS_INPUT" and r.stage == "enderecamento" and "diverge" in r.pendencias[0]

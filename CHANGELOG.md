@@ -7,6 +7,17 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### 0.17.1 — política de chamada ao DataJud (pré-deploy)
+- Uma requisição por consulta ao DataJud/IBGE, conexão 5 s e leitura 65 s,
+  **sem retry** (antes: 3 tentativas de 10 s). Motivo: latência real
+  medida de 21 a 57 s, um 429 e um 504; com 10 s nenhuma resposta chegava.
+- HTTP 429 passa a ser indisponibilidade (abre o fallback humano do
+  finalizador), como 5xx, timeout e falha de conexão; 401/403/4xx seguem
+  definitivos. Único ponto de rede do módulo (`_abrir_url`), simulado em
+  todos os testes.
+- Manifesto 1.1.0, schema MCP e lógica jurídica inalterados. Produção
+  intocada; prova real do DataJud no homolog pendente.
+
 ### ADR-0021 — dados derivados pelo sistema no finalizador V1 (pré-deploy, homolog não atualizado)
 - **Contrato V1 (manifesto 1.1.0, arquivo novo; 1.0.0 preservado):** o
   finalizador calcula `JUIZO` (DataJud/IBGE), `TEMPESTIVIDADE_CASO` (a

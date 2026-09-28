@@ -7,6 +7,17 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### 0.18.0 — marco de tempestividade `CIENCIA` (pré-deploy)
+- `marco_tempestividade` aceita `{"tipo": "CIENCIA", "data": "DD/MM/AAAA"}`:
+  data da citação/intimação/ciência entregue diretamente ao cálculo da
+  Skill `calendario-forense-tjba-2026` (fonte normativa), sem derivar
+  publicação. `DISPONIBILIZACAO` inalterado.
+- Manifesto V1 1.2.0 (1.1.0 e 1.0.0 preservados); orientação ao host sem
+  pedido de modalidade da citação.
+- Nova PEND-019 (harmonização documental do ramo `DISPONIBILIZACAO` com a
+  Skill). Schema público muda por adição: exige reconexão e smoke
+  cross-client. Produção intocada.
+
 ### 0.17.1 — política de chamada ao DataJud (pré-deploy)
 - Uma requisição por consulta ao DataJud/IBGE, conexão 5 s e leitura 65 s,
   **sem retry** (antes: 3 tentativas de 10 s). Motivo: latência real

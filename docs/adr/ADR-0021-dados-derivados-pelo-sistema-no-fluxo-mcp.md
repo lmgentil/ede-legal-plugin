@@ -266,3 +266,46 @@ ou `juizo_confirmado_advogado`.
 ABERTA; PEND-018 RESOLVIDA NO V1 / LEGADO CONGELADO. A prova real do
 DataJud no homolog, pendente desde o ajuste da 0.17.1, está feita.
 Primeiro caso real ainda não retomado.
+
+## Emenda 0.18.0 — marco de tempestividade `CIENCIA` (27/09/2026, pré-deploy)
+
+**Origem:** primeiro caso real (8000949-25.2026.8.05.0271). O advogado
+informou "Citação: 20/09/2026", sem documento de disponibilização no
+DJe. O contrato 0.17.1 só aceitava `DISPONIBILIZACAO`, e o host não pode
+converter um ato processual em outro.
+
+**Decisão:** o contrato foi ampliado para refletir a fonte normativa da
+tempestividade, a Skill `calendario-forense-tjba-2026`. O `SKILL.md`
+(seção "Metodologia de contagem") conta o prazo a partir da
+"intimação/ciência": "o início se dá no primeiro dia útil seguinte à
+intimação/ciência". Nenhuma regra jurídica nova foi criada e a Skill não
+foi alterada.
+
+Arquitetura: **Skill normativa → contrato estruturado → Core
+determinístico → MCP → host.**
+
+* `marco_tempestividade.tipo` aceita `DISPONIBILIZACAO` e `CIENCIA`.
+* `CIENCIA` = data da citação/intimação/ciência, usada diretamente como
+  `data_ciencia` em `calcular_tempestividade` da Skill; **não** passa
+  por `derivar_publicacao`. Mesma trava de cobertura (PEND-017), mesmo
+  fail-closed, mesmo texto de tempestividade. Não se pede a modalidade
+  da citação nesta versão.
+* `DISPONIBILIZACAO` fica exatamente como homologado na 0.17.1
+  (publicação no primeiro dia útil seguinte, depois a contagem). A
+  harmonização documental desse ramo com o `SKILL.md`, que não descreve
+  a derivação da publicação, fica em PEND-019.
+* Manifesto V1 **1.2.0** (novo SHA fixado); 1.1.0 e 1.0.0 preservados
+  byte a byte, fora da imagem.
+* Host: extrair o marco dos documentos primeiro; data de
+  citação/intimação/ciência → `CIENCIA`; disponibilização no DJe
+  especificamente → `DISPONIBILIZACAO`; sem marco documental, perguntar
+  a data ao advogado; nunca converter `CIENCIA` em `DISPONIBILIZACAO`.
+
+**Prova local:** `CIENCIA` 20/09/2026, com ato em 27/09/2026 → marco
+20/09/2026, primeiro dia contado 21/09/2026, termo final 09/10/2026,
+tempestivo. `DISPONIBILIZACAO` 21/09/2026 → publicação 22/09/2026,
+termo final 14/10/2026 (inalterado).
+
+**Consequências:** mudança aditiva do schema público (novo valor do
+enum) → reconexão dos clientes e novo smoke cross-client; versão 0.18.0.
+PEND-015 e PEND-016 continuam fechadas para o V1.

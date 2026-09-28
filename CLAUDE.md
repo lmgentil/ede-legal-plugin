@@ -378,8 +378,8 @@ Etapa 5.2") — resumo operacional aqui:
   aceita outros tipos.
 - **INV-NAO-PERGUNTAR-DERIVAVEL** (ADR-0021) — depois da Topic Matrix, o
   sistema extrai, calcula e consulta; ao advogado só se pergunta decisão
-  de tópico, fato público SIM/NÃO do manifesto, data de disponibilização
-  (tempestividade) e as exceções fail-closed previstas (DataJud
+  de tópico, fato público SIM/NÃO do manifesto, data do marco de
+  tempestividade (quando não constar dos documentos) e as exceções fail-closed previstas (DataJud
   indisponível, intempestividade, conflito documental real). Nunca
   perguntar juízo, data da peça, texto de tempestividade, proveito
   econômico/discrepância do valor da causa ou documento concessivo da
@@ -779,6 +779,16 @@ do ano coberto → recusa, nunca contagem sem feriados (PEND-017).
 **Resultado intempestivo nunca gera peça nem o texto "a presente
 Contestação é intempestiva"**: `NEEDS_INPUT` com marco, publicação e
 termo final, aguardando decisão humana.
+
+**Marco `CIENCIA` (emenda 0.18.0, SPEC-0001 §64.7)** — Skill normativa
+→ contrato estruturado → Core → MCP → host. `marco_tempestividade`
+aceita também `{"tipo": "CIENCIA", "data": "DD/MM/AAAA"}`: a data da
+citação/intimação/ciência vai direto como `data_ciencia` para o cálculo
+desta Skill (início no primeiro dia útil seguinte, `SKILL.md`), sem
+derivar publicação. `DISPONIBILIZACAO` segue como acima (harmonização
+documental em PEND-019). O host extrai o marco dos documentos primeiro,
+nunca converte `CIENCIA` em `DISPONIBILIZACAO` e nunca pergunta a
+modalidade da citação.
 
 ---
 

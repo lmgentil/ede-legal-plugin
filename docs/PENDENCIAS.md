@@ -32,6 +32,7 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-016 | FECHADA PARA V1 (smoke cross-client 0.17.1 PASS, 2026-09-27) | Gate V1 homolog (2026-09-24) | Tratar a tempestividade via MCP como calculada pelo Core | Tempestividade a partir da data de disponibilização ainda não integrada ao finalizador MCP |
 | PEND-017 | ABERTA (trava ativa no fluxo MCP V1; fluxo local sem trava) | Primeiro caso real / ADR-0021 (2026-09-24) | Contestação cujo prazo saia de 2026 | Calendário forense só cobre 2026; contagem não verifica o ano |
 | PEND-018 | RESOLVIDA NO V1 / LEGADO CONGELADO (2026-09-27) | Primeiro caso real / ADR-0021 (2026-09-24) | Homologação da ADR-0021 | Possível "R$ R$" nos valores do tópico de valor da causa |
+| PEND-019 | ABERTA (documental) | Primeiro caso real / emenda 0.18.0 da ADR-0021 (2026-09-27) | Nenhuma (não bloqueia o runtime) | Ramo `DISPONIBILIZACAO` deriva a publicação (art. 224 §§2º-3º), etapa que o `SKILL.md` da Skill normativa não descreve |
 
 ---
 
@@ -1005,3 +1006,20 @@ Nenhum smoke anterior incluiu o tópico 2.6. **Critério:** render real
 do tópico, correção no Core (nunca no texto fixo) e teste de regressão
 antes de homologar a ADR-0021.
 
+## PEND-019 — Harmonizar o ramo `DISPONIBILIZACAO` com a Skill normativa
+
+**Status (2026-09-27):** aberta, documental; não bloqueia o runtime.
+**Origem:** primeiro caso real e emenda 0.18.0 da ADR-0021 (marco
+`CIENCIA`).
+**Situação:** a fonte normativa da tempestividade é
+`skills/calendario-forense-tjba-2026/SKILL.md`, que conta o prazo a
+partir da "intimação/ciência" e não descreve a derivação da publicação a
+partir da disponibilização no DJe. O ramo `DISPONIBILIZACAO` do
+finalizador MCP é uma compatibilidade já homologada na 0.17.1: usa
+`derivar_publicacao` (publicação no primeiro dia útil seguinte, CPC art.
+224 §§2º-3º), definida na ADR-0021 e na SPEC §64, e só depois conta o
+prazo. O ramo `CIENCIA` (0.18.0) segue diretamente o `SKILL.md`.
+**Pendente:** harmonizar documentalmente esse caminho com a Skill
+normativa — decisão do titular sobre onde a regra da disponibilização
+deve constar. Nenhuma mudança de cálculo até lá.
+**Não bloqueia:** o uso de `CIENCIA` nem de `DISPONIBILIZACAO`.

@@ -108,7 +108,7 @@ Status = Literal["OK", "REFUSED", "NEEDS_INPUT"]
 """`NEEDS_INPUT` (ADR-0020): falta uma resposta SIM/NÃO da Topic Matrix
 ou o suporte factual de um tópico marcado SIM — nunca documento, nunca
 inclusão silenciosa; `pendencias` diz, em linguagem jurídica, o que
-perguntar ao advogado. Desde a ADR-0021 também: data de disponibilização
+perguntar ao advogado. Desde a ADR-0021 também: marco da tempestividade
 ausente, resultado intempestivo, DataJud indisponível (sem confirmação)
 ou divergente da confirmação do advogado."""
 
@@ -338,7 +338,7 @@ def _validar_forma_entrada(entrada: dict) -> ResultadoFinalizacao | None:
     if marco is not None and not (isinstance(marco, dict)
                                   and all(isinstance(marco.get(k), str) for k in ("tipo", "data"))):
         return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
-                          "'marco_tempestividade' deve ser {tipo: 'DISPONIBILIZACAO', data: 'DD/MM/AAAA'}",
+                          "'marco_tempestividade' deve ser {tipo: 'DISPONIBILIZACAO'|'CIENCIA', data: 'DD/MM/AAAA'}",
                           capability_id)
     pedidos = entrada.get("pedidos_economicos")
     if pedidos is not None and not (isinstance(pedidos, list) and all(isinstance(x, dict) for x in pedidos)):
@@ -398,7 +398,12 @@ DERIVADOS_ADR_0021 = frozenset({"JUIZO", "TEMPESTIVIDADE_CASO", "LOCAL_DATA", "V
 partes que o manifesto marca como do Core (ex.: marcadores manuais de
 fotos/telas) seguem o tratamento anterior — fora do escopo da ADR-0021."""
 
-TIPOS_MARCO_SUPORTADOS = ("DISPONIBILIZACAO",)
+TIPOS_MARCO_SUPORTADOS = ("DISPONIBILIZACAO", "CIENCIA")
+"""Skill normativa (calendario-forense-tjba-2026) -> contrato -> Core.
+CIENCIA é a "intimação/ciência" do SKILL.md, entregue como `data_ciencia`
+ao cálculo da Skill, sem derivar publicação. DISPONIBILIZACAO é a
+compatibilidade homologada na 0.17.1 (publicação derivada; harmonização
+documental com a Skill em PEND-019)."""
 PRAZO_CONTESTACAO_DIAS = 15
 FUNDAMENTO_PRAZO = "art. 335 do CPC (procedimento comum)"
 MAX_JUIZO_CONFIRMADO_CHARS = 300
@@ -466,12 +471,15 @@ def _derivar_tempestividade(marco, hoje, capability_id):
     termo final (ADR-0021, Decisão 4)."""
     from datetime import date as _date
     if not marco:
-        return None, ("Informe a data de disponibilização da intimação/citação no Diário de Justiça "
-                      "eletrônico (DD/MM/AAAA), para o cálculo da tempestividade."), None
+        return None, ("Informe a data da citação/intimação/ciência (DD/MM/AAAA), ou, se for especificamente "
+                      "esse o dado conhecido, a data de disponibilização no Diário de Justiça eletrônico, "
+                      "para o cálculo da tempestividade."), None
     if marco.get("tipo") not in TIPOS_MARCO_SUPORTADOS:
         return None, None, _recusado("input_validation", "INPUT_VALIDATION_FAILED",
-                                     "marco_tempestividade: nesta versão só o tipo DISPONIBILIZACAO é suportado.",
+                                     "marco_tempestividade: tipo não suportado; use DISPONIBILIZACAO ou CIENCIA.",
                                      capability_id)
+    if marco.get("tipo") == "CIENCIA":
+        return _derivar_tempestividade_ciencia(marco, hoje, capability_id)
     disponibilizacao = _parse_data_br(marco.get("data"))
     if disponibilizacao is None:
         return None, None, _recusado("input_validation", "INPUT_VALIDATION_FAILED",
@@ -497,6 +505,35 @@ def _derivar_tempestividade(marco, hoje, capability_id):
                       f"contestação (art. 335 do CPC) encerrou-se em {_data_br(termo_final)}. A peça não "
                       f"foi gerada: confirme a data de disponibilização informada ou decida como "
                       f"prosseguir."), None
+    return tt._redigir_tempestividade_natural(r), None, None
+
+
+def _derivar_tempestividade_ciencia(marco, hoje, capability_id):
+    """Marco CIENCIA: a data informada é a "intimação/ciência" do SKILL.md
+    da Skill calendario-forense-tjba-2026 e vai direto como `data_ciencia`
+    para o cálculo da Skill — nunca por derivar_publicacao, nenhuma regra
+    de contagem própria aqui. Mesmo fail-closed do ramo DISPONIBILIZACAO."""
+    from datetime import date as _date
+    ciencia = _parse_data_br(marco.get("data"))
+    if ciencia is None:
+        return None, None, _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                                     "marco_tempestividade: data inválida; use DD/MM/AAAA.", capability_id)
+    if ciencia > hoje:
+        return None, None, _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                                     "marco_tempestividade: a data da ciência é posterior à data atual.",
+                                     capability_id)
+    r = calcular_tempestividade(data_pratica_ato=hoje, data_ciencia=ciencia,
+                                prazo_legal_dias=PRAZO_CONTESTACAO_DIAS, tipo_prazo="uteis",
+                                fundamento_normativo=FUNDAMENTO_PRAZO, verificar_cobertura=True)
+    if r.status == PENDENTE:
+        return None, None, _recusado("tempestividade", "DERIVED_DATA_UNAVAILABLE",
+                                     f"Tempestividade não calculada: {r.motivo_pendencia}.", capability_id)
+    if r.status == INTEMPESTIVO:
+        termo_final = _date.fromisoformat(r.termo_final)
+        return None, (f"Pelo cálculo automático, com a citação/intimação/ciência em {_data_br(ciencia)}, o "
+                      f"prazo de 15 (quinze) dias úteis para a contestação (art. 335 do CPC) encerrou-se em "
+                      f"{_data_br(termo_final)}. A peça não foi gerada: confirme a data informada ou decida "
+                      f"como prosseguir."), None
     return tt._redigir_tempestividade_natural(r), None, None
 
 

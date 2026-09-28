@@ -137,8 +137,10 @@ def test_catalogo_e_manifesto_v1_batem_com_os_sha256_aprovados():
     assert hashlib.sha256(V1.catalogo_path.read_bytes()).hexdigest() == \
         "3d710366ab4b06a223712c304ebfb3cfef9ea9206ff025dcd6eb8f973d7b2ac2"
     assert hashlib.sha256(V1.manifesto_path.read_bytes()).hexdigest() == \
+        "0b3354c66c0c9edc8ce5da6f9a8d324a952373a454f8d13b22fd9174067acb8d"
+    # ADR-0020: manifesto imutável — o 1.1.0 e o 1.0.0 continuam no repositório, byte a byte.
+    assert hashlib.sha256((V1.manifesto_path.parent / "manifesto-1.1.0.json").read_bytes()).hexdigest() == \
         "42308f8a3f7c52461b0094979426e67fcdb577629fd7683e6d48d048c37c28d6"
-    # ADR-0020: manifesto imutável — o 1.0.0 continua no repositório, byte a byte.
     assert hashlib.sha256((V1.manifesto_path.parent / "manifesto.json").read_bytes()).hexdigest() == \
         "f703966d0e05ad0ae79a7bd680ada6b2d720bff76125c4793b42d3cec0414a5b"
     assert V1.modelo_sha256 == "1e2aa2a52c3341e680acd674658b41c27004a27f5f99c7343643d4d254747a9e"
@@ -146,7 +148,7 @@ def test_catalogo_e_manifesto_v1_batem_com_os_sha256_aprovados():
 
 
 def test_manifesto_v1_definitivo_e_environment_neutral():
-    assert MANIFESTO["manifesto_versao"] == "1.1.0"
+    assert MANIFESTO["manifesto_versao"] == "1.2.0"
     assert MANIFESTO["modelo_oficial"]["status"] == "APROVADO"
     assert MANIFESTO["modelo_oficial"]["catalogo_blocos"] == "blocos.json"
     texto = V1.manifesto_path.read_text(encoding="utf-8")

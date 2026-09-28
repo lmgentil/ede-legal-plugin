@@ -224,9 +224,10 @@ COPY --chown=10001:10001 templates/contestacao/blocos.json templates/contestacao
 # Contrato da V1 (ADR-0020): catálogo + manifesto públicos, fixados por
 # SHA-256; o .docx da V1 continua fora de qualquer imagem (ADR-0009).
 COPY --chown=10001:10001 templates/contestacao/v1/blocos.json templates/contestacao/v1/blocos.json
-# Manifesto ativo da V1 é o 1.1.0 (ADR-0021); o 1.0.0 fica só no
-# repositório como histórico, não é lido em runtime.
-COPY --chown=10001:10001 templates/contestacao/v1/manifesto-1.1.0.json templates/contestacao/v1/manifesto-1.1.0.json
+# Manifesto ativo da V1 é o 1.2.0 (emenda da ADR-0021, marco CIENCIA); o
+# 1.1.0 e o 1.0.0 ficam só no repositório como histórico, não são lidos
+# em runtime.
+COPY --chown=10001:10001 templates/contestacao/v1/manifesto-1.2.0.json templates/contestacao/v1/manifesto-1.2.0.json
 
 # Gate 6.5-A: só `models.py` de rag/legal_validation/ (o construtor
 # `fonte_juridica()`, puro dict, sem import algum) — nunca o pacote

@@ -232,6 +232,7 @@ def test_sem_marco_pede_so_a_data_de_disponibilizacao(v1):
     r = fp.finalizar_peca(_entrada(marco_tempestividade=None))
     assert r.status == "NEEDS_INPUT" and r.stage == "tempestividade"
     assert len(r.pendencias) == 1 and "data de disponibilização" in r.pendencias[0]
+    assert "citação/intimação/ciência" in r.pendencias[0]
     assert r.documento_bytes is None
 
 
@@ -245,6 +246,11 @@ def test_sem_marco_e_datajud_indisponivel_pergunta_tudo_de_uma_vez(v1, monkeypat
 
 @pytest.mark.parametrize("marco", [
     {"tipo": "CITACAO", "data": "01/09/2026"},
+    {"tipo": "ciencia", "data": "01/09/2026"},
+    {"tipo": "PUBLICACAO", "data": "01/09/2026"},
+    {"tipo": "CIENCIA", "data": "2026-09-01"},
+    {"tipo": "CIENCIA", "data": "31/02/2026"},
+    {"tipo": "CIENCIA", "data": "11/09/2026"},  # depois de "hoje"
     {"tipo": "DISPONIBILIZACAO", "data": "2026-09-01"},
     {"tipo": "DISPONIBILIZACAO", "data": "31/02/2026"},
     {"tipo": "DISPONIBILIZACAO", "data": "11/09/2026"},  # depois de "hoje"
@@ -269,6 +275,66 @@ def test_intempestivo_nao_gera_peca_nem_texto_de_intempestividade(v1):
 def test_marco_fora_da_cobertura_do_calendario_e_recusado(v1):
     r = fp.finalizar_peca(_entrada(marco_tempestividade={"tipo": "DISPONIBILIZACAO", "data": "10/12/2025"}))
     assert r.status == "REFUSED" and r.error_code == "DERIVED_DATA_UNAVAILABLE" and r.stage == "tempestividade"
+
+
+# ============================== marco CIENCIA (emenda da ADR-0021, 0.18.0)
+# Skill normativa (calendario-forense-tjba-2026/SKILL.md: "o início se dá
+# no primeiro dia útil seguinte à intimação/ciência") -> contrato -> Core.
+
+HOJE_CASO_REAL = date(2026, 9, 27)
+
+
+def _proibir_derivar_publicacao(monkeypatch):
+    def _falha(*a, **k):
+        raise AssertionError("CIENCIA não pode derivar publicação")
+    monkeypatch.setattr(fp, "derivar_publicacao", _falha)
+
+
+def test_ciencia_caso_real_20_09_encerra_em_09_10_sem_derivar_publicacao(monkeypatch):
+    _proibir_derivar_publicacao(monkeypatch)
+    texto, pendencia, recusa = fp._derivar_tempestividade(
+        {"tipo": "CIENCIA", "data": "20/09/2026"}, HOJE_CASO_REAL, CAP)
+    assert pendencia is None and recusa is None
+    assert texto.startswith("A presente Contestação é tempestiva.")
+    assert "marco processual ocorrido em 20/09/2026" in texto and "encerra-se em 09/10/2026" in texto
+    # O mesmo cálculo da Skill, visto por dentro: marco 20/09 (domingo),
+    # primeiro dia contado 21/09, termo final 09/10.
+    r = ct.calcular_tempestividade(data_pratica_ato=HOJE_CASO_REAL, data_ciencia=date(2026, 9, 20),
+                                   prazo_legal_dias=15, tipo_prazo="uteis",
+                                   fundamento_normativo=fp.FUNDAMENTO_PRAZO, verificar_cobertura=True)
+    assert (r.status, r.termo_inicial, r.termo_final) == (ct.TEMPESTIVO, "2026-09-20", "2026-10-09")
+    cal = ct.carregar_calendario()
+    feriados = {date.fromisoformat(d) for d in cal["feriados_forenses"]}
+    assert ct.contar_termo_final_dias_uteis(date(2026, 9, 20), 1, feriados, cal["suspensoes"]) == date(2026, 9, 21)
+
+
+def test_disponibilizacao_21_09_segue_como_homologado_na_0_17_1():
+    assert ct.derivar_publicacao(date(2026, 9, 21)) == (date(2026, 9, 22), None)
+    texto, pendencia, recusa = fp._derivar_tempestividade(
+        {"tipo": "DISPONIBILIZACAO", "data": "21/09/2026"}, HOJE_CASO_REAL, CAP)
+    assert pendencia is None and recusa is None
+    assert "marco processual ocorrido em 22/09/2026" in texto and "encerra-se em 14/10/2026" in texto
+
+
+def test_ciencia_fora_da_cobertura_do_calendario_e_recusada(monkeypatch):
+    _proibir_derivar_publicacao(monkeypatch)
+    for data_ciencia, hoje in (("10/12/2025", HOJE_CASO_REAL), ("10/12/2026", date(2026, 12, 15))):
+        _, pendencia, recusa = fp._derivar_tempestividade({"tipo": "CIENCIA", "data": data_ciencia}, hoje, CAP)
+        assert pendencia is None
+        assert recusa.status == "REFUSED" and recusa.error_code == "DERIVED_DATA_UNAVAILABLE"
+        assert recusa.stage == "tempestividade" and "cobert" in recusa.motivo
+
+
+def test_ciencia_intempestiva_nao_gera_peca(v1, monkeypatch):
+    _proibir_derivar_publicacao(monkeypatch)
+    r = fp.finalizar_peca(_entrada(marco_tempestividade={"tipo": "CIENCIA", "data": "01/07/2026"}))
+    assert r.status == "NEEDS_INPUT" and r.stage == "tempestividade"
+    assert r.documento_bytes is None and r.download_url is None
+    texto = " ".join(r.pendencias)
+    for trecho in ("01/07/2026", "encerrou-se em 24/07/2026", "A peça não foi gerada"):
+        assert trecho in texto
+    assert "é intempestiva" not in texto
+    assert not T.TERMOS_INTERNOS.search(texto)
 
 
 def test_datajud_normal_passa_da_etapa_de_derivados_sem_cache_persistente(v1):
@@ -418,9 +484,19 @@ def test_schema_publico_tem_os_campos_novos_e_topicos_so_sim_nao():
     assert props["topicos"]["additionalProperties"]["enum"] == ["SIM", "NAO"]
     assert props["fatos_publicos"]["additionalProperties"]["enum"] == ["SIM", "NAO"]
     marco = s["$defs"]["MarcoTempestividade"]["properties"]
-    assert marco["tipo"]["const"] == "DISPONIBILIZACAO" and marco["data"]["pattern"]
-    with pytest.raises(Exception):
-        server.EdeFinalizarPecaEntrada(capability_id=CAP, marco_tempestividade={"tipo": "CITACAO", "data": "01/09/2026"})
+    assert set(marco["tipo"]["enum"]) == {"DISPONIBILIZACAO", "CIENCIA"} and marco["data"]["pattern"]
+    assert set(marco["tipo"]["enum"]) == set(fp.TIPOS_MARCO_SUPORTADOS)
+    for tipo in ("DISPONIBILIZACAO", "CIENCIA"):
+        server.EdeFinalizarPecaEntrada(capability_id=CAP, marco_tempestividade={"tipo": tipo, "data": "01/09/2026"})
+    for tipo in ("CITACAO", "ciencia", "PUBLICACAO"):
+        with pytest.raises(Exception):
+            server.EdeFinalizarPecaEntrada(capability_id=CAP, marco_tempestividade={"tipo": tipo, "data": "01/09/2026"})
+
+
+def test_manifesto_declara_os_mesmos_tipos_de_marco_do_contrato():
+    marco = next(e for e in T.MANIFESTO["entradas_estruturadas_publicas"] if e["chave"] == "marco_tempestividade")
+    assert set(marco["tipos"]) == set(fp.TIPOS_MARCO_SUPORTADOS)
+    assert "citação/intimação/ciência" in marco["pergunta"] and "modalidade" in marco["pergunta"]
 
 
 def test_telemetria_espelha_estagios_e_codigos():
@@ -433,7 +509,8 @@ def test_preparacao_orienta_o_host_a_nao_perguntar_o_derivavel():
     publico = pc._montar_topic_matrix(T.MANIFESTO)
     assert [e["chave"] for e in publico["entradas_estruturadas"]] == [
         "marco_tempestividade", "pedidos_economicos", "zonas", "juizo_confirmado_advogado"]
-    for termo in ("Nunca pergunte o juízo", "data da peça", "disponibilização"):
+    for termo in ("Nunca pergunte o juízo", "data da peça", "disponibilização", "CIENCIA",
+                  "Nunca converta CIENCIA em DISPONIBILIZACAO", "nunca pergunte a modalidade da citação"):
         assert termo in publico["orientacao"]
     assert all(t.keys() == {"chave", "nome_publico", "pergunta"} for t in publico["topicos"])
 
@@ -472,6 +549,18 @@ def test_valor_da_causa_sem_r_duplicado_e_com_zona_de_composicao(T_modelo):
     assert "Salvador, 10 de setembro de 2026" in texto
     assert T.JUIZO_FAKE in texto
     assert "A presente Contestação é tempestiva" in texto and "02/09/2026" in texto
+
+
+@pytest.mark.docx_real
+def test_ciencia_caso_real_renderiza_tempestividade_no_docx(T_modelo, monkeypatch):
+    _proibir_derivar_publicacao(monkeypatch)
+    monkeypatch.setattr(fp, "_agora", lambda: datetime(2026, 9, 27, 12, 0, tzinfo=BAHIA))
+    r = fp.finalizar_peca(_entrada(marco_tempestividade={"tipo": "CIENCIA", "data": "20/09/2026"}))
+    assert r.status == "OK", (r.stage, r.error_code, r.motivo)
+    texto = _texto_docx(r.documento_bytes)
+    assert "A presente Contestação é tempestiva" in texto
+    assert "20/09/2026" in texto and "09/10/2026" in texto
+    assert "Salvador, 27 de setembro de 2026" in texto
 
 
 @pytest.mark.docx_real

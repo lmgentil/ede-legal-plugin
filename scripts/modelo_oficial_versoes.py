@@ -90,10 +90,12 @@ VERSAO_V1 = VersaoModelo(
     modelo_sha256="1e2aa2a52c3341e680acd674658b41c27004a27f5f99c7343643d4d254747a9e",
     catalogo_path=DIR_CONTESTACAO / "v1" / "blocos.json",
     catalogo_sha256="3d710366ab4b06a223712c304ebfb3cfef9ea9206ff025dcd6eb8f973d7b2ac2",
-    # Manifesto 1.1.0 (ADR-0021): arquivo NOVO; o 1.0.0 (`manifesto.json`,
-    # f703966d…0414a5b) fica preservado sem edição, como exige a ADR-0020.
-    manifesto_path=DIR_CONTESTACAO / "v1" / "manifesto-1.1.0.json",
-    manifesto_sha256="42308f8a3f7c52461b0094979426e67fcdb577629fd7683e6d48d048c37c28d6",
+    # Manifesto 1.2.0 (emenda da ADR-0021, 0.18.0: marco CIENCIA): arquivo
+    # NOVO; o 1.1.0 (`manifesto-1.1.0.json`, 42308f8a…c37c28d6) e o 1.0.0
+    # (`manifesto.json`, f703966d…0414a5b) ficam preservados sem edição,
+    # como exige a ADR-0020.
+    manifesto_path=DIR_CONTESTACAO / "v1" / "manifesto-1.2.0.json",
+    manifesto_sha256="0b3354c66c0c9edc8ce5da6f9a8d324a952373a454f8d13b22fd9174067acb8d",
     placeholder_bloco_dono_extra={"FOTOS_DA_IRREGULARIADE": "SUBBLOCO_REGISTRO_FOTOGRAFICO"},
 )
 

@@ -398,10 +398,15 @@ MIME_TYPE_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml
 
 
 class MarcoTempestividade(BaseModel):
-    """ADR-0021: o advogado informa só a data de disponibilização; o Core
-    deriva a publicação, conta o prazo e redige a tempestividade."""
+    """ADR-0021 (emenda 0.18.0): o advogado informa só a data do marco; o
+    Core conta o prazo pela Skill calendario-forense-tjba-2026 e redige a
+    tempestividade. CIENCIA = data da citação/intimação/ciência (usada
+    diretamente); DISPONIBILIZACAO = data de disponibilização no DJe
+    (publicação derivada, compatibilidade 0.17.1)."""
 
-    tipo: Literal["DISPONIBILIZACAO"]
+    tipo: Literal["DISPONIBILIZACAO", "CIENCIA"] = Field(
+        ..., description="CIENCIA: data da citação/intimação/ciência, quando esse for o marco conhecido. "
+                         "DISPONIBILIZACAO: só quando o dado for especificamente a disponibilização no DJe.")
     data: str = Field(..., pattern=r"^\d{2}/\d{2}/\d{4}$", description="DD/MM/AAAA")
 
 
@@ -497,8 +502,10 @@ class EdeFinalizarPecaEntrada(BaseModel):
                           "ex.: corte_efetivo. Nunca inferidos da decisão de incluir um tópico."),
     ] = {}
     marco_tempestividade: MarcoTempestividade | None = Field(
-        None, description="Data de disponibilização informada pelo advogado; o sistema calcula a "
-                          "tempestividade (nunca envie TEMPESTIVIDADE_CASO).")
+        None, description="Marco informado pelo advogado ou extraído dos documentos: data da "
+                          "citação/intimação/ciência (CIENCIA) ou da disponibilização no DJe "
+                          "(DISPONIBILIZACAO); o sistema calcula a tempestividade (nunca envie "
+                          "TEMPESTIVIDADE_CASO).")
     pedidos_economicos: Annotated[
         list[PedidoEconomico], Field(max_length=finalizar_peca.MAX_PEDIDOS_ECONOMICOS)
     ] | None = Field(None, description="Pedidos da inicial com valor e fonte; exigido quando a impugnação "

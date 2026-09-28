@@ -1151,8 +1151,12 @@ def _montar_topic_matrix(manifesto: dict | None) -> dict | None:
     if estruturadas:
         publico["entradas_estruturadas"] = estruturadas
         publico["orientacao"] += (
-            " Ao advogado pergunte somente: os tópicos, os fatos públicos e a data de disponibilização "
-            "(marco_tempestividade). Nunca pergunte o juízo, a data da peça, o texto de tempestividade, o "
+            " Ao advogado pergunte somente: os tópicos, os fatos públicos e, se não constar dos documentos, a "
+            "data do marco da tempestividade (marco_tempestividade). Tente primeiro extrair o marco dos "
+            "documentos: data de citação/intimação/ciência -> tipo CIENCIA; dado especificamente identificado "
+            "como disponibilização no DJe -> tipo DISPONIBILIZACAO. Nunca converta CIENCIA em "
+            "DISPONIBILIZACAO e nunca pergunte a modalidade da citação. "
+            "Nunca pergunte o juízo, a data da peça, o texto de tempestividade, o "
             "proveito econômico ou a decisão que concedeu a gratuidade: o sistema os obtém ou calcula e "
             "recusa esses campos se vierem do host. Extraia da inicial os pedidos econômicos com fonte "
             "(pedidos_economicos) quando a impugnação ao valor da causa for SIM. Só envie "

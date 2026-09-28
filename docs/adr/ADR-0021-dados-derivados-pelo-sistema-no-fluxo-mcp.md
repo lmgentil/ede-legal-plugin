@@ -212,3 +212,57 @@ fallback humano e a INV-JUIZO-DATAJUD ficam exatamente como aprovados.
 da 0.17.1. Risco: uma resolução pode levar até ~130 s (DataJud + IBGE) no
 pior caso, o que pode exceder o tempo de espera de alguns clientes MCP.
 
+## ADR-0021 — CROSS-CLIENT SMOKE 0.17.1 — PASS (27/09/2026)
+
+Homolog 0.17.1 (`ede_health` READY; modelo v1; catálogo `3d710366…`;
+manifesto 1.1.0 `42308f8a…`). **Produção não alterada** (nenhum deploy,
+nenhuma mudança de tráfego ou configuração). Dados fictícios.
+
+**Fixture positiva canônica** (a mesma nos dois hosts): processo
+`8000949-25.2026.8.05.0271`; tópicos `revogacao_gratuidade` e `impugnacao_valor_causa` SIM, demais NÃO; corte
+NÃO; `estado_processual` vazio; `marco_tempestividade`
+DISPONIBILIZACAO 21/09/2026; `pedidos_economicos` R$ 2.097,63,
+R$ 12.900,00 e um pedido sem valor; `ZONA_COMPOSICAO_PROVEITO_ECONOMICO`
+com `base_documental`. Sem `JUIZO`, `LOCAL_DATA`, `TEMPESTIVIDADE_CASO`
+ou `juizo_confirmado_advogado`.
+
+* **ChatGPT — PASS** (relatado pelo titular): schema novo visível;
+  positiva `OK` em ~7 s, sem timeout nem erro de transporte;
+  `document_sha256`
+  `cf200c0f6d42e63710a2822dcd4dfd34e9d807511dbc3e1b9cd348427dd48fd1`;
+  DataJud/JUIZO, tempestividade, `LOCAL_DATA`, pedidos econômicos e zona
+  corretos; sem "R$ R$"; download e Word OK.
+* **Claude — PASS:** os quatro campos novos visíveis no schema sem
+  reconexão. Positiva `OK` em ~3 s, sem timeout nem erro de transporte,
+  sem aviso de fallback de juízo; `document_sha256`
+  `cf200c0f6d42e63710a2822dcd4dfd34e9d807511dbc3e1b9cd348427dd48fd1`,
+  1.753.878 bytes; `/download/<token>` HTTP 200, content-type DOCX,
+  SHA-256 local idêntico, ZIP íntegro, aberto no Word (COM, somente
+  leitura: 7 páginas), nenhum `{{` nem tag BLOCO/SUBBLOCO/ZONA/INLINE
+  residual. Conferido no texto: "AO JUÍZO DA 2ª VARA DE FEITOS DE REL
+  DE CONS. CÍVEL E COMERCIAIS DA COMARCA DE VALENÇA"; marco 22/09/2026 e
+  termo final 14/10/2026; "Salvador, 27 de setembro de 2026."; valor
+  atribuído R$ 15.000,00 e retificação para R$ 14.997,63; sem "R$ R$";
+  zona inserida imediatamente após "In casu, a petição inicial
+  cumula:". Seis `dados_nao_bloqueantes`, entre eles o aviso da
+  gratuidade não documentada e o resumo do proveito (diferença R$ 2,37,
+  1 pedido sem valor fora da soma).
+* **Comparação:** mesmo `document_sha256` nos dois hosts
+  `cf200c0f6d42e63710a2822dcd4dfd34e9d807511dbc3e1b9cd348427dd48fd1`,
+  ou seja, o mesmo DOCX byte a byte.
+* **DataJud real resolvido** no homolog: `JUIZO` obtido do DataJud/CNJ
+  (órgão julgador) e do IBGE (comarca), sem fallback humano.
+* **Negativos (Claude e ChatGPT, todos PASS):** A. licitude SIM + corte
+  NÃO → `NEEDS_INPUT`/`topic_matrix`; B. `ZONA_INVENTADA` →
+  `REFUSED`/`zonas`/`INPUT_VALIDATION_FAILED`; C. `LOCAL_DATA` do host →
+  `REFUSED`/`input_validation`; D. `TEMPESTIVIDADE_CASO` do host →
+  `REFUSED`/`input_validation`.
+* Observação: uma primeira tentativa do Claude com o processo de teste
+  `8000099-11.2026.8.05.0080` (fixture diferente da canônica) foi
+  recusada em `enderecamento` por "processo não encontrado" — fail-closed
+  correto, sem fallback humano, em ~10 s.
+
+**Pendências:** PEND-015 e PEND-016 FECHADAS PARA V1; PEND-017 permanece
+ABERTA; PEND-018 RESOLVIDA NO V1 / LEGADO CONGELADO. A prova real do
+DataJud no homolog, pendente desde o ajuste da 0.17.1, está feita.
+Primeiro caso real ainda não retomado.

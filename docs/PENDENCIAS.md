@@ -28,10 +28,10 @@ nem adiada além da fase indicada sem nova decisão explícita do usuário
 | PEND-012 | ABERTA (escopo ampliado) | Gate 6.6-D, chamadas do ChatGPT e do Claude (2026-09-22) | Critério de entrega nativa do Gate 6.6-D, ENCERRADO como PARTIAL PASS com esta pendência aberta; não bloqueia o runtime nem motiva rollback | Nem ChatGPT nem Claude entregam o DOCX nativamente via `EmbeddedResource` — ChatGPT não expõe a URI `attachment://` (contorno do host preserva os bytes); Claude recusa explicitamente o tipo de mídia do DOCX (nenhum byte chega ao usuário) |
 | PEND-013 | APROVADA, execução ADIADA | Auditoria somente-leitura das revisões antigas com tag, Gate 6.6-D item 6 (2026-09-22) | Nenhuma (não bloqueia; execução deliberadamente adiada para depois da evidência de interoperabilidade viva do Claude) | Remoção das seis tags históricas do Cloud Run (`candidato`, `candidato-6-5-b`, `candidato-6-5-b2`, `candidato-6-5-c`, `candidato-6-5-c2`, `candidato-6-5-c4`) — aprovada em princípio como *pre-pilot hardening*, nenhuma removida ainda |
 | PEND-014 | Gate 6.6-E PASS; Gate 6.6-F Fase 1 PASS; Fase 2 (Claude/ChatGPT reais) PARTIAL PASS (DELIVERY-CLIENT-01); URL opaca do EDE implementada e provada server-side no homolog; cliques reais pendentes; ativação em produção NÃO autorizada | Fechamento do Gate 6.6-D como PARTIAL PASS (2026-09-22); implementação Gate 6.6-E mesma data | Gate de download ao vivo (Claude/ChatGPT); não bloqueia o runtime — produção continua em v1 até ativação explícita | Redesenho do mecanismo de entrega de artefato entre hosts — v2 (`scripts/artifact_storage.py`, GCS efêmero + URL V4 assinada de 24h) implementado, testado e verificado ao vivo: assinatura real, identidade de bytes, hard delete, e limpeza agendada horária (Cloud Scheduler -> Cloud Run Job) provisionada em homologação |
-| PEND-015 | ABERTA, prioridade alta (design aprovado — ADR-0021) | Gate V1 homolog (2026-09-24) | Orquestração voltada ao advogado; tópico de valor da causa (frase fixa sem continuação) | Zonas VLA redigidas pelo host ainda não aceitas pelo MCP — suporte genérico aprovado |
-| PEND-016 | ABERTA (design aprovado — ADR-0021) | Gate V1 homolog (2026-09-24) | Tratar a tempestividade via MCP como calculada pelo Core | Tempestividade a partir da data de disponibilização ainda não integrada ao finalizador MCP |
-| PEND-017 | TRAVA no fluxo MCP (pré-deploy); ABERTA no fluxo local | Primeiro caso real / ADR-0021 (2026-09-24) | Contestação cujo prazo saia de 2026 | Calendário forense só cobre 2026; contagem não verifica o ano |
-| PEND-018 | CORRIGIDA no V1 (pré-deploy); ABERTA no legado | Primeiro caso real / ADR-0021 (2026-09-24) | Homologação da ADR-0021 | Possível "R$ R$" nos valores do tópico de valor da causa |
+| PEND-015 | FECHADA PARA V1 (smoke cross-client 0.17.1 PASS, 2026-09-27) | Gate V1 homolog (2026-09-24) | Orquestração voltada ao advogado; tópico de valor da causa (frase fixa sem continuação) | Zonas VLA redigidas pelo host ainda não aceitas pelo MCP — suporte genérico aprovado |
+| PEND-016 | FECHADA PARA V1 (smoke cross-client 0.17.1 PASS, 2026-09-27) | Gate V1 homolog (2026-09-24) | Tratar a tempestividade via MCP como calculada pelo Core | Tempestividade a partir da data de disponibilização ainda não integrada ao finalizador MCP |
+| PEND-017 | ABERTA (trava ativa no fluxo MCP V1; fluxo local sem trava) | Primeiro caso real / ADR-0021 (2026-09-24) | Contestação cujo prazo saia de 2026 | Calendário forense só cobre 2026; contagem não verifica o ano |
+| PEND-018 | RESOLVIDA NO V1 / LEGADO CONGELADO (2026-09-27) | Primeiro caso real / ADR-0021 (2026-09-24) | Homologação da ADR-0021 | Possível "R$ R$" nos valores do tópico de valor da causa |
 
 ---
 
@@ -900,6 +900,8 @@ Em aberto (avaliação em andamento).
 
 ## PEND-015 — Zonas VLA redigidas pela LLM do host ainda não são aceitas pelo MCP (D3 do gate V1)
 
+**ADR-0021 — CROSS-CLIENT SMOKE 0.17.1 — PASS (27/09/2026).** ChatGPT e Claude contra o homolog 0.17.1 (manifesto 1.1.0 `42308f8a…`), mesma fixture positiva fictícia; registro completo em `docs/adr/ADR-0021-dados-derivados-pelo-sistema-no-fluxo-mcp.md`. `ZONA_COMPOSICAO_PROVEITO_ECONOMICO` aceita, validada e renderizada logo após "In casu, a petição inicial cumula:"; zona não autorizada recusada (`zonas`/`INPUT_VALIDATION_FAILED`). **Status: FECHADA PARA V1.**
+
 **Status (2026-09-24):** aberta. Gate de ativação da V1 concluído
 (**PASS** no homolog, `ede-mcp-homolog-00007-4rm`, ADR-0020) sem esta
 funcionalidade, conforme decisão D3 do usuário — confirmado no smoke
@@ -934,6 +936,8 @@ variáveis já suportados, que seguem funcionando. Nenhuma LLM no servidor
 
 ## PEND-016 — Tempestividade E2 não implementada (D4 do gate V1)
 
+**ADR-0021 — CROSS-CLIENT SMOKE 0.17.1 — PASS (27/09/2026).** ChatGPT e Claude contra o homolog 0.17.1 (manifesto 1.1.0 `42308f8a…`), mesma fixture positiva fictícia; registro completo em `docs/adr/ADR-0021-dados-derivados-pelo-sistema-no-fluxo-mcp.md`. Disponibilização 21/09/2026 → publicação 22/09/2026 → termo final 14/10/2026, texto gerado pelo Core; `TEMPESTIVIDADE_CASO` do host recusado (`input_validation`). **Status: FECHADA PARA V1.**
+
 **Status (2026-09-24):** aberta. Gate de ativação da V1 concluído
 (**PASS** no homolog, `ede-mcp-homolog-00007-4rm`, ADR-0020) sem E2,
 conforme decisão D4 do usuário — no smoke real `TEMPESTIVIDADE_CASO` foi
@@ -960,6 +964,8 @@ degradado; política de chamada corrigida na 0.17.1, pendente de deploy).
 
 ## PEND-017 — Calendário forense só cobre 2026; contagem não verifica o ano
 
+**Status (27/09/2026): permanece ABERTA** após o smoke cross-client 0.17.1 — não houve calendário de 2027 verificado nem trava no fluxo local.
+
 **Status (2026-09-24):** aberta (ADR-0021).
 **Situação:** `skills/calendario-forense-tjba-2026/` só tem o calendário
 de 2026 (`verificado: true`), e `calcular_tempestividade` conta os dias
@@ -978,6 +984,8 @@ comportamento existente) — pendência mantida para ele. **Bloqueia:** gerar Co
 enquanto não houver calendário verificado do ano seguinte.
 
 ## PEND-018 — Possível duplicação "R$ R$" no tópico de valor da causa
+
+**ADR-0021 — CROSS-CLIENT SMOKE 0.17.1 — PASS (27/09/2026).** ChatGPT e Claude contra o homolog 0.17.1 (manifesto 1.1.0 `42308f8a…`), mesma fixture positiva fictícia; registro completo em `docs/adr/ADR-0021-dados-derivados-pelo-sistema-no-fluxo-mcp.md`. Tópico 2.6 renderizado com "montante de R$ 15.000,00" e "para R$ 14.997,63", sem "R$ R$". **Status: RESOLVIDA NO V1 / LEGADO CONGELADO** (contrato legado não alterado, por decisão da ADR-0021).
 
 **Status (2026-09-24):** **confirmada** em render real e **corrigida no
 contrato V1**; aberta para o contrato legado.

@@ -1023,3 +1023,8 @@ prazo. O ramo `CIENCIA` (0.18.0) segue diretamente o `SKILL.md`.
 normativa — decisão do titular sobre onde a regra da disponibilização
 deve constar. Nenhuma mudança de cálculo até lá.
 **Não bloqueia:** o uso de `CIENCIA` nem de `DISPONIBILIZACAO`.
+**Status (2026-09-28): permanece ABERTA** após o smoke cross-client
+0.18.0 PASS (homolog `ede-mcp-homolog-00010-x7g`, manifesto 1.2.0;
+registro em `docs/adr/ADR-0021-dados-derivados-pelo-sistema-no-fluxo-mcp.md`).
+O smoke confirmou `DISPONIBILIZACAO` 21/09/2026 → publicação 22/09/2026
+→ termo final 14/10/2026, comportamento inalterado.

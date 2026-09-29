@@ -17,6 +17,10 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - Nova PEND-019 (harmonização documental do ramo `DISPONIBILIZACAO` com a
   Skill). Schema público muda por adição: exige reconexão e smoke
   cross-client. Produção intocada.
+- Homolog `ede-mcp-homolog-00010-x7g` (rollback `00009-fxs` disponível):
+  smoke cross-client PASS em 28/09/2026 (server-side, ChatGPT, Claude.ai
+  e Claude Code, mesmos SHAs). `CIENCIA` 20/09/2026 → 09/10/2026;
+  `DISPONIBILIZACAO` 21/09/2026 → 14/10/2026. Produção intocada.
 
 ### 0.17.1 — política de chamada ao DataJud (pré-deploy)
 - Uma requisição por consulta ao DataJud/IBGE, conexão 5 s e leitura 65 s,

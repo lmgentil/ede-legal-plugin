@@ -309,3 +309,48 @@ termo final 14/10/2026 (inalterado).
 **Consequências:** mudança aditiva do schema público (novo valor do
 enum) → reconexão dos clientes e novo smoke cross-client; versão 0.18.0.
 PEND-015 e PEND-016 continuam fechadas para o V1.
+
+## ADR-0021 / CIENCIA — CROSS-CLIENT SMOKE 0.18.0 — PASS (28/09/2026)
+
+Homolog 0.18.0, revisão `ede-mcp-homolog-00010-x7g`, manifesto V1
+1.2.0. **Produção não alterada** (nenhum deploy, tráfego ou
+configuração); rollback do homolog para `00009-fxs` (0.17.1) continua
+disponível. Dados fictícios. Mesma fixture positiva canônica do smoke
+0.17.1 (sem `juizo_confirmado_advogado`), alterando só
+`marco_tempestividade`:
+
+| Marco | Contagem | `document_sha256` |
+|---|---|---|
+| `CIENCIA` 20/09/2026 | termo final 09/10/2026 | `208069646c5450356cf5545af41c86dc4d03a7e1f1debbec498120f74d5c6d29` |
+| `DISPONIBILIZACAO` 21/09/2026 | publicação 22/09/2026 → termo final 14/10/2026 | `93fbf203eed6ef1a5c571211d4002aae81c637bf97a90cbd9c47217a5ede72b9` |
+
+Os dois documentos têm 1.753.878 bytes. O SHA depende de `LOCAL_DATA`
+("Salvador, 28 de setembro de 2026."); todas as execuções ocorreram em
+28/09/2026.
+
+* **Server-side — PASS:** os dois SHAs acima.
+* **ChatGPT — PASS** (relatado pelo titular): schema com `CIENCIA` e
+  `DISPONIBILIZACAO`; os dois casos `OK` com os mesmos SHAs; sem timeout
+  nem erro de transporte.
+* **Claude.ai — PASS** (relatado pelo titular).
+* **Claude Code — PASS:** schema da sessão reconectada com os dois
+  valores do enum e os campos `pedidos_economicos`, `zonas`,
+  `juizo_confirmado_advogado`, `topicos` e `fatos_publicos`. `CIENCIA`
+  `OK` em ~67 s e `DISPONIBILIZACAO` `OK` em ~47 s, sem timeout nem
+  erro de transporte, os mesmos SHAs. Download HTTP 200, content-type
+  DOCX, SHA-256 local idêntico, ZIP íntegro, aberto no Word (COM,
+  somente leitura: 7 páginas). Conferido no texto: juízo de Valença
+  resolvido pelo DataJud, `LOCAL_DATA` automático, retificação para
+  R$ 14.997,63, sem "R$ R$", zona logo após "In casu, a petição inicial
+  cumula:", nenhum `{{` nem tag interna residual.
+* **Comparação:** as quatro superfícies chegaram aos mesmos artefatos,
+  byte a byte, onde houve comparação de SHA.
+* **Tentativas anteriores do Claude Code:** duas chamadas `CIENCIA`
+  (~62 s e ~61 s) voltaram `NEEDS_INPUT`/`enderecamento` por DataJud
+  indisponível; uma consulta direta ao DataJud no mesmo momento levou
+  52,1 s. Lentidão temporária da dependência externa, com fail-closed
+  correto — não é falha da 0.18.0. Negativos não repetidos.
+
+**Pendências:** PEND-015 e PEND-016 continuam fechadas para o V1;
+PEND-019 continua aberta, sem mudança no comportamento de
+`DISPONIBILIZACAO`. Primeiro caso real ainda não retomado.

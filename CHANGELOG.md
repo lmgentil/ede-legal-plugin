@@ -7,6 +7,31 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Gate de compatibilidade host (pré-deploy, sem bump de versão)
+- `ede_preparar_contestacao` publica `capability_id` e o contrato
+  machine-readable do host: por tópico, `suporte_factual_host` (chave de
+  `estado_processual`, requisito semântico, efeito de
+  true/false/INDETERMINADO, documentos só sugeridos) e
+  `dados_documentais_host` com `exigido_quando`; mais
+  `secoes_incondicionais_host`, `chaves_estado_host`,
+  `estados_calculados_pelo_sistema` e `campo_finalizador`/`exigido_quando`
+  nas partes redigíveis. Sem taxonomia de documentos. `gate_status` deixa de dizer `sem_gate_fatico` para blocos
+  com gate no manifesto.
+- `ede_finalizar_peca`: chave desconhecida em `estado_processual` é
+  recusada (`chaves_estado_desconhecidas`); `NEEDS_INPUT`/`topic_matrix`
+  traz `suporte_ausente` para o host. Pendências ao advogado sem
+  identificador interno, como antes.
+- Marcadores de telas da titularidade e fotos da irregularidade passam a
+  ser preenchidos pelo Core no V1 quando o bloco é composto; o host não
+  os envia.
+- Correção: o finalizador MCP aplica a regra do catálogo que proíbe
+  sentinela/valor provisório em `VALOR_FRA` com a Reconvenção incluída
+  (antes só o fluxo local recusava; o MCP gerava a peça com "NÃO
+  INFORMADO").
+- Nenhuma regra jurídica muda; manifesto, catálogo e Modelo Oficial
+  inalterados. Emenda na ADR-0021 e SPEC-0001 §64.8. Schema público muda
+  por adição: exige reconexão e smoke cross-client. Produção intocada.
+
 ### 0.18.0 — marco de tempestividade `CIENCIA` (pré-deploy)
 - `marco_tempestividade` aceita `{"tipo": "CIENCIA", "data": "DD/MM/AAAA"}`:
   data da citação/intimação/ciência entregue diretamente ao cálculo da

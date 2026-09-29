@@ -43,6 +43,14 @@ Regras (todas fail-closed, nenhuma heurística jurídica):
 Nenhuma mensagem expõe tag SDT, id de bloco, placeholder ou chave de
 estado interno: só `nome_publico`/`pergunta` do manifesto e as
 descrições em linguagem jurídica abaixo.
+
+Contrato do HOST (gate de compatibilidade host, emenda da ADR-0021):
+"não expor chaves internas ao advogado" não é "não expor contrato ao
+host". `descrever_contrato_host` publica, machine-readable, os estados
+que o host deriva dos documentos (chave, significado, fonte, efeito de
+true/false/INDETERMINADO), os dados documentais de cada tópico e as
+chaves aceitas; `ResultadoTopicMatrix.suporte_ausente` devolve ao host a
+chave de cada pendência de suporte. Nada disso entra em `pendencias`.
 """
 from __future__ import annotations
 
@@ -68,6 +76,136 @@ DESCRICAO_SUPORTE_FACTUAL = {
 }
 """Uma descrição por fato de gate declarado no manifesto; a suíte exige
 cobertura total (fato de gate sem descrição é defeito do plugin)."""
+
+DESCRICAO_ESTADO_HOST = {
+    **DESCRICAO_SUPORTE_FACTUAL,
+    "METODOLOGIA_APURACAO_DOCUMENTADA":
+        "a metodologia de apuração efetivamente aplicada (critério do art. 595 da REN ANEEL 1.000/2021, "
+        "período, ciclos e valores), registrada no memorial de cálculo ou de faturamento",
+    "PROCEDIMENTO_ART_590_DOCUMENTADO":
+        "a observância documentada das providências do art. 590 da REN ANEEL 1.000/2021 na inspeção",
+    "REGISTRO_FOTOGRAFICO_DOCUMENTADO": "as fotografias da irregularidade registradas na inspeção",
+    "INSPECAO_ACOMPANHADA_DOCUMENTADA":
+        "o acompanhamento da inspeção por representante da unidade consumidora, registrado no TOI",
+    "NOTIFICACAO_AUTORA_DOCUMENTADA":
+        "a entrega comprovada à parte autora da documentação do procedimento (TOI, memorial de cálculo)",
+    "LEVANTAMENTO_CARGA_DOCUMENTADO": "o levantamento da carga instalada na unidade consumidora",
+    "AUSENCIA_TRANSFERENCIA_TITULARIDADE_COMPROVADA":
+        "a comprovação de que não houve pedido nem efetivação de transferência da titularidade da unidade "
+        "consumidora",
+}
+"""Contrato do HOST (gate de compatibilidade host, emenda da ADR-0021):
+toda chave de `estado_processual` que o host pode derivar dos documentos
+tem significado publicado por `ede_preparar_contestacao`. Estende
+`DESCRICAO_SUPORTE_FACTUAL` (mesmas descrições para os fatos de gate)
+com os estados de zona e de subbloco. `verificar_compatibilidade` exige
+cobertura total."""
+
+DOCUMENTOS_SUGERIDOS_ESTADO_HOST = {
+    "PROCEDIMENTO_ART_590_DOCUMENTADO": ["toi", "documentos_procedimento_administrativo"],
+    "REGISTRO_FOTOGRAFICO_DOCUMENTADO": ["registro_fotografico_inspecao"],
+    "INSPECAO_ACOMPANHADA_DOCUMENTADA": ["toi"],
+    "NOTIFICACAO_AUTORA_DOCUMENTADA": ["comprovante_entrega_documentacao"],
+}
+"""Orientação NÃO exaustiva, só onde o manifesto não dá nenhuma (os
+subblocos das seções incondicionais não têm `campos_documentais`). Nos
+demais casos a sugestão é o `campos_documentais` do tópico ou as fontes
+da zona, lidas do manifesto. Nunca enum, nunca condição de validade: o
+host reconhece o suporte pelo conteúdo de qualquer documento."""
+
+DOCUMENTOS_SUGERIDOS_DADO_HOST = {
+    "NUMERO_PROCESSO": ["peticao_inicial"],
+    "AUTOR": ["peticao_inicial"],
+    "IRREGULARIDADE_ENCONTRADA": ["toi"],
+    "FOTOS_DA_IRREGULARIADE": ["registro_fotografico_inspecao"],
+}
+"""Mesmo critério, para os campos documentais (seções sem
+`campos_documentais` e a irregularidade, cujo tópico da Reconvenção só
+lista a fatura e o memorial)."""
+
+CONTRATO_DADO_HOST = {
+    "IRREGULARIDADE_ENCONTRADA": {
+        "descricao": "Somente o nome ou tipo da irregularidade constatada no TOI, em redação natural e "
+                     "minúsculas, ressalvados nomes próprios e siglas (ex.: desvio de energia antes do "
+                     "medidor). O modelo já exibe o campo em negrito; a marcação **...**, se usada, envolve "
+                     "o valor inteiro, nunca parte dele.",
+        "restricoes": [
+            "não repetir o texto fixo que envolve o campo ('Na ocasião, foi constatada irregularidade do "
+            "tipo,' antes e ', circunstância que impedia o registro integral...' depois)",
+            "não explicar tecnicamente a irregularidade (isso é DESENVOLVIMENTO_TECNICO_IRREGULARIDADE)",
+            "não escrever integralmente em caixa alta",
+            "não mencionar assinatura do TOI nem a origem do dado",
+        ],
+    },
+    "VALOR_FRA": {
+        "descricao": "Valor do débito da recuperação de consumo, em formato monetário brasileiro (ex.: "
+                     "R$ 2.097,63), exatamente como consta da fatura de recuperação ou do memorial; nunca "
+                     "calculado, estimado nem arredondado pelo host. Só é enviado com a reconvenção SIM.",
+        "restricoes": [
+            "valor documentado -> preencher o campo e VALOR_FRA_DOCUMENTADO = true",
+            "sem valor documentado -> VALOR_FRA_DOCUMENTADO false ou omitido; o finalizador devolve "
+            "NEEDS_INPUT e a pendência vai ao advogado",
+            "valores divergentes entre documentos -> VALOR_FRA_DOCUMENTADO = INDETERMINADO",
+            "nunca usar sentinela de ausência ('NÃO INFORMADO') nem valor provisório para atravessar a "
+            "finalização",
+        ],
+    },
+}
+"""Onde o texto do schema serve ao fluxo legado mas induziria o host MCP a
+erro (gate de compatibilidade host, revisão de 28/09/2026): o contrato
+publicado ao host é o do comportamento real. `IRREGULARIDADE_ENCONTRADA`:
+contrato atômico da Etapa 5.3-B (`validate_placeholder_semantics.
+_validar_irregularidade_encontrada`, CLAUDE.md §14). `VALOR_FRA`: no V1 o
+campo só existe dentro da Reconvenção, cujo tópico SIM exige
+`VALOR_FRA_DOCUMENTADO` true; a sentinela do schema ("NÃO INFORMADO")
+pertence ao fluxo local, que aborta com ela (`gerar_contestacao.
+PLACEHOLDERS_CRITICOS_NAO_SENTINELA`)."""
+
+REGRA_ESTADO_HOST = {
+    "gate_factual": {
+        "true": "Consta de documento do caso, com proveniência: o tópico marcado SIM pode ser incluído.",
+        "false": "Os documentos não trazem esse suporte: com o tópico SIM, o finalizador devolve NEEDS_INPUT "
+                 "(suporte_ausente); apresente a pendência ao advogado em linguagem comum.",
+        "INDETERMINADO": "Documentos contraditórios: com o tópico SIM, o finalizador devolve NEEDS_INPUT por "
+                         "contradição.",
+        "omitida": "Mesmo efeito de false.",
+    },
+    "suporte_informativo": {
+        "true": "Suporte localizado: nenhum aviso.",
+        "false": "O tópico SIM é incluído mesmo assim, com aviso não bloqueante (dados_nao_bloqueantes).",
+        "INDETERMINADO": "Mesmo efeito de false.",
+        "omitida": "Mesmo efeito de false.",
+    },
+    "subbloco": {
+        "true": "O trecho factual correspondente permanece na peça.",
+        "false": "O trecho é omitido; o finalizador devolve aviso não bloqueante (dados_nao_bloqueantes).",
+        "INDETERMINADO": "Documentos contraditórios: a composição é recusada, mesmo que o tópico do trecho "
+                         "não seja incluído.",
+        "omitida": "Mesmo efeito de false.",
+    },
+    "zona": {
+        "true": "A zona pode receber conteúdo (opcional) em 'zonas', com a base documental, quando o tópico "
+                "for incluído.",
+        "false": "Zona excluída: não envie conteúdo para ela (conteúdo enviado é recusado).",
+        "INDETERMINADO": "Documentos contraditórios: a composição é recusada quando o tópico for incluído.",
+        "omitida": "Mesmo efeito de false.",
+    },
+}
+
+REGRA_ESPECIFICA_ESTADO_HOST = {
+    "CORTE_EFETIVO": {
+        "true": "Só com evidência que a Ré não contradiga (ex.: registro operacional da concessionária). "
+                "Alegação da autora, ameaça ou aviso de suspensão, pedido preventivo, pedido de "
+                "restabelecimento isolado ou débito nunca bastam.",
+        "false": "Não há corte ou suspensão efetiva documentada.",
+        "INDETERMINADO": "Documentos contraditórios: com o tópico SIM, NEEDS_INPUT por contradição.",
+        "omitida": "O fato é perguntado ao advogado (fatos_publicos.corte_efetivo).",
+        "nota": "Fato separado da decisão do tópico: nunca inferido dela, nem o inverso. Se o advogado também "
+                "responder fatos_publicos.corte_efetivo e divergir dos documentos, NEEDS_INPUT.",
+    },
+}
+"""INV-CORTE-GATE-HUMANO, só descrita para o host; a semântica é a de
+`traduzir`, inalterada."""
 
 SUBBLOCOS_FACTUAIS_COM_AVISO = (
     "SUBBLOCO_CONFORMIDADE_ART_590",
@@ -103,6 +241,11 @@ class ResultadoTopicMatrix:
     avisos: tuple[str, ...] = ()
     """Não bloqueantes (ADR-0021), só em OK: vão para
     `dados_nao_bloqueantes` da resposta."""
+    suporte_ausente: tuple[dict, ...] = ()
+    """Só em NEEDS_INPUT, para o HOST (nunca exibido ao advogado):
+    `{topico, chave_estado, motivo: AUSENTE|FALSE|INDETERMINADO}` de cada
+    pendência de suporte factual, para o host rever o `estado_processual`
+    derivado dos documentos antes de levar a pendência ao advogado."""
 
 
 def _topicos(manifesto: dict) -> list[dict]:
@@ -138,6 +281,13 @@ def verificar_compatibilidade(manifesto: dict, catalogo: dict) -> None:
     for e in _entradas_factuais(manifesto):
         if e.get("tipo") != "SIM_NAO":
             raise ManifestoIncompativel(f"entrada factual {e['chave']}: tipo não suportado")
+    # Contrato do host: todo estado publicado tem significado (as sugestões
+    # de documento são orientação, nunca exigidas).
+    fatos_zona = _fatos_por_zona(catalogo)
+    for grupo in [*_topicos(manifesto), *(manifesto.get("secoes_incondicionais") or [])]:
+        for chave, _papel, _documentos in _estados_host(grupo, fatos_zona, _reservados(manifesto)):
+            if chave not in DESCRICAO_ESTADO_HOST:
+                raise ManifestoIncompativel(f"estado do host sem descrição: {chave}")
 
 
 def descrever_topic_matrix_publica(manifesto: dict) -> dict:
@@ -155,6 +305,133 @@ def descrever_topic_matrix_publica(manifesto: dict) -> dict:
         ],
         "respostas_validas": list(RESPOSTAS_VALIDAS),
     }
+
+
+# ------------------------------------------------ contrato do host (estado)
+
+def _fatos_por_zona(catalogo: dict) -> dict:
+    return {z["id"]: list(z.get("requires_facts") or []) for z in catalogo.get("zones", [])}
+
+
+def _reservados(manifesto: dict) -> set:
+    return set(manifesto.get("estados_reservados_ao_core") or [])
+
+
+def _documentos_sugeridos(override, *candidatos) -> list:
+    for c in (override, *candidatos):
+        if c:
+            return list(c)
+    return []
+
+
+def _entrada_estado(chave: str, papel: str, documentos: list) -> dict:
+    return {
+        "chave_estado": chave,
+        "papel": papel,
+        "descricao": DESCRICAO_ESTADO_HOST[chave],
+        "requisito": f"Algum documento do caso, qualquer que seja o nome, o formato ou o tipo do arquivo, "
+                     f"demonstra {DESCRICAO_ESTADO_HOST[chave]}.",
+        "documentos_sugeridos": documentos,
+        "regra": dict(REGRA_ESPECIFICA_ESTADO_HOST.get(chave) or REGRA_ESTADO_HOST[papel]),
+    }
+
+
+def _estados_host(grupo: dict, fatos_zona: dict, reservados: set) -> list[tuple[str, str, list]]:
+    """(chave, papel, documentos_sugeridos) dos estados que o host deriva dos
+    documentos para um tópico ou seção incondicional, lidos do manifesto
+    (`gate_factual`, `suporte_informativo`, `subblocos_derivados`, zonas
+    do `conteudo`) e dos `requires_facts` das zonas no catálogo. Estados
+    reservados ao Core nunca entram."""
+    campos = grupo.get("campos_documentais") or []
+    itens = [(f, "gate_factual", None) for f in grupo.get("gate_factual") or []]
+    info = grupo.get("suporte_informativo")
+    if info:
+        itens.append((info["fato"], "suporte_informativo", None))
+    itens += [(sb["fato"], "subbloco", None) for sb in grupo.get("subblocos_derivados") or []]
+    for c in grupo.get("conteudo") or []:
+        if c.get("parte") in fatos_zona:
+            fontes_zona = [f for f in c.get("fontes") or [] if f != "fatos_com_proveniencia"]
+            itens += [(f, "zona", fontes_zona) for f in fatos_zona[c["parte"]]]
+    return [(chave, papel, _documentos_sugeridos(DOCUMENTOS_SUGERIDOS_ESTADO_HOST.get(chave), fontes_zona, campos))
+            for chave, papel, fontes_zona in itens if chave not in reservados]
+
+
+def _suporte_factual_host(grupo: dict, fatos_zona: dict, reservados: set) -> list:
+    return [_entrada_estado(chave, papel, documentos)
+            for chave, papel, documentos in _estados_host(grupo, fatos_zona, reservados)]
+
+
+def _dado_host(campo: str, schema: dict, campos: list, exigido_quando: dict) -> dict:
+    contrato = (schema.get("placeholder_contracts") or {}).get(campo) or {}
+    host = CONTRATO_DADO_HOST.get(campo) or {}
+    return {
+        "campo": campo,
+        "campo_finalizador": "placeholders",
+        "descricao": host.get("descricao") or contrato.get("descricao", ""),
+        "restricoes": list(host.get("restricoes") or contrato.get("restricoes") or []),
+        "documentos_sugeridos": _documentos_sugeridos(DOCUMENTOS_SUGERIDOS_DADO_HOST.get(campo), campos),
+        "exigido_quando": exigido_quando,
+    }
+
+
+def _dados_documentais_host(grupo: dict, schema: dict, exigido_quando: dict) -> list:
+    """Campos que o host preenche em `placeholders` a partir dos
+    documentos: as partes `DADO_DOCUMENTAL` do grupo. Marcadores de
+    pós-edição manual (telas, fotos) são do Core, nunca do host."""
+    campos = grupo.get("campos_documentais") or []
+    return [_dado_host(c["parte"], schema, campos, exigido_quando)
+            for c in grupo.get("conteudo") or [] if c.get("modo") == "DADO_DOCUMENTAL"]
+
+
+def _campos_calculados(manifesto: dict) -> list:
+    """O que o sistema preenche sozinho e o host não envia: partes
+    `CALCULADO_PELO_CORE` do manifesto e os campos contidos em subblocos
+    (`contem`, ex.: marcador das fotos)."""
+    grupos = [*_topicos(manifesto), *(manifesto.get("secoes_incondicionais") or [])]
+    campos = {c["parte"] for g in grupos for c in g.get("conteudo") or [] if c.get("modo") == "CALCULADO_PELO_CORE"}
+    campos |= {x for g in grupos for sb in g.get("subblocos_derivados") or [] for x in sb.get("contem") or []}
+    return sorted(campos)
+
+
+def descrever_contrato_host(manifesto: dict, catalogo: dict, schema: dict) -> dict:
+    """Contrato machine-readable do HOST (gate de compatibilidade host,
+    emenda da ADR-0021) — distinto da Topic Matrix pública: o que o
+    host deriva dos documentos e envia ao finalizador, nunca o que ele
+    pergunta ao advogado. Derivado do manifesto, do catálogo e do schema
+    de placeholders (nenhuma regra jurídica nova)."""
+    fatos_zona = _fatos_por_zona(catalogo)
+    reservados = _reservados(manifesto)
+    por_topico = {
+        t["chave"]: {
+            "suporte_factual_host": _suporte_factual_host(t, fatos_zona, reservados),
+            "dados_documentais_host": _dados_documentais_host(
+                t, schema, {"topico": t["chave"], "resposta": "SIM"}),
+        }
+        for t in _topicos(manifesto)
+    }
+    secoes = []
+    for s in manifesto.get("secoes_incondicionais") or []:
+        suporte = _suporte_factual_host(s, fatos_zona, reservados)
+        dados = _dados_documentais_host(s, schema, {"sempre": True})
+        if suporte or dados:
+            secoes.append({"secao": s["id"], "suporte_factual_host": suporte, "dados_documentais_host": dados})
+    chaves = {e["chave_estado"] for g in [*por_topico.values(), *secoes] for e in g["suporte_factual_host"]}
+    return {
+        "por_topico": por_topico,
+        "secoes_incondicionais": secoes,
+        "chaves_estado_host": sorted(chaves),
+        "estados_calculados_pelo_sistema": sorted(reservados),
+        "campos_calculados_pelo_sistema": _campos_calculados(manifesto),
+    }
+
+
+def chaves_estado_host(manifesto: dict, catalogo: dict) -> frozenset:
+    """As únicas chaves de `estado_processual` aceitas do host no fluxo
+    do manifesto — as mesmas que `ede_preparar_contestacao` publica."""
+    return frozenset(descrever_contrato_host(manifesto, catalogo, {})["chaves_estado_host"])
+
+
+_MOTIVO_SUPORTE = {None: "AUSENTE", False: "FALSE", "INDETERMINADO": "INDETERMINADO"}
 
 
 def _pendencia_suporte(nome_topico: str, fato: str, valor) -> str:
@@ -215,6 +492,7 @@ def traduzir(manifesto: dict, catalogo: dict, topicos: dict, fatos_publicos: dic
     estado_motor = {**estado_processual, **fatos_resolvidos}
     block_decisions = {}
     avisos = []
+    suporte_ausente = []
     for t in _topicos(manifesto):
         resposta = topicos.get(t["chave"])
         if resposta is None:
@@ -226,6 +504,8 @@ def traduzir(manifesto: dict, catalogo: dict, topicos: dict, fatos_publicos: dic
             for f in faltas:
                 if f not in fatos_publicos_pendentes:  # a pergunta do próprio fato já foi feita acima
                     pendencias.append(_pendencia_suporte(t["nome_publico"], f, estado_motor.get(f)))
+                    suporte_ausente.append({"topico": t["chave"], "chave_estado": f,
+                                            "motivo": _MOTIVO_SUPORTE.get(estado_motor.get(f), "AUSENTE")})
             if faltas:
                 continue
             info = t.get("suporte_informativo")
@@ -237,7 +517,8 @@ def traduzir(manifesto: dict, catalogo: dict, topicos: dict, fatos_publicos: dic
             block_decisions[bloco["id"]] = "INCLUIR" if incluir else "EXCLUIR"
 
     if pendencias:
-        return ResultadoTopicMatrix(status="NEEDS_INPUT", pendencias=tuple(dict.fromkeys(pendencias)))
+        return ResultadoTopicMatrix(status="NEEDS_INPUT", pendencias=tuple(dict.fromkeys(pendencias)),
+                                    suporte_ausente=tuple(suporte_ausente))
     return ResultadoTopicMatrix(status="OK", block_decisions=block_decisions, estado_processual_motor=estado_motor,
                                 avisos=tuple(avisos))
 

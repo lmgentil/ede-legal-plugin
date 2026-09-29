@@ -38,7 +38,7 @@ import os
 import re
 import sys
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Literal
 
@@ -197,6 +197,15 @@ class ResultadoFinalizacao:
     dados_nao_bloqueantes: tuple[str, ...] = ()
     """Só em `OK`: trechos factuais omitidos por falta de prova (a peça
     foi gerada sem eles; o advogado decide se complementa)."""
+    suporte_ausente: tuple[dict, ...] = ()
+    """Só em `NEEDS_INPUT` da Topic Matrix, para o HOST (gate de
+    compatibilidade host): `{topico, chave_estado, motivo}` de cada
+    pendência de suporte factual. Nunca exibido ao advogado; as
+    `pendencias` continuam sem chave interna."""
+    chaves_estado_desconhecidas: tuple[str, ...] = ()
+    """Só em `REFUSED` por chave de `estado_processual` fora do contrato
+    publicado por `ede_preparar_contestacao` (nunca ignorada em
+    silêncio)."""
     artefato_id: str | None = None
     """`sha256(token)` — identificador do objeto que não permite
     reconstruir o link. NUNCA serializado na resposta pública ao cliente
@@ -385,6 +394,45 @@ def _validar_producao_final(placeholders: dict, estados_blocos: dict, capability
                           "Valor de aceite/teste detectado — não permitido em modo produção-final.", capability_id)
     return _recusado("production_final_validation", "MISSING_REQUIRED_FIELD",
                       "Placeholder obrigatório ausente ou vazio para esta composição.", capability_id)
+
+
+def _preencher_marcadores_manuais(placeholders: dict, estados_blocos: dict, versao,
+                                  capability_id: str) -> ResultadoFinalizacao | None:
+    """V1 (gate de compatibilidade host): os marcadores de pós-edição
+    manual (telas da titularidade, fotos da irregularidade) são do Core,
+    como no fluxo local — preenchidos só quando o bloco que os contém
+    compõe a peça. O host não precisa enviá-los; se enviar, só o texto
+    institucional idêntico é aceito (nunca substituído em silêncio)."""
+    _, bloco_dono = vs.placeholders_por_visibilidade(versao.placeholder_bloco_dono_extra)
+    for campo, marcador in vs.MARCADORES_MANUAIS.items():
+        if estados_blocos.get(bloco_dono.get(campo)) != "INCLUIR":
+            continue
+        enviado = str(placeholders.get(campo) or "").strip()
+        if enviado and enviado != marcador:
+            return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                              f"O campo {campo} é preenchido pelo sistema e não deve ser enviado pelo host.",
+                              capability_id)
+        placeholders[campo] = marcador
+    return None
+
+
+def _validar_valor_real_obrigatorio(catalogo: dict, estados_blocos: dict, placeholders: dict,
+                                    capability_id: str) -> ResultadoFinalizacao | None:
+    """Regra `obrigatorio_nao_sentinela` do catálogo (hoje: VALOR_FRA com a
+    Reconvenção incluída), antes de renderizar — a mesma proteção do fluxo
+    local, que o finalizador MCP não aplicava: sentinela de ausência,
+    sentinela de aceite ou valor sem quantia monetária nunca atravessam a
+    produção-final."""
+    for bloco in catalogo.get("blocks", []):
+        for dep in bloco.get("dependencies") or []:
+            if dep.get("regra") != "obrigatorio_nao_sentinela" or estados_blocos.get(bloco["id"]) != dep.get("quando"):
+                continue
+            if vs.valor_real_ausente(placeholders.get(dep["placeholder"])):
+                return _recusado("production_final_validation", "MISSING_REQUIRED_FIELD",
+                                  "O valor do débito da reconvenção está ausente ou provisório; informe o valor "
+                                  "documentado (ex.: R$ 1.234,56) ou responda NÃO para a reconvenção.",
+                                  capability_id)
+    return None
 
 
 # ------------------------------------------ dados derivados (ADR-0021, V1)
@@ -637,6 +685,16 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
             return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
                               f"Os estados {reservados} são derivados pelo sistema e não devem ser enviados "
                               f"pelo host.", capability_id)
+        # Gate de compatibilidade host: chave fora do contrato publicado
+        # nunca é ignorada em silêncio (um erro de digitação do host
+        # viraria "suporte não informado" sem ninguém saber por quê).
+        desconhecidas = sorted(set(estado_processual) - tm.chaves_estado_host(manifesto, catalogo))
+        if desconhecidas:
+            return replace(_recusado(
+                "input_validation", "INPUT_VALIDATION_FAILED",
+                f"estado_processual contém chaves fora do contrato publicado por ede_preparar_contestacao "
+                f"(topic_matrix.chaves_estado_host): {desconhecidas}.", capability_id),
+                chaves_estado_desconhecidas=tuple(desconhecidas))
 
         # Zonas: só as autorizadas pelo manifesto; a validação completa
         # (proveniência, limites, semântica, continuidade) roda depois,
@@ -663,7 +721,7 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
             return ResultadoFinalizacao(
                 status="NEEDS_INPUT", capability_id=capability_id, stage="topic_matrix",
                 motivo="Faltam decisões ou suporte factual para compor a peça.",
-                pendencias=traducao.pendencias,
+                pendencias=traducao.pendencias, suporte_ausente=traducao.suporte_ausente,
             )
         block_decisions = traducao.block_decisions
         estado_processual = dict(traducao.estado_processual_motor)
@@ -744,6 +802,14 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
     except ComposicaoAbortada as e:
         codigo, motivo = _classificar_etapa_engine(e.stage)
         return _recusado_por_codigo(codigo, motivo, capability_id)
+
+    if manifesto is not None:
+        erro = _preencher_marcadores_manuais(placeholders, estados_blocos, versao, capability_id)
+        if erro is not None:
+            return erro
+    erro = _validar_valor_real_obrigatorio(catalogo, estados_blocos, placeholders, capability_id)
+    if erro is not None:
+        return erro
 
     erro = _validar_producao_final(placeholders, estados_blocos, capability_id,
                                    versao.placeholder_bloco_dono_extra)

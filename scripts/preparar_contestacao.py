@@ -56,6 +56,7 @@ BASE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from docx_block_engine import ComposicaoAbortada, carregar_catalogo, validar_catalogo  # noqa: E402
+import capability_registry as cr  # noqa: E402
 import modelo_oficial_versoes as mov  # noqa: E402
 import topic_matrix as tm  # noqa: E402
 from docx_context_engine import ContextoAbortada, extrair_contexto  # noqa: E402
@@ -1067,19 +1068,9 @@ def _montar_fontes_legais(questoes: list) -> list:
 
 # --------------------------------------------------------- catálogo de blocos
 
-def _gate_status_bloco(bloco: dict, estado: dict) -> str:
-    """Descreve, sem decidir, a situação do gate factual de um bloco
-    (Gate 6.5-A §15: o pacote nunca decide inclusão/exclusão — só
-    informa o estado já fornecido). Nunca inventa um estado ausente:
-    chave não fornecida é sempre 'estado_nao_informado', nunca tratada
-    como false silencioso."""
-    chave = None
-    if bloco.get("decision_mode") == "state_linked":
-        chave = bloco.get("linked_fact")
-    elif bloco.get("requires_fact"):
-        chave = bloco["requires_fact"].get("key")
-    if chave is None:
-        return "sem_gate_fatico"
+def _gate_status_chave(chave: str, estado: dict, reservados: frozenset | set = frozenset()) -> str:
+    if chave in reservados:
+        return f"calculado_pelo_sistema ({chave})"
     if chave not in estado:
         return f"estado_nao_informado ({chave})"
     valor = estado[chave]
@@ -1088,7 +1079,36 @@ def _gate_status_bloco(bloco: dict, estado: dict) -> str:
     return f"{'satisfeito' if valor else 'nao_satisfeito'} ({chave}={valor!r})"
 
 
-def _montar_blocos_modelo(catalogo: dict, estado: dict) -> list:
+def _gate_status_bloco(bloco: dict, estado: dict, gates_manifesto: list | None = None,
+                       reservados: frozenset | set = frozenset()) -> str:
+    """Descreve, sem decidir, a situação do gate factual de um bloco
+    (Gate 6.5-A §15: o pacote nunca decide inclusão/exclusão — só
+    informa o estado já fornecido). Nunca inventa um estado ausente:
+    chave não fornecida é sempre 'estado_nao_informado', nunca tratada
+    como false silencioso.
+
+    Gate de compatibilidade host: além do vínculo do catálogo, considera
+    o `gate_factual` do manifesto ativo (os blocos `estrategista`/
+    `humano` dos tópicos com gate não têm `requires_fact` no catálogo e
+    apareciam como "sem_gate_fatico", o contrário do que o finalizador
+    exige). Estado reservado ao Core aparece como calculado pelo sistema,
+    nunca como algo a informar."""
+    chaves = []
+    if bloco.get("decision_mode") == "state_linked":
+        chaves.append(bloco.get("linked_fact"))
+    elif bloco.get("requires_fact"):
+        chaves.append(bloco["requires_fact"].get("key"))
+    chaves += list(gates_manifesto or [])
+    chaves = [c for c in dict.fromkeys(chaves) if c]
+    if not chaves:
+        return "sem_gate_fatico"
+    return ", ".join(_gate_status_chave(c, estado, reservados) for c in chaves)
+
+
+def _montar_blocos_modelo(catalogo: dict, estado: dict, manifesto: dict | None = None) -> list:
+    gates_por_bloco = {t["topic_id"]: t.get("gate_factual") or []
+                       for t in (manifesto or {}).get("topicos_decisao_advogado") or []}
+    reservados = set((manifesto or {}).get("estados_reservados_ao_core") or [])
     resultado = []
     for b in catalogo.get("blocks", []):
         resultado.append({
@@ -1099,7 +1119,7 @@ def _montar_blocos_modelo(catalogo: dict, estado: dict) -> list:
             "children": b.get("children", []),
             "decision_mode": b["decision_mode"],
             "cardinality": b.get("cardinality"),
-            "gate_status": _gate_status_bloco(b, estado),
+            "gate_status": _gate_status_bloco(b, estado, gates_por_bloco.get(b["id"]), reservados),
         })
     for z in catalogo.get("zones", []):
         resultado.append({
@@ -1112,30 +1132,52 @@ def _montar_blocos_modelo(catalogo: dict, estado: dict) -> list:
             "cardinality": None,
             "requires_facts": z.get("requires_facts", []),
             "gate_status": ", ".join(
-                _gate_status_bloco({"requires_fact": {"key": k}}, estado)
-                for k in z.get("requires_facts", [])
+                _gate_status_chave(k, estado, reservados) for k in z.get("requires_facts", [])
             ) or "sem_gate_fatico",
         })
     return resultado
 
 
-def _montar_topic_matrix(manifesto: dict | None) -> dict | None:
+def _montar_topic_matrix(manifesto: dict | None, catalogo: dict, schema: dict) -> dict | None:
     """ADR-0020: a Topic Matrix pública vem só do manifesto da versão
     ativa (`None` no contrato legado). Perguntas SIM/NÃO para o advogado
     e, para o host, as partes que a LLM pode redigir com as Skills
-    autorizadas/vedadas e as validações que o servidor aplica."""
+    autorizadas/vedadas e as validações que o servidor aplica.
+
+    Gate de compatibilidade host (emenda da ADR-0021): cada tópico leva
+    também `suporte_factual_host`/`dados_documentais_host` e a matriz
+    leva `chaves_estado_host`, `estados_calculados_pelo_sistema` e o
+    mesmo contrato das seções incondicionais — tudo derivado por
+    `tm.descrever_contrato_host`, uso interno do host, nunca pergunta ao
+    advogado."""
     if manifesto is None:
         return None
     publico = tm.descrever_topic_matrix_publica(manifesto)
+    host = tm.descrever_contrato_host(manifesto, catalogo, schema)
+    for t in publico["topicos"]:
+        t.update(host["por_topico"][t["chave"]])
+    publico["secoes_incondicionais_host"] = host["secoes_incondicionais"]
+    publico["chaves_estado_host"] = host["chaves_estado_host"]
+    publico["estados_calculados_pelo_sistema"] = host["estados_calculados_pelo_sistema"]
+    publico["campos_calculados_pelo_sistema"] = host["campos_calculados_pelo_sistema"]
+    zonas_catalogo = {z["id"] for z in catalogo.get("zones", [])}
     partes = []
-    grupos = [t.get("conteudo") or [] for t in manifesto.get("topicos_decisao_advogado") or []]
-    grupos += [s.get("conteudo") or [] for s in manifesto.get("secoes_incondicionais") or []]
-    for conteudo in grupos:
+    # Gate de compatibilidade host: cada parte diz quando é exigida — um
+    # campo só é necessário quando o bloco que o contém compõe a peça
+    # (mesma regra do finalizador), nunca universalmente.
+    grupos = [(t.get("conteudo") or [], {"topico": t["chave"], "resposta": "SIM"})
+              for t in manifesto.get("topicos_decisao_advogado") or []]
+    grupos += [(s.get("conteudo") or [], {"sempre": True}) for s in manifesto.get("secoes_incondicionais") or []]
+    for conteudo, exigido_quando in grupos:
         for c in conteudo:
             if c.get("llm"):
+                zona = c["parte"] in zonas_catalogo
                 partes.append({
                     "parte": c["parte"],
+                    "campo_finalizador": "zonas.conteudo" if zona else "placeholders",
                     "modo": c["modo"],
+                    "exigido_quando": {**exigido_quando, "opcional": True} if zona or c.get("opcional")
+                                      else exigido_quando,
                     "skills": c.get("skills", []),
                     "skills_vedadas": c.get("skills_vedadas", []),
                     "validacoes": c.get("validacoes", []),
@@ -1161,6 +1203,18 @@ def _montar_topic_matrix(manifesto: dict | None) -> dict | None:
             "recusa esses campos se vierem do host. Extraia da inicial os pedidos econômicos com fonte "
             "(pedidos_economicos) quando a impugnação ao valor da causa for SIM. Só envie "
             "juizo_confirmado_advogado depois de uma pendência por indisponibilidade do DataJud.")
+    publico["orientacao"] += (
+        " Suporte factual (uso interno do host): derive 'estado_processual' lendo o conteúdo dos documentos "
+        "do caso, usando somente as chaves de chaves_estado_host, conforme o requisito e a regra de "
+        "true/false/INDETERMINADO de suporte_factual_host (em cada tópico e em secoes_incondicionais_host). "
+        "Qualquer documento pode satisfazer um requisito, seja qual for o nome ou o tipo do arquivo; "
+        "documentos_sugeridos é só orientação, nunca lista fechada. Documentos contraditórios -> "
+        "INDETERMINADO. Nunca pergunte essas chaves ao advogado nem envie estados_calculados_pelo_sistema "
+        "ou campos_calculados_pelo_sistema (inclusive os marcadores de fotos e telas). "
+        "Envie só os campos cujo exigido_quando se cumpre (dados_documentais_host e partes_redigiveis_llm), "
+        "extraídos dos documentos. Se o finalizador devolver NEEDS_INPUT com suporte_ausente, reveja os "
+        "documentos; só se faltar mesmo a prova de um tópico SIM, apresente ao advogado a pendência em "
+        "linguagem comum, sem chaves internas. Envie o capability_id do pacote ao finalizador.")
     return publico
 
 
@@ -1208,6 +1262,19 @@ def _obter_contexto_institucional_gerativo(schema: dict, catalogo: dict) -> dict
 
 # ------------------------------------------------------------------- núcleo
 
+def _capability_id_contestacao(manifesto: dict | None) -> str:
+    """Capacidade que o host envia a `ede_finalizar_peca` (gate de
+    compatibilidade host: antes o pacote não a publicava). Com manifesto,
+    a do manifesto — que precisa existir no registro; sem manifesto, a
+    única capacidade da família contestação do registro."""
+    if manifesto is not None:
+        capability_id = manifesto.get("capability_id")
+        if cr.obter_capacidade(capability_id or "") is None:
+            raise ValueError(f"capability_id do manifesto fora do registro: {capability_id!r}")
+        return capability_id
+    return next(c.capability_id for c in cr.REGISTRO.values() if c.family == "contestacao")
+
+
 def preparar_contexto_contestacao(
     entrada: dict,
     schema_path: Path = SCHEMA_PADRAO,
@@ -1254,6 +1321,7 @@ def preparar_contexto_contestacao(
         manifesto = mov.carregar_manifesto(versao) if versao is not None else None
         if manifesto is not None:
             tm.verificar_compatibilidade(manifesto, catalogo)
+        capability_id = _capability_id_contestacao(manifesto)
     except (OSError, ValueError, ComposicaoAbortada, mov.IntegridadeVersaoModelo, tm.ManifestoIncompativel) as e:
         return _abortado("institutional_schema",
                           f"schema/catálogo institucional do próprio plugin "
@@ -1282,7 +1350,7 @@ def preparar_contexto_contestacao(
     estado = entrada.get("estado_processual") or {}
 
     fontes_legais = _montar_fontes_legais(questoes)
-    blocos_modelo = _montar_blocos_modelo(catalogo, estado)
+    blocos_modelo = _montar_blocos_modelo(catalogo, estado, manifesto)
     contexto_institucional = _obter_contexto_institucional_gerativo(schema, catalogo)
 
     alertas = []
@@ -1333,6 +1401,7 @@ def preparar_contexto_contestacao(
         )
 
     pacote = {
+        "capability_id": capability_id,
         "readiness": {
             "contestacao_status": "READY",
             "rag": resultado_rag.status,
@@ -1342,7 +1411,7 @@ def preparar_contexto_contestacao(
         "questoes_juridicas": questoes,
         "fontes_legais": fontes_legais,
         "blocos_modelo": blocos_modelo,
-        "topic_matrix": _montar_topic_matrix(manifesto),
+        "topic_matrix": _montar_topic_matrix(manifesto, catalogo, schema),
         "contexto_institucional": contexto_institucional or {},
         "regras_institucionais": list(REGRAS_INSTITUCIONAIS),
         "restricoes": {

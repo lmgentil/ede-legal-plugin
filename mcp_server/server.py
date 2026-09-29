@@ -318,6 +318,17 @@ class FatoEntrada(BaseModel):
     ] | None = None
 
 
+DESCRICAO_ESTADO_PROCESSUAL_HOST = (
+    "Suporte factual derivado PELO HOST do conteúdo dos documentos do caso (qualquer nome ou tipo de "
+    "arquivo), nunca perguntado ao advogado. Chaves válidas: pacote.topic_matrix.chaves_estado_host de "
+    "ede_preparar_contestacao; requisito e efeito de true/false/INDETERMINADO em "
+    "topic_matrix.topicos[*].suporte_factual_host e topic_matrix.secoes_incondicionais_host. Documentos "
+    "contraditórios: INDETERMINADO. Chave fora do contrato é recusada.")
+"""Gate de compatibilidade host (emenda da ADR-0021): o schema publicado
+aponta para o contrato do pacote — um host novo descobre as chaves pelas
+ferramentas, sem conhecer o repositório."""
+
+
 class PrepararContestacaoEntrada(BaseModel):
     """Entrada estruturada — nunca um campo "prompt" livre (Gate 6.5-A
     §6). Nenhum dado pessoal (CPF/RG/endereço/telefone/email) é aceito;
@@ -331,7 +342,10 @@ class PrepararContestacaoEntrada(BaseModel):
         list[Annotated[str, Field(max_length=preparar_contestacao.MAX_QUESTAO_CHARS)]],
         Field(max_length=preparar_contestacao.MAX_QUESTOES_JURIDICAS),
     ] = []
-    estado_processual: dict[str, bool | Literal["INDETERMINADO"]] = {}
+    estado_processual: dict[str, bool | Literal["INDETERMINADO"]] = Field(
+        {}, description="Opcional: o mesmo suporte factual do finalizador, só para o pacote informar a "
+                        "situação de cada gate (blocos_modelo[*].gate_status). As chaves válidas vêm na "
+                        "própria resposta (topic_matrix.chaves_estado_host).")
 
 
 class PrepararContestacaoResposta(BaseModel):
@@ -359,6 +373,15 @@ def ede_preparar_contestacao(entrada: PrepararContestacaoEntrada) -> PrepararCon
     Reconvenção, NÃO pesquisa jurisprudência e NÃO consulta DataJud. O
     HOST (Claude/ChatGPT) usa o pacote devolvido para raciocinar e
     redigir; a geração do DOCX final é etapa posterior, fora deste gate.
+
+    Contrato do host: o pacote traz o `capability_id` do finalizador e, em
+    `topic_matrix`, o que o host deriva dos documentos sem perguntar ao
+    advogado — chaves de `estado_processual` (`chaves_estado_host`), o
+    requisito semântico e o efeito de cada uma (`suporte_factual_host`) e
+    os dados documentais de cada tópico, com a condição em que são
+    exigidos (`dados_documentais_host`). Qualquer documento pode satisfazer
+    um requisito; as sugestões de documento não são lista fechada. Ao
+    advogado só se perguntam os tópicos e fatos públicos SIM/NÃO.
 
     Fail-closed: recusa com `PIPELINE_ABORTED` (nunca um pacote parcial
     apresentado como completo) se `contestacao_status` não estiver
@@ -486,7 +509,8 @@ class EdeFinalizarPecaEntrada(BaseModel):
     ] = {}
     estado_processual: Annotated[
         dict[str, bool | Literal["INDETERMINADO"]],
-        Field(max_length=finalizar_peca.MAX_CHAVES_POR_DICIONARIO_ENTRADA),
+        Field(max_length=finalizar_peca.MAX_CHAVES_POR_DICIONARIO_ENTRADA,
+              description=DESCRICAO_ESTADO_PROCESSUAL_HOST),
     ] = {}
     topicos: Annotated[
         dict[str, Literal["SIM", "NAO"]],
@@ -516,6 +540,15 @@ class EdeFinalizarPecaEntrada(BaseModel):
         None, max_length=finalizar_peca.MAX_JUIZO_CONFIRMADO_CHARS,
         description="Só depois de NEEDS_INPUT por indisponibilidade do DataJud; usado apenas se ele "
                     "continuar indisponível.")
+
+
+class SuporteAusente(BaseModel):
+    """Para o HOST, nunca para o advogado: qual estado derivado dos
+    documentos faltou para um tópico marcado SIM."""
+
+    topico: str
+    chave_estado: str
+    motivo: Literal["AUSENTE", "FALSE", "INDETERMINADO"]
 
 
 class EdeFinalizarPecaResposta(BaseModel):
@@ -548,6 +581,11 @@ class EdeFinalizarPecaResposta(BaseModel):
     linguagem jurídica — nenhum documento é gerado."""
     dados_nao_bloqueantes: list[str] | None = None
     """Só em OK: trechos factuais omitidos por falta de prova."""
+    suporte_ausente: list[SuporteAusente] | None = None
+    """Só em NEEDS_INPUT da Topic Matrix, para o host: a chave de cada
+    pendência de suporte factual (as `pendencias` continuam sem ela)."""
+    chaves_estado_desconhecidas: list[str] | None = None
+    """Só em REFUSED: chaves de `estado_processual` fora do contrato."""
     document_sha256: str | None = None
     document_size: int | None = None
     filename: str | None = None
@@ -593,6 +631,12 @@ def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent]:
     nenhuma etapa pulada por este ser agora um caminho MCP), devolvendo
     metadado + link de download do DOCX final (Gate 6.6-E, v2).
 
+    Chame antes `ede_preparar_contestacao`: o pacote dá o `capability_id`
+    e o contrato de `topicos`, `fatos_publicos`, `estado_processual`
+    (derivado dos documentos pelo host) e `placeholders`. `NEEDS_INPUT`
+    traz `pendencias` para o advogado e, quando falta suporte factual,
+    `suporte_ausente` para o host rever os documentos.
+
     SEMPRE modo produção-final (Decisão 4, ADR-0018): recusa
     (`status="REFUSED"`, nunca "melhor esforço") por Modelo Oficial não
     pronto, capacidade desconhecida/não pronta, decisão de bloco
@@ -632,6 +676,7 @@ def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent]:
         resposta = EdeFinalizarPecaResposta(
             status="NEEDS_INPUT", capability_id=resultado.capability_id, stage=resultado.stage,
             motivo=resultado.motivo, pendencias=list(resultado.pendencias),
+            suporte_ausente=[SuporteAusente(**x) for x in resultado.suporte_ausente] or None,
         )
         _registrar_finalizacao(resposta)
         return [TextContent(type="text", text=resposta.model_dump_json(exclude_none=True))]
@@ -640,6 +685,7 @@ def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent]:
         resposta = EdeFinalizarPecaResposta(
             status="REFUSED", capability_id=resultado.capability_id,
             stage=resultado.stage, error_code=resultado.error_code, motivo=resultado.motivo,
+            chaves_estado_desconhecidas=list(resultado.chaves_estado_desconhecidas) or None,
         )
         _registrar_finalizacao(resposta, artefato_id=resultado.artefato_id)
         return [TextContent(type="text", text=resposta.model_dump_json(exclude_none=True))]

@@ -506,13 +506,16 @@ def test_telemetria_espelha_estagios_e_codigos():
 
 
 def test_preparacao_orienta_o_host_a_nao_perguntar_o_derivavel():
-    publico = pc._montar_topic_matrix(T.MANIFESTO)
+    publico = pc._montar_topic_matrix(T.MANIFESTO, T.CATALOGO, {})
     assert [e["chave"] for e in publico["entradas_estruturadas"]] == [
         "marco_tempestividade", "pedidos_economicos", "zonas", "juizo_confirmado_advogado"]
     for termo in ("Nunca pergunte o juízo", "data da peça", "disponibilização", "CIENCIA",
                   "Nunca converta CIENCIA em DISPONIBILIZACAO", "nunca pergunte a modalidade da citação"):
         assert termo in publico["orientacao"]
-    assert all(t.keys() == {"chave", "nome_publico", "pergunta"} for t in publico["topicos"])
+    # Gate de compatibilidade host: além do que se mostra ao advogado, cada
+    # tópico leva só o contrato do host (sufixo _host), nada mais.
+    assert all(t.keys() == {"chave", "nome_publico", "pergunta", "suporte_factual_host",
+                            "dados_documentais_host"} for t in publico["topicos"])
 
 
 # ======================================================= render real (V1 local)

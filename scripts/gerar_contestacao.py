@@ -73,13 +73,13 @@ from validate_paragrafos import (  # noqa: E402
     validar_paragrafos_placeholders,
 )
 from zonas_conteudo import validar_conteudo_zonas  # noqa: E402
-from validate_placeholder_semantics import validar_semantica  # noqa: E402
+from validate_placeholder_semantics import MARCADORES_MANUAIS, validar_semantica  # noqa: E402
 
 TEMPLATE_PADRAO = BASE / "templates" / "contestacao" / "modelo-oficial.docx"
 SCHEMA_PADRAO = BASE / "templates" / "contestacao" / "schema.json"
 CATALOGO_BLOCOS_PADRAO = BASE / "templates" / "contestacao" / "blocos.json"
 
-MARCADOR_FOTOS = "[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]"
+MARCADOR_FOTOS = MARCADORES_MANUAIS["FOTOS_DA_IRREGULARIADE"]
 
 # Etapa 5.7-C (INV-MODELO-INSTITUCIONAL-FONTE-PRIMARIA, SPEC-0001 §57):
 # "gerativo" = campo onde o Redator/Humanizer compõem prosa argumentativa

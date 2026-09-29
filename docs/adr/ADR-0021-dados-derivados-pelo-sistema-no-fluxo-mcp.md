@@ -354,3 +354,85 @@ Os dois documentos têm 1.753.878 bytes. O SHA depende de `LOCAL_DATA`
 **Pendências:** PEND-015 e PEND-016 continuam fechadas para o V1;
 PEND-019 continua aberta, sem mudança no comportamento de
 `DISPONIBILIZACAO`. Primeiro caso real ainda não retomado.
+
+## Emenda — gate de compatibilidade host (28/09/2026, pré-deploy)
+
+**Achado.** No primeiro teste simples com o ChatGPT, o advogado deu só as
+14 decisões SIM/NÃO e "Citação 21/09/2026". O host tinha os documentos
+(memorial, fatura, pedido de dano moral), mas `ede_finalizar_peca`
+devolveu `NEEDS_INPUT`/`topic_matrix` para cálculos, dano moral e
+reconvenção. Reproduzido no homolog: os gates factuais existiam só em
+`gate_factual` do manifesto e em `topic_matrix.py`; nenhuma ferramenta
+MCP os publicava. `blocos_modelo[*].gate_status` dizia `sem_gate_fatico`
+para esses três blocos; `estado_processual` era um mapa sem descrição;
+chave desconhecida era ignorada em silêncio; o pacote não trazia o
+`capability_id`.
+
+**Decisão.** "Não expor chaves internas ao advogado" **não é** "não
+expor contrato machine-readable ao host". O advogado continua vendo e
+respondendo só tópicos e fatos públicos SIM/NÃO; o host recebe o
+contrato do que deriva dos documentos. Nenhuma regra jurídica muda: a
+Topic Matrix, os gates, `corte_efetivo` e o Modelo Oficial ficam como
+estão; o Core continua sem busca textual nem prova de fatos.
+
+* `ede_preparar_contestacao` publica `capability_id` e, em
+  `topic_matrix.topicos[*]`, `suporte_factual_host` (chave de estado,
+  papel — gate, suporte informativo, subbloco ou zona —, descrição,
+  requisito semântico, efeito de true/false/INDETERMINADO/omitida e
+  `documentos_sugeridos`) e `dados_documentais_host` (campo, tipo,
+  descrição, restrições, `documentos_sugeridos`, `exigido_quando`); o
+  mesmo para as seções incondicionais (`secoes_incondicionais_host`),
+  mais `chaves_estado_host` e `estados_calculados_pelo_sistema`. Tudo
+  derivado por `topic_matrix.descrever_contrato_host` do manifesto, do
+  catálogo e do schema; o código só declara o que o manifesto não dá no
+  nível do fato (`DESCRICAO_ESTADO_HOST`, `DOCUMENTOS_SUGERIDOS_*`,
+  `CONTRATO_DADO_HOST`).
+* **Contrato semântico, sem taxonomia de documentos.** O host reconhece
+  o suporte pelo conteúdo de qualquer documento, seja qual for o nome
+  ou o tipo do arquivo. `documentos_sugeridos` é orientação não
+  exaustiva (identificadores do manifesto), nunca enum nem condição de
+  validade; o Core não classifica documento nem valida nome.
+* `partes_redigiveis_llm[*]` traz `campo_finalizador` (`placeholders` ou
+  `zonas.conteudo`) e `exigido_quando` (tópico SIM, sempre, ou opcional
+  para zonas). Um campo só é exigido quando o bloco que o contém compõe
+  a peça — a mesma regra que o finalizador já aplicava.
+* `IRREGULARIDADE_ENCONTRADA` e `VALOR_FRA` são publicados ao host com o
+  contrato do comportamento real (atômico da Etapa 5.3-B; sem sentinela
+  de ausência), não com o texto do schema do fluxo local.
+* **Marcadores de pós-edição são do Core (decisão do titular, opção 1).**
+  No V1, quando o bloco que os contém compõe a peça, o finalizador
+  preenche `TELAS_DA_TITULARIDADE` ("[INSERIR MANUALMENTE AS
+  TELAS/DOCUMENTOS DA TITULARIDADE DA UC]") e `FOTOS_DA_IRREGULARIADE`
+  ("[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]"), textos
+  únicos em `validate_placeholder_semantics.MARCADORES_MANUAIS`. Coerente
+  com o manifesto (`CALCULADO_PELO_CORE`), sem nova versão dele. O host
+  não os envia (`campos_calculados_pelo_sistema`); valor diferente do
+  institucional é recusado, nunca substituído em silêncio.
+* **`VALOR_FRA` no MCP.** A regra `obrigatorio_nao_sentinela` do catálogo
+  (Reconvenção incluída) passa a valer no finalizador, antes do render:
+  sentinela de ausência, sentinela de aceite ou valor sem quantia
+  monetária → `MISSING_REQUIRED_FIELD`. Antes, só o fluxo local a
+  aplicava e o MCP gerava a peça com "NÃO INFORMADO" impresso. Vale para
+  o contrato V1 e o legado.
+* `gate_status` considera o `gate_factual` do manifesto; estado
+  reservado aparece como `calculado_pelo_sistema`.
+* `ede_finalizar_peca`: `estado_processual` segue mapa dinâmico, com
+  descrição apontando para o contrato; chave fora de
+  `chaves_estado_host` é recusada (`INPUT_VALIDATION_FAILED`,
+  `chaves_estado_desconhecidas`); `NEEDS_INPUT`/`topic_matrix` traz
+  `suporte_ausente` (`topico`, `chave_estado`, `motivo`
+  AUSENTE/FALSE/INDETERMINADO) para o host rever os documentos. As
+  `pendencias` continuam sem identificador interno.
+* Orientação do pacote: derivar `estado_processual` dos documentos, só
+  com as chaves publicadas, contradição → `INDETERMINADO`, nunca
+  perguntar as chaves ao advogado; pendência ao advogado só quando a
+  prova de um tópico SIM faltar de fato, em linguagem comum.
+
+**Fora deste gate.** Tornar `corte_efetivo` obrigatório só quando a
+licitude do corte for SIM (proposto no diagnóstico, não adotado).
+
+**Consequências.** O schema público muda por adição (reconexão dos
+clientes e smoke cross-client). Manifesto, catálogo e Modelo Oficial
+inalterados (SHAs fixados nos testes). A validação de chave desconhecida
+vale só no fluxo com manifesto; o contrato legado não muda. Testes
+black-box pela camada MCP em `tests/test_compatibilidade_host_mcp.py`.

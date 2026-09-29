@@ -803,6 +803,30 @@ PLACEHOLDER_BLOCO_DONO = {
 # em si é responsabilidade do Redator/Skill, não deste validador.
 PLACEHOLDERS_MARCADOR_MANUAL = ("FOTOS_DA_IRREGULARIADE", "TELAS_DA_TITULARIDADE")
 
+MARCADORES_MANUAIS = {
+    "FOTOS_DA_IRREGULARIADE": "[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]",
+    "TELAS_DA_TITULARIDADE": "[INSERIR MANUALMENTE AS TELAS/DOCUMENTOS DA TITULARIDADE DA UC]",
+}
+"""Texto institucional único de cada marcador de pós-edição manual
+(schema.json `placeholder_semantics`). O fluxo local
+(`gerar_contestacao`) e o finalizador MCP V1 preenchem estes marcadores
+sozinhos; o host nunca precisa enviá-los."""
+
+
+def valor_real_ausente(valor) -> bool:
+    """True quando um campo que exige valor real (regra
+    `obrigatorio_nao_sentinela` do catálogo, hoje só VALOR_FRA dentro da
+    Reconvenção) traz a sentinela de ausência, uma sentinela de aceite ou
+    nenhum valor monetário brasileiro — ou seja, um valor provisório.
+    Mesma proteção do fluxo local (`gerar_contestacao.
+    PLACEHOLDERS_CRITICOS_NAO_SENTINELA`), sem distinção de acento."""
+    texto = str(valor or "")
+    if _sem_acento(SENTINELA_AUSENCIA).upper() in _sem_acento(texto).upper():
+        return True
+    if any(s in texto for s in SENTINELAS_MODO_ACEITE):
+        return True
+    return not _VALOR_MONETARIO_BR_RE.search(texto)
+
 
 def placeholders_por_visibilidade(bloco_dono_extra: dict | None = None) -> tuple[tuple, dict]:
     """(sempre visíveis, {placeholder: bloco dono}) para uma versão do

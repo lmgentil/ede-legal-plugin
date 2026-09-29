@@ -385,7 +385,14 @@ Etapa 5.2") — resumo operacional aqui:
   econômico/discrepância do valor da causa ou documento concessivo da
   gratuidade. `JUIZO`, `TEMPESTIVIDADE_CASO`, `LOCAL_DATA` e
   `VALOR_TOTAL_PROVEITO_ECONOMICO` são calculados pelo Core no fluxo MCP
-  e recusados se vierem do host (SPEC-0001 §64).
+  e recusados se vierem do host (SPEC-0001 §64). **Gate de
+  compatibilidade host (SPEC-0001 §64.8):** "não expor chaves internas
+  ao advogado" ≠ "não expor contrato ao host" — `ede_preparar_contestacao`
+  publica, machine-readable, as chaves de `estado_processual` que o host
+  deriva dos documentos (`suporte_factual_host`, `chaves_estado_host`) e
+  os dados documentais de cada tópico; o finalizador recusa chave fora
+  desse contrato e devolve `suporte_ausente` ao host. Nunca perguntar
+  essas chaves ao advogado.
 - **INV-CORTE-GATE-HUMANO** (Etapa 5.5, 3ª correção arquitetural) —
   `LICITUDE_CORTE_SUSPENSAO` é `decision_mode: "humano"` com
   `requires_fact: {"key": "CORTE_EFETIVO"}` no catálogo: suporte fático

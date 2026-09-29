@@ -56,8 +56,10 @@ HOJE = datetime(2026, 9, 10, 12, 0, tzinfo=BAHIA)
 CAP = T.CAP
 MARCO = {"tipo": "DISPONIBILIZACAO", "data": "01/09/2026"}
 PEDIDOS_CASO_REAL = [
-    {"descricao": "declaração de inexistência do débito", "valor": "R$ 2.097,63", "fonte": "Petição inicial"},
-    {"descricao": "indenização por danos morais", "valor": "R$ 12.900,00", "fonte": "Petição inicial"},
+    {"descricao": "declaração de inexistência do débito", "natureza": "DEBITO", "valor": "R$ 2.097,63",
+     "fonte": "Petição inicial"},
+    {"descricao": "indenização por danos morais", "natureza": "DANO_MORAL", "valor": "R$ 12.900,00",
+     "fonte": "Petição inicial"},
 ]
 
 
@@ -136,16 +138,20 @@ def test_proveito_do_caso_real_em_decimal():
 
 
 def test_pedido_sem_valor_nunca_vira_zero():
-    pedidos = PEDIDOS_CASO_REAL + [{"descricao": "multa diária", "valor": None, "fonte": "Petição inicial"}]
+    pedidos = PEDIDOS_CASO_REAL + [{"descricao": "multa diária", "natureza": "OUTRO", "valor": None,
+                                    "fonte": "Petição inicial"}]
     r = pe.calcular_proveito(pedidos, "R$ 15.000,00")
     assert r.total == Decimal("14997.63") and r.pedidos_sem_valor == ("multa diária",)
     assert "1 pedido(s) sem valor quantificado" in r.resumo()
 
 
 @pytest.mark.parametrize("pedido", [
-    {"descricao": "x", "valor": "1500", "fonte": "inicial"},
-    {"descricao": "x", "valor": "R$ 1.500,00", "fonte": ""},
-    {"descricao": "", "valor": "R$ 1.500,00", "fonte": "inicial"},
+    {"descricao": "x", "natureza": "OUTRO", "valor": "1500", "fonte": "inicial"},
+    {"descricao": "x", "natureza": "OUTRO", "valor": "R$ 1.500,00", "fonte": ""},
+    {"descricao": "", "natureza": "OUTRO", "valor": "R$ 1.500,00", "fonte": "inicial"},
+    # Manifesto 1.3.0: natureza obrigatória e fechada, nunca deduzida da descrição.
+    {"descricao": "danos morais", "valor": "R$ 1.500,00", "fonte": "inicial"},
+    {"descricao": "danos morais", "natureza": "dano_moral", "valor": "R$ 1.500,00", "fonte": "inicial"},
 ])
 def test_pedido_malformado_e_recusado(pedido):
     with pytest.raises(pe.EntradaProveitoInvalida):
@@ -418,7 +424,7 @@ def test_impugnacao_sim_exige_pedidos(v1):
 
 def test_impugnacao_sim_sem_nenhum_valor_quantificado(v1):
     topicos = {**T._todos("NAO"), "impugnacao_valor_causa": "SIM"}
-    pedidos = [{"descricao": "multa diária", "valor": None, "fonte": "Petição inicial"}]
+    pedidos = [{"descricao": "multa diária", "natureza": "OUTRO", "valor": None, "fonte": "Petição inicial"}]
     r = fp.finalizar_peca(_entrada(topicos=topicos, pedidos_economicos=pedidos))
     assert r.status == "REFUSED" and r.error_code == "MISSING_REQUIRED_FIELD"
 
@@ -526,27 +532,21 @@ def _texto_docx(documento: bytes) -> str:
 
 
 @pytest.mark.docx_real
-def test_valor_da_causa_sem_r_duplicado_e_com_zona_de_composicao(T_modelo):
+def test_valor_da_causa_sem_r_duplicado_e_com_composicao_do_core(T_modelo):
+    """Manifesto 1.3.0: a composição após "In casu" é do Core (antes, zona
+    redigida pelo host — este teste a enviava)."""
     topicos = {**T._todos("NAO"), "impugnacao_valor_causa": "SIM"}
     ph = {**T._placeholders(), "VALOR_DA_CAUSA": "R$ 15.000,00"}
-    base = [{"fact": "Pedidos da inicial: inexistência do débito de R$ 2.097,63 e danos morais estimados "
-                     "em R$ 12.900,00; valor da causa R$ 15.000,00.", "source_document": "Petição inicial"}]
-    zona = {"ZONA_COMPOSICAO_PROVEITO_ECONOMICO": {
-        "conteudo": "a) a declaração de inexistência do débito de R$ 2.097,63; e b) a indenização por danos "
-                    "morais, estimada em R$ 12.900,00.",
-        "fatos": [{"tipo": "debito", "valor": "R$ 2.097,63", "unidade": "R$", "fonte": "Petição inicial",
-                   "natureza": "documental"},
-                  {"tipo": "dano_moral", "valor": "R$ 12.900,00", "unidade": "R$", "fonte": "Petição inicial",
-                   "natureza": "documental"}]}}
-    r = fp.finalizar_peca(_entrada(placeholders=ph, topicos=topicos, pedidos_economicos=PEDIDOS_CASO_REAL,
-                                   zonas={"conteudo": zona, "base_documental": base}))
+    r = fp.finalizar_peca(_entrada(placeholders=ph, topicos=topicos, pedidos_economicos=PEDIDOS_CASO_REAL))
     assert r.status == "OK", (r.stage, r.error_code, r.motivo)
     texto = _texto_docx(r.documento_bytes)
     assert not re.search(r"R\$\s*R\$", texto)  # PEND-018
     assert "montante de R$ 15.000,00," in texto
     assert "valor da causa para R$ 14.997,63," in texto
     depois = texto[texto.index("In casu, a petição inicial cumula:"):]
-    assert "a) a declaração de inexistência do débito de R$ 2.097,63" in depois.split("\n")[1]
+    assert depois.split("\n")[1] == ("A soma dos pedidos cumulados, débito de R$ 2.097,63 e danos morais "
+                                     "estimados em R$ 12.900,00, alcança R$ 14.997,63, e não os R$ 15.000,00 "
+                                     "atribuídos à causa.")
     aviso = [a for a in r.dados_nao_bloqueantes if a.startswith("Impugnação ao valor da causa:")]
     assert aviso and "diferença de R$ 2,37" in aviso[0]
     assert "Salvador, 10 de setembro de 2026" in texto

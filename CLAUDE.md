@@ -392,7 +392,13 @@ Etapa 5.2") — resumo operacional aqui:
   deriva dos documentos (`suporte_factual_host`, `chaves_estado_host`) e
   os dados documentais de cada tópico; o finalizador recusa chave fora
   desse contrato e devolve `suporte_ausente` ao host. Nunca perguntar
-  essas chaves ao advogado.
+  essas chaves ao advogado. **Manifesto 1.3.0 (SPEC-0001 §64.9):** a
+  composição do proveito econômico (após "In casu, a petição inicial
+  cumula:") é produzida pelo Core com o mesmo cálculo `Decimal` da
+  retificação, a partir de `pedidos_economicos` com `natureza`
+  obrigatória; o host não a redige; dano moral nos pedidos confere com
+  `VALOR_DANO_MORAL_PRETENDIDO`; `VALOR_FRA` e débito dos pedidos não são
+  comparados (fatos distintos).
 - **INV-CORTE-GATE-HUMANO** (Etapa 5.5, 3ª correção arquitetural) —
   `LICITUDE_CORTE_SUSPENSAO` é `decision_mode: "humano"` com
   `requires_fact: {"key": "CORTE_EFETIVO"}` no catálogo: suporte fático

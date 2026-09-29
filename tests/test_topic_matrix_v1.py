@@ -111,8 +111,10 @@ def _fatos_todos_verdadeiros():
 # injetado) e o proveito econômico (a partir dos pedidos).
 MARCO = {"tipo": "DISPONIBILIZACAO", "data": "01/09/2026"}
 JUIZO_FAKE = "AO JUÍZO DA VARA DE TESTE DA COMARCA DE SALVADOR"
-PEDIDOS = [{"descricao": "declaração de inexistência do débito", "valor": "R$ 2.097,63", "fonte": "inicial"},
-           {"descricao": "indenização por danos morais", "valor": "R$ 12.900,00", "fonte": "inicial"}]
+PEDIDOS = [{"descricao": "declaração de inexistência do débito", "natureza": "DEBITO", "valor": "R$ 2.097,63",
+            "fonte": "inicial"},
+           {"descricao": "indenização por danos morais", "natureza": "DANO_MORAL", "valor": "R$ 12.900,00",
+            "fonte": "inicial"}]
 RESERVADOS = set(MANIFESTO["estados_reservados_ao_core"])
 
 
@@ -137,8 +139,10 @@ def test_catalogo_e_manifesto_v1_batem_com_os_sha256_aprovados():
     assert hashlib.sha256(V1.catalogo_path.read_bytes()).hexdigest() == \
         "3d710366ab4b06a223712c304ebfb3cfef9ea9206ff025dcd6eb8f973d7b2ac2"
     assert hashlib.sha256(V1.manifesto_path.read_bytes()).hexdigest() == \
+        "4b204acc352836ee2a09cc2408bfae7cd10196fed994c009e7db41b0ea50d46a"
+    # ADR-0020: manifesto imutável — o 1.2.0, o 1.1.0 e o 1.0.0 continuam no repositório, byte a byte.
+    assert hashlib.sha256((V1.manifesto_path.parent / "manifesto-1.2.0.json").read_bytes()).hexdigest() == \
         "0b3354c66c0c9edc8ce5da6f9a8d324a952373a454f8d13b22fd9174067acb8d"
-    # ADR-0020: manifesto imutável — o 1.1.0 e o 1.0.0 continuam no repositório, byte a byte.
     assert hashlib.sha256((V1.manifesto_path.parent / "manifesto-1.1.0.json").read_bytes()).hexdigest() == \
         "42308f8a3f7c52461b0094979426e67fcdb577629fd7683e6d48d048c37c28d6"
     assert hashlib.sha256((V1.manifesto_path.parent / "manifesto.json").read_bytes()).hexdigest() == \
@@ -148,7 +152,7 @@ def test_catalogo_e_manifesto_v1_batem_com_os_sha256_aprovados():
 
 
 def test_manifesto_v1_definitivo_e_environment_neutral():
-    assert MANIFESTO["manifesto_versao"] == "1.2.0"
+    assert MANIFESTO["manifesto_versao"] == "1.3.0"
     assert MANIFESTO["modelo_oficial"]["status"] == "APROVADO"
     assert MANIFESTO["modelo_oficial"]["catalogo_blocos"] == "blocos.json"
     texto = V1.manifesto_path.read_text(encoding="utf-8")
@@ -418,7 +422,8 @@ def _placeholders():
         "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": "Desenvolvimento técnico fictício de teste.",
         "FOTOS_DA_IRREGULARIADE": "[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]",
         "VALOR_FRA": "R$ 1.234,56 (dado fictício de teste)",
-        "VALOR_DANO_MORAL_PRETENDIDO": "R$ 10.000,00 (dado fictício de teste)",
+        # O mesmo valor do pedido DANO_MORAL de PEDIDOS (checagem cruzada do manifesto 1.3.0).
+        "VALOR_DANO_MORAL_PRETENDIDO": "R$ 12.900,00 (dado fictício de teste)",
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
         "SINOPSE_FATOS_NUCLEO_OBJETO": "Objeto fictício de teste (dado fictício de teste).",
         "CONTA_CONTRATO": "0000000000 (dado fictício de teste)",

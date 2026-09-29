@@ -7,6 +7,23 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### 0.20.0 — composição do proveito econômico pelo Core (pré-deploy)
+- Manifesto V1 1.3.0 (1.2.0, 1.1.0 e 1.0.0 preservados):
+  `ZONA_COMPOSICAO_PROVEITO_ECONOMICO` passa a `CALCULADO_PELO_CORE`;
+  `pedidos_economicos` exige `natureza` (`DEBITO`, `DANO_MORAL`, `OUTRO`).
+- O Core redige a composição após "In casu, a petição inicial cumula:" com
+  o mesmo cálculo `Decimal` da retificação ("A soma dos pedidos cumulados,
+  débito de R$ X e danos morais estimados em R$ Y, alcança R$ TOTAL, e não
+  os R$ CAUSA atribuídos à causa."); pedidos sem valor fora da soma. O
+  host não envia mais essa zona (recusa estruturada).
+- Dano moral SIM com impugnação: exatamente um pedido `DANO_MORAL`, igual a
+  `VALOR_DANO_MORAL_PRETENDIDO`; senão recusa antes do render com
+  `inconsistencias_valores`. Sem comparação entre `VALOR_FRA` e o débito
+  dos pedidos.
+- Exemplos de formato ao host passam a "R$ 1.234,56". Achado do teste
+  cross-client da 0.19.0 (ChatGPT: composição omitida e retificação para
+  R$ 12.097,63). Produção intocada.
+
 ### Gate de compatibilidade host (pré-deploy, sem bump de versão)
 - `ede_preparar_contestacao` publica `capability_id` e o contrato
   machine-readable do host: por tópico, `suporte_factual_host` (chave de

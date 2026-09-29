@@ -436,3 +436,57 @@ clientes e smoke cross-client). Manifesto, catálogo e Modelo Oficial
 inalterados (SHAs fixados nos testes). A validação de chave desconhecida
 vale só no fluxo com manifesto; o contrato legado não muda. Testes
 black-box pela camada MCP em `tests/test_compatibilidade_host_mcp.py`.
+
+## Emenda — manifesto 1.3.0: composição do proveito econômico pelo Core (29/09/2026, pré-deploy)
+
+**Achado (teste cross-client da 0.19.0, mesmos documentos, mesmas 14
+decisões, mesma citação).** O Claude.ai escreveu a composição após "In
+casu, a petição inicial cumula:" e chegou a R$ 14.997,63. O ChatGPT
+omitiu a zona (o DOCX saiu com "In casu…" seguido do parágrafo
+seguinte) e pediu a retificação para R$ 12.097,63. Reproduzido
+localmente com o Modelo V1: o Core aceitava a zona ausente (declarada
+opcional) e somava os `pedidos_economicos` do host sem conferi-los com
+nada; pedidos com dano moral de R$ 10.000,00 e `VALOR_DANO_MORAL_
+PRETENDIDO` de R$ 12.900,00 geravam um DOCX internamente contraditório.
+O pacote 0.19.0 publicava ao host, como exemplo de formato, "R$
+10.000,00" nas restrições desses campos.
+
+**Decisão (titular, 29/09/2026).**
+* Manifesto V1 **1.3.0** (1.2.0, 1.1.0 e 1.0.0 preservados byte a
+  byte): `ZONA_COMPOSICAO_PROVEITO_ECONOMICO` passa de
+  `VARIAVEL_LLM_AUTORIZADA` a `CALCULADO_PELO_CORE`; `pedidos_economicos`
+  ganha `natureza` obrigatória (`DEBITO`, `DANO_MORAL`, `OUTRO`), nunca
+  inferida da descrição. SHA fixado em `modelo_oficial_versoes.py`;
+  imagem, `.dockerignore` e allowlist do workflow levam só o 1.3.0.
+* **Fonte única do cálculo:** `proveito_economico.calcular_proveito`
+  produz, num só laço em `Decimal`, o total, a diferença, os subtotais
+  por natureza e os valores do dano moral. O mesmo resultado alimenta
+  `VALOR_TOTAL_PROVEITO_ECONOMICO` (retificação), a cumulação, o aviso ao
+  advogado e o texto da composição.
+* **Composição determinística** (padrão validado no teste real do
+  Claude): "A soma dos pedidos cumulados, débito de R$ X e danos morais
+  estimados em R$ Y, alcança R$ TOTAL, e não os R$ CAUSA atribuídos à
+  causa." Montada só com natureza e valor (descrição livre nunca entra);
+  pedidos sem valor não entram na soma nem na frase, mas continuam
+  registrados. Presente sempre que houver cumulação; um pedido só não
+  compõe o subbloco. Passa pelas mesmas travas de densidade, semântica e
+  continuidade das zonas.
+* **Zona antiga:** o host não a envia mais; se enviar, `REFUSED`
+  (`campos_calculados_enviados`). O contrato do host a publica em
+  `campos_calculados_pelo_sistema`, fora de `partes_redigiveis_llm`.
+* **Consistência do dano moral:** com impugnação e dano moral SIM,
+  exatamente um pedido `DANO_MORAL`, com valor igual (Decimal) ao de
+  `VALOR_DANO_MORAL_PRETENDIDO`; pretensão não quantificada ("a ser
+  arbitrado") corresponde a pedido sem valor. Divergência, ausência ou
+  ambiguidade → `REFUSED` antes do render, com `inconsistencias_valores`
+  (`campo`, `motivo`, `valor_informado`, `valor_nos_pedidos`).
+* **Sem** checagem cruzada entre `VALOR_FRA` e o débito dos pedidos:
+  débito apurado pela Ré e débito impugnado pelo autor são fatos
+  jurídicos distintos e podem divergir.
+* Exemplos de formato publicados ao host passam a "R$ 1.234,56".
+
+**Compatibilidade.** Schema público muda: `natureza` em
+`PedidoEconomico`, novos campos de recusa. Hosts que enviavam a zona da
+composição ou pedidos sem natureza passam a ser recusados (com
+indicação estruturada). Exige reconexão e novo smoke cross-client.
+Testes: `tests/test_composicao_proveito_core.py`.

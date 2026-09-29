@@ -52,3 +52,20 @@ def validar_conteudo_zonas(conteudo: dict, catalogo: dict, fatos_do_caso=None,
         return texto_por_zona, proveniencia, (f"zona repete abertura do texto institucional adjacente "
                                               f"(INV-CONTINUIDADE-ZONA): {erros}")
     return texto_por_zona, proveniencia, None
+
+
+def validar_texto_zonas_core(texto_por_zona: dict, catalogo: dict, contexto_institucional: dict | None = None):
+    """Zonas produzidas pelo próprio Core (manifesto 1.3.0: composição do
+    proveito econômico). Sem proveniência de host a conferir — o texto sai
+    do cálculo —, mas com as mesmas travas de limites do catálogo,
+    semântica e continuidade. Devolve None ou a mensagem de erro."""
+    ok, erros = validar_densidade_zonas(texto_por_zona, catalogo.get("zones", []))
+    if not ok:
+        return f"limites: {erros}"
+    ok, erros = validar_semantica_zonas(texto_por_zona)
+    if not ok:
+        return f"semântica: {erros}"
+    ok, erros = validar_continuidade_zonas(texto_por_zona, contexto_institucional or {})
+    if not ok:
+        return f"continuidade: {erros}"
+    return None

@@ -1200,8 +1200,11 @@ def _montar_topic_matrix(manifesto: dict | None, catalogo: dict, schema: dict) -
             "DISPONIBILIZACAO e nunca pergunte a modalidade da citação. "
             "Nunca pergunte o juízo, a data da peça, o texto de tempestividade, o "
             "proveito econômico ou a decisão que concedeu a gratuidade: o sistema os obtém ou calcula e "
-            "recusa esses campos se vierem do host. Extraia da inicial os pedidos econômicos com fonte "
-            "(pedidos_economicos) quando a impugnação ao valor da causa for SIM. Só envie "
+            "recusa esses campos se vierem do host. Extraia da inicial os pedidos econômicos com natureza "
+            "(DEBITO, DANO_MORAL ou OUTRO), valor e fonte (pedidos_economicos) quando a impugnação ao valor da "
+            "causa for SIM; pedido sem valor total na inicial vai com valor nulo. O sistema soma os pedidos e "
+            "redige a composição do proveito econômico; com o dano moral SIM, informe exatamente um pedido "
+            "DANO_MORAL com o mesmo valor de VALOR_DANO_MORAL_PRETENDIDO. Só envie "
             "juizo_confirmado_advogado depois de uma pendência por indisponibilidade do DataJud.")
     publico["orientacao"] += (
         " Suporte factual (uso interno do host): derive 'estado_processual' lendo o conteúdo dos documentos "

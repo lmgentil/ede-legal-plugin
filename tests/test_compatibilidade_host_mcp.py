@@ -70,9 +70,14 @@ LEITURA_DO_HOST = {
 COMPROVADOS_CASO_REAL = set().union(*LEITURA_DO_HOST.values())
 
 # Valores que o host "extraiu" de cada documento (sintéticos).
-VALORES_EXTRAIDOS = {**T._placeholders(), "VALOR_FRA": "R$ 2.097,63", "VALOR_DA_CAUSA": "R$ 15.000,00"}
-PEDIDOS = [{"descricao": "declaração de inexistência do débito", "valor": "R$ 2.097,63", "fonte": "peticao_inicial"},
-           {"descricao": "indenização por danos morais", "valor": "R$ 12.900,00", "fonte": "peticao_inicial"}]
+VALORES_EXTRAIDOS = {**T._placeholders(), "VALOR_FRA": "R$ 2.097,63", "VALOR_DA_CAUSA": "R$ 15.000,00",
+                     "VALOR_DANO_MORAL_PRETENDIDO": "R$ 12.900,00"}  # o mesmo valor do pedido (manifesto 1.3.0)
+PEDIDOS = [{"descricao": "declaração de inexistência do débito", "natureza": "DEBITO", "valor": "R$ 2.097,63",
+            "fonte": "documento_01.pdf"},
+           {"descricao": "indenização por danos morais", "natureza": "DANO_MORAL", "valor": "R$ 12.900,00",
+            "fonte": "documento_01.pdf"},
+           {"descricao": "multa diária de R$ 300,00", "natureza": "OUTRO", "valor": None,
+            "fonte": "documento_01.pdf"}]
 FATOS_SINTETICOS = [
     {"fact": "Memorial de cálculo aplica o art. 595, III, e apura R$ 2.097,63.",
      "source_document": "memorial_calculo", "tipo": "FATO_DOCUMENTADO"},
@@ -600,7 +605,7 @@ async def test_12_regra_publicada_do_corte_e_a_da_inv_corte_gate_humano(cliente)
 def test_13_modelo_oficial_manifesto_e_catalogo_inalterados():
     assert T.V1.modelo_sha256 == "1e2aa2a52c3341e680acd674658b41c27004a27f5f99c7343643d4d254747a9e"
     assert hashlib.sha256(T.V1.manifesto_path.read_bytes()).hexdigest() == \
-        "0b3354c66c0c9edc8ce5da6f9a8d324a952373a454f8d13b22fd9174067acb8d"
+        "4b204acc352836ee2a09cc2408bfae7cd10196fed994c009e7db41b0ea50d46a"
     assert hashlib.sha256(T.V1.catalogo_path.read_bytes()).hexdigest() == \
         "3d710366ab4b06a223712c304ebfb3cfef9ea9206ff025dcd6eb8f973d7b2ac2"
 

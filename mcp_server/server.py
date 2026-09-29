@@ -439,7 +439,12 @@ class PedidoEconomico(BaseModel):
     (nunca somado como zero)."""
 
     descricao: str = Field(..., max_length=300)
-    valor: str | None = Field(None, max_length=40, description="Formato monetário brasileiro, ex.: R$ 1.234,56")
+    natureza: Literal["DEBITO", "DANO_MORAL", "OUTRO"] | None = Field(
+        None, description="Obrigatória (manifesto 1.3.0): DEBITO (débito discutido), DANO_MORAL ou OUTRO. "
+                          "Informada pelo host a partir da inicial, nunca deduzida da descrição pelo sistema.")
+    valor: str | None = Field(None, max_length=40,
+                              description="Formato monetário brasileiro, ex.: R$ 1.234,56; nulo quando a "
+                                          "inicial não traz valor total (ex.: multa diária) — não entra na soma.")
     fonte: str = Field(..., max_length=preparar_contestacao.MAX_SOURCE_DOCUMENT_CHARS)
 
 
@@ -532,8 +537,9 @@ class EdeFinalizarPecaEntrada(BaseModel):
                           "TEMPESTIVIDADE_CASO).")
     pedidos_economicos: Annotated[
         list[PedidoEconomico], Field(max_length=finalizar_peca.MAX_PEDIDOS_ECONOMICOS)
-    ] | None = Field(None, description="Pedidos da inicial com valor e fonte; exigido quando a impugnação "
-                                       "ao valor da causa é SIM. O sistema soma e compara.")
+    ] | None = Field(None, description="Pedidos da inicial com natureza, valor e fonte; exigido quando a "
+                                       "impugnação ao valor da causa é SIM. O sistema soma, compara e redige a "
+                                       "composição do proveito econômico (nunca envie essa zona).")
     zonas: ZonasEntrada | None = Field(
         None, description="Conteúdo das zonas autorizadas (pacote.topic_matrix.partes_redigiveis_llm).")
     juizo_confirmado_advogado: str | None = Field(
@@ -549,6 +555,15 @@ class SuporteAusente(BaseModel):
     topico: str
     chave_estado: str
     motivo: Literal["AUSENTE", "FALSE", "INDETERMINADO"]
+
+
+class InconsistenciaValor(BaseModel):
+    """Divergência entre dados econômicos estruturados (manifesto 1.3.0)."""
+
+    campo: str
+    motivo: Literal["DANO_MORAL_AUSENTE", "DANO_MORAL_AMBIGUO", "DIVERGE_DOS_PEDIDOS"]
+    valor_informado: str | None = None
+    valor_nos_pedidos: str | list[str | None] | None = None
 
 
 class EdeFinalizarPecaResposta(BaseModel):
@@ -586,6 +601,10 @@ class EdeFinalizarPecaResposta(BaseModel):
     pendência de suporte factual (as `pendencias` continuam sem ela)."""
     chaves_estado_desconhecidas: list[str] | None = None
     """Só em REFUSED: chaves de `estado_processual` fora do contrato."""
+    inconsistencias_valores: list[InconsistenciaValor] | None = None
+    """Só em REFUSED: divergências entre dados econômicos estruturados."""
+    campos_calculados_enviados: list[str] | None = None
+    """Só em REFUSED: zonas do sistema enviadas pelo host."""
     document_sha256: str | None = None
     document_size: int | None = None
     filename: str | None = None
@@ -686,6 +705,8 @@ def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent]:
             status="REFUSED", capability_id=resultado.capability_id,
             stage=resultado.stage, error_code=resultado.error_code, motivo=resultado.motivo,
             chaves_estado_desconhecidas=list(resultado.chaves_estado_desconhecidas) or None,
+            inconsistencias_valores=[InconsistenciaValor(**x) for x in resultado.inconsistencias_valores] or None,
+            campos_calculados_enviados=list(resultado.campos_calculados_enviados) or None,
         )
         _registrar_finalizacao(resposta, artefato_id=resultado.artefato_id)
         return [TextContent(type="text", text=resposta.model_dump_json(exclude_none=True))]

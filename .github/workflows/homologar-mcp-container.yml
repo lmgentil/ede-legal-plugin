@@ -288,7 +288,7 @@ jobs:
             fi
             achados_templates=$(find /app/templates -type f ! -path "*/contestacao/schema.json" \
               ! -path "*/contestacao/blocos.json" ! -path "*/contestacao/v1/blocos.json" \
-              ! -path "*/contestacao/v1/manifesto-1.2.0.json" 2>/dev/null || true)
+              ! -path "*/contestacao/v1/manifesto-1.3.0.json" 2>/dev/null || true)
             if [ -n "$achados_templates" ]; then
               echo "ARQUIVO INESPERADO EM /app/templates NA IMAGEM: $achados_templates"
               exit 1

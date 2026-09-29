@@ -361,14 +361,24 @@ def _suporte_factual_host(grupo: dict, fatos_zona: dict, reservados: set) -> lis
             for chave, papel, documentos in _estados_host(grupo, fatos_zona, reservados)]
 
 
+EXEMPLO_MONETARIO_NEUTRO = "R$ 1.234,56"
+"""Os exemplos de formato do schema usam "R$ 10.000,00", valor que passa
+por dado real; ao host só chega um exemplo que não se confunde com a
+peça (achado do teste cross-client da 0.19.0)."""
+
+
+def _neutralizar_exemplos(texto: str) -> str:
+    return texto.replace("R$ 10.000,00", EXEMPLO_MONETARIO_NEUTRO)
+
+
 def _dado_host(campo: str, schema: dict, campos: list, exigido_quando: dict) -> dict:
     contrato = (schema.get("placeholder_contracts") or {}).get(campo) or {}
     host = CONTRATO_DADO_HOST.get(campo) or {}
     return {
         "campo": campo,
         "campo_finalizador": "placeholders",
-        "descricao": host.get("descricao") or contrato.get("descricao", ""),
-        "restricoes": list(host.get("restricoes") or contrato.get("restricoes") or []),
+        "descricao": _neutralizar_exemplos(host.get("descricao") or contrato.get("descricao", "")),
+        "restricoes": [_neutralizar_exemplos(r) for r in host.get("restricoes") or contrato.get("restricoes") or []],
         "documentos_sugeridos": _documentos_sugeridos(DOCUMENTOS_SUGERIDOS_DADO_HOST.get(campo), campos),
         "exigido_quando": exigido_quando,
     }

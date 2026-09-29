@@ -206,6 +206,13 @@ class ResultadoFinalizacao:
     """Só em `REFUSED` por chave de `estado_processual` fora do contrato
     publicado por `ede_preparar_contestacao` (nunca ignorada em
     silêncio)."""
+    inconsistencias_valores: tuple[dict, ...] = ()
+    """Só em `REFUSED` (manifesto 1.3.0): `{campo, motivo, valor_informado,
+    valor_nos_pedidos}` de cada divergência entre dados econômicos
+    estruturados, detectada antes do render."""
+    campos_calculados_enviados: tuple[str, ...] = ()
+    """Só em `REFUSED`: zonas que o manifesto atribui ao Core e que o host
+    enviou mesmo assim."""
     artefato_id: str | None = None
     """`sha256(token)` — identificador do objeto que não permite
     reconstruir o link. NUNCA serializado na resposta pública ao cliente
@@ -616,7 +623,8 @@ def _derivar_juizo(numero_processo, confirmado, capability_id):
 
 
 def _derivar_proveito(pedidos, valor_da_causa, capability_id):
-    """-> (valor_total_formatado, cumulacao, aviso), ou uma recusa."""
+    """-> `pe.ResultadoProveito` (fonte única do total, da diferença, da
+    composição e da retificação), ou uma recusa."""
     try:
         r = pe.calcular_proveito(pedidos, valor_da_causa)
     except pe.EntradaProveitoInvalida as e:
@@ -625,7 +633,48 @@ def _derivar_proveito(pedidos, valor_da_causa, capability_id):
         return _recusado("valor_da_causa", "MISSING_REQUIRED_FIELD",
                          "Nenhum pedido com valor quantificado na petição inicial; o proveito econômico não "
                          "pode ser calculado a partir dos autos.", capability_id)
-    return pe.formatar_brl(r.total), r.cumulacao_economica, f"Impugnação ao valor da causa: {r.resumo()}"
+    return r
+
+
+def _inconsistencias_dano_moral(r, valor_dano_moral_pretendido: str) -> list:
+    """Manifesto 1.3.0: com impugnação e dano moral SIM, exatamente um
+    pedido DANO_MORAL, com o mesmo valor (Decimal) do dano moral
+    pretendido — comparação só entre dados estruturados, nunca da
+    descrição. Pedido sem valor corresponde a pretensão não quantificada
+    ("a ser arbitrado"), sem valor monetário no campo."""
+    if not r.valores_dano_moral:
+        return [{"campo": "pedidos_economicos", "motivo": "DANO_MORAL_AUSENTE",
+                 "valor_informado": None, "valor_nos_pedidos": None}]
+    if len(r.valores_dano_moral) > 1:
+        return [{"campo": "pedidos_economicos", "motivo": "DANO_MORAL_AMBIGUO", "valor_informado": None,
+                 "valor_nos_pedidos": [pe.formatar_brl(v) if v is not None else None for v in r.valores_dano_moral]}]
+    try:
+        no_campo = pe.valores_monetarios_no_texto(valor_dano_moral_pretendido)
+    except pe.EntradaProveitoInvalida:
+        no_campo = []
+    nos_pedidos = r.valores_dano_moral[0]
+    informado = pe.formatar_brl(no_campo[0]) if len(no_campo) == 1 else (valor_dano_moral_pretendido or None)
+    esperado = pe.formatar_brl(nos_pedidos) if nos_pedidos is not None else None
+    coerente = (len(no_campo) == 1 and nos_pedidos is not None and no_campo[0] == nos_pedidos) or \
+               (not no_campo and nos_pedidos is None)
+    if coerente:
+        return []
+    return [{"campo": "VALOR_DANO_MORAL_PRETENDIDO", "motivo": "DIVERGE_DOS_PEDIDOS",
+             "valor_informado": informado, "valor_nos_pedidos": esperado}]
+
+
+def _topico_com_parte(manifesto: dict, parte: str):
+    for t in manifesto.get("topicos_decisao_advogado") or []:
+        if any(c.get("parte") == parte for c in t.get("conteudo") or []):
+            return t
+    return None
+
+
+def _zonas_calculadas(manifesto: dict) -> set:
+    """Zonas que o manifesto atribui ao Core (1.3.0: a composição do
+    proveito econômico) — nunca aceitas do host."""
+    return {c["parte"] for _, c in _partes_do_manifesto(manifesto)
+            if c["parte"].startswith("ZONA_") and c.get("modo") == "CALCULADO_PELO_CORE"}
 
 
 # --------------------------------------------------------------- adaptador
@@ -657,6 +706,7 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
     conteudo_zonas: dict = {}
     base_documental: list = []
     textos_zonas_previos: dict = {}
+    zonas_core: dict = {}
     simbolo_no_texto_fixo: set = set()
     if manifesto is None:
         if topicos or fatos_publicos or novos:
@@ -702,6 +752,12 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
         zonas_in = entrada.get("zonas") or {}
         conteudo_zonas = dict(zonas_in.get("conteudo") or {})
         base_documental = list(zonas_in.get("base_documental") or [])
+        calculadas_enviadas = sorted(set(conteudo_zonas) & _zonas_calculadas(manifesto))
+        if calculadas_enviadas:
+            return replace(_recusado(
+                "zonas", "INPUT_VALIDATION_FAILED",
+                f"Zona(s) produzida(s) pelo sistema, que o host não deve enviar: {calculadas_enviadas}.",
+                capability_id), campos_calculados_enviados=tuple(calculadas_enviadas))
         nao_autorizadas = sorted(set(conteudo_zonas) - _zonas_autorizadas(manifesto))
         if nao_autorizadas:
             return _recusado("zonas", "INPUT_VALIDATION_FAILED",
@@ -743,10 +799,24 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
             resultado = _derivar_proveito(pedidos, placeholders["VALOR_DA_CAUSA"], capability_id)
             if isinstance(resultado, ResultadoFinalizacao):
                 return resultado
-            total, cumulacao, aviso = resultado
-            placeholders["VALOR_TOTAL_PROVEITO_ECONOMICO"] = total
-            estado_processual["EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS"] = cumulacao
-            avisos.append(aviso)
+            topico_dano = _topico_com_parte(manifesto, "VALOR_DANO_MORAL_PRETENDIDO")
+            if topico_dano is not None and topicos.get(topico_dano["chave"]) == "SIM":
+                inconsistencias = _inconsistencias_dano_moral(
+                    resultado, str(placeholders.get("VALOR_DANO_MORAL_PRETENDIDO") or ""))
+                if inconsistencias:
+                    return replace(_recusado(
+                        "valor_da_causa", "INPUT_VALIDATION_FAILED",
+                        "Os pedidos econômicos não conferem com o valor do dano moral pretendido; revise a "
+                        "extração da petição inicial.", capability_id),
+                        inconsistencias_valores=tuple(inconsistencias))
+            # Um só resultado alimenta retificação, cumulação e composição.
+            placeholders["VALOR_TOTAL_PROVEITO_ECONOMICO"] = pe.formatar_brl(resultado.total)
+            estado_processual["EXISTE_CUMULACAO_PEDIDOS_ECONOMICOS"] = resultado.cumulacao_economica
+            if resultado.cumulacao_economica:
+                for zona in _zonas_calculadas(manifesto):
+                    zonas_core[zona] = resultado.texto_composicao()
+                    textos_zonas_previos[zona] = zonas_core[zona]
+            avisos.append(f"Impugnação ao valor da causa: {resultado.resumo()}")
         elif pedidos:
             return _recusado("valor_da_causa", "INPUT_VALIDATION_FAILED",
                               "'pedidos_economicos' informado, mas a impugnação ao valor da causa não foi "
@@ -849,10 +919,21 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
                 return _recusado("official_model_readiness", "OFFICIAL_MODEL_NOT_READY",
                                   "Contexto institucional das zonas não pôde ser lido do Modelo Oficial.",
                                   capability_id)
-            texto_por_zona, _, erro_zonas = zc.validar_conteudo_zonas(
-                conteudo_zonas, catalogo, base_documental, contexto)
-            if erro_zonas is not None:
-                return _recusado("zonas", "INPUT_VALIDATION_FAILED", erro_zonas[:500], capability_id)
+            texto_por_zona = {}
+            if conteudo_zonas:
+                texto_por_zona, _, erro_zonas = zc.validar_conteudo_zonas(
+                    conteudo_zonas, catalogo, base_documental, contexto)
+                if erro_zonas is not None:
+                    return _recusado("zonas", "INPUT_VALIDATION_FAILED", erro_zonas[:500], capability_id)
+            if zonas_core:
+                # Texto do próprio Core: mesmas travas de densidade,
+                # semântica e continuidade; falha aqui é defeito do plugin.
+                erro_core = zc.validar_texto_zonas_core(zonas_core, catalogo, contexto)
+                if erro_core is not None:
+                    return _recusado("zonas", "OFFICIAL_MODEL_NOT_READY",
+                                      "A composição do proveito econômico não passou nas travas do modelo.",
+                                      capability_id)
+                texto_por_zona = {**texto_por_zona, **zonas_core}
 
         relatorio = be.gerar_peca_com_blocos(
             template_efemero, SCHEMA_PADRAO, versao.catalogo_path, placeholders_render, decisoes_blocos, saida,

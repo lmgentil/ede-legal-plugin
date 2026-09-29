@@ -128,7 +128,7 @@
 !templates/contestacao/blocos.json
 !templates/contestacao/v1
 !templates/contestacao/v1/blocos.json
-!templates/contestacao/v1/manifesto-1.2.0.json
+!templates/contestacao/v1/manifesto-1.3.0.json
 !rag
 !rag/legal_validation
 !rag/legal_validation/models.py

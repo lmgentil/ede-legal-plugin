@@ -15,6 +15,10 @@ juridicamente relevante é juízo jurídico, não aritmética (CLAUDE.md §7 —
 nenhuma heurística jurídica em Python). O módulo devolve os números
 exatos; a conclusão ao advogado é do host, e a decisão de manter ou
 retirar o tópico continua sendo do advogado.
+
+Manifesto 1.3.0: cada pedido traz `natureza` (DEBITO, DANO_MORAL, OUTRO),
+e o mesmo resultado do cálculo redige a composição do proveito econômico
+(`ResultadoProveito.texto_composicao`) — nenhum cálculo paralelo.
 """
 from __future__ import annotations
 
@@ -25,6 +29,10 @@ from decimal import Decimal, InvalidOperation
 _VALOR_BR_RE = re.compile(r"^\s*(?:R\$\s?)?(\d{1,3}(?:\.\d{3})*|\d+),(\d{2})\s*$")
 
 MAX_PEDIDOS = 20
+
+NATUREZAS = ("DEBITO", "DANO_MORAL", "OUTRO")
+"""Natureza estruturada do pedido (manifesto 1.3.0), informada pelo host —
+nunca inferida da descrição livre. Ordem = ordem de menção na composição."""
 
 
 class EntradaProveitoInvalida(ValueError):
@@ -42,6 +50,15 @@ def valor_para_decimal(texto: str) -> Decimal:
         return Decimal(m.group(1).replace(".", "") + "." + m.group(2))
     except InvalidOperation as e:  # defensivo: a regex já garante dígitos
         raise EntradaProveitoInvalida("valor monetário ilegível") from e
+
+
+_VALOR_BR_NO_TEXTO_RE = re.compile(r"R\$\s?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}(?!\d)")
+
+
+def valores_monetarios_no_texto(texto: str) -> list:
+    """Todos os valores 'R$ 1.234,56' de um texto, como Decimal — para a
+    checagem cruzada estruturada (nunca para interpretar a descrição)."""
+    return [valor_para_decimal(m.group(0)) for m in _VALOR_BR_NO_TEXTO_RE.finditer(str(texto or ""))]
 
 
 def formatar_brl(valor: Decimal, com_simbolo: bool = True) -> str:
@@ -65,11 +82,34 @@ class ResultadoProveito:
     """valor da causa − total (positivo: causa acima do proveito)."""
     pedidos_quantificados: int
     pedidos_sem_valor: tuple[str, ...]
+    subtotais: tuple[tuple[str, Decimal, int], ...] = ()
+    """(natureza, soma, quantidade) só dos pedidos quantificados, na ordem
+    de `NATUREZAS` — as mesmas parcelas que formam `total`."""
+    valores_dano_moral: tuple[Decimal | None, ...] = ()
+    """Um item por pedido DANO_MORAL (None = sem valor quantificado), para
+    a checagem cruzada com o valor pretendido."""
 
     @property
     def cumulacao_economica(self) -> bool:
         """Mais de um pedido com conteúdo econômico (quantificado ou não)."""
         return self.pedidos_quantificados + len(self.pedidos_sem_valor) > 1
+
+    def texto_composicao(self) -> str:
+        """Composição do proveito econômico (manifesto 1.3.0), produzida só
+        a partir deste resultado — os mesmos números da soma, da diferença
+        e da retificação. Pedidos sem valor não são mencionados (não entram
+        na soma). Ex.: "A soma dos pedidos cumulados, débito de R$ 2.097,63
+        e danos morais estimados em R$ 12.900,00, alcança R$ 14.997,63, e
+        não os R$ 15.000,00 atribuídos à causa." """
+        itens = [_ITEM_COMPOSICAO[natureza](formatar_brl(soma), quantidade)
+                 for natureza, soma, quantidade in self.subtotais]
+        lista = itens[0] if len(itens) == 1 else ", ".join(itens[:-1]) + " e " + itens[-1]
+        if self.diferenca == 0:
+            desfecho = f"alcança {formatar_brl(self.total)}, mesmo valor atribuído à causa."
+        else:
+            desfecho = (f"alcança {formatar_brl(self.total)}, e não os {formatar_brl(self.valor_da_causa)} "
+                        f"atribuídos à causa.")
+        return f"A soma dos pedidos cumulados, {lista}, {desfecho}"
 
     def resumo(self) -> str:
         """Frase neutra, só com números — nunca juízo de relevância."""
@@ -86,10 +126,19 @@ class ResultadoProveito:
         return texto
 
 
+_ITEM_COMPOSICAO = {
+    "DEBITO": lambda v, n: f"débito de {v}" if n == 1 else f"débitos que somam {v}",
+    "DANO_MORAL": lambda v, n: f"danos morais estimados em {v}",
+    "OUTRO": lambda v, n: f"outro pedido de {v}" if n == 1 else f"outros pedidos que somam {v}",
+}
+
+
 def calcular_proveito(pedidos: list, valor_da_causa: str) -> ResultadoProveito:
-    """`pedidos`: lista de {"descricao", "valor" (texto monetário ou
-    None/""), "fonte"}. `valor_da_causa`: o valor atribuído pela inicial
-    (mesmo formato)."""
+    """`pedidos`: lista de {"descricao", "natureza" (NATUREZAS), "valor"
+    (texto monetário ou None/""), "fonte"}. `valor_da_causa`: o valor
+    atribuído pela inicial (mesmo formato). Único ponto de cálculo: total,
+    diferença, subtotais da composição e valores do dano moral saem todos
+    deste laço."""
     if not isinstance(pedidos, list) or not pedidos:
         raise EntradaProveitoInvalida("informe ao menos um pedido economicamente mensurável")
     if len(pedidos) > MAX_PEDIDOS:
@@ -97,6 +146,8 @@ def calcular_proveito(pedidos: list, valor_da_causa: str) -> ResultadoProveito:
     total = Decimal("0.00")
     quantificados = 0
     sem_valor = []
+    por_natureza = {n: [Decimal("0.00"), 0] for n in NATUREZAS}
+    dano_moral = []
     for i, p in enumerate(pedidos):
         if not isinstance(p, dict):
             raise EntradaProveitoInvalida(f"pedido[{i}] não é um objeto")
@@ -104,12 +155,24 @@ def calcular_proveito(pedidos: list, valor_da_causa: str) -> ResultadoProveito:
         fonte = str(p.get("fonte") or "").strip()
         if not descricao or not fonte:
             raise EntradaProveitoInvalida(f"pedido[{i}] sem descrição ou sem fonte documental")
+        natureza = p.get("natureza")
+        if natureza not in NATUREZAS:
+            raise EntradaProveitoInvalida(f"pedido[{i}] sem natureza válida ({', '.join(NATUREZAS)})")
         valor = p.get("valor")
         if valor is None or not str(valor).strip():
             sem_valor.append(descricao)
+            if natureza == "DANO_MORAL":
+                dano_moral.append(None)
             continue
-        total += valor_para_decimal(valor)
+        quantia = valor_para_decimal(valor)
+        total += quantia
         quantificados += 1
+        por_natureza[natureza][0] += quantia
+        por_natureza[natureza][1] += 1
+        if natureza == "DANO_MORAL":
+            dano_moral.append(quantia)
     causa = valor_para_decimal(valor_da_causa)
+    subtotais = tuple((n, soma, qtd) for n, (soma, qtd) in por_natureza.items() if qtd)
     return ResultadoProveito(total=total, valor_da_causa=causa, diferenca=causa - total,
-                             pedidos_quantificados=quantificados, pedidos_sem_valor=tuple(sem_valor))
+                             pedidos_quantificados=quantificados, pedidos_sem_valor=tuple(sem_valor),
+                             subtotais=subtotais, valores_dano_moral=tuple(dano_moral))

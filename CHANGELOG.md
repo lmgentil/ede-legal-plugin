@@ -7,6 +7,30 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Gate de qualidade de conteúdo e fidelidade ao comando (pré-deploy, sem bump de versão)
+- Manifesto V1 1.4.0 (1.3.0 e anteriores preservados): roteiro de
+  cobertura publicado para `SINOPSE_FATOS` (6 elementos) e
+  `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` (8 elementos), com os tetos que
+  o finalizador aplica. Tetos recalibrados (teto, nunca meta): SINOPSE
+  6 parágrafos/1.800 caracteres, DESENVOLVIMENTO 8/2.400.
+- `IRREGULARIDADE_ENCONTRADA` em uma única linha, até 120 caracteres;
+  `schema.json` deixa de orientar o desenvolvimento técnico "artigo por
+  artigo" e de tratar a irregularidade como multilinha.
+- Novo `scripts/fidelidade_comando.py`: no finalizador MCP, antes do
+  render, tópico SIM/NÃO aplicado à composição e nenhuma parte variável
+  reintroduzindo tese excluída (antes só PEDIDOS_FINAIS, só no fluxo
+  local); `orientacoes_advogado` (`NAO_MENCIONAR`,
+  `TRATAR_APENAS_COMO_FATO`) verificadas; orientação que alteraria texto
+  fixo, tópico, cálculo, campo calculado ou fato recusada. Resposta com
+  `orientacoes_aplicadas`/`rejeitadas`/`nao_verificadas` e
+  `violacoes_fidelidade`; estágio `fidelidade_comando`.
+- Marcadores inequívocos de fixture ("FULANO DE TAL", "dado fictício de
+  teste", CNJ zerado) recusados em produção-final; fixtures dos testes de
+  produção-final trocadas por valores sintéticos neutros.
+- PEND-020: molduras flutuantes de jurisprudência do Modelo Oficial
+  (correção pelo titular em nova versão do modelo). Modelo Oficial e
+  produção intocados.
+
 ### 0.20.0 — composição do proveito econômico pelo Core (pré-deploy)
 - Manifesto V1 1.3.0 (1.2.0, 1.1.0 e 1.0.0 preservados):
   `ZONA_COMPOSICAO_PROVEITO_ECONOMICO` passa a `CALCULADO_PELO_CORE`;

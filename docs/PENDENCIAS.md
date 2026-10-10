@@ -1028,3 +1028,21 @@ deve constar. Nenhuma mudança de cálculo até lá.
 registro em `docs/adr/ADR-0021-dados-derivados-pelo-sistema-no-fluxo-mcp.md`).
 O smoke confirmou `DISPONIBILIZACAO` 21/09/2026 → publicação 22/09/2026
 → termo final 14/10/2026, comportamento inalterado.
+
+## PEND-020 — Molduras flutuantes de jurisprudência no Modelo Oficial
+
+**Status (2026-10-10):** aberta; correção a cargo do titular, numa nova
+versão do Modelo Oficial (ADR-0020). Não altera o runtime atual.
+**Origem:** feedback de advogado após uso real e diagnóstico de 10/10/2026
+(medição de layout no Microsoft Word).
+**Situação:** as ementas citadas no Modelo Oficial V1 são emolduradas por
+formas flutuantes de altura fixa (`foldedCorner`, `wrapNone`,
+`noAutofit`, ancoradas ao parágrafo), que não acompanham o texto nem
+quebram com ele. Conforme o tamanho do conteúdo variável anterior, a
+ementa quebra de página e a moldura fica na página anterior, podendo
+invadir a margem inferior (medido: moldura do tópico IV com base em
+827 pt para limite útil de 785 pt). O pipeline preserva página, margens,
+colunas e estilos idênticos ao modelo; o defeito é do asset.
+**Pendente:** "Nova versão do Modelo Oficial necessária para substituir
+molduras flutuantes de jurisprudência por estrutura adaptável ao texto."
+O pipeline não deve corrigir isso por conta própria (Template Lock, §13).

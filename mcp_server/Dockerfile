@@ -193,6 +193,9 @@ COPY --chown=10001:10001 scripts/dados_derivados.py scripts/dados_derivados.py
 COPY --chown=10001:10001 scripts/proveito_economico.py scripts/proveito_economico.py
 COPY --chown=10001:10001 scripts/tempestividade_texto.py scripts/tempestividade_texto.py
 COPY --chown=10001:10001 scripts/zonas_conteudo.py scripts/zonas_conteudo.py
+# Fidelidade ao comando atual do advogado (manifesto 1.4.0): coerência
+# das partes variáveis com os tópicos e orientações verificáveis.
+COPY --chown=10001:10001 scripts/fidelidade_comando.py scripts/fidelidade_comando.py
 # Cálculo de prazo e calendário TJBA verificado (só estes dois arquivos
 # da skill — nunca SKILL.md nem outras skills).
 COPY --chown=10001:10001 skills/calendario-forense-tjba-2026/scripts/calcular_tempestividade.py skills/calendario-forense-tjba-2026/scripts/calcular_tempestividade.py
@@ -227,7 +230,7 @@ COPY --chown=10001:10001 templates/contestacao/v1/blocos.json templates/contesta
 # Manifesto ativo da V1 é o 1.3.0 (emenda da ADR-0021, composição do
 # proveito econômico pelo Core); o 1.2.0, o 1.1.0 e o 1.0.0 ficam só no
 # repositório como histórico, não são lidos em runtime.
-COPY --chown=10001:10001 templates/contestacao/v1/manifesto-1.3.0.json templates/contestacao/v1/manifesto-1.3.0.json
+COPY --chown=10001:10001 templates/contestacao/v1/manifesto-1.4.0.json templates/contestacao/v1/manifesto-1.4.0.json
 
 # Gate 6.5-A: só `models.py` de rag/legal_validation/ (o construtor
 # `fonte_juridica()`, puro dict, sem import algum) — nunca o pacote

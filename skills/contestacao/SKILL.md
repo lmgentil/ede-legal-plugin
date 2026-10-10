@@ -1235,19 +1235,22 @@ conforme informação processual fornecida pelo advogado".
 individual ≤380 caracteres não basta: um bloco pode respeitar o teto em
 cada parágrafo e ainda ser prolixo por acumulação. `scripts/
 validate_paragrafos.py` (`LIMITES_DENSIDADE_BLOCO`) valida também o
-total do bloco — `SINOPSE_FATOS`/`REALIDADE_FATICA` ≤3 parágrafos/≤600
-caracteres, `IRREGULARIDADE_ENCONTRADA` ≤2/≤600 (na prática, o contrato
-atômico da Etapa 5.3-B — ver abaixo — já mantém o campo bem abaixo desse
-teto: só o nome do tipo, tipicamente uma linha),
-`DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` ≤5/≤700, `PEDIDOS_FINAIS` ≤2/≤400
-(números calibrados por medição em fixture sintética, não uma amostra
-real do Teste Real 01-B — primeira hipótese, a recalibrar com dados do
-próximo teste real). Nunca tente preencher 380 caracteres — prefira
+total do bloco — `SINOPSE_FATOS` ≤6 parágrafos/≤1.800 caracteres,
+`REALIDADE_FATICA` ≤3/≤600, `IRREGULARIDADE_ENCONTRADA` uma única linha
+com até 120 caracteres (contrato atômico da Etapa 5.3-B — ver abaixo —
+agora também estrutural), `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE`
+≤8/≤2.400, `PEDIDOS_FINAIS` ≤2/≤400 (recalibrados em 10/10/2026, após
+feedback de advogado em uso real: a SINOPSE saía resumida demais. São
+TETO, nunca meta nem mínimo; a extensão vem do roteiro de cobertura
+abaixo e do suporte documental). Nunca tente preencher 380 caracteres — prefira
 parágrafos curtos e funcionais, uma ideia por parágrafo. Evite introdução
 retórica, conclusão repetitiva, paráfrase do parágrafo anterior, ou
 "enchimento" argumentativo. `SINOPSE_FATOS` especificamente deve ser um
-RESUMO de verdade (§8): núcleo da relação jurídica, fato gerador,
-principais alegações, consequências afirmadas, pedidos relevantes — nunca
+RESUMO de verdade (§8), com cobertura factual mínima quando os documentos
+a sustentarem: contexto da relação entre as partes, narrativa central da
+inicial, fato que originou a controvérsia, cobrança/irregularidade
+discutida, consequências alegadas pela autora e principais pedidos —
+elemento sem suporte documental é omitido, nunca inventado; nunca
 reprodução quase cronológica da inicial. Uniformize o tempo verbal em
 presente do indicativo ("alega", "afirma", "sustenta", "requer") ou
 pretérito perfeito para fato concluído ("solicitou", "recebeu") — evite

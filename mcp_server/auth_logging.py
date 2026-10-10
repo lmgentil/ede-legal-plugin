@@ -182,6 +182,7 @@ ESTAGIOS_FINALIZACAO: Final = frozenset({
     "enderecamento",
     "valor_da_causa",
     "zonas",
+    "fidelidade_comando",
 })
 
 CODIGOS_ERRO_FINALIZACAO: Final = frozenset({

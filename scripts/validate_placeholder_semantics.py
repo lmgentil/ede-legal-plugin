@@ -80,6 +80,11 @@ _MARCADORES_QUALIFICACAO_AUTOR = (
     "UNIAO ESTAVEL",
 )
 
+LIMITE_IRREGULARIDADE_ENCONTRADA = 120
+"""Caracteres visíveis (sem a marcação **...**) do contrato atômico de
+IRREGULARIDADE_ENCONTRADA — só o nome/tipo da irregularidade, uma linha
+(gate de qualidade de conteúdo, 10/10/2026)."""
+
 _NUMERO_PROCESSO_RE = re.compile(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$")
 
 SENTINELA_AUSENCIA = "NÃO INFORMADO"
@@ -355,6 +360,21 @@ def _validar_irregularidade_encontrada(valor) -> list:
     # Etapa 5.3-B §16 — reversão da Etapa 5.3 §9 para este campo
     # especificamente: redação natural em minúsculas, ressalvados nomes
     # próprios/siglas — nunca caixa alta forçada no tipo inteiro.
+    # Gate de qualidade de conteúdo (10/10/2026): contrato atômico também
+    # ESTRUTURAL — uma única linha e ~120 caracteres visíveis. Explicação
+    # técnica pertence a DESENVOLVIMENTO_TECNICO_IRREGULARIDADE.
+    linhas = [l for l in texto.split("\n") if l.strip()]
+    if len(linhas) > 1:
+        erros.append(
+            f"IRREGULARIDADE_ENCONTRADA deve ter uma única linha (só o "
+            f"nome/tipo da irregularidade); a explicação técnica vai em "
+            f"DESENVOLVIMENTO_TECNICO_IRREGULARIDADE: {len(linhas)} linhas recebidas")
+    visivel = texto.replace("**", "").strip()
+    if len(visivel) > LIMITE_IRREGULARIDADE_ENCONTRADA:
+        erros.append(
+            f"IRREGULARIDADE_ENCONTRADA tem {len(visivel)} caracteres (máximo "
+            f"{LIMITE_IRREGULARIDADE_ENCONTRADA}): o campo contém só o "
+            f"nome/tipo da irregularidade, sem desenvolvimento técnico")
     letras = [c for c in texto if c.isalpha()]
     if letras and all(c.isupper() for c in letras):
         erros.append(
@@ -766,6 +786,27 @@ def validar_semantica(dados: dict) -> tuple:
 # teste, e "[PENDENTE:" marca campo explicitamente não resolvido).
 SENTINELAS_MODO_ACEITE = ("[PENDENTE:", "SINTÉTICO DE ACEITE")
 
+# Gate de qualidade de conteúdo (10/10/2026): conteúdo obviamente
+# sintético das fixtures de teste nunca chega a uma peça de produção.
+# Lista FECHADA e conservadora — só marcadores que nenhuma peça real
+# contém (nome-placeholder clássico, a própria etiqueta de dado fictício,
+# o número CNJ todo zerado das fixtures); nunca heurística sobre nomes ou
+# expressões. Comparação sem acento e sem distinção de caixa.
+SENTINELAS_FIXTURE = (
+    "FULANO DE TAL",
+    "CICLANO DE TAL",
+    "BELTRANO DE TAL",
+    "DADO FICTICIO DE TESTE",
+    "DADOS FICTICIOS DE TESTE",
+    "0000000-00.0000.0.00.0000",
+)
+
+
+def sentinelas_fixture_presentes(valor) -> list:
+    """Marcadores de `SENTINELAS_FIXTURE` presentes em `valor`."""
+    texto = _sem_acento(str(valor or "")).upper()
+    return [s for s in SENTINELAS_FIXTURE if s in texto]
+
 # Classificação dos 19 placeholders do contrato (Gate 6.6-A §8), obtida por
 # auditoria direta do Modelo Oficial real via `docx_context_engine.
 # extrair_contexto` — nunca por suposição. Um placeholder com ocorrência
@@ -857,7 +898,7 @@ def validar_modo_producao_final(dados: dict, estados_blocos: dict,
     erros = []
     for nome, valor in dados.items():
         texto = "" if valor is None else str(valor)
-        achadas = [s for s in SENTINELAS_MODO_ACEITE if s in texto]
+        achadas = [s for s in SENTINELAS_MODO_ACEITE if s in texto] + sentinelas_fixture_presentes(texto)
         if achadas:
             erros.append(
                 f"{nome}: contém sentinela de modo ACEITE {achadas} — "

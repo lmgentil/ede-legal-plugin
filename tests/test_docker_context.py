@@ -215,9 +215,10 @@ def test_modulos_core_da_adr_0021_liberados():
         "scripts/proveito_economico.py",
         "scripts/tempestividade_texto.py",
         "scripts/zonas_conteudo.py",
+        "scripts/fidelidade_comando.py",
         "skills/calendario-forense-tjba-2026/scripts/calcular_tempestividade.py",
         "skills/calendario-forense-tjba-2026/feriados_forenses_tjba_2026.json",
-        "templates/contestacao/v1/manifesto-1.3.0.json",
+        "templates/contestacao/v1/manifesto-1.4.0.json",
     }
     origens_copiadas = {origem for origem, _ in _linhas_copy()}
     for caminho in esperados:
@@ -225,7 +226,7 @@ def test_modulos_core_da_adr_0021_liberados():
         assert caminho in origens_copiadas, caminho
     assert "skills/calendario-forense-tjba-2026/SKILL.md" not in DOCKERIGNORE_PERMITIDOS
     # Manifestos anteriores ficam só no repositório (ADR-0020): nunca na imagem.
-    for antigo in ("templates/contestacao/v1/manifesto-1.2.0.json", "templates/contestacao/v1/manifesto-1.1.0.json",
+    for antigo in ("templates/contestacao/v1/manifesto-1.3.0.json", "templates/contestacao/v1/manifesto-1.2.0.json", "templates/contestacao/v1/manifesto-1.1.0.json",
                    "templates/contestacao/v1/manifesto.json"):
         assert antigo not in DOCKERIGNORE_PERMITIDOS and antigo not in origens_copiadas, antigo
 

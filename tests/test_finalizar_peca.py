@@ -262,20 +262,20 @@ BASE_URL_TESTE = "https://ede.example.test"
 
 def _dados_tudo_incluido():
     return {
-        "JUIZO": "AO JUÍZO DA VARA CÍVEL DA COMARCA DE SALVADOR/BA (DADOS FICTÍCIOS DE TESTE)",
-        "NUMERO_PROCESSO": "0000000-00.0000.0.00.0000",
-        "AUTOR": "FULANO DE TAL (DADOS FICTÍCIOS DE TESTE)",
+        "JUIZO": "AO JUÍZO DA VARA CÍVEL DA COMARCA DE SALVADOR/BA (DADOS SINTÉTICOS)",
+        "NUMERO_PROCESSO": "1234567-89.2026.8.05.0001",
+        "AUTOR": "PARTE AUTORA EXEMPLO (DADOS SINTÉTICOS)",
         "TEMPESTIVIDADE_CASO": "Tempestiva, conforme certidão de intimação.",
         "SINOPSE_FATOS": "Síntese fictícia dos fatos, apenas para teste automatizado.",
         "REALIDADE_FATICA": "Linha fictícia da realidade fática.",
-        "IRREGULARIDADE_ENCONTRADA": "ligação direta (dado fictício de teste)",
+        "IRREGULARIDADE_ENCONTRADA": "ligação direta (dado sintético)",
         "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": "Desenvolvimento técnico fictício de teste.",
-        "FOTOS_DA_IRREGULARIADE": "(nenhuma foto anexada, dado fictício de teste)",
-        "VALOR_FRA": "R$ 0,00 (dado fictício de teste)",
-        "VALOR_DANO_MORAL_PRETENDIDO": "R$ 0,00 (dado fictício de teste)",
+        "FOTOS_DA_IRREGULARIADE": "(nenhuma foto anexada, dado sintético)",
+        "VALOR_FRA": "R$ 0,00 (dado sintético)",
+        "VALOR_DANO_MORAL_PRETENDIDO": "R$ 0,00 (dado sintético)",
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
-        "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
-        "SINOPSE_FATOS_NUCLEO_OBJETO": "Objeto fictício de teste (dado fictício de teste).",
+        "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado sintético)",
+        "SINOPSE_FATOS_NUCLEO_OBJETO": "Objeto fictício de teste (dado sintético).",
     }
 
 

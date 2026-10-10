@@ -51,6 +51,7 @@ import artifact_storage as ast  # noqa: E402
 import capability_registry as cr  # noqa: E402
 import datajud_client  # noqa: E402
 import dados_derivados as dd  # noqa: E402
+import fidelidade_comando as fc  # noqa: E402
 import proveito_economico as pe  # noqa: E402
 import tempestividade_texto as tt  # noqa: E402
 import zonas_conteudo as zc  # noqa: E402
@@ -162,6 +163,7 @@ ETAPAS = frozenset({
     "enderecamento",
     "valor_da_causa",
     "zonas",
+    "fidelidade_comando",
 })
 """Estágio seguro (Gate 6.6-C §19) — identifica ONDE, nunca O QUÊ (nunca
 conteúdo de fato/placeholder)."""
@@ -213,6 +215,23 @@ class ResultadoFinalizacao:
     campos_calculados_enviados: tuple[str, ...] = ()
     """Só em `REFUSED`: zonas que o manifesto atribui ao Core e que o host
     enviou mesmo assim."""
+    orientacoes_aplicadas: tuple[dict, ...] = ()
+    """Manifesto 1.4.0, para o HOST: orientações verificáveis do advogado
+    (`orientacoes_advogado`) aceitas e conferidas no texto — `{indice,
+    tipo, termos|conceito, partes}`. Nunca persistidas nem gravadas no
+    DOCX; existem só nesta resposta."""
+    orientacoes_rejeitadas: tuple[dict, ...] = ()
+    """Só em `REFUSED`: `{indice, tipo, motivo_codigo, motivo}` de cada
+    orientação que tentaria alterar texto fixo, tópico, cálculo, campo
+    calculado ou fato, ou cuja forma não é verificável."""
+    orientacoes_nao_verificadas: tuple[dict, ...] = ()
+    """Orientações só de redação (ENFATIZAR e similares): não bloqueiam e
+    não são conferidas pelo Core."""
+    violacoes_fidelidade: tuple[dict, ...] = ()
+    """Só em `REFUSED` (stage `fidelidade_comando`): `{parte, regra,
+    detalhe}` — qual parte variável o host deve reescrever e por quê
+    (tópico NÃO reintroduzido, termo a não mencionar, conceito a tratar
+    só como fato)."""
     artefato_id: str | None = None
     """`sha256(token)` — identificador do objeto que não permite
     reconstruir o link. NUNCA serializado na resposta pública ao cliente
@@ -367,6 +386,11 @@ def _validar_forma_entrada(entrada: dict) -> ResultadoFinalizacao | None:
         return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
                           "'zonas' deve ser {conteudo: {ZONA: {conteudo, fatos}}, base_documental: [...]}",
                           capability_id)
+    orientacoes = entrada.get("orientacoes_advogado")
+    if orientacoes is not None and not (isinstance(orientacoes, list) and all(isinstance(x, dict) for x in orientacoes)):
+        return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
+                          "'orientacoes_advogado' deve ser uma lista de {tipo, termos|conceito, partes}",
+                          capability_id)
     juizo_confirmado = entrada.get("juizo_confirmado_advogado")
     if juizo_confirmado is not None and not isinstance(juizo_confirmado, str):
         return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
@@ -444,7 +468,8 @@ def _validar_valor_real_obrigatorio(catalogo: dict, estados_blocos: dict, placeh
 
 # ------------------------------------------ dados derivados (ADR-0021, V1)
 
-CAMPOS_NOVOS_V1 = ("marco_tempestividade", "pedidos_economicos", "zonas", "juizo_confirmado_advogado")
+CAMPOS_NOVOS_V1 = ("marco_tempestividade", "pedidos_economicos", "zonas", "juizo_confirmado_advogado",
+                   "orientacoes_advogado")
 """Entradas estruturadas do contrato com manifesto (ADR-0021) — fora da
 Topic Matrix por invariante (INV-TOPIC-MATRIX-SO-SIM-NAO)."""
 
@@ -708,6 +733,7 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
     textos_zonas_previos: dict = {}
     zonas_core: dict = {}
     simbolo_no_texto_fixo: set = set()
+    orientacoes = fc.AnaliseOrientacoes()
     if manifesto is None:
         if topicos or fatos_publicos or novos:
             return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
@@ -782,6 +808,19 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
         block_decisions = traducao.block_decisions
         estado_processual = dict(traducao.estado_processual_motor)
         avisos.extend(traducao.avisos)
+
+        # Manifesto 1.4.0: orientações do advogado, conferidas contra as
+        # decisões ATUAIS antes de qualquer cálculo ou consulta externa.
+        orientacoes = fc.analisar_orientacoes(
+            entrada.get("orientacoes_advogado"), manifesto, topicos,
+            fc.partes_por_modo(manifesto, "CALCULADO_PELO_CORE") | DERIVADOS_ADR_0021 | set(vs.MARCADORES_MANUAIS))
+        if orientacoes.rejeitadas:
+            return replace(_recusado(
+                "fidelidade_comando", "INPUT_VALIDATION_FAILED",
+                "Orientação do advogado incompatível com o contrato ou com as decisões atuais; veja "
+                "orientacoes_rejeitadas.", capability_id),
+                orientacoes_rejeitadas=tuple(orientacoes.rejeitadas),
+                orientacoes_nao_verificadas=tuple(orientacoes.nao_verificadas))
         placeholders = dict(placeholders)
         simbolo_no_texto_fixo = _placeholders_com_simbolo_no_texto_fixo(manifesto)
 
@@ -885,6 +924,26 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
                                    versao.placeholder_bloco_dono_extra)
     if erro is not None:
         return erro
+
+    # Manifesto 1.4.0 — fidelidade ao comando atual, antes do render: as
+    # decisões SIM/NÃO valem na composição e nas partes variáveis, e as
+    # orientações aceitas do advogado são conferidas no texto do host.
+    textos_partes = {n: placeholders[n] for n in fc.partes_variaveis(manifesto) if placeholders.get(n)}
+    textos_partes.update({z: t for z, t in textos_zonas_previos.items() if t and z not in zonas_core})
+    if any(vs.sentinelas_fixture_presentes(t) for t in textos_partes.values()):
+        return _recusado("production_final_validation", "SYNTHETIC_SENTINEL_REJECTED",
+                          "Valor de aceite/teste detectado — não permitido em modo produção-final.", capability_id)
+    violacoes = (fc.verificar_decisoes_aplicadas(manifesto, topicos, estados_blocos)
+                 + fc.verificar_coerencia_topicos(textos_partes, estados_blocos, manifesto)
+                 + fc.verificar_orientacoes(orientacoes.aceitas, textos_partes))
+    if violacoes:
+        return replace(_recusado(
+            "fidelidade_comando", "INPUT_VALIDATION_FAILED",
+            "O texto variável contraria uma decisão ou orientação atual do advogado; reescreva as partes "
+            "indicadas em violacoes_fidelidade.", capability_id),
+            violacoes_fidelidade=tuple(violacoes),
+            orientacoes_aplicadas=tuple(orientacoes.aceitas),
+            orientacoes_nao_verificadas=tuple(orientacoes.nao_verificadas))
 
     # PEND-018: onde o texto fixo já traz "R$" antes do placeholder, o valor
     # (validado acima no formato "R$ 1.234,56") entra no documento sem o
@@ -1030,6 +1089,8 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
             artefato_id=entrega.artefato_id,
             dados_nao_bloqueantes=(tm.dados_nao_bloqueantes(manifesto, estados_blocos) + tuple(avisos)
                                    if manifesto else ()),
+            orientacoes_aplicadas=tuple(orientacoes.aceitas),
+            orientacoes_nao_verificadas=tuple(orientacoes.nao_verificadas),
         )
 
 

@@ -113,11 +113,24 @@ def validar_paragrafos_placeholders(dados: dict, schema: dict) -> tuple:
 # uma amostra real do Teste Real 01-B (não disponível neste ambiente); é
 # uma primeira hipótese documentada, a recalibrar com dados do próximo
 # teste real, não um número definitivo.
+#
+# Recalibração (gate de qualidade de conteúdo, 10/10/2026 — feedback de
+# advogado após uso real pelo ChatGPT): a SINOPSE saía resumida demais
+# porque 3 parágrafos/600 caracteres não comportam a cobertura factual
+# mínima (relação entre as partes, narrativa, fato gerador, cobrança,
+# consequências alegadas, pedidos); o DESENVOLVIMENTO técnico, idem. Os
+# novos números continuam sendo TETO contra prolixidade — nunca meta nem
+# mínimo; o que orienta a extensão é o roteiro de cobertura publicado ao
+# host (manifesto 1.4.0), condicionado ao suporte documental.
+# IRREGULARIDADE_ENCONTRADA passa a ser estruturalmente atômica: uma
+# única linha, ~120 caracteres visíveis (`LIMITE_IRREGULARIDADE_
+# ENCONTRADA` em validate_placeholder_semantics); o teto bruto
+# abaixo admite a marcação **...** (4 caracteres) em volta do valor.
 LIMITES_DENSIDADE_BLOCO = {
-    "SINOPSE_FATOS": {"max_paragrafos": 3, "max_total_chars": 600},
+    "SINOPSE_FATOS": {"max_paragrafos": 6, "max_total_chars": 1800},
     "REALIDADE_FATICA": {"max_paragrafos": 3, "max_total_chars": 600},
-    "IRREGULARIDADE_ENCONTRADA": {"max_paragrafos": 2, "max_total_chars": 600},
-    "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": {"max_paragrafos": 5, "max_total_chars": 700},
+    "IRREGULARIDADE_ENCONTRADA": {"max_paragrafos": 1, "max_total_chars": 124},
+    "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": {"max_paragrafos": 8, "max_total_chars": 2400},
     "PEDIDOS_FINAIS": {"max_paragrafos": 2, "max_total_chars": 400},
 }
 

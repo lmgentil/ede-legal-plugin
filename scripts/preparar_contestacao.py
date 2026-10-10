@@ -59,6 +59,8 @@ from docx_block_engine import ComposicaoAbortada, carregar_catalogo, validar_cat
 import capability_registry as cr  # noqa: E402
 import modelo_oficial_versoes as mov  # noqa: E402
 import topic_matrix as tm  # noqa: E402
+import fidelidade_comando as fc  # noqa: E402
+import validate_paragrafos as vp  # noqa: E402
 from docx_context_engine import ContextoAbortada, extrair_contexto  # noqa: E402
 from docx_package import PacoteDocxAbortada, extrair_pacote_docx  # noqa: E402
 from docx_template_engine import carregar_schema  # noqa: E402
@@ -1172,7 +1174,7 @@ def _montar_topic_matrix(manifesto: dict | None, catalogo: dict, schema: dict) -
         for c in conteudo:
             if c.get("llm"):
                 zona = c["parte"] in zonas_catalogo
-                partes.append({
+                parte = {
                     "parte": c["parte"],
                     "campo_finalizador": "zonas.conteudo" if zona else "placeholders",
                     "modo": c["modo"],
@@ -1181,8 +1183,31 @@ def _montar_topic_matrix(manifesto: dict | None, catalogo: dict, schema: dict) -
                     "skills": c.get("skills", []),
                     "skills_vedadas": c.get("skills_vedadas", []),
                     "validacoes": c.get("validacoes", []),
-                })
+                }
+                # Manifesto 1.4.0: o que cobrir (condicionado ao suporte
+                # documental) e os tetos que o finalizador aplica — antes o
+                # host só descobria o teto pela recusa.
+                if c.get("roteiro_cobertura"):
+                    parte["roteiro_cobertura"] = list(c["roteiro_cobertura"])
+                    parte["regra_cobertura"] = c.get("regra_cobertura")
+                limites = _limites_publicos(c["parte"], schema)
+                if limites:
+                    parte["limites"] = limites
+                partes.append(parte)
     publico["partes_redigiveis_llm"] = partes
+    orientacoes = manifesto.get("orientacoes_adicionais") or {}
+    if orientacoes.get("entrada") == "orientacoes_advogado":
+        publico["orientacoes_advogado"] = {
+            "campo_finalizador": "orientacoes_advogado",
+            "tipos_verificaveis": orientacoes.get("tipos_verificaveis"),
+            "conceitos_trataveis_como_fato": {
+                k: v["nome_publico"] for k, v in fc.CONCEITOS_TRATAVEIS_COMO_FATO.items()
+                if k in (orientacoes.get("conceitos_trataveis_como_fato") or [])},
+            "tipos_so_redacao": orientacoes.get("tipos_so_redacao"),
+            "nunca": orientacoes.get("nunca"),
+            "limites": {"max_orientacoes": fc.MAX_ORIENTACOES, "max_termos": fc.MAX_TERMOS,
+                        "caracteres_por_termo": [fc.MIN_TERMO, fc.MAX_TERMO]},
+        }
     publico["topicos_adicionais"] = (manifesto.get("topicos_adicionais") or {}).get("status")
     publico["orientacao"] = ("Pergunte ao advogado cada tópico e cada fato público (SIM/NÃO) e envie "
                               "as respostas em 'topicos'/'fatos_publicos' do finalizador. Nunca mostre "
@@ -1218,7 +1243,32 @@ def _montar_topic_matrix(manifesto: dict | None, catalogo: dict, schema: dict) -
         "extraídos dos documentos. Se o finalizador devolver NEEDS_INPUT com suporte_ausente, reveja os "
         "documentos; só se faltar mesmo a prova de um tópico SIM, apresente ao advogado a pendência em "
         "linguagem comum, sem chaves internas. Envie o capability_id do pacote ao finalizador.")
+    if "orientacoes_advogado" in publico:
+        publico["orientacao"] += (
+            " Redação: siga roteiro_cobertura de cada parte, cobrindo só o que os documentos sustentarem; "
+            "limites são teto, nunca meta, e nada se inventa para ganhar extensão. Instruções do advogado no "
+            "pedido atual (ex.: não mencionar um termo, tratar o corte só como fato) valem para as partes "
+            "variáveis; envie em orientacoes_advogado só as verificáveis (NAO_MENCIONAR, "
+            "TRATAR_APENAS_COMO_FATO), nunca orientação de sessão anterior. 'Reforçar' ou 'dar destaque' "
+            "orientam a redação e não são enviados. Se a instrução contrariar um tópico SIM/NÃO, pergunte ao "
+            "advogado antes: orientação nunca altera tópico, texto fixo, cálculo nem fato. Se o finalizador "
+            "devolver violacoes_fidelidade, reescreva só as partes indicadas.")
     return publico
+
+
+def _limites_publicos(parte: str, schema: dict) -> dict:
+    """Os tetos que o finalizador aplica à parte, lidos dos validadores
+    canônicos (nunca redeclarados): densidade do bloco e o limite por
+    parágrafo dos campos multilinha."""
+    limites = {}
+    densidade = vp.LIMITES_DENSIDADE_BLOCO.get(parte)
+    if densidade:
+        limites = {"max_paragrafos": densidade["max_paragrafos"],
+                   "max_caracteres_total": densidade["max_total_chars"],
+                   "natureza": "teto contra prolixidade, nunca meta nem mínimo"}
+    if ((schema.get("placeholder_contracts") or {}).get(parte) or {}).get("multiline"):
+        limites["max_caracteres_sem_espacos_por_paragrafo"] = vp.PARAGRAFO_MAXIMO
+    return limites
 
 
 # ---------------------------------------------------- contexto institucional

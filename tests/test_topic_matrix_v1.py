@@ -139,8 +139,10 @@ def test_catalogo_e_manifesto_v1_batem_com_os_sha256_aprovados():
     assert hashlib.sha256(V1.catalogo_path.read_bytes()).hexdigest() == \
         "3d710366ab4b06a223712c304ebfb3cfef9ea9206ff025dcd6eb8f973d7b2ac2"
     assert hashlib.sha256(V1.manifesto_path.read_bytes()).hexdigest() == \
+        "93f7af097cf22be6c7d81d1dd5a2203a5b175187e5e61334f43f7948632efa03"
+    # ADR-0020: manifesto imutável — o 1.3.0, o 1.2.0, o 1.1.0 e o 1.0.0 continuam no repositório, byte a byte.
+    assert hashlib.sha256((V1.manifesto_path.parent / "manifesto-1.3.0.json").read_bytes()).hexdigest() == \
         "4b204acc352836ee2a09cc2408bfae7cd10196fed994c009e7db41b0ea50d46a"
-    # ADR-0020: manifesto imutável — o 1.2.0, o 1.1.0 e o 1.0.0 continuam no repositório, byte a byte.
     assert hashlib.sha256((V1.manifesto_path.parent / "manifesto-1.2.0.json").read_bytes()).hexdigest() == \
         "0b3354c66c0c9edc8ce5da6f9a8d324a952373a454f8d13b22fd9174067acb8d"
     assert hashlib.sha256((V1.manifesto_path.parent / "manifesto-1.1.0.json").read_bytes()).hexdigest() == \
@@ -152,7 +154,7 @@ def test_catalogo_e_manifesto_v1_batem_com_os_sha256_aprovados():
 
 
 def test_manifesto_v1_definitivo_e_environment_neutral():
-    assert MANIFESTO["manifesto_versao"] == "1.3.0"
+    assert MANIFESTO["manifesto_versao"] == "1.4.0"
     assert MANIFESTO["modelo_oficial"]["status"] == "APROVADO"
     assert MANIFESTO["modelo_oficial"]["catalogo_blocos"] == "blocos.json"
     texto = V1.manifesto_path.read_text(encoding="utf-8")
@@ -414,20 +416,20 @@ def modelo_v1_local(monkeypatch):
 
 def _placeholders():
     return {
-        "NUMERO_PROCESSO": "0000000-00.0000.0.00.0000",
-        "AUTOR": "FULANO DE TAL (DADOS FICTÍCIOS DE TESTE)",
+        "NUMERO_PROCESSO": "1234567-89.2026.8.05.0001",
+        "AUTOR": "PARTE AUTORA EXEMPLO (DADOS SINTÉTICOS)",
         "SINOPSE_FATOS": "Síntese fictícia dos fatos, apenas para teste automatizado.",
         "REALIDADE_FATICA": "Linha fictícia da realidade fática.",
-        "IRREGULARIDADE_ENCONTRADA": "ligação direta (dado fictício de teste)",
+        "IRREGULARIDADE_ENCONTRADA": "ligação direta (dado sintético)",
         "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": "Desenvolvimento técnico fictício de teste.",
         "FOTOS_DA_IRREGULARIADE": "[INSERIR MANUALMENTE AS FOTOGRAFIAS DA IRREGULARIDADE]",
-        "VALOR_FRA": "R$ 1.234,56 (dado fictício de teste)",
+        "VALOR_FRA": "R$ 1.234,56 (dado sintético)",
         # O mesmo valor do pedido DANO_MORAL de PEDIDOS (checagem cruzada do manifesto 1.3.0).
-        "VALOR_DANO_MORAL_PRETENDIDO": "R$ 12.900,00 (dado fictício de teste)",
+        "VALOR_DANO_MORAL_PRETENDIDO": "R$ 12.900,00 (dado sintético)",
         "PEDIDOS_FINAIS": "a) pedido fictício de teste.",
-        "SINOPSE_FATOS_NUCLEO_OBJETO": "Objeto fictício de teste (dado fictício de teste).",
-        "CONTA_CONTRATO": "0000000000 (dado fictício de teste)",
-        "NOME_TITULAR_DA_UC": "CICLANO DE TAL (DADOS FICTÍCIOS DE TESTE)",
+        "SINOPSE_FATOS_NUCLEO_OBJETO": "Objeto fictício de teste (dado sintético).",
+        "CONTA_CONTRATO": "0000000000 (dado sintético)",
+        "NOME_TITULAR_DA_UC": "TITULAR EXEMPLO (DADOS SINTÉTICOS)",
         "TELAS_DA_TITULARIDADE": "[INSERIR MANUALMENTE AS TELAS/DOCUMENTOS DA TITULARIDADE DA UC]",
         "VALOR_DA_CAUSA": "R$ 10.000,00",
     }
@@ -437,10 +439,10 @@ def _placeholders_legado():
     """Contrato legado (produção): o host continua enviando os quatro
     campos que o V1 deriva — ADR-0021 não muda o legado."""
     return {**_placeholders(),
-            "JUIZO": "AO JUÍZO DA VARA CÍVEL DA COMARCA DE SALVADOR/BA (DADOS FICTÍCIOS DE TESTE)",
+            "JUIZO": "AO JUÍZO DA VARA CÍVEL DA COMARCA DE SALVADOR/BA (DADOS SINTÉTICOS)",
             "TEMPESTIVIDADE_CASO": "Tempestiva, conforme certidão de intimação.",
-            "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado fictício de teste)",
-            "VALOR_TOTAL_PROVEITO_ECONOMICO": "R$ 15.000,00 (dado fictício de teste)"}
+            "LOCAL_DATA": "Salvador, 1º de janeiro de 2026 (dado sintético)",
+            "VALOR_TOTAL_PROVEITO_ECONOMICO": "R$ 15.000,00 (dado sintético)"}
 
 
 def _finalizar(topicos, corte, fatos):

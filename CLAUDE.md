@@ -436,6 +436,16 @@ Etapa 5.2") — resumo operacional aqui:
   ("não houve corte" no texto de um documento nunca vira `CORTE_EFETIVO:
   true`) como prova — o estado é resolvido pela Skill `contestacao` a
   partir dos documentos, com proveniência, nunca por busca textual.
+- **INV-FIDELIDADE-COMANDO-ATUAL** (manifesto 1.4.0, SPEC-0001 §64.10) —
+  antes do render, o finalizador MCP confere que cada tópico SIM/NÃO do
+  advogado foi aplicado, que nenhuma parte variável nomeia a tese de bloco
+  excluído e que as orientações verificáveis do pedido atual
+  (`orientacoes_advogado`: `NAO_MENCIONAR`, `TRATAR_APENAS_COMO_FATO`)
+  foram respeitadas (`scripts/fidelidade_comando.py`). Orientação nunca
+  altera texto fixo, tópico, cálculo, campo calculado nem fato; "reforçar"
+  é só redação, não verificada. Verificação literal e conservadora, nunca
+  semântica. Tetos de SINOPSE (6/1.800) e DESENVOLVIMENTO (8/2.400) são
+  limite, nunca meta; o host recebe o roteiro de cobertura.
 - **INV-NAO-REDUNDANCIA-NORMATIVA** — a redação variável não repete
   dispositivo normativo já presente no tópico-base institucional fixo do
   modelo; o RAG valida/complementa fundamentação, não é gerador de lista

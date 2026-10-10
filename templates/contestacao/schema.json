@@ -89,13 +89,13 @@
     },
     "IRREGULARIDADE_ENCONTRADA": {
       "tipo": "TEXTO_TECNICO",
-      "descricao": "Descrição da irregularidade constatada (TOI/laudo).",
-      "multiline": true,
-      "restricoes": []
+      "descricao": "Somente o nome/tipo da irregularidade constatada no TOI (contrato atômico, Etapa 5.3-B), em uma única linha — ex.: desvio de energia antes do medidor. Nunca explicação técnica (DESENVOLVIMENTO_TECNICO_IRREGULARIDADE) nem repetição do texto fixo que envolve o campo.",
+      "multiline": false,
+      "restricoes": ["uma única linha, até 120 caracteres visíveis — validado por scripts/validate_placeholder_semantics.py"]
     },
     "DESENVOLVIMENTO_TECNICO_IRREGULARIDADE": {
       "tipo": "TEXTO_TECNICO",
-      "descricao": "Análise técnica artigo-por-artigo da REN ANEEL 1.000/2021 aplicada ao caso.",
+      "descricao": "Desenvolvimento técnico-factual da irregularidade no caso concreto, a partir dos documentos (TOI, relatório, memoriais): o que foi constatado, como estava configurada, ponto da instalação atingido, efeito sobre a medição, normalização e elementos relevantes da recuperação. Subsunção ao caso, nunca exposição artigo por artigo da REN ANEEL 1.000/2021 já presente no texto fixo (INV-NAO-REDUNDANCIA-NORMATIVA).",
       "multiline": true,
       "restricoes": []
     },

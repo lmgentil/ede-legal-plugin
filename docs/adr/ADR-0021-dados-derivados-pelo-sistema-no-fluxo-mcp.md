@@ -490,3 +490,53 @@ O pacote 0.19.0 publicava ao host, como exemplo de formato, "R$
 composição ou pedidos sem natureza passam a ser recusados (com
 indicação estruturada). Exige reconexão e novo smoke cross-client.
 Testes: `tests/test_composicao_proveito_core.py`.
+
+## Emenda — manifesto 1.4.0: qualidade de conteúdo e fidelidade ao comando (10/10/2026, pré-deploy)
+
+**Contexto.** Feedback de advogado após uso real pelo ChatGPT: SINOPSE
+resumida demais, desenvolvimento técnico raso e necessidade de garantir
+que a peça siga o comando ATUAL do advogado. Diagnóstico: os tetos de
+densidade (SINOPSE 3 parágrafos/600 caracteres; DESENVOLVIMENTO 5/700)
+impediam a cobertura factual mínima, o host só os descobria pela recusa
+e não recebia nenhuma orientação do que cobrir; a checagem "pedido não
+reintroduz tese excluída" existia só no fluxo local; `orientacoes_
+adicionais` constava do manifesto sem consumidor.
+
+**Decisão.**
+* **Calibração (teto, nunca meta):** SINOPSE ≤6 parágrafos/≤1.800
+  caracteres; DESENVOLVIMENTO ≤8/≤2.400; 380 por parágrafo inalterado.
+  `IRREGULARIDADE_ENCONTRADA` estruturalmente atômica: uma linha, ≤120
+  caracteres visíveis.
+* **Roteiro de cobertura** publicado por parte (`roteiro_cobertura`,
+  `regra_cobertura`, `limites` em `partes_redigiveis_llm`): o host cobre o
+  que os documentos sustentarem e omite o resto; nada é inventado para
+  ganhar extensão. Sem mínimo.
+* **Coerência com os tópicos (`fidelidade_comando`)**, antes do render,
+  no finalizador MCP: tópico SIM → bloco INCLUIR e NÃO → EXCLUIR; nenhuma
+  parte variável (placeholders e zonas do host) nomeia a tese de bloco
+  excluído. Reaproveita o vocabulário do fluxo local
+  (`PALAVRAS_CHAVE_BLOCO_PEDIDOS`), por palavra inteira; nas partes
+  narrativas, sem as expressões ambíguas (`regularidade do corte`).
+* **`orientacoes_advogado`** (opcional, uso interno do host): só
+  `NAO_MENCIONAR` (termos) e `TRATAR_APENAS_COMO_FATO` (conceito fechado,
+  hoje `corte_suspensao`). Recusadas: alteração de texto fixo, tópico,
+  cálculo, campo calculado ou fato; parte fora das variáveis; termo que
+  corresponda a tópico SIM. `ENFATIZAR`/`REFORCAR`/`DESTACAR` são só
+  redação: devolvidas como não verificadas, nunca bloqueiam.
+* **Resposta estruturada:** `orientacoes_aplicadas`,
+  `orientacoes_rejeitadas`, `orientacoes_nao_verificadas`,
+  `violacoes_fidelidade` (`parte`, `regra`, `detalhe`); estágio
+  `fidelidade_comando`. Nada da orientação é persistido nem gravado no
+  DOCX.
+* **Fixtures:** `SENTINELAS_FIXTURE` (lista fechada: "FULANO/CICLANO/
+  BELTRANO DE TAL", "dado(s) fictício(s) de teste", CNJ zerado) recusadas
+  em produção-final.
+
+**Fora do escopo.** Modelo Oficial intocado; molduras flutuantes de
+jurisprudência em PEND-020. Fluxo local (`gerar_contestacao`) mantém só a
+checagem de PEDIDOS_FINAIS.
+
+**Compatibilidade.** Schema público ganha `orientacoes_advogado` e os
+campos de resposta acima; hosts que já respeitavam os tetos antigos
+continuam válidos. Exige reconexão e novo smoke cross-client. Testes:
+`tests/test_fidelidade_comando.py`.

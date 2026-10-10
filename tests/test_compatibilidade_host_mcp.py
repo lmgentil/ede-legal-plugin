@@ -605,7 +605,7 @@ async def test_12_regra_publicada_do_corte_e_a_da_inv_corte_gate_humano(cliente)
 def test_13_modelo_oficial_manifesto_e_catalogo_inalterados():
     assert T.V1.modelo_sha256 == "1e2aa2a52c3341e680acd674658b41c27004a27f5f99c7343643d4d254747a9e"
     assert hashlib.sha256(T.V1.manifesto_path.read_bytes()).hexdigest() == \
-        "4b204acc352836ee2a09cc2408bfae7cd10196fed994c009e7db41b0ea50d46a"
+        "93f7af097cf22be6c7d81d1dd5a2203a5b175187e5e61334f43f7948632efa03"
     assert hashlib.sha256(T.V1.catalogo_path.read_bytes()).hexdigest() == \
         "3d710366ab4b06a223712c304ebfb3cfef9ea9206ff025dcd6eb8f973d7b2ac2"
 

@@ -280,7 +280,7 @@ jobs:
               ! -name "modelo_oficial_versoes.py" ! -name "topic_matrix.py" \
               ! -name "datajud_client.py" ! -name "dados_derivados.py" \
               ! -name "proveito_economico.py" ! -name "tempestividade_texto.py" \
-              ! -name "zonas_conteudo.py" \
+              ! -name "zonas_conteudo.py" ! -name "fidelidade_comando.py" \
               2>/dev/null || true)
             if [ -n "$achados_scripts" ]; then
               echo "ARQUIVO INESPERADO EM /app/scripts NA IMAGEM: $achados_scripts"
@@ -288,7 +288,7 @@ jobs:
             fi
             achados_templates=$(find /app/templates -type f ! -path "*/contestacao/schema.json" \
               ! -path "*/contestacao/blocos.json" ! -path "*/contestacao/v1/blocos.json" \
-              ! -path "*/contestacao/v1/manifesto-1.3.0.json" 2>/dev/null || true)
+              ! -path "*/contestacao/v1/manifesto-1.4.0.json" 2>/dev/null || true)
             if [ -n "$achados_templates" ]; then
               echo "ARQUIVO INESPERADO EM /app/templates NA IMAGEM: $achados_templates"
               exit 1

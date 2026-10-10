@@ -132,6 +132,8 @@ CONTRATO_DADO_HOST = {
         "restricoes": [
             "não repetir o texto fixo que envolve o campo ('Na ocasião, foi constatada irregularidade do "
             "tipo,' antes e ', circunstância que impedia o registro integral...' depois)",
+            "uma única linha, com até 120 caracteres (contrato atômico; o finalizador recusa explicação longa "
+            "ou em mais de uma linha)",
             "não explicar tecnicamente a irregularidade (isso é DESENVOLVIMENTO_TECNICO_IRREGULARIDADE)",
             "não escrever integralmente em caixa alta",
             "não mencionar assinatura do TOI nem a origem do dado",

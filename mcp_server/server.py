@@ -101,7 +101,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from mcp.server import MCPServer
 from mcp.server.auth.provider import TokenVerifier
@@ -487,6 +487,27 @@ class ZonasEntrada(BaseModel):
     ] = []
 
 
+class OrientacaoAdvogado(BaseModel):
+    """Manifesto 1.4.0 — orientação do advogado traduzida pelo HOST (o
+    advogado fala em linguagem natural; nunca preenche este campo). Só o
+    que o Core verifica deterministicamente: NAO_MENCIONAR (`termos`) e
+    TRATAR_APENAS_COMO_FATO (`conceito`, hoje só `corte_suspensao`).
+    "Reforçar"/"dar destaque" são orientação de redação, não vêm aqui.
+    Nenhum campo carrega conteúdo ou fato; nada disso é persistido nem
+    gravado no DOCX."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    tipo: str = Field(..., max_length=40, description="NAO_MENCIONAR ou TRATAR_APENAS_COMO_FATO.")
+    termos: Annotated[list[Annotated[str, Field(max_length=finalizar_peca.fc.MAX_TERMO)]],
+                      Field(max_length=finalizar_peca.fc.MAX_TERMOS)] | None = Field(
+        None, description="NAO_MENCIONAR: termos que as partes variáveis do escopo não podem conter.")
+    conceito: str | None = Field(None, max_length=40,
+                                 description="TRATAR_APENAS_COMO_FATO: conceito da lista publicada no pacote.")
+    partes: Annotated[list[Annotated[str, Field(max_length=80)]], Field(max_length=20)] | None = Field(
+        None, description="Escopo: partes variáveis (partes_redigiveis_llm); omitido = o escopo padrão.")
+
+
 class EdeFinalizarPecaEntrada(BaseModel):
     """Entrada estruturada do finalizador genérico (Decisão 2 da
     ADR-0018). O cliente escolhe uma CAPACIDADE jurídica, nunca um
@@ -542,6 +563,12 @@ class EdeFinalizarPecaEntrada(BaseModel):
                                        "composição do proveito econômico (nunca envie essa zona).")
     zonas: ZonasEntrada | None = Field(
         None, description="Conteúdo das zonas autorizadas (pacote.topic_matrix.partes_redigiveis_llm).")
+    orientacoes_advogado: Annotated[
+        list[OrientacaoAdvogado], Field(max_length=finalizar_peca.fc.MAX_ORIENTACOES)
+    ] | None = Field(
+        None, description="Opcional, uso interno do host: orientações do advogado deterministicamente "
+                          "verificáveis (pacote.topic_matrix.orientacoes_advogado). Nunca altera texto fixo, "
+                          "tópico, cálculo, campo calculado nem fato.")
     juizo_confirmado_advogado: str | None = Field(
         None, max_length=finalizar_peca.MAX_JUIZO_CONFIRMADO_CHARS,
         description="Só depois de NEEDS_INPUT por indisponibilidade do DataJud; usado apenas se ele "
@@ -564,6 +591,35 @@ class InconsistenciaValor(BaseModel):
     motivo: Literal["DANO_MORAL_AUSENTE", "DANO_MORAL_AMBIGUO", "DIVERGE_DOS_PEDIDOS"]
     valor_informado: str | None = None
     valor_nos_pedidos: str | list[str | None] | None = None
+
+
+class OrientacaoAplicada(BaseModel):
+    indice: int
+    tipo: str
+    termos: list[str] | None = None
+    conceito: str | None = None
+    partes: list[str]
+
+
+class OrientacaoRejeitada(BaseModel):
+    indice: int | None = None
+    tipo: str | None = None
+    motivo_codigo: str
+    motivo: str
+
+
+class OrientacaoNaoVerificada(BaseModel):
+    indice: int
+    tipo: str
+    motivo: str
+
+
+class ViolacaoFidelidade(BaseModel):
+    """Para o HOST: qual parte variável reescrever e por quê."""
+
+    parte: str
+    regra: Literal["DECISAO_NAO_APLICADA", "TOPICO_EXCLUIDO", "NAO_MENCIONAR", "TRATAR_APENAS_COMO_FATO"]
+    detalhe: str
 
 
 class EdeFinalizarPecaResposta(BaseModel):
@@ -605,11 +661,31 @@ class EdeFinalizarPecaResposta(BaseModel):
     """Só em REFUSED: divergências entre dados econômicos estruturados."""
     campos_calculados_enviados: list[str] | None = None
     """Só em REFUSED: zonas do sistema enviadas pelo host."""
+    orientacoes_aplicadas: list[OrientacaoAplicada] | None = None
+    """Manifesto 1.4.0: orientações verificáveis do advogado aceitas e
+    conferidas (em OK) ou aceitas (em REFUSED por violação)."""
+    orientacoes_rejeitadas: list[OrientacaoRejeitada] | None = None
+    """Só em REFUSED: orientações incompatíveis e o motivo."""
+    orientacoes_nao_verificadas: list[OrientacaoNaoVerificada] | None = None
+    """Orientações só de redação, não conferidas pelo sistema."""
+    violacoes_fidelidade: list[ViolacaoFidelidade] | None = None
+    """Só em REFUSED (stage fidelidade_comando): partes a reescrever."""
     document_sha256: str | None = None
     document_size: int | None = None
     filename: str | None = None
     download_url: str | None = None
     expires_at: str | None = None
+
+
+def _campos_fidelidade(resultado) -> dict:
+    """Orientações e violações (manifesto 1.4.0), só quando existem."""
+    return {
+        "orientacoes_aplicadas": [OrientacaoAplicada(**x) for x in resultado.orientacoes_aplicadas] or None,
+        "orientacoes_rejeitadas": [OrientacaoRejeitada(**x) for x in resultado.orientacoes_rejeitadas] or None,
+        "orientacoes_nao_verificadas": [OrientacaoNaoVerificada(**x)
+                                        for x in resultado.orientacoes_nao_verificadas] or None,
+        "violacoes_fidelidade": [ViolacaoFidelidade(**x) for x in resultado.violacoes_fidelidade] or None,
+    }
 
 
 def _registrar_finalizacao(resposta: EdeFinalizarPecaResposta, *, artefato_id: str | None = None) -> None:
@@ -707,6 +783,7 @@ def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent]:
             chaves_estado_desconhecidas=list(resultado.chaves_estado_desconhecidas) or None,
             inconsistencias_valores=[InconsistenciaValor(**x) for x in resultado.inconsistencias_valores] or None,
             campos_calculados_enviados=list(resultado.campos_calculados_enviados) or None,
+            **_campos_fidelidade(resultado),
         )
         _registrar_finalizacao(resposta, artefato_id=resultado.artefato_id)
         return [TextContent(type="text", text=resposta.model_dump_json(exclude_none=True))]
@@ -721,6 +798,7 @@ def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent]:
         download_url=resultado.download_url,
         expires_at=resultado.download_expires_at,
         dados_nao_bloqueantes=list(resultado.dados_nao_bloqueantes) or None,
+        **_campos_fidelidade(resultado),
     )
     _registrar_finalizacao(resposta, artefato_id=resultado.artefato_id)
     return [TextContent(type="text", text=resposta.model_dump_json(exclude_none=True))]

@@ -540,3 +540,22 @@ checagem de PEDIDOS_FINAIS.
 campos de resposta acima; hosts que já respeitavam os tetos antigos
 continuam válidos. Exige reconexão e novo smoke cross-client. Testes:
 `tests/test_fidelidade_comando.py`.
+
+## Emenda — montagem pelo host e autocorreção (10/10/2026, pré-deploy)
+
+**Contexto.** No teste real da 0.21.0, o ChatGPT preparou o caso e não
+chamou o finalizador (nenhum dispatch na telemetria do Homolog; chamada
+com schema inválido também deixa dispatch registrado, verificado). Causas
+de discoverability: `descricao` obrigatória sem constar de nenhuma
+orientação ("natureza, valor e fonte"); `natureza` "obrigatória" na
+descrição e opcional no schema; regra da citação só no fim de um pacote
+de mais de 100 KB, sem exemplo; ferramenta finalizadora sem nenhuma
+regra de montagem.
+
+**Decisão.** Sem mudança de regra jurídica nem do manifesto 1.4.0:
+`natureza` obrigatória no schema público; os quatro campos do pedido em
+toda orientação; regra da citação e exemplos neutros no schema; bloco
+"MONTAGEM PELO HOST" na descrição do finalizador; `montagem_finalizador`
+no início do pacote, com o fluxo obrigatório e a autocorreção. `$ref` não
+expandidos por ora — só se o novo teste real do ChatGPT continuar
+falhando. Testes black-box: `tests/test_montagem_finalizador_mcp.py`.

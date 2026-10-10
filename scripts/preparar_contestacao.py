@@ -57,6 +57,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from docx_block_engine import ComposicaoAbortada, carregar_catalogo, validar_catalogo  # noqa: E402
 import capability_registry as cr  # noqa: E402
+import proveito_economico as pe  # noqa: E402
 import modelo_oficial_versoes as mov  # noqa: E402
 import topic_matrix as tm  # noqa: E402
 import fidelidade_comando as fc  # noqa: E402
@@ -1225,8 +1226,8 @@ def _montar_topic_matrix(manifesto: dict | None, catalogo: dict, schema: dict) -
             "DISPONIBILIZACAO e nunca pergunte a modalidade da citação. "
             "Nunca pergunte o juízo, a data da peça, o texto de tempestividade, o "
             "proveito econômico ou a decisão que concedeu a gratuidade: o sistema os obtém ou calcula e "
-            "recusa esses campos se vierem do host. Extraia da inicial os pedidos econômicos com natureza "
-            "(DEBITO, DANO_MORAL ou OUTRO), valor e fonte (pedidos_economicos) quando a impugnação ao valor da "
+            "recusa esses campos se vierem do host. Extraia da inicial os pedidos econômicos com descricao, "
+            "natureza (DEBITO, DANO_MORAL ou OUTRO), valor e fonte (pedidos_economicos) quando a impugnação ao valor da "
             "causa for SIM; pedido sem valor total na inicial vai com valor nulo. O sistema soma os pedidos e "
             "redige a composição do proveito econômico; com o dano moral SIM, informe exatamente um pedido "
             "DANO_MORAL com o mesmo valor de VALOR_DANO_MORAL_PRETENDIDO. Só envie "
@@ -1311,6 +1312,88 @@ def _obter_contexto_institucional_gerativo(schema: dict, catalogo: dict) -> dict
             "bloco_ancestral": primeira.get("bloco"),
         }
     return resultado
+
+
+# ------------------------------------------------ montagem do finalizador
+# Gate de discoverability do host (0.21.x): no teste real com o ChatGPT o
+# host nunca chegou a chamar ede_finalizar_peca — não soube montar
+# `marco_tempestividade` e `pedidos_economicos`, e a orientação estava no
+# fim de um pacote de mais de 100 KB, sem exemplo e sem `descricao`. Estas
+# constantes são a ÚNICA fonte dos exemplos e das regras de montagem: o
+# schema público (`mcp_server/server.py`) e o bloco `montagem_finalizador`
+# do pacote leem daqui. Valores só de formato — nunca de caso real.
+
+AVISO_EXEMPLOS = ("Os valores dos exemplos são exclusivamente ilustrativos de formato. Nunca copie valores de "
+                  "exemplo para uma peça. Extraia descricao, natureza, valor e fonte dos documentos do caso; a "
+                  "data do marco vem da instrução do advogado ou dos documentos.")
+"""Publicado junto de todo exemplo (schema e montagem_finalizador). Nenhuma
+validação recusa os valores dos exemplos: podem existir num caso real."""
+
+EXEMPLO_MARCO_TEMPESTIVIDADE = {"tipo": "CIENCIA", "data": "21/09/2026"}
+"""O advogado diz "Citação: 21/09/2026"; o host envia isto."""
+
+EXEMPLOS_PEDIDOS_ECONOMICOS = (
+    {"descricao": "declaração de inexistência do débito", "natureza": "DEBITO",
+     "valor": "R$ 1.234,56", "fonte": "Petição inicial"},
+    {"descricao": "indenização por danos morais", "natureza": "DANO_MORAL",
+     "valor": "R$ 5.678,90", "fonte": "Petição inicial"},
+    {"descricao": "multa diária requerida em tutela", "natureza": "OUTRO",
+     "valor": None, "fonte": "Petição inicial"},
+)
+
+CAMPOS_PEDIDO_ECONOMICO = ("descricao", "natureza", "valor", "fonte")
+
+REGRA_MARCO_HOST = ("Citação, intimação ou ciência (\"Citação: DD/MM/AAAA\", \"Intimação: ...\", \"Ciência: ...\") "
+                    "-> {\"tipo\": \"CIENCIA\", \"data\": \"DD/MM/AAAA\"}. DISPONIBILIZACAO só quando o dado for "
+                    "a data de disponibilização no DJe. O advogado nunca escolhe o tipo.")
+
+REGRA_PEDIDOS_HOST = ("Cada pedido econômico da inicial tem descricao, natureza (DEBITO, DANO_MORAL ou OUTRO), "
+                      "valor e fonte. valor: \"R$ 1.234,56\" ou null quando a inicial não traz valor total "
+                      "(ex.: multa diária); nunca número. A natureza é o host quem informa, lendo a inicial.")
+
+FLUXO_HOST = (
+    "PREPARAR: chamar ede_preparar_contestacao e ler montagem_finalizador.",
+    "DERIVAR: montar os dados técnicos a partir dos documentos e da instrução do advogado, sem perguntar.",
+    "FINALIZAR: chamar ede_finalizar_peca.",
+    "AUTOCORRIGIR: erro de estrutura, enum, campo técnico ausente, natureza ausente ou marco malformado, "
+    "corrigível com os documentos, o pacote ou o que o advogado já disse -> corrigir e reenviar sem avisar o "
+    "advogado.",
+    "PERGUNTAR ao advogado só por decisão jurídica faltante, fato ausente, documentos contraditórios ou "
+    "DataJud indisponível (pendencias de NEEDS_INPUT), em linguagem jurídica.",
+)
+
+PROIBIDO_HOST = (
+    "pedir ao advogado que adeque, escolha ou informe campo técnico do MCP (tipo do marco, natureza, JSON, "
+    "estado_processual, placeholders, zonas)",
+    "encerrar com mensagem como \"finalização pendente de adequação dos campos ao contrato técnico\"",
+)
+
+
+def montar_bloco_montagem_finalizador(manifesto: dict | None) -> dict | None:
+    """Bloco curto e machine-readable, publicado NO INÍCIO do pacote: como
+    o host monta a chamada ao finalizador. Só no contrato com manifesto
+    (as entradas estruturadas não existem no legado)."""
+    if manifesto is None or not manifesto.get("entradas_estruturadas_publicas"):
+        return None
+    return {
+        "aviso_exemplos": AVISO_EXEMPLOS,
+        "marco_tempestividade": {
+            "regra": REGRA_MARCO_HOST,
+            "formato_data": "DD/MM/AAAA",
+            "exemplo": {"advogado_diz": "Citação: 21/09/2026", "host_envia": dict(EXEMPLO_MARCO_TEMPESTIVIDADE),
+                        "aviso": AVISO_EXEMPLOS},
+        },
+        "pedidos_economicos": {
+            "quando": "impugnação ao valor da causa marcada SIM",
+            "campos_obrigatorios": list(CAMPOS_PEDIDO_ECONOMICO),
+            "naturezas": list(pe.NATUREZAS),
+            "regra": REGRA_PEDIDOS_HOST,
+            "exemplos": [dict(p) for p in EXEMPLOS_PEDIDOS_ECONOMICOS],
+            "aviso_exemplos": AVISO_EXEMPLOS,
+        },
+        "fluxo_obrigatorio_host": list(FLUXO_HOST),
+        "proibido": list(PROIBIDO_HOST),
+    }
 
 
 # ------------------------------------------------------------------- núcleo
@@ -1455,6 +1538,8 @@ def preparar_contexto_contestacao(
 
     pacote = {
         "capability_id": capability_id,
+        # Primeiro, antes das seções volumosas (gate de discoverability).
+        **({"montagem_finalizador": montagem} if (montagem := montar_bloco_montagem_finalizador(manifesto)) else {}),
         "readiness": {
             "contestacao_status": "READY",
             "rag": resultado_rag.status,

@@ -378,7 +378,7 @@ def _validar_forma_entrada(entrada: dict) -> ResultadoFinalizacao | None:
     pedidos = entrada.get("pedidos_economicos")
     if pedidos is not None and not (isinstance(pedidos, list) and all(isinstance(x, dict) for x in pedidos)):
         return _recusado("input_validation", "INPUT_VALIDATION_FAILED",
-                          "'pedidos_economicos' deve ser uma lista de {descricao, valor, fonte}", capability_id)
+                          "'pedidos_economicos' deve ser uma lista de {descricao, natureza, valor, fonte}", capability_id)
     zonas = entrada.get("zonas")
     if zonas is not None and not (isinstance(zonas, dict)
                                   and isinstance(zonas.get("conteudo") or {}, dict)

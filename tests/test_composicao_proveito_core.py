@@ -105,7 +105,10 @@ async def test_host_contract_publica_a_composicao_como_calculada(cliente):
     assert "R$ 10.000,00" not in json.dumps(tm, ensure_ascii=False)
     ferramentas = {t.name: t for t in (await cliente.list_tools()).tools}
     pedido_schema = ferramentas["ede_finalizar_peca"].input_schema["$defs"]["PedidoEconomico"]
-    assert set(pedido_schema["properties"]["natureza"]["anyOf"][0]["enum"]) == {"DEBITO", "DANO_MORAL", "OUTRO"}
+    # Gate de discoverability do host: natureza é obrigatória também no
+    # schema público (antes "obrigatória" só na descrição, com default null).
+    assert set(pedido_schema["properties"]["natureza"]["enum"]) == {"DEBITO", "DANO_MORAL", "OUTRO"}
+    assert {"descricao", "natureza", "fonte"} <= set(pedido_schema["required"])
 
 
 def _entrada(pacote, **mudancas):
@@ -157,9 +160,15 @@ async def test_dano_moral_sim_exige_exatamente_um_pedido_dano_moral(cliente, ped
 async def test_natureza_ausente_e_recusada(cliente):
     pacote = await H._preparar(cliente)
     pedidos = [{k: v for k, v in p.items() if k != "natureza"} for p in PEDIDOS_REGRESSAO]
-    r = await H._finalizar(cliente, _entrada(pacote, pedidos_economicos=pedidos))
-    assert r["status"] == "REFUSED" and r["stage"] == "valor_da_causa"
-    assert r["error_code"] == "INPUT_VALIDATION_FAILED" and "natureza" in r["motivo"]
+    entrada = _entrada(pacote, pedidos_economicos=pedidos)
+    # Perímetro (gate de discoverability do host): o schema público já exige
+    # natureza, e a falha nomeia o campo para o host corrigir e reenviar.
+    r = await cliente.call_tool("ede_finalizar_peca", {"entrada": entrada})
+    assert r.is_error and "natureza" in r.content[0].text
+    # Defesa em profundidade: o Core continua recusando sozinho.
+    nucleo = fp.finalizar_peca(entrada)
+    assert nucleo.status == "REFUSED" and nucleo.stage == "valor_da_causa"
+    assert nucleo.error_code == "INPUT_VALIDATION_FAILED" and "natureza" in nucleo.motivo
 
 
 @pytest.mark.anyio

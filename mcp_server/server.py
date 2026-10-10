@@ -373,6 +373,9 @@ def ede_preparar_contestacao(entrada: PrepararContestacaoEntrada) -> PrepararCon
     Reconvenção, NÃO pesquisa jurisprudência e NÃO consulta DataJud. O
     HOST (Claude/ChatGPT) usa o pacote devolvido para raciocinar e
     redigir; a geração do DOCX final é etapa posterior, fora deste gate.
+    Leia primeiro `montagem_finalizador` (início do pacote): como montar
+    marco_tempestividade e pedidos_economicos e o fluxo obrigatório,
+    inclusive a autocorreção de erro técnico sem envolver o advogado.
 
     Contrato do host: o pacote traz o `capability_id` do finalizador e, em
     `topic_matrix`, o que o host deriva dos documentos sem perguntar ao
@@ -427,6 +430,9 @@ class MarcoTempestividade(BaseModel):
     diretamente); DISPONIBILIZACAO = data de disponibilização no DJe
     (publicação derivada, compatibilidade 0.17.1)."""
 
+    model_config = ConfigDict(json_schema_extra={"examples": [preparar_contestacao.EXEMPLO_MARCO_TEMPESTIVIDADE],
+                                                 "x-aviso-exemplos": preparar_contestacao.AVISO_EXEMPLOS})
+
     tipo: Literal["DISPONIBILIZACAO", "CIENCIA"] = Field(
         ..., description="CIENCIA: data da citação/intimação/ciência, quando esse for o marco conhecido. "
                          "DISPONIBILIZACAO: só quando o dado for especificamente a disponibilização no DJe.")
@@ -435,17 +441,22 @@ class MarcoTempestividade(BaseModel):
 
 class PedidoEconomico(BaseModel):
     """Pedido economicamente mensurável extraído da petição inicial pelo
-    host, com a fonte. `valor` ausente = pedido sem valor quantificado
-    (nunca somado como zero)."""
+    host: descricao, natureza, valor e fonte. `valor` nulo = pedido sem
+    valor total quantificado (nunca somado como zero)."""
 
-    descricao: str = Field(..., max_length=300)
-    natureza: Literal["DEBITO", "DANO_MORAL", "OUTRO"] | None = Field(
-        None, description="Obrigatória (manifesto 1.3.0): DEBITO (débito discutido), DANO_MORAL ou OUTRO. "
-                          "Informada pelo host a partir da inicial, nunca deduzida da descrição pelo sistema.")
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [dict(p) for p in preparar_contestacao.EXEMPLOS_PEDIDOS_ECONOMICOS],
+                           "x-aviso-exemplos": preparar_contestacao.AVISO_EXEMPLOS})
+
+    descricao: str = Field(..., max_length=300, description="O pedido, como formulado na inicial.")
+    natureza: Literal["DEBITO", "DANO_MORAL", "OUTRO"] = Field(
+        ..., description="DEBITO (débito discutido), DANO_MORAL ou OUTRO. Informada pelo host a partir da "
+                         "inicial, nunca deduzida da descrição pelo sistema.")
     valor: str | None = Field(None, max_length=40,
-                              description="Formato monetário brasileiro, ex.: R$ 1.234,56; nulo quando a "
+                              description="Formato monetário brasileiro, ex.: R$ 1.234,56; null quando a "
                                           "inicial não traz valor total (ex.: multa diária) — não entra na soma.")
-    fonte: str = Field(..., max_length=preparar_contestacao.MAX_SOURCE_DOCUMENT_CHARS)
+    fonte: str = Field(..., max_length=preparar_contestacao.MAX_SOURCE_DOCUMENT_CHARS,
+                       description="Documento de onde o pedido foi extraído, ex.: Petição inicial.")
 
 
 class OperacaoZona(BaseModel):
@@ -552,15 +563,17 @@ class EdeFinalizarPecaEntrada(BaseModel):
                           "ex.: corte_efetivo. Nunca inferidos da decisão de incluir um tópico."),
     ] = {}
     marco_tempestividade: MarcoTempestividade | None = Field(
-        None, description="Marco informado pelo advogado ou extraído dos documentos: data da "
-                          "citação/intimação/ciência (CIENCIA) ou da disponibilização no DJe "
-                          "(DISPONIBILIZACAO); o sistema calcula a tempestividade (nunca envie "
-                          "TEMPESTIVIDADE_CASO).")
+        None, description="Objeto {tipo, data}. " + preparar_contestacao.REGRA_MARCO_HOST + " O sistema calcula "
+                          "a tempestividade (nunca envie TEMPESTIVIDADE_CASO). "
+                          + preparar_contestacao.AVISO_EXEMPLOS,
+        examples=[preparar_contestacao.EXEMPLO_MARCO_TEMPESTIVIDADE])
     pedidos_economicos: Annotated[
         list[PedidoEconomico], Field(max_length=finalizar_peca.MAX_PEDIDOS_ECONOMICOS)
-    ] | None = Field(None, description="Pedidos da inicial com natureza, valor e fonte; exigido quando a "
-                                       "impugnação ao valor da causa é SIM. O sistema soma, compara e redige a "
-                                       "composição do proveito econômico (nunca envie essa zona).")
+    ] | None = Field(None, description="Exigido quando a impugnação ao valor da causa é SIM. "
+                                       + preparar_contestacao.REGRA_PEDIDOS_HOST + " O sistema soma, compara e "
+                                       "redige a composição do proveito econômico (nunca envie essa zona). "
+                                       + preparar_contestacao.AVISO_EXEMPLOS,
+                     examples=[[dict(p) for p in preparar_contestacao.EXEMPLOS_PEDIDOS_ECONOMICOS]])
     zonas: ZonasEntrada | None = Field(
         None, description="Conteúdo das zonas autorizadas (pacote.topic_matrix.partes_redigiveis_llm).")
     orientacoes_advogado: Annotated[
@@ -720,8 +733,24 @@ def _registrar_finalizacao(resposta: EdeFinalizarPecaResposta, *, artefato_id: s
 
 @contar_dispatch(FERRAMENTA_FINALIZAR_PECA)
 def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent]:
-    """Finaliza uma peça jurídica a partir de uma capacidade pronta —
-    composição de blocos/zonas, modo produção-final, render do Modelo
+    """Finaliza uma peça jurídica a partir de uma capacidade pronta.
+
+    MONTAGEM PELO HOST (o advogado nunca vê nem ajusta campo técnico):
+    - "Citação: 21/09/2026" (ou intimação/ciência) -> marco_tempestividade
+      {"tipo": "CIENCIA", "data": "21/09/2026"}; DISPONIBILIZACAO só para
+      a data de disponibilização no DJe.
+    - Cada pedido econômico da inicial: descricao, natureza (DEBITO,
+      DANO_MORAL, OUTRO), valor ("R$ 1.234,56") e fonte; sem valor total
+      quantificado -> valor null.
+    - Valores de exemplo são só formato: nunca os copie para a peça;
+      extraia tudo dos documentos do caso.
+    - Erro estrutural (validação, enum, campo ausente, marco malformado)
+      corrigível com os documentos, o pacote do preparador ou o que o
+      advogado já disse é do host: corrija e reenvie. Ao advogado, só
+      decisão jurídica, fato ausente ou contradição documental — nunca
+      peça que ele adeque campo do MCP.
+
+    Composição de blocos/zonas, modo produção-final, render do Modelo
     Oficial, fidelidade independente e round-trip (Gate 6.6-A, sem
     nenhuma etapa pulada por este ser agora um caminho MCP), devolvendo
     metadado + link de download do DOCX final (Gate 6.6-E, v2).

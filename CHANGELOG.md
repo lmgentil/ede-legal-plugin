@@ -7,6 +7,22 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Gate de discoverability do host (pré-deploy, sem bump de versão)
+- Achado do teste real da 0.21.0: o ChatGPT nunca chamou
+  `ede_finalizar_peca` e devolveu ao advogado uma pendência de "adequação
+  dos campos ao contrato técnico".
+- `PedidoEconomico`: `descricao`, `natureza` (DEBITO/DANO_MORAL/OUTRO) e
+  `fonte` obrigatórios no schema público; `valor` texto ou null. Toda
+  orientação ao host passa a citar os quatro campos.
+- `marco_tempestividade`: regra "Citação/Intimação/Ciência: DD/MM/AAAA" →
+  CIENCIA na descrição pública; exemplos neutros de formato no schema.
+- Descrição do finalizador com bloco "MONTAGEM PELO HOST" (autocorreção de
+  erro técnico é do host). `ede_preparar_contestacao` publica
+  `montagem_finalizador` logo no início do pacote.
+- Exemplos públicos marcados como apenas ilustrativos de formato (nunca copiar para a peça);
+  nenhuma validação recusa valores iguais aos dos exemplos.
+- Manifesto 1.4.0, regras jurídicas e Modelo Oficial inalterados.
+
 ### 0.21.0 — profundidade redacional e fidelidade ao comando (pré-deploy)
 - Manifesto V1 1.4.0 (1.3.0 e anteriores preservados): roteiro de
   cobertura publicado para `SINOPSE_FATOS` (6 elementos) e

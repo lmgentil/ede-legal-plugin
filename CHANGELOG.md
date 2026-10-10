@@ -7,7 +7,7 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
-### Gate de discoverability do host (pré-deploy, sem bump de versão)
+### 0.22.0 — discoverability do finalizador pelo host (pré-deploy)
 - Achado do teste real da 0.21.0: o ChatGPT nunca chamou
   `ede_finalizar_peca` e devolveu ao advogado uma pendência de "adequação
   dos campos ao contrato técnico".

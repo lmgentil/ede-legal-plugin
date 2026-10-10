@@ -7,7 +7,7 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
-### Destinos publicados e chaves desconhecidas (pré-deploy, sem bump de versão)
+### 0.23.0 — destinos publicados e chaves desconhecidas (pré-deploy)
 - Achado do teste real da 0.22.0: o ChatGPT chegou ao finalizador, mas
   parou duas vezes em `valor_da_causa` / `MISSING_REQUIRED_FIELD`.
 - A entrada do finalizador recusa chave desconhecida (`extra="forbid"`):

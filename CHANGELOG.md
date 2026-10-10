@@ -7,7 +7,7 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
-### Gate de qualidade de conteúdo e fidelidade ao comando (pré-deploy, sem bump de versão)
+### 0.21.0 — profundidade redacional e fidelidade ao comando (pré-deploy)
 - Manifesto V1 1.4.0 (1.3.0 e anteriores preservados): roteiro de
   cobertura publicado para `SINOPSE_FATOS` (6 elementos) e
   `DESENVOLVIMENTO_TECNICO_IRREGULARIDADE` (8 elementos), com os tetos que

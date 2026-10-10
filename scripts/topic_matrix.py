@@ -54,6 +54,7 @@ chave de cada pendência de suporte. Nada disso entra em `pendencias`.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -141,7 +142,7 @@ CONTRATO_DADO_HOST = {
     },
     "VALOR_FRA": {
         "descricao": "Valor do débito da recuperação de consumo, em formato monetário brasileiro (ex.: "
-                     "R$ 2.097,63), exatamente como consta da fatura de recuperação ou do memorial; nunca "
+                     "R$ 1.234,56), exatamente como consta da fatura de recuperação ou do memorial; nunca "
                      "calculado, estimado nem arredondado pelo host. Só é enviado com a reconvenção SIM.",
         "restricoes": [
             "valor documentado -> preencher o campo e VALOR_FRA_DOCUMENTADO = true",
@@ -369,8 +370,26 @@ por dado real; ao host só chega um exemplo que não se confunde com a
 peça (achado do teste cross-client da 0.19.0)."""
 
 
+_REF_ESTRUTURAL = re.compile(
+    r",?\s*(?:\b(?:citad|discutid|usad|mencionad|previst)[oa]s?\s+)?\b(?:n[oa]s?|em)\s+"
+    r"(?:t[óo]pico|se[cç][ãa]o|bloco|item)s?\s+[\dIVX]+(?:\.\d+)*(?:\s*\([^)]*\))?",
+    re.IGNORECASE)
+_REF_INTERNA = re.compile(r"\s*\((?:INV|REQ|ADR|SPEC|PEND)-[^)]*\)")
+
+
+def limpar_referencias_estruturais(texto: str) -> str:
+    """Descrição host-facing só com o SIGNIFICADO do dado: tira a posição
+    física no Modelo Oficial ("no tópico 2.6 (...)", "na seção 3", "bloco
+    4") e identificadores internos de invariante/requisito ("(INV-...)").
+    Genérico — nenhuma lista por campo; a fonte normativa continua sendo o
+    contrato do schema/manifesto."""
+    limpo = _REF_INTERNA.sub("", _REF_ESTRUTURAL.sub("", texto or ""))
+    limpo = re.sub(r"\s+([,.;:)])", r"\1", re.sub(r"\s{2,}", " ", limpo))
+    return limpo.strip()
+
+
 def _neutralizar_exemplos(texto: str) -> str:
-    return texto.replace("R$ 10.000,00", EXEMPLO_MONETARIO_NEUTRO)
+    return limpar_referencias_estruturais(texto.replace("R$ 10.000,00", EXEMPLO_MONETARIO_NEUTRO))
 
 
 def _dado_host(campo: str, schema: dict, campos: list, exigido_quando: dict) -> dict:
@@ -435,6 +454,49 @@ def descrever_contrato_host(manifesto: dict, catalogo: dict, schema: dict) -> di
         "estados_calculados_pelo_sistema": sorted(reservados),
         "campos_calculados_pelo_sistema": _campos_calculados(manifesto),
     }
+
+
+def _resumo_descricao(texto: str, limite: int = 200) -> str:
+    """Primeira oração da descrição do contrato (até " — " ou ponto),
+    para a projeção curta do bloco inicial — a descrição completa segue
+    em `dados_documentais_host`."""
+    primeira = re.split(r"\s—\s|(?<=[.;])\s", limpar_referencias_estruturais(texto), maxsplit=1)[0].strip()
+    primeira = primeira.rstrip(",;:")
+    if primeira and primeira[-1] not in ".…":
+        primeira += "."
+    return primeira if len(primeira) <= limite else primeira[: limite - 1].rstrip() + "…"
+
+
+def campos_documentais_finalizador(manifesto: dict, catalogo: dict, schema: dict) -> list[dict]:
+    """Projeção CURTA de `dados_documentais_host` (gate de discoverability
+    do host, 0.22.x): cada dado documental que o host extrai e ENVIA ao
+    finalizador, com o destino exato, a descrição curta e quando é
+    exigido. Derivada só de `descrever_contrato_host` — nunca uma lista
+    paralela. Campo exigido em mais de um grupo: "sempre" prevalece; senão
+    `{"qualquer_de": [...]}`."""
+    host = descrever_contrato_host(manifesto, catalogo, schema)
+    grupos = [*host["por_topico"].values(), *host["secoes_incondicionais"]]
+    por_campo: dict[str, dict] = {}
+    for grupo in grupos:
+        for dado in grupo["dados_documentais_host"]:
+            campo = dado["campo"]
+            item = por_campo.setdefault(campo, {
+                "campo": campo,
+                "destino": f"{dado['campo_finalizador']}.{campo}",
+                "descricao": _resumo_descricao(dado["descricao"]),
+                "condicoes": [],
+            })
+            if dado["exigido_quando"] not in item["condicoes"]:
+                item["condicoes"].append(dado["exigido_quando"])
+    resultado = []
+    for item in por_campo.values():
+        condicoes = item.pop("condicoes")
+        if any(c.get("sempre") for c in condicoes):
+            item["exigido_quando"] = {"sempre": True}
+        else:
+            item["exigido_quando"] = condicoes[0] if len(condicoes) == 1 else {"qualquer_de": condicoes}
+        resultado.append(item)
+    return resultado
 
 
 def chaves_estado_host(manifesto: dict, catalogo: dict) -> frozenset:

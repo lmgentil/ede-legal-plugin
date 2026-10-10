@@ -232,6 +232,11 @@ class ResultadoFinalizacao:
     detalhe}` — qual parte variável o host deve reescrever e por quê
     (tópico NÃO reintroduzido, termo a não mencionar, conceito a tratar
     só como fato)."""
+    campos_ausentes: tuple[dict, ...] = ()
+    """Só em `REFUSED` por MISSING_REQUIRED_FIELD, para o HOST (gate de
+    discoverability): `{campo, destino, descricao}` de cada dado que faltou
+    — o caminho técnico para autocorrigir e reenviar. O `motivo` continua
+    em linguagem comum, sem caminho técnico."""
     artefato_id: str | None = None
     """`sha256(token)` — identificador do objeto que não permite
     reconstruir o link. NUNCA serializado na resposta pública ao cliente
@@ -416,15 +421,49 @@ def _validar_rascunho_estruturado(placeholders: dict, schema: dict, capability_i
 
 
 def _validar_producao_final(placeholders: dict, estados_blocos: dict, capability_id: str,
-                            bloco_dono_extra: dict | None = None) -> ResultadoFinalizacao | None:
+                            bloco_dono_extra: dict | None = None,
+                            destinos: dict | None = None) -> ResultadoFinalizacao | None:
     erros = vs.validar_modo_producao_final(placeholders, estados_blocos, bloco_dono_extra)
     if not erros:
         return None
     if any("sentinela de modo ACEITE" in e for e in erros):
         return _recusado("production_final_validation", "SYNTHETIC_SENTINEL_REJECTED",
                           "Valor de aceite/teste detectado — não permitido em modo produção-final.", capability_id)
-    return _recusado("production_final_validation", "MISSING_REQUIRED_FIELD",
-                      "Placeholder obrigatório ausente ou vazio para esta composição.", capability_id)
+    ausentes = vs.placeholders_obrigatorios_ausentes(placeholders, estados_blocos, bloco_dono_extra)
+    return _recusado_campos_ausentes("production_final_validation",
+                                     "Faltam dados do caso necessários para esta composição.",
+                                     ausentes, destinos, capability_id)
+
+
+ESTRUTURADOS_AUSENTES = {
+    "pedidos_economicos": {"destino": "pedidos_economicos",
+                           "descricao": "pedidos da petição inicial, cada um com descricao, natureza, valor e fonte"},
+    "pedidos_economicos[].valor": {"destino": "pedidos_economicos[].valor",
+                                   "descricao": "valor de ao menos um pedido quantificado na petição inicial, se "
+                                                "constar dos documentos"},
+}
+"""Entradas estruturadas fora de `placeholders`, com destino próprio."""
+
+
+def _campo_ausente(campo: str, destinos: dict | None) -> dict:
+    """`{campo, destino, descricao}`: da projeção automática do contrato do
+    host (`topic_matrix.campos_documentais_finalizador`) quando o campo é
+    dado documental publicado; senão o destino em `placeholders` e a
+    descrição curta do schema."""
+    if destinos and campo in destinos:
+        d = destinos[campo]
+        return {"campo": campo, "destino": d["destino"], "descricao": d["descricao"]}
+    if campo in ESTRUTURADOS_AUSENTES:
+        return {"campo": campo, **ESTRUTURADOS_AUSENTES[campo]}
+    contrato = (carregar_schema(SCHEMA_PADRAO).get("placeholder_contracts") or {}).get(campo) or {}
+    return {"campo": campo, "destino": f"placeholders.{campo}",
+            "descricao": tm._resumo_descricao(contrato.get("descricao", ""))}
+
+
+def _recusado_campos_ausentes(stage: str, motivo: str, campos: list, destinos: dict | None,
+                              capability_id: str) -> ResultadoFinalizacao:
+    return replace(_recusado(stage, "MISSING_REQUIRED_FIELD", motivo, capability_id),
+                   campos_ausentes=tuple(_campo_ausente(c, destinos) for c in campos))
 
 
 def _preencher_marcadores_manuais(placeholders: dict, estados_blocos: dict, versao,
@@ -448,7 +487,7 @@ def _preencher_marcadores_manuais(placeholders: dict, estados_blocos: dict, vers
 
 
 def _validar_valor_real_obrigatorio(catalogo: dict, estados_blocos: dict, placeholders: dict,
-                                    capability_id: str) -> ResultadoFinalizacao | None:
+                                    capability_id: str, destinos: dict | None = None) -> ResultadoFinalizacao | None:
     """Regra `obrigatorio_nao_sentinela` do catálogo (hoje: VALOR_FRA com a
     Reconvenção incluída), antes de renderizar — a mesma proteção do fluxo
     local, que o finalizador MCP não aplicava: sentinela de ausência,
@@ -459,10 +498,11 @@ def _validar_valor_real_obrigatorio(catalogo: dict, estados_blocos: dict, placeh
             if dep.get("regra") != "obrigatorio_nao_sentinela" or estados_blocos.get(bloco["id"]) != dep.get("quando"):
                 continue
             if vs.valor_real_ausente(placeholders.get(dep["placeholder"])):
-                return _recusado("production_final_validation", "MISSING_REQUIRED_FIELD",
-                                  "O valor do débito da reconvenção está ausente ou provisório; informe o valor "
-                                  "documentado (ex.: R$ 1.234,56) ou responda NÃO para a reconvenção.",
-                                  capability_id)
+                return _recusado_campos_ausentes(
+                    "production_final_validation",
+                    "O valor do débito da reconvenção está ausente ou provisório; informe o valor "
+                    "documentado (ex.: R$ 1.234,56) ou responda NÃO para a reconvenção.",
+                    [dep["placeholder"]], destinos, capability_id)
     return None
 
 
@@ -655,9 +695,9 @@ def _derivar_proveito(pedidos, valor_da_causa, capability_id):
     except pe.EntradaProveitoInvalida as e:
         return _recusado("valor_da_causa", "INPUT_VALIDATION_FAILED", f"pedidos_economicos: {e}", capability_id)
     if r.pedidos_quantificados == 0:
-        return _recusado("valor_da_causa", "MISSING_REQUIRED_FIELD",
-                         "Nenhum pedido com valor quantificado na petição inicial; o proveito econômico não "
-                         "pode ser calculado a partir dos autos.", capability_id)
+        return _recusado_campos_ausentes(
+            "valor_da_causa", "Nenhum pedido com valor quantificado na petição inicial; o proveito econômico não "
+            "pode ser calculado a partir dos autos.", ["pedidos_economicos[].valor"], None, capability_id)
     return r
 
 
@@ -720,6 +760,8 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
         schema = carregar_schema(SCHEMA_PADRAO)
         if manifesto is not None:
             tm.verificar_compatibilidade(manifesto, catalogo)
+        destinos = ({d["campo"]: d for d in tm.campos_documentais_finalizador(manifesto, catalogo, schema)}
+                    if manifesto is not None else None)
     except (OSError, ValueError, ComposicaoAbortada, mov.IntegridadeVersaoModelo, tm.ManifestoIncompativel):
         return _recusado("official_model_readiness", "OFFICIAL_MODEL_NOT_READY",
                           "Catálogo/schema institucional do plugin não está em condições de uso.", capability_id)
@@ -829,12 +871,13 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
         pedidos = entrada.get("pedidos_economicos") or []
         if topico_proveito is not None and topicos.get(topico_proveito["chave"]) == "SIM":
             if not pedidos:
-                return _recusado("valor_da_causa", "MISSING_REQUIRED_FIELD",
-                                  "Com a impugnação ao valor da causa, informe em 'pedidos_economicos' os pedidos "
-                                  "extraídos da petição inicial, com valor e fonte.", capability_id)
+                return _recusado_campos_ausentes(
+                    "valor_da_causa", "Não foram localizados os pedidos econômicos da petição inicial necessários "
+                    "para a impugnação ao valor da causa.", ["pedidos_economicos"], destinos, capability_id)
             if not str(placeholders.get("VALOR_DA_CAUSA") or "").strip():
-                return _recusado("valor_da_causa", "MISSING_REQUIRED_FIELD",
-                                  "Valor atribuído à causa ausente.", capability_id)
+                return _recusado_campos_ausentes(
+                    "valor_da_causa", "Não foi localizado o valor atribuído à causa necessário para a impugnação.",
+                    ["VALOR_DA_CAUSA"], destinos, capability_id)
             resultado = _derivar_proveito(pedidos, placeholders["VALOR_DA_CAUSA"], capability_id)
             if isinstance(resultado, ResultadoFinalizacao):
                 return resultado
@@ -873,8 +916,9 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
             etapa_pendencia = "tempestividade"
         numero_processo = str(placeholders.get("NUMERO_PROCESSO") or "").strip()
         if not numero_processo:
-            return _recusado("production_final_validation", "MISSING_REQUIRED_FIELD",
-                              "Número do processo ausente; é necessário para o endereçamento.", capability_id)
+            return _recusado_campos_ausentes(
+                "production_final_validation", "Número do processo ausente; é necessário para o endereçamento.",
+                ["NUMERO_PROCESSO"], destinos, capability_id)
         juizo, pendencia, recusa, aviso = _derivar_juizo(
             numero_processo, entrada.get("juizo_confirmado_advogado"), capability_id)
         if recusa is not None:
@@ -916,12 +960,12 @@ def _finalizar_contestacao_irregularidade_consumo(entrada: dict, capacidade: cr.
         erro = _preencher_marcadores_manuais(placeholders, estados_blocos, versao, capability_id)
         if erro is not None:
             return erro
-    erro = _validar_valor_real_obrigatorio(catalogo, estados_blocos, placeholders, capability_id)
+    erro = _validar_valor_real_obrigatorio(catalogo, estados_blocos, placeholders, capability_id, destinos)
     if erro is not None:
         return erro
 
     erro = _validar_producao_final(placeholders, estados_blocos, capability_id,
-                                   versao.placeholder_bloco_dono_extra)
+                                   versao.placeholder_bloco_dono_extra, destinos)
     if erro is not None:
         return erro
 

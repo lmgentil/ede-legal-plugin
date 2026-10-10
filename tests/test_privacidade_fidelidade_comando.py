@@ -185,3 +185,34 @@ def test_orientacao_nao_e_gravada_no_docx_nem_em_artefato(modelo_v1_local, monke
                    "corte_suspensao", "ENFATIZAR"):
         assert rastro not in xml
         assert rastro not in json.dumps(metadata)
+
+
+@pytest.mark.anyio
+@pytest.mark.docx_real
+async def test_chave_desconhecida_e_campo_ausente_nao_vazam_para_logs(modelo_v1_local, caplog, capfd):
+    """Gate de discoverability (0.22.x): o erro de schema por chave
+    desconhecida devolve ao HOST o valor recebido (mensagem do validador) e
+    MISSING_REQUIRED_FIELD devolve campos_ausentes — nenhum dos dois pode
+    alcançar log ou telemetria do servidor."""
+    token = h.emitir_token(escopo=f"{ESCOPO_HEALTH} {ESCOPO_LEGAL}")
+    marcador_extra = "Privextra7790 R$ 15.000,00"
+    extra = _entrada(_placeholders(), [])
+    extra["VALOR_DA_CAUSA"] = marcador_extra
+    ausente = _entrada(_placeholders(PEDIDOS_FINAIS=""), [])
+    with caplog.at_level(logging.DEBUG):
+        async with O.app_autenticada() as (app, config):
+            async with h.cliente_mcp_protocolo(app, config, token) as cliente:
+                r_extra = await cliente.call_tool("ede_finalizar_peca", {"entrada": extra})
+                r_ausente = await cliente.call_tool("ede_finalizar_peca", {"entrada": ausente})
+    saida = capfd.readouterr()
+    assert r_extra.is_error and "Privextra7790" in r_extra.content[0].text  # o host recebe para corrigir
+    corpo = json.loads(r_ausente.content[0].text)
+    assert corpo["error_code"] == "MISSING_REQUIRED_FIELD" and corpo["campos_ausentes"][0]["campo"] == "PEDIDOS_FINAIS"
+    servidor = [r for r in caplog.records if not r.name.startswith("mcp.client")]
+    textos = [r.getMessage() for r in servidor] + [str(v) for r in servidor for v in vars(r).values()]
+    for marcador in ("Privextra7790", *MARCADORES.values()):
+        assert marcador.lower() not in "\n".join(textos).lower(), marcador
+        assert marcador.lower() not in (saida.out + saida.err).lower(), marcador
+    eventos = [json.loads(r.getMessage()) for r in caplog.records if r.name == "ede.mcp.seguranca"]
+    assert all(set(e) <= telemetria.CAMPOS_PERMITIDOS for e in eventos)
+    assert not any("ausente" in campo for campo in telemetria.CAMPOS_PERMITIDOS)

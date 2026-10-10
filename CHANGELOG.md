@@ -7,6 +7,23 @@ este projeto adota [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Destinos publicados e chaves desconhecidas (pré-deploy, sem bump de versão)
+- Achado do teste real da 0.22.0: o ChatGPT chegou ao finalizador, mas
+  parou duas vezes em `valor_da_causa` / `MISSING_REQUIRED_FIELD`.
+- A entrada do finalizador recusa chave desconhecida (`extra="forbid"`):
+  dado fora do lugar não é mais descartado em silêncio.
+- `montagem_finalizador` publica o destino de `marco_tempestividade`,
+  `pedidos_economicos` e de cada dado documental
+  (`campos_documentais_finalizador`), projetado automaticamente do
+  contrato do host.
+- Recusas `MISSING_REQUIRED_FIELD` trazem `campos_ausentes` (`campo`,
+  `destino`, `descricao`) para o host; mensagem ao advogado sem caminho
+  técnico.
+- Descrições host-facing só com o significado do dado: sem numeração ou posição
+  no Modelo Oficial ("tópico 2.6", "seção", "bloco") nem identificador interno.
+- Exemplo do valor da reconvenção publicado ao host passa a "R$ 1.234,56"
+  (antes trazia um valor de caso real).
+
 ### 0.22.0 — discoverability do finalizador pelo host (pré-deploy)
 - Achado do teste real da 0.21.0: o ChatGPT nunca chamou
   `ede_finalizar_peca` e devolveu ao advogado uma pendência de "adequação

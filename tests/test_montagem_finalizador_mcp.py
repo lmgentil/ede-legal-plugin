@@ -227,7 +227,9 @@ async def test_T4_montagem_finalizador_entre_as_primeiras_chaves_do_pacote(ambie
     posicao = texto.find('"montagem_finalizador"')
     assert 0 <= posicao < 1000, posicao  # bytes iniciais, antes das seções volumosas
     montagem = pacote["montagem_finalizador"]
-    assert len(json.dumps(montagem, ensure_ascii=False)) < 4000  # curto
+    # curto: até 0.22.0 só marco/pedidos (~2,2 KB); desde 0.22.x também o destino de cada dado
+    # documental (~5,5 KB) — ainda uma fração pequena de pacotes de 80 a 200 KB.
+    assert len(json.dumps(montagem, ensure_ascii=False)) < 8000
     fluxo = " ".join(montagem["fluxo_obrigatorio_host"])
     for passo in ("PREPARAR", "DERIVAR", "FINALIZAR", "AUTOCORRIGIR", "PERGUNTAR"):
         assert passo in fluxo
@@ -340,3 +342,204 @@ async def test_valores_iguais_aos_dos_exemplos_nao_sao_recusados(ambiente):
                     "valor": "R$ 12.900,00", "fonte": "Petição inicial"}]
         ok, corpo = await _finalizar(c, _host_entrada(pacote, _host_marco(INSTRUCAO_ADVOGADO, montagem), pedidos))
     assert ok and corpo["status"] == "OK", corpo
+
+
+# ===================================== destinos e chaves desconhecidas (0.22.x)
+# Achado do teste real da 0.22.0: o ChatGPT chegou ao finalizador, mas a
+# chamada parou em valor_da_causa/MISSING_REQUIRED_FIELD duas vezes — um
+# dado fora do lugar era aceito pelo schema e descartado em silêncio, e a
+# recusa não dizia onde enviar o dado.
+
+def _entrada_canonica(pacote):
+    montagem = pacote["montagem_finalizador"]
+    return _host_entrada(pacote, _host_marco(INSTRUCAO_ADVOGADO, montagem), _host_pedidos(montagem))
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("chave,valor", [("VALOR_DA_CAUSA", "R$ 15.000,00"), ("valor_da_causa", "R$ 15.000,00"),
+                                         ("pedidos", None)])
+async def test_T1_T3_chave_desconhecida_no_nivel_errado_e_recusada_com_o_nome_da_chave(ambiente, chave, valor):
+    async with await _cliente() as c:
+        pacote = await _pacote(c)
+        entrada = _entrada_canonica(pacote)
+        if chave == "pedidos":
+            entrada[chave] = entrada.pop("pedidos_economicos")
+        else:
+            entrada["placeholders"].pop("VALOR_DA_CAUSA")
+            entrada[chave] = valor
+        ok, corpo = await _finalizar(c, entrada)
+    assert not ok, corpo
+    assert chave in corpo and "Extra inputs are not permitted" in corpo
+
+
+@pytest.mark.anyio
+@pytest.mark.docx_real
+async def test_T2_T4_T9_destinos_corretos_finalizam_o_caso_canonico(ambiente):
+    """placeholders.VALOR_DA_CAUSA + pedidos_economicos + CIENCIA 21/09/2026
+    -> OK, total R$ 14.997,63, diferença R$ 2,37, DOCX gerado."""
+    async with await _cliente() as c:
+        pacote = await _pacote(c)
+        entrada = _entrada_canonica(pacote)
+        assert entrada["placeholders"]["VALOR_DA_CAUSA"] == "R$ 15.000,00"
+        assert entrada["marco_tempestividade"] == {"tipo": "CIENCIA", "data": "21/09/2026"}
+        ok, corpo = await _finalizar(c, entrada)
+    assert ok and corpo["status"] == "OK", corpo
+    assert corpo["document_size"] > 0 and corpo["download_url"]
+    assert any("R$ 14.997,63" in a and "R$ 2,37" in a for a in corpo["dados_nao_bloqueantes"])
+
+
+def _destinos_publicados(montagem: dict) -> dict:
+    return {d["campo"]: d for d in montagem["campos_documentais_finalizador"]}
+
+
+@pytest.mark.anyio
+async def test_T5_T6_bloco_inicial_diz_onde_vai_cada_dado(ambiente):
+    async with await _cliente() as c:
+        pacote = await _pacote(c)
+    montagem = pacote["montagem_finalizador"]
+    destinos = _destinos_publicados(montagem)
+    assert destinos["VALOR_DA_CAUSA"]["destino"] == "placeholders.VALOR_DA_CAUSA"
+    assert destinos["VALOR_DA_CAUSA"]["exigido_quando"] == {"topico": "impugnacao_valor_causa", "resposta": "SIM"}
+    assert destinos["VALOR_DANO_MORAL_PRETENDIDO"]["destino"] == "placeholders.VALOR_DANO_MORAL_PRETENDIDO"
+    assert destinos["VALOR_DANO_MORAL_PRETENDIDO"]["exigido_quando"] == {"topico": "descabimento_dano_moral",
+                                                                        "resposta": "SIM"}
+    assert montagem["pedidos_economicos"]["destino"] == "pedidos_economicos"
+    assert montagem["pedidos_economicos"]["exigido_quando"] == {"topico": "impugnacao_valor_causa", "resposta": "SIM"}
+    assert montagem["marco_tempestividade"]["destino"] == "marco_tempestividade"
+    for d in destinos.values():
+        assert set(d) == {"campo", "destino", "descricao", "exigido_quando"} and d["descricao"]
+    assert "AUTOCORRIGIR: chave desconhecida" in " ".join(montagem["fluxo_obrigatorio_host"])
+    assert list(pacote).index("montagem_finalizador") == 1
+
+
+@pytest.mark.anyio
+async def test_T7_todo_dado_documental_do_contrato_aparece_no_bloco_inicial(ambiente):
+    """Sem lista fixa: todo `dados_documentais_host` publicado no pacote
+    (tópicos e seções incondicionais) está no bloco inicial, com o destino
+    `<campo_finalizador>.<campo>` e uma das condições do contrato."""
+    async with await _cliente() as c:
+        pacote = await _pacote(c)
+    tmx = pacote["topic_matrix"]
+    destinos = _destinos_publicados(pacote["montagem_finalizador"])
+    contrato = [d for g in [*tmx["topicos"], *tmx["secoes_incondicionais_host"]] for d in g["dados_documentais_host"]]
+    assert len({d["campo"] for d in contrato}) >= 5
+    assert {d["campo"] for d in contrato} == set(destinos)
+    for d in contrato:
+        publicado = destinos[d["campo"]]
+        assert publicado["destino"] == f'{d["campo_finalizador"]}.{d["campo"]}'
+        quando = publicado["exigido_quando"]
+        assert quando in ({"sempre": True}, d["exigido_quando"]) or d["exigido_quando"] in quando.get("qualquer_de", [])
+
+
+def test_T7_projecao_segue_o_contrato_automaticamente():
+    """Um dado documental acrescentado ao contrato aparece sozinho na
+    projeção — prova de que não há lista paralela."""
+    import copy
+    import topic_matrix as tm
+    from docx_block_engine import carregar_catalogo
+    from docx_template_engine import carregar_schema
+    catalogo = carregar_catalogo(T.V1.catalogo_path)
+    schema = carregar_schema(T.BASE / "templates" / "contestacao" / "schema.json")
+    manifesto = copy.deepcopy(T.MANIFESTO)
+    antes = {d["campo"] for d in tm.campos_documentais_finalizador(manifesto, catalogo, schema)}
+    topico = next(t for t in manifesto["topicos_decisao_advogado"] if t["chave"] == "inepcia_inicial")
+    topico["conteudo"].append({"parte": "SINOPSE_FATOS_NUCLEO_OBJETO", "modo": "DADO_DOCUMENTAL", "llm": False})
+    depois = {d["campo"]: d for d in tm.campos_documentais_finalizador(manifesto, catalogo, schema)}
+    assert set(depois) - antes == {"SINOPSE_FATOS_NUCLEO_OBJETO"}
+    assert depois["SINOPSE_FATOS_NUCLEO_OBJETO"]["destino"] == "placeholders.SINOPSE_FATOS_NUCLEO_OBJETO"
+    assert depois["SINOPSE_FATOS_NUCLEO_OBJETO"]["exigido_quando"] == {"topico": "inepcia_inicial", "resposta": "SIM"}
+
+
+@pytest.mark.anyio
+@pytest.mark.docx_real
+@pytest.mark.parametrize("estrago,campo,destino", [
+    ("sem_valor_da_causa", "VALOR_DA_CAUSA", "placeholders.VALOR_DA_CAUSA"),
+    ("sem_pedidos", "pedidos_economicos", "pedidos_economicos"),
+])
+async def test_missing_required_field_devolve_o_destino_ao_host_sem_caminho_no_motivo(ambiente, estrago, campo,
+                                                                                       destino):
+    async with await _cliente() as c:
+        pacote = await _pacote(c)
+        entrada = _entrada_canonica(pacote)
+        if estrago == "sem_valor_da_causa":
+            entrada["placeholders"].pop("VALOR_DA_CAUSA")
+        else:
+            entrada.pop("pedidos_economicos")
+        ok, corpo = await _finalizar(c, entrada)
+    assert ok and corpo["status"] == "REFUSED" and corpo["error_code"] == "MISSING_REQUIRED_FIELD", corpo
+    assert corpo["campos_ausentes"][0]["campo"] == campo and corpo["campos_ausentes"][0]["destino"] == destino
+    assert corpo["campos_ausentes"][0]["descricao"]
+    for tecnico in ("placeholders", "VALOR_DA_CAUSA", "pedidos_economicos", "{"):
+        assert tecnico not in corpo["motivo"], corpo["motivo"]
+
+
+@pytest.mark.anyio
+@pytest.mark.docx_real
+async def test_T8_dado_no_nivel_errado_e_autocorrigido_pelo_contrato(ambiente):
+    async with await _cliente() as c:
+        pacote = await _pacote(c)
+        entrada = _entrada_canonica(pacote)
+        valor = entrada["placeholders"].pop("VALOR_DA_CAUSA")
+        entrada["VALOR_DA_CAUSA"] = valor
+        ok, primeira = await _finalizar(c, entrada)
+        assert not ok and "VALOR_DA_CAUSA" in primeira and "Extra inputs are not permitted" in primeira
+        # O host corrige só com o contrato publicado: destino do bloco inicial.
+        destino = _destinos_publicados(pacote["montagem_finalizador"])["VALOR_DA_CAUSA"]["destino"]
+        raiz, chave = destino.split(".")
+        entrada[raiz][chave] = entrada.pop("VALOR_DA_CAUSA")
+        ok, segunda = await _finalizar(c, entrada)
+    assert ok and segunda["status"] == "OK", segunda
+
+
+# ============================== descrições semânticas, sem estrutura interna
+
+REF_ESTRUTURAL = re.compile(r"(?i)\b(t[óo]pico|se[cç][ãa]o|bloco|item)s?\s+[\dIVX]+(\.\d+)*\b|\b(INV|REQ|ADR|PEND)-[A-Z0-9-]+")
+
+
+@pytest.mark.anyio
+async def test_contrato_do_host_nao_expoe_numeracao_nem_estrutura_interna(ambiente):
+    """O host precisa do SIGNIFICADO do dado, não de onde ele aparece no
+    Modelo Oficial: nenhuma descrição host-facing cita "tópico 2.6",
+    "seção 5", "bloco 4" ou identificador interno — genérico, sem lista
+    por campo. Campo, destino, descrição e condição continuam presentes."""
+    async with await _cliente() as c:
+        pacote = await _pacote(c)
+    destinos = pacote["montagem_finalizador"]["campos_documentais_finalizador"]
+    assert destinos
+    for d in destinos:
+        assert {"campo", "destino", "descricao", "exigido_quando"} <= set(d)
+        assert d["destino"].endswith("." + d["campo"]) and d["exigido_quando"]
+        assert len(d["descricao"]) > 10 and d["descricao"][-1] in ".…", d
+        assert not REF_ESTRUTURAL.search(d["descricao"]), d["descricao"]
+    tmx = pacote["topic_matrix"]
+    for g in [*tmx["topicos"], *tmx["secoes_incondicionais_host"]]:
+        for dado in g["dados_documentais_host"]:
+            for texto in [dado["descricao"], *dado["restricoes"]]:
+                assert not REF_ESTRUTURAL.search(texto), (dado["campo"], texto)
+
+
+def test_limpeza_e_generica_para_qualquer_referencia_estrutural():
+    import topic_matrix as tm
+    casos = [
+        "Valor da causa fixado pela parte autora na petição inicial, citado no tópico 2.6 (impugnação ao "
+        "valor da causa).",
+        "Dado discutido na seção 5 do modelo.",
+        "Valor usado no bloco 4 (reconvenção).",
+        "Pedido da autora (INV-QUALQUER-COISA).",
+    ]
+    for entrada in casos:
+        assert not REF_ESTRUTURAL.search(tm.limpar_referencias_estruturais(entrada)), entrada
+    assert tm.limpar_referencias_estruturais(casos[0]) == "Valor da causa fixado pela parte autora na petição inicial."
+
+
+@pytest.mark.anyio
+@pytest.mark.docx_real
+async def test_campos_ausentes_tambem_sem_estrutura_interna(ambiente):
+    async with await _cliente() as c:
+        pacote = await _pacote(c)
+        entrada = _entrada_canonica(pacote)
+        entrada["placeholders"].pop("VALOR_DA_CAUSA")
+        ok, corpo = await _finalizar(c, entrada)
+    ausente = corpo["campos_ausentes"][0]
+    assert ausente["campo"] == "VALOR_DA_CAUSA" and ausente["destino"] == "placeholders.VALOR_DA_CAUSA"
+    assert not REF_ESTRUTURAL.search(ausente["descricao"]), ausente["descricao"]

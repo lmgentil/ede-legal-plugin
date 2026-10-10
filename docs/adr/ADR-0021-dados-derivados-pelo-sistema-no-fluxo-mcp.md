@@ -559,3 +559,19 @@ toda orientação; regra da citação e exemplos neutros no schema; bloco
 no início do pacote, com o fluxo obrigatório e a autocorreção. `$ref` não
 expandidos por ora — só se o novo teste real do ChatGPT continuar
 falhando. Testes black-box: `tests/test_montagem_finalizador_mcp.py`.
+
+## Emenda — destinos publicados e chaves desconhecidas (10/10/2026, pré-deploy)
+
+**Contexto.** No teste real da 0.22.0 o ChatGPT chamou o finalizador duas
+vezes; ambas pararam em `valor_da_causa` / `MISSING_REQUIRED_FIELD` (o
+cenário canônico continua OK na mesma revisão). Chave fora do lugar era
+aceita e descartada em silêncio; o bloco inicial não dizia onde enviar os
+dados documentais; a recusa não dizia o destino.
+
+**Decisão.** `extra="forbid"` na entrada do finalizador; destinos de
+marco, pedidos e de todo dado documental no `montagem_finalizador`
+(projeção automática de `dados_documentais_host`); `campos_ausentes`
+estruturado em toda recusa `MISSING_REQUIRED_FIELD`. Sem mudança de regra
+jurídica, manifesto ou Modelo Oficial; `$ref` não expandidos.
+**Compatibilidade:** host que enviava chave fora do contrato passa a
+receber erro de schema com o nome da chave (antes, descarte silencioso).

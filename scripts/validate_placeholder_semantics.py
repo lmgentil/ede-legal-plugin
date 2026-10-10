@@ -880,6 +880,17 @@ def placeholders_por_visibilidade(bloco_dono_extra: dict | None = None) -> tuple
     return sempre, {**PLACEHOLDER_BLOCO_DONO, **extra}
 
 
+def placeholders_obrigatorios_ausentes(dados: dict, estados_blocos: dict,
+                                       bloco_dono_extra: dict | None = None) -> list:
+    """Nomes dos placeholders exigidos nesta composição (sempre visíveis,
+    ou do bloco ativo) que estão vazios/ausentes — a mesma regra de
+    `validar_modo_producao_final`, exposta para a resposta estruturada do
+    finalizador (campos_ausentes, gate de discoverability do host)."""
+    sempre_visiveis, bloco_dono = placeholders_por_visibilidade(bloco_dono_extra)
+    exigidos = list(sempre_visiveis) + [n for n, b in bloco_dono.items() if estados_blocos.get(b) == "INCLUIR"]
+    return [n for n in exigidos if dados.get(n) is None or not str(dados.get(n)).strip()]
+
+
 def validar_modo_producao_final(dados: dict, estados_blocos: dict,
                                 bloco_dono_extra: dict | None = None) -> list:
     """Gate fail-closed do modo PRODUÇÃO-FINAL (Gate 6.6-A §7/§25) — nunca

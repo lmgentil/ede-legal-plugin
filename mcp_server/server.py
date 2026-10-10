@@ -519,6 +519,16 @@ class OrientacaoAdvogado(BaseModel):
         None, description="Escopo: partes variáveis (partes_redigiveis_llm); omitido = o escopo padrão.")
 
 
+class CampoAusente(BaseModel):
+    """Para o HOST (gate de discoverability): o dado que faltou, o destino
+    exato no finalizador e a descrição curta — para autocorrigir e
+    reenviar, nunca para o advogado."""
+
+    campo: str
+    destino: str
+    descricao: str
+
+
 class EdeFinalizarPecaEntrada(BaseModel):
     """Entrada estruturada do finalizador genérico (Decisão 2 da
     ADR-0018). O cliente escolhe uma CAPACIDADE jurídica, nunca um
@@ -533,7 +543,15 @@ class EdeFinalizarPecaEntrada(BaseModel):
     PERÍMETRO, lidos de `scripts/finalizar_peca.py` (nunca um número
     solto redeclarado aqui — mesma disciplina de `FatoEntrada` acima); a
     validação estrutural de verdade (380/densidade/semântica/
-    produção-final) é sempre a do Core, executada depois."""
+    produção-final) é sempre a do Core, executada depois.
+
+    Chave desconhecida é RECUSADA (`extra="forbid"`), nunca ignorada nem
+    movida: um dado no lugar errado (ex.: `VALOR_DA_CAUSA` no topo em vez
+    de `placeholders.VALOR_DA_CAUSA`, `pedidos` em vez de
+    `pedidos_economicos`) era descartado em silêncio e virava "campo
+    ausente" — achado do teste real da 0.22.0."""
+
+    model_config = ConfigDict(extra="forbid")
 
     capability_id: str = Field(..., max_length=200)
     placeholders: Annotated[
@@ -683,6 +701,9 @@ class EdeFinalizarPecaResposta(BaseModel):
     """Orientações só de redação, não conferidas pelo sistema."""
     violacoes_fidelidade: list[ViolacaoFidelidade] | None = None
     """Só em REFUSED (stage fidelidade_comando): partes a reescrever."""
+    campos_ausentes: list[CampoAusente] | None = None
+    """Só em REFUSED por MISSING_REQUIRED_FIELD, para o host: onde enviar o
+    dado que faltou."""
     document_sha256: str | None = None
     document_size: int | None = None
     filename: str | None = None
@@ -698,6 +719,7 @@ def _campos_fidelidade(resultado) -> dict:
         "orientacoes_nao_verificadas": [OrientacaoNaoVerificada(**x)
                                         for x in resultado.orientacoes_nao_verificadas] or None,
         "violacoes_fidelidade": [ViolacaoFidelidade(**x) for x in resultado.violacoes_fidelidade] or None,
+        "campos_ausentes": [CampoAusente(**x) for x in resultado.campos_ausentes] or None,
     }
 
 
@@ -744,6 +766,10 @@ def ede_finalizar_peca(entrada: EdeFinalizarPecaEntrada) -> list[TextContent]:
       quantificado -> valor null.
     - Valores de exemplo são só formato: nunca os copie para a peça;
       extraia tudo dos documentos do caso.
+    - Cada dado vai no destino publicado em montagem_finalizador
+      (ex.: placeholders.VALOR_DA_CAUSA, pedidos_economicos). Chave
+      desconhecida ou fora do lugar é recusada, nunca ignorada; em
+      MISSING_REQUIRED_FIELD, `campos_ausentes` diz onde enviar.
     - Erro estrutural (validação, enum, campo ausente, marco malformado)
       corrigível com os documentos, o pacote do preparador ou o que o
       advogado já disse é do host: corrija e reenvie. Ao advogado, só

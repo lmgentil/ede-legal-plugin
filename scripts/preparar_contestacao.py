@@ -1355,12 +1355,16 @@ FLUXO_HOST = (
     "PREPARAR: chamar ede_preparar_contestacao e ler montagem_finalizador.",
     "DERIVAR: montar os dados técnicos a partir dos documentos e da instrução do advogado, sem perguntar.",
     "FINALIZAR: chamar ede_finalizar_peca.",
-    "AUTOCORRIGIR: erro de estrutura, enum, campo técnico ausente, natureza ausente ou marco malformado, "
-    "corrigível com os documentos, o pacote ou o que o advogado já disse -> corrigir e reenviar sem avisar o "
-    "advogado.",
+    "AUTOCORRIGIR: chave desconhecida, campo obrigatório ausente (campos_ausentes da resposta), campo no "
+    "destino errado, enum ou estrutura inválida, natureza ausente ou marco malformado, corrigível com os "
+    "documentos, o pacote ou o que o advogado já disse -> corrigir no destino publicado e reenviar "
+    "ede_finalizar_peca, sem avisar o advogado da falha intermediária.",
     "PERGUNTAR ao advogado só por decisão jurídica faltante, fato ausente, documentos contraditórios ou "
     "DataJud indisponível (pendencias de NEEDS_INPUT), em linguagem jurídica.",
 )
+
+REGRA_DESTINOS_HOST = ("Cada dado vai exatamente no destino publicado (destino). O finalizador recusa chave "
+                      "desconhecida ou fora do lugar, nunca a ignora nem a move: corrija o caminho e reenvie.")
 
 PROIBIDO_HOST = (
     "pedir ao advogado que adeque, escolha ou informe campo técnico do MCP (tipo do marco, natureza, JSON, "
@@ -1369,28 +1373,39 @@ PROIBIDO_HOST = (
 )
 
 
-def montar_bloco_montagem_finalizador(manifesto: dict | None) -> dict | None:
-    """Bloco curto e machine-readable, publicado NO INÍCIO do pacote: como
-    o host monta a chamada ao finalizador. Só no contrato com manifesto
-    (as entradas estruturadas não existem no legado)."""
+def montar_bloco_montagem_finalizador(manifesto: dict | None, catalogo: dict | None = None,
+                                      schema: dict | None = None) -> dict | None:
+    """Bloco curto e machine-readable, publicado NO INÍCIO do pacote: o que
+    o host extrai, quando é exigido e ONDE envia ao finalizador. Só no
+    contrato com manifesto (as entradas estruturadas não existem no
+    legado). Os dados documentais vêm da projeção automática do contrato
+    do host (`topic_matrix.campos_documentais_finalizador`), nunca de uma
+    lista paralela."""
     if manifesto is None or not manifesto.get("entradas_estruturadas_publicas"):
         return None
+    topico_pedidos = next((t["chave"] for t in manifesto.get("topicos_decisao_advogado") or []
+                           if t.get("entrada_estruturada") == "pedidos_economicos"), None)
     return {
         "aviso_exemplos": AVISO_EXEMPLOS,
+        "regra_destinos": REGRA_DESTINOS_HOST,
         "marco_tempestividade": {
+            "destino": "marco_tempestividade",
             "regra": REGRA_MARCO_HOST,
             "formato_data": "DD/MM/AAAA",
             "exemplo": {"advogado_diz": "Citação: 21/09/2026", "host_envia": dict(EXEMPLO_MARCO_TEMPESTIVIDADE),
                         "aviso": AVISO_EXEMPLOS},
         },
         "pedidos_economicos": {
-            "quando": "impugnação ao valor da causa marcada SIM",
+            "destino": "pedidos_economicos",
+            "exigido_quando": {"topico": topico_pedidos, "resposta": "SIM"} if topico_pedidos else None,
             "campos_obrigatorios": list(CAMPOS_PEDIDO_ECONOMICO),
             "naturezas": list(pe.NATUREZAS),
             "regra": REGRA_PEDIDOS_HOST,
             "exemplos": [dict(p) for p in EXEMPLOS_PEDIDOS_ECONOMICOS],
             "aviso_exemplos": AVISO_EXEMPLOS,
         },
+        "campos_documentais_finalizador": (tm.campos_documentais_finalizador(manifesto, catalogo, schema)
+                                           if catalogo is not None and schema is not None else []),
         "fluxo_obrigatorio_host": list(FLUXO_HOST),
         "proibido": list(PROIBIDO_HOST),
     }
@@ -1539,7 +1554,7 @@ def preparar_contexto_contestacao(
     pacote = {
         "capability_id": capability_id,
         # Primeiro, antes das seções volumosas (gate de discoverability).
-        **({"montagem_finalizador": montagem} if (montagem := montar_bloco_montagem_finalizador(manifesto)) else {}),
+        **({"montagem_finalizador": montagem} if (montagem := montar_bloco_montagem_finalizador(manifesto, catalogo, schema)) else {}),
         "readiness": {
             "contestacao_status": "READY",
             "rag": resultado_rag.status,
